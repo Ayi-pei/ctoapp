@@ -16,3 +16,10 @@ export type PriceDataPoint = {
   time: string;
   price: number;
 };
+
+export type MarketSummary = {
+    pair: string;
+    price: number;
+    change: number;
+    volume: number;
+};

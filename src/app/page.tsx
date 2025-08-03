@@ -8,11 +8,12 @@ import { OrderBook } from "@/components/order-book";
 import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { MarketOverview } from "@/components/market-overview";
 
 export default function Home() {
-  const { tradingPair, changeTradingPair, data, availablePairs } = useMarketData();
+  const { tradingPair, changeTradingPair, data, availablePairs, summaryData } = useMarketData();
 
-  if (!data) {
+  if (!data || !summaryData) {
     return (
         <div className="min-h-screen bg-background p-4">
              <TradeHeader 
@@ -21,6 +22,9 @@ export default function Home() {
                 onTradingPairChange={changeTradingPair}
             />
             <main className="p-4">
+                <div className="mb-4">
+                  <Skeleton className="h-[90px] w-full" />
+                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
                     <div className="flex flex-col gap-4">
                         <Skeleton className="h-[460px] w-full" />
@@ -44,6 +48,9 @@ export default function Home() {
         onTradingPairChange={changeTradingPair}
       />
       <main className="p-4">
+        <div className="mb-4">
+          <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
           <div className="flex flex-col gap-4">
             <Card>

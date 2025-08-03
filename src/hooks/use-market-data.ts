@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Order, Trade, PriceDataPoint } from '@/types';
+import { Order, Trade, PriceDataPoint, MarketSummary } from '@/types';
 
 const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
 
@@ -12,9 +12,18 @@ const randomInRange = (min: number, max: number) => Math.random() * (max - min) 
 // Helper function to format time
 const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour12: false });
 
+const getBasePrice = (pair: string) => {
+    switch (pair) {
+        case 'BTC/USDT': return 68000;
+        case 'ETH/USDT': return 3800;
+        case 'SOL/USDT': return 165;
+        default: return 100;
+    }
+}
+
 // Generates initial data for a given pair
 const generateInitialData = (pair: string) => {
-  const basePrice = pair === 'BTC/USDT' ? 68000 : pair === 'ETH/USDT' ? 3800 : 165;
+  const basePrice = getBasePrice(pair);
 
   // Price chart data
   const priceData: PriceDataPoint[] = [];
@@ -31,8 +40,8 @@ const generateInitialData = (pair: string) => {
   // Order book data
   const asks: Order[] = [];
   const bids: Order[] = [];
-  let askPrice = basePrice * 1.001;
-  let bidPrice = basePrice * 0.999;
+  let askPrice = lastPrice * 1.0005;
+  let bidPrice = lastPrice * 0.9995;
   for (let i = 0; i < 20; i++) {
     const askSize = randomInRange(0.01, 2);
     asks.push({ price: askPrice, size: askSize, total: askPrice * askSize });
@@ -42,12 +51,15 @@ const generateInitialData = (pair: string) => {
     bids.push({ price: bidPrice, size: bidSize, total: bidPrice * bidSize });
     bidPrice *= randomInRange(0.9997, 0.9999);
   }
+   bids.sort((a,b) => b.price - a.price);
+   asks.sort((a,b) => a.price - b.price);
+
 
   // Trade history data
   const trades: Trade[] = [];
   for (let i = 0; i < 30; i++) {
     const type = Math.random() > 0.5 ? 'buy' : 'sell';
-    const price = basePrice * randomInRange(0.998, 1.002);
+    const price = lastPrice * randomInRange(0.999, 1.001);
     const amount = randomInRange(0.01, 1.5);
     trades.push({
       id: `trade-${Date.now()}-${i}`,
@@ -58,81 +70,124 @@ const generateInitialData = (pair: string) => {
     });
   }
   trades.sort((a, b) => new Date(`1970-01-01T${b.time}Z`).getTime() - new Date(`1970-01-01T${a.time}Z`).getTime());
+  
+  const price24hAgo = basePrice * randomInRange(0.95, 1.05);
+  const currentPrice = priceData[priceData.length - 1].price;
+  const change = ((currentPrice - price24hAgo) / price24hAgo) * 100;
 
-  return { priceData, orderBook: { asks, bids }, trades };
+
+  return { 
+      priceData, 
+      orderBook: { asks, bids }, 
+      trades,
+      summary: {
+          pair,
+          price: currentPrice,
+          change: change,
+          volume: randomInRange(1000000, 50000000)
+      }
+  };
 };
 
 export const useMarketData = () => {
   const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
-  const [data, setData] = useState<{
-    priceData: PriceDataPoint[];
-    orderBook: { asks: Order[]; bids: Order[]; };
-    trades: Trade[];
-  } | null>(null);
+  const [allData, setAllData] = useState<Map<string, any>>(new Map());
+  const [isInitialised, setIsInitialised] = useState(false);
 
   useEffect(() => {
-    setData(generateInitialData(tradingPair));
-  }, [tradingPair]);
+    const initialData = new Map();
+    TRADING_PAIRS.forEach(pair => {
+        initialData.set(pair, generateInitialData(pair));
+    });
+    setAllData(initialData);
+    setIsInitialised(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const changeTradingPair = useCallback((newPair: string) => {
     if (TRADING_PAIRS.includes(newPair)) {
       setTradingPair(newPair);
-      setData(generateInitialData(newPair));
     }
   }, []);
 
   useEffect(() => {
-    if (!data) return;
+    if (!isInitialised) return;
+
     const interval = setInterval(() => {
-      setData(prevData => {
-        if (!prevData) return null;
-        // Update Price Chart
-        const newPriceData = [...prevData.priceData.slice(1)];
-        const lastDataPoint = newPriceData[newPriceData.length - 1];
-        const newPrice = lastDataPoint.price * randomInRange(0.9995, 1.0005);
-        newPriceData.push({
-          time: formatTime(new Date()),
-          price: newPrice,
+        setAllData(prevAllData => {
+            const newAllData = new Map(prevAllData);
+
+            newAllData.forEach((prevData, pair) => {
+                if (!prevData) return;
+                 // Update Price
+                const oldPrice = prevData.summary.price;
+                const newPrice = oldPrice * randomInRange(0.9995, 1.0005);
+                const price24hAgo = prevData.summary.price / (1 + prevData.summary.change / 100)
+                const newChange = ((newPrice - price24hAgo) / price24hAgo) * 100;
+
+
+                const newSummary = {
+                    ...prevData.summary,
+                    price: newPrice,
+                    change: newChange,
+                };
+                
+                // If it's the active pair, update everything
+                if (pair === tradingPair) {
+                    // Update Price Chart
+                    const newPriceData = [...prevData.priceData.slice(1)];
+                    newPriceData.push({
+                        time: formatTime(new Date()),
+                        price: newPrice,
+                    });
+
+                    // Update Order Book
+                    const newAsks = prevData.orderBook.asks.map(order => ({
+                        ...order,
+                        size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
+                    })).filter(order => order.size > 0.001).slice(0, 20);
+                    
+                    const newBids = prevData.orderBook.bids.map(order => ({
+                        ...order,
+                        size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
+                    })).filter(order => order.size > 0.001).slice(0, 20);
+
+                    // Update Trades
+                    const newTrades = [...prevData.trades];
+                    if (Math.random() > 0.7) {
+                        const type = Math.random() > 0.5 ? 'buy' : 'sell';
+                        const price = newPrice * randomInRange(0.9998, 1.0002);
+                        const amount = randomInRange(0.01, 1.5);
+                        const newTrade: Trade = {
+                            id: `trade-${Date.now()}`,
+                            type,
+                            price,
+                            amount,
+                            time: formatTime(new Date()),
+                        };
+                        newTrades.unshift(newTrade);
+                        if (newTrades.length > 50) newTrades.pop();
+                    }
+                    newAllData.set(pair, {
+                        ...prevData,
+                        priceData: newPriceData,
+                        orderBook: { asks: newAsks, bids: newBids },
+                        trades: newTrades,
+                        summary: newSummary
+                    });
+                } else {
+                     newAllData.set(pair, { ...prevData, summary: newSummary});
+                }
+            });
+            return newAllData;
         });
-
-        // Update Order Book
-        const newAsks = prevData.orderBook.asks.map(order => ({
-          ...order,
-          size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
-        })).filter(order => order.size > 0.001).slice(0, 20);
-        
-        const newBids = prevData.orderBook.bids.map(order => ({
-          ...order,
-          size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
-        })).filter(order => order.size > 0.001).slice(0, 20);
-
-        // Update Trades
-        const newTrades = [...prevData.trades];
-        if (Math.random() > 0.7) {
-            const type = Math.random() > 0.5 ? 'buy' : 'sell';
-            const price = newPrice * randomInRange(0.9998, 1.0002);
-            const amount = randomInRange(0.01, 1.5);
-            const newTrade: Trade = {
-                id: `trade-${Date.now()}`,
-                type,
-                price,
-                amount,
-                time: formatTime(new Date()),
-            };
-            newTrades.unshift(newTrade);
-            if (newTrades.length > 50) newTrades.pop();
-        }
-
-        return {
-          priceData: newPriceData,
-          orderBook: { asks: newAsks, bids: newBids },
-          trades: newTrades,
-        };
-      });
     }, 1500); // Update every 1.5 seconds
 
     return () => clearInterval(interval);
-  }, [tradingPair, data]);
+  }, [isInitialised, tradingPair]);
 
-  return { tradingPair, changeTradingPair, data, availablePairs: TRADING_PAIRS };
+  const data = allData.get(tradingPair) || null;
+  const summaryData = Array.from(allData.values()).map(d => d.summary);
+
+  return { tradingPair, changeTradingPair, data, availablePairs: TRADING_PAIRS, summaryData };
 };
