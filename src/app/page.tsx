@@ -7,7 +7,6 @@ import { OrderForm } from "@/components/order-form";
 import { OrderBook } from "@/components/order-book";
 import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
 import { MarketOverview } from "@/components/market-overview";
 
 export default function Home() {
@@ -53,11 +52,6 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
           <div className="flex flex-col gap-4">
-            <Card>
-              <CardContent className="h-[460px] flex items-center justify-center">
-                <p>价格图表当前不可用。</p>
-              </CardContent>
-            </Card>
             <OrderForm />
           </div>
           <div className="flex flex-col gap-4">
