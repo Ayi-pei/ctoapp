@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -63,7 +64,15 @@ const generateInitialData = (pair: string) => {
 
 export const useMarketData = () => {
   const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
-  const [data, setData] = useState(generateInitialData(tradingPair));
+  const [data, setData] = useState<{
+    priceData: PriceDataPoint[];
+    orderBook: { asks: Order[]; bids: Order[]; };
+    trades: Trade[];
+  } | null>(null);
+
+  useEffect(() => {
+    setData(generateInitialData(tradingPair));
+  }, [tradingPair]);
 
   const changeTradingPair = useCallback((newPair: string) => {
     if (TRADING_PAIRS.includes(newPair)) {
@@ -73,8 +82,10 @@ export const useMarketData = () => {
   }, []);
 
   useEffect(() => {
+    if (!data) return;
     const interval = setInterval(() => {
       setData(prevData => {
+        if (!prevData) return null;
         // Update Price Chart
         const newPriceData = [...prevData.priceData.slice(1)];
         const lastDataPoint = newPriceData[newPriceData.length - 1];
@@ -121,7 +132,7 @@ export const useMarketData = () => {
     }, 1500); // Update every 1.5 seconds
 
     return () => clearInterval(interval);
-  }, [tradingPair]);
+  }, [tradingPair, data]);
 
   return { tradingPair, changeTradingPair, data, availablePairs: TRADING_PAIRS };
 };
