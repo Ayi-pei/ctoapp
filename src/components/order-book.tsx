@@ -23,15 +23,16 @@ export function OrderBook({ asks, bids, tradingPair }: OrderBookProps) {
 
     return (
       <TableRow key={order.price} className="relative text-xs">
-        <div 
-          className="absolute top-0 bottom-0 right-0 h-full"
-          style={{ width: `${backgroundSize}%`, backgroundColor: color, zIndex: 0 }}
-        ></div>
         <TableCell className={`relative z-10 p-1 text-left ${type === 'ask' ? 'text-red-500' : 'text-green-500'}`}>
             {order.price.toFixed(2)}
         </TableCell>
         <TableCell className="relative z-10 p-1 text-right">{order.size.toFixed(4)}</TableCell>
-        <TableCell className="relative z-10 p-1 text-right">{order.total.toFixed(2)}</TableCell>
+        <TableCell className="relative z-10 p-1 text-right">
+          <div
+ style={{ width: `${backgroundSize}%`, backgroundColor: color, zIndex: 0, position: 'absolute', top: 0, bottom: 0, right: 0, height: '100%' }}
+ />
+ {order.total.toFixed(2)}
+ </TableCell>
       </TableRow>
     );
   };

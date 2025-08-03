@@ -83,7 +83,7 @@ export function MarketExplanation({ orderBook, tradingPair }: MarketExplanationP
             </div>
           ) : (
             <ScrollArea className="h-72 w-full rounded-md border p-4">
-                <div className="prose prose-invert prose-sm text-foreground whitespace-pre-wrap">
+                <div className="text-foreground whitespace-pre-wrap">
                   {explanation}
                 </div>
             </ScrollArea>
