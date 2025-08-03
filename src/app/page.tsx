@@ -3,11 +3,11 @@
 
 import { useMarketData } from "@/hooks/use-market-data";
 import { TradeHeader } from "@/components/trade-header";
-import { PriceChart } from "@/components/price-chart";
 import { OrderForm } from "@/components/order-form";
 import { OrderBook } from "@/components/order-book";
 import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Home() {
   const { tradingPair, changeTradingPair, data, availablePairs } = useMarketData();
@@ -46,7 +46,11 @@ export default function Home() {
       <main className="p-4">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
           <div className="flex flex-col gap-4">
-            <PriceChart priceData={data.priceData} tradingPair={tradingPair} />
+            <Card>
+              <CardContent className="h-[460px] flex items-center justify-center">
+                <p>价格图表当前不可用。</p>
+              </CardContent>
+            </Card>
             <OrderForm />
           </div>
           <div className="flex flex-col gap-4">
