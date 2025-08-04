@@ -19,18 +19,28 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedBalance = localStorage.getItem('userBalance');
-    if (storedBalance) {
-      setBalance(parseFloat(storedBalance));
-    } else {
+    try {
+      const storedBalance = localStorage.getItem('userBalance');
+      if (storedBalance) {
+        setBalance(parseFloat(storedBalance));
+      } else {
+        setBalance(INITIAL_BALANCE);
+      }
+    } catch (error) {
+      console.error("Could not access localStorage.", error);
       setBalance(INITIAL_BALANCE);
+    } finally {
+        setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     if (!isLoading) {
-      localStorage.setItem('userBalance', balance.toString());
+      try {
+        localStorage.setItem('userBalance', balance.toString());
+      } catch (error) {
+         console.error("Could not access localStorage.", error);
+      }
     }
   }, [balance, isLoading]);
 
@@ -44,7 +54,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   return (
     <BalanceContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </BalanceContext.Provider>
   );
 }
