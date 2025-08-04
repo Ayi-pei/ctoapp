@@ -11,11 +11,11 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { useBalance } from "@/hooks/use-balance";
 
 export default function TradePage() {
-  const { tradingPair, changeTradingPair, data, summaryData } = useMarketData();
+  const { tradingPair, data, summaryData, availablePairs, changeTradingPair } = useMarketData();
   const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance(10000);
 
   const renderContent = () => {
-    if (!data || !summaryData || isBalanceLoading) {
+    if (!data || !summaryData.length || isBalanceLoading) {
       return (
         <main className="p-4">
             <div className="mb-4">
@@ -37,7 +37,7 @@ export default function TradePage() {
     return (
       <main className="p-4">
         <div className="mb-4">
-            <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} currentPair={tradingPair} />
+            <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4">
             <div className="flex flex-col gap-4">

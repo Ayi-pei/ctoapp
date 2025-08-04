@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, Trade, PriceDataPoint, MarketSummary } from '@/types';
 
-const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
+const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
 
 // Helper function to generate a random number within a range
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -17,6 +17,10 @@ const getBasePrice = (pair: string) => {
         case 'BTC/USDT': return 68000;
         case 'ETH/USDT': return 3800;
         case 'SOL/USDT': return 165;
+        case 'XRP/USDT': return 0.5;
+        case 'LTC/USDT': return 85;
+        case 'BNB/USDT': return 600;
+        case 'MATIC/USDT': return 0.7;
         default: return 100;
     }
 }
@@ -42,13 +46,18 @@ const generateInitialData = (pair: string) => {
   const bids: Order[] = [];
   let askPrice = lastPrice * 1.0005;
   let bidPrice = lastPrice * 0.9995;
+  let cumulativeAskSize = 0;
+  let cumulativeBidSize = 0;
+
   for (let i = 0; i < 20; i++) {
     const askSize = randomInRange(0.01, 2);
-    asks.push({ price: askPrice, size: askSize, total: askPrice * askSize });
+    cumulativeAskSize += askSize;
+    asks.push({ price: askPrice, size: askSize, total: cumulativeAskSize });
     askPrice *= randomInRange(1.0001, 1.0003);
 
     const bidSize = randomInRange(0.01, 2);
-    bids.push({ price: bidPrice, size: bidSize, total: bidPrice * bidSize });
+    cumulativeBidSize += bidSize;
+    bids.push({ price: bidPrice, size: bidSize, total: cumulativeBidSize });
     bidPrice *= randomInRange(0.9997, 0.9999);
   }
    bids.sort((a,b) => b.price - a.price);
