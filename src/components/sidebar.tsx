@@ -41,7 +41,7 @@ export function Sidebar() {
       <nav>
         <ul>
           {navItems.map((item) => (
-            <li key={item.href}>
+            <li key={item.label}>
               <Link href={item.href}>
                 <span
                   className={cn(

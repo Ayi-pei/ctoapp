@@ -39,7 +39,7 @@ export function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-background md:hidden z-50">
       <ul className="flex justify-around">
         {itemsToShow.slice(0, 5).map((item) => ( // Show max 5 items on mobile
-          <li key={item.href} className="flex-1">
+          <li key={item.label} className="flex-1">
             <Link href={item.href}>
               <span
                 className={cn(
