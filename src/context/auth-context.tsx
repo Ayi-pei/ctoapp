@@ -6,12 +6,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export type User = {
   username: string;
   isTestUser: boolean;
+  isAdmin: boolean;
   avatar?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
+  isAdmin: boolean;
   login: (username: string, password: string) => boolean;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
@@ -22,46 +24,83 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   useEffect(() => {
     try {
       const loggedInUsername = localStorage.getItem('loggedInUser');
-      if (loggedInUsername) {
+      const adminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+
+      if (adminLoggedIn === 'true' && loggedInUsername) {
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        setUser({ 
+            username: loggedInUsername, 
+            isTestUser: false,
+            isAdmin: true,
+            avatar: `https://placehold.co/100x100.png?text=A`
+        });
+      } else if (loggedInUsername) {
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const currentUser = users.find((u: any) => u.username === loggedInUsername);
         if (currentUser) {
           setIsAuthenticated(true);
+          setIsAdmin(false);
           setUser({ 
               username: currentUser.username, 
               isTestUser: currentUser.isTestUser || false,
+              isAdmin: false,
               avatar: currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.username.charAt(0).toUpperCase()}`
           });
         }
       } else {
         setIsAuthenticated(false);
         setUser(null);
+        setIsAdmin(false);
       }
     } catch (e) {
         console.error("Failed to parse auth data from localStorage", e);
         // Clear potentially corrupted data
         localStorage.removeItem('loggedInUser');
+        localStorage.removeItem('isAdminLoggedIn');
         setIsAuthenticated(false);
         setUser(null);
+        setIsAdmin(false);
     }
   }, []);
 
   const login = (username: string, password: string): boolean => {
+    // Admin Login
+    if (username === 'demo123' && password === '111222') {
+        localStorage.setItem('loggedInUser', username);
+        localStorage.setItem('isAdminLoggedIn', 'true');
+        const adminData = {
+            username: username,
+            isTestUser: false,
+            isAdmin: true,
+            avatar: `https://placehold.co/100x100.png?text=A`
+        }
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        setUser(adminData);
+        return true;
+    }
+
+    // Regular User Login
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       const foundUser = users.find((u: any) => u.username === username && u.password === password);
       if (foundUser) {
         localStorage.setItem('loggedInUser', username);
+        localStorage.removeItem('isAdminLoggedIn');
         const userData = { 
             username: foundUser.username, 
             isTestUser: foundUser.isTestUser || false,
+            isAdmin: false,
             avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`
         };
         setIsAuthenticated(true);
+        setIsAdmin(false);
         setUser(userData);
         return true;
       }
@@ -74,14 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem('loggedInUser');
-    // We don't clear all user data on logout, just the logged in state
+    localStorage.removeItem('isAdminLoggedIn');
     setIsAuthenticated(false);
     setUser(null);
+    setIsAdmin(false);
     // Redirect handled by components
   };
   
   const updateUser = (userData: Partial<User>) => {
-    if (user) {
+    if (user && !isAdmin) {
         const updatedUser = { ...user, ...userData };
         setUser(updatedUser);
 
@@ -100,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, isAdmin, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

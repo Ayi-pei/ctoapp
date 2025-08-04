@@ -21,23 +21,19 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isAdmin } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/');
+      if (isAdmin) {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [isAuthenticated, router]);
-
-  const form = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: '',
-      password: '',
-    },
-  });
+  }, [isAuthenticated, isAdmin, router]);
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
     const success = login(values.username, values.password);

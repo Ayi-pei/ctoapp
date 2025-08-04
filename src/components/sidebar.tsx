@@ -5,24 +5,28 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, LineChart, CandlestickChart, Wallet, User, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/auth-context';
 
 const navItems = [
-  { href: '/dashboard', label: '首页', icon: Home },
-  { href: '/market', label: '行情', icon: LineChart },
-  { href: '/trade', label: '交易', icon: CandlestickChart },
-  { href: '/assets', label: '资产', icon: Wallet },
-  { href: '/admin', label: '管理', icon: Shield },
-  { href: '/profile', label: '我的', icon: User },
+  { href: '/dashboard', label: '首页', icon: Home, admin: false },
+  { href: '/market', label: '行情', icon: LineChart, admin: false },
+  { href: '/trade', label: '交易', icon: CandlestickChart, admin: false },
+  { href: '/assets', label: '资产', icon: Wallet, admin: false },
+  { href: '/admin', label: '管理', icon: Shield, admin: true },
+  { href: '/profile', label: '我的', icon: User, admin: false },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
+
+  const filteredNavItems = navItems.filter(item => item.admin ? isAdmin : !isAdmin);
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-border p-4 hidden md:block">
       <nav>
         <ul>
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <li key={item.href}>
               <Link href={item.href}>
                 <span

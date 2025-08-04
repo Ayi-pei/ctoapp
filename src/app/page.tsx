@@ -6,16 +6,20 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function Home() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
     } else {
-      router.push('/dashboard');
+      if (isAdmin) {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isAdmin, router]);
 
   return null; // or a loading spinner
 }

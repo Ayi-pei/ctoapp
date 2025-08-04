@@ -9,6 +9,7 @@ import { UserDetailsDialog } from '@/components/user-details-dialog';
 import { useAuth } from '@/context/auth-context';
 import type { User as AuthUser } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
+import { useRouter } from 'next/navigation';
 
 type UserData = AuthUser & {
     registeredAt: string; // Assuming date is stored as string
@@ -23,7 +24,8 @@ type UserBalance = {
 }
 
 export default function AdminPage() {
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
+    const router = useRouter();
     const [users, setUsers] = useState<UserData[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [selectedUserBalances, setSelectedUserBalances] = useState<UserBalance | null>(null);
@@ -57,12 +59,14 @@ export default function AdminPage() {
         setIsDetailsOpen(true);
     };
 
-    // TODO: Add admin role protection for this page
-    if (!user) {
+    if (!user || !isAdmin) {
+        useEffect(() => {
+            router.push('/login');
+        }, [router]);
         return (
              <DashboardLayout>
                 <div className="p-8 text-center">
-                    <p>您需要登录才能访问此页面。</p>
+                    <p>您需要以管理员身份登录才能访问此页面。</p>
                 </div>
             </DashboardLayout>
         )
