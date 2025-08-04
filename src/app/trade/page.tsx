@@ -16,12 +16,10 @@ import { useSearchParams } from 'next/navigation';
 import React from 'react';
 
 
-function TradePageContent() {
+function TradePageContent({ defaultTab }: { defaultTab: string }) {
   const marketData = useMarketData();
   const { tradingPair, data, summaryData } = marketData;
   const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance();
-  const searchParams = useSearchParams();
-  const defaultTab = searchParams.get('tab') === 'contract' ? 'contract' : 'spot';
 
   const renderContent = () => {
     if (!data || !summaryData.length || isBalanceLoading) {
@@ -124,11 +122,19 @@ function TradePageContent() {
   );
 }
 
+function TradePageWrapper() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab');
+  const defaultTab = tab === 'contract' ? 'contract' : 'spot';
+
+  return <TradePageContent defaultTab={defaultTab} />;
+}
+
 
 export default function TradePage() {
     return (
-        <React.Suspense fallback={<div>Loading...</div>}>
-            <TradePageContent />
+        <React.Suspense fallback={<DashboardLayout><Skeleton className="h-full w-full" /></DashboardLayout>}>
+            <TradePageWrapper />
         </React.Suspense>
     )
 }
