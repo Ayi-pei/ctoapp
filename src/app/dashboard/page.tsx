@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRight, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, Users } from "lucide-react";
+import { ArrowRight, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, Users, ShoppingBag } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,18 +14,6 @@ import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-
-
-const iconMap: { [key: string]: React.ElementType } = {
-    '质押挖矿': Gem,
-    '助力贷': Landmark,
-    '闪兑': Repeat,
-    '下载中心': Download,
-    '推广中心': Gift,
-    '秒合约': Scale,
-    '理财': Users,
-    '币币交易': ArrowRight,
-};
 
 
 export default function DashboardPage() {
@@ -41,7 +29,7 @@ export default function DashboardPage() {
         { name: '下载中心', icon: Download, href: '#' },
         { name: '推广中心', icon: Gift, href: '#' },
         { name: '秒合约', icon: Scale, href: '/trade' },
-        { name: '理财', icon: Users, href: '/finance' },
+        { name: '理财', icon: ShoppingBag, href: '/finance' },
         { name: '币币交易', icon: ArrowRight, href: '/trade' },
     ];
     
