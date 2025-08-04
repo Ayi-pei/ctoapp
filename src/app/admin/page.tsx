@@ -30,6 +30,12 @@ export default function AdminPage() {
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [selectedUserBalances, setSelectedUserBalances] = useState<UserBalance | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    
+    useEffect(() => {
+        if (!isAdmin) {
+            router.push('/login');
+        }
+    }, [isAdmin, router]);
 
     useEffect(() => {
         // In a real app, you would fetch this from a protected API endpoint.
@@ -60,9 +66,6 @@ export default function AdminPage() {
     };
 
     if (!user || !isAdmin) {
-        useEffect(() => {
-            router.push('/login');
-        }, [router]);
         return (
              <DashboardLayout>
                 <div className="p-8 text-center">
