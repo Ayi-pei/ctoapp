@@ -25,6 +25,14 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: '',
+      password: '',
+    },
+  });
+
   useEffect(() => {
     if (isAuthenticated) {
       if (isAdmin) {
