@@ -15,14 +15,46 @@ type InvestmentProductProps = {
     maxInvestment: number;
     lockPeriod: number;
     progress: number;
+    icon: React.ReactNode;
 };
 
-const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress }: InvestmentProductProps) => (
+const MfIcon = () => (
+    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <radialGradient id="mfGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
+                <stop offset="60%" style={{ stopColor: '#E57373' }} />
+                <stop offset="100%" style={{ stopColor: '#D32F2F' }} />
+            </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="45" fill="url(#mfGradient)" />
+        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
+        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
+    </svg>
+);
+
+const SmIcon = () => (
+    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <radialGradient id="smGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
+                <stop offset="60%" style={{ stopColor: '#81C784' }} />
+                <stop offset="100%" style={{ stopColor: '#388E3C' }} />
+            </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="45" fill="url(#smGradient)" />
+        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
+        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
+    </svg>
+);
+
+
+const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress, icon }: InvestmentProductProps) => (
     <Card className="bg-card">
         <CardContent className="p-4 space-y-4">
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                     <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
+                     {icon}
                     <div>
                         <h4 className="font-semibold">{name}</h4>
                     </div>
@@ -63,14 +95,21 @@ const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockP
 
 
 export default function FinancePage() {
-    const valueAddedProducts: InvestmentProductProps[] = [
+    const valueAddedProducts: Omit<InvestmentProductProps, 'icon'>[] = [
         { name: "USDT Metfone contract", rate: 0.75, minInvestment: 500, maxInvestment: 200000, lockPeriod: 15, progress: 25 },
         { name: "USDT Smart contract", rate: 0.90, minInvestment: 1000, maxInvestment: 500000, lockPeriod: 30, progress: 60 },
     ];
 
-    const regularProducts: InvestmentProductProps[] = [
+    const regularProducts: Omit<InvestmentProductProps, 'icon'>[] = [
         { name: "USDT Regular Saver", rate: 0.35, minInvestment: 100, maxInvestment: 50000, lockPeriod: 7, progress: 78 },
     ];
+    
+    const productIcons: { [key: string]: React.ReactNode } = {
+        "USDT Metfone contract": <MfIcon />,
+        "USDT Smart contract": <SmIcon />,
+        "USDT Regular Saver": <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
+    }
+
 
     const renderEmptyState = (text: string) => (
          <Card>
@@ -106,7 +145,7 @@ export default function FinancePage() {
                     <TabsContent value="value-added">
                         <div className="space-y-4">
                            {valueAddedProducts.map(product => (
-                                <InvestmentProductCard key={product.name} {...product} />
+                                <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} />
                            ))}
                         </div>
                     </TabsContent>
@@ -117,7 +156,7 @@ export default function FinancePage() {
                         <div className="space-y-4">
                            {regularProducts.length > 0 ? (
                                 regularProducts.map(product => (
-                                    <InvestmentProductCard key={product.name} {...product} />
+                                    <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} />
                                 ))
                            ) : (
                                 renderEmptyState("暂无普通产品")
