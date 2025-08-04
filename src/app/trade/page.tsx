@@ -15,7 +15,6 @@ import { OrderForm } from "@/components/order-form";
 import { useSearchParams } from 'next/navigation';
 import React from 'react';
 
-
 function TradePageContent({ defaultTab }: { defaultTab: string }) {
   const marketData = useMarketData();
   const { tradingPair, data, summaryData } = marketData;
@@ -122,7 +121,8 @@ function TradePageContent({ defaultTab }: { defaultTab: string }) {
   );
 }
 
-function TradePageWrapper() {
+
+function TradePage() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
   const defaultTab = tab === 'contract' ? 'contract' : 'spot';
@@ -131,10 +131,10 @@ function TradePageWrapper() {
 }
 
 
-export default function TradePage() {
+export default function TradePageWrapper() {
     return (
         <React.Suspense fallback={<DashboardLayout><Skeleton className="h-full w-full" /></DashboardLayout>}>
-            <TradePageWrapper />
+            <TradePage />
         </React.Suspense>
     )
 }
