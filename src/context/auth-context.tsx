@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type User = {
+export type User = {
   username: string;
   isTestUser: boolean;
   avatar?: string;
@@ -74,9 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem('loggedInUser');
-    localStorage.removeItem('userBalances'); // Clear balances on logout
+    // We don't clear all user data on logout, just the logged in state
     setIsAuthenticated(false);
     setUser(null);
+    // Redirect handled by components
   };
   
   const updateUser = (userData: Partial<User>) => {
