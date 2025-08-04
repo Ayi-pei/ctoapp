@@ -5,13 +5,31 @@ export type Order = {
   total: number;
 };
 
-export type Trade = {
+// Represents a market-wide trade event for the history
+export type MarketTrade = {
   id: string;
   type: 'buy' | 'sell';
   price: number;
   amount: number;
   time: string;
 };
+
+
+// Represents a user's contract trade action
+export type ContractTrade = {
+  type: 'buy' | 'sell';
+  amount: number; // This is the amount in USDT for the contract
+};
+
+// Represents a user's spot trade action
+export type SpotTrade = {
+    type: 'buy' | 'sell';
+    baseAsset: string;
+    quoteAsset: string;
+    amount: number; // amount of base asset
+    total: number; // total in quote asset
+}
+
 
 export type PriceDataPoint = {
   time: string;

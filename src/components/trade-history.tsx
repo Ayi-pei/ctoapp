@@ -3,10 +3,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Trade } from "@/types";
+import type { MarketTrade } from "@/types";
 import { useEffect, useState } from "react";
 
-export function TradeHistory({ trades }: { trades: Trade[] }) {
+export function TradeHistory({ trades }: { trades: MarketTrade[] }) {
   const [highlighted, setHighlighted] = useState<string[]>([]);
   
   useEffect(() => {

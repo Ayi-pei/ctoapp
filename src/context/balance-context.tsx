@@ -2,33 +2,47 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Trade } from '@/types';
+import { ContractTrade, SpotTrade } from '@/types';
+import { CircleDollarSign } from 'lucide-react';
 
-const INITIAL_BALANCE = 10000;
+const INITIAL_BALANCES = {
+    USDT: { available: 10000, frozen: 0 },
+    BTC: { available: 0, frozen: 0 },
+    ETH: { available: 0, frozen: 0 },
+};
+
+const ALL_ASSETS = [
+    { name: "USDT", icon: CircleDollarSign },
+    { name: "BTC", icon: CircleDollarSign },
+    { name: "ETH", icon: CircleDollarSign },
+];
+
 
 interface BalanceContextType {
-  balance: number;
-  placeTrade: (trade: Omit<Trade, 'id' | 'time' | 'price'>) => void;
+  balances: { [key: string]: { available: number; frozen: number } };
+  assets: { name: string, icon: React.ElementType }[];
+  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
+  placeSpotTrade: (trade: SpotTrade) => void;
   isLoading: boolean;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const [balance, setBalance] = useState(INITIAL_BALANCE);
+  const [balances, setBalances] = useState(INITIAL_BALANCES);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
-      const storedBalance = localStorage.getItem('userBalance');
-      if (storedBalance) {
-        setBalance(parseFloat(storedBalance));
+      const storedBalances = localStorage.getItem('userBalances');
+      if (storedBalances) {
+        setBalances(JSON.parse(storedBalances));
       } else {
-        setBalance(INITIAL_BALANCE);
+        setBalances(INITIAL_BALANCES);
       }
     } catch (error) {
       console.error("Could not access localStorage.", error);
-      setBalance(INITIAL_BALANCE);
+      setBalances(INITIAL_BALANCES);
     } finally {
         setIsLoading(false);
     }
@@ -37,21 +51,51 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoading) {
       try {
-        localStorage.setItem('userBalance', balance.toString());
+        localStorage.setItem('userBalances', JSON.stringify(balances));
       } catch (error) {
          console.error("Could not access localStorage.", error);
       }
     }
-  }, [balance, isLoading]);
+  }, [balances, isLoading]);
 
-  const placeTrade = useCallback((trade: Omit<Trade, 'id' | 'time' | 'price'>) => {
-    setBalance(prevBalance => prevBalance - trade.amount);
+  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => {
+    setBalances(prevBalances => {
+        const newBalances = { ...prevBalances };
+        newBalances.USDT = {
+            ...newBalances.USDT,
+            available: newBalances.USDT.available - trade.amount,
+        };
+        return newBalances;
+    });
     // Here you would also add logic to handle winning/losing the trade after the period
     // For simulation, we are just deducting the amount.
   }, []);
   
+  const placeSpotTrade = useCallback((trade: SpotTrade) => {
+    setBalances(prevBalances => {
+        const newBalances = JSON.parse(JSON.stringify(prevBalances));
+        
+        const baseAsset = trade.baseAsset;
+        const quoteAsset = trade.quoteAsset;
+        
+        if (trade.type === 'buy') {
+            // Deduct quote asset
+            newBalances[quoteAsset].available -= trade.total;
+            // Add base asset
+            newBalances[baseAsset].available += trade.amount;
+        } else { // sell
+            // Deduct base asset
+            newBalances[baseAsset].available -= trade.amount;
+            // Add quote asset
+            newBalances[quoteAsset].available += trade.total;
+        }
+        
+        return newBalances;
+    });
+  }, []);
 
-  const value = { balance, placeTrade, isLoading };
+
+  const value = { balances, assets: ALL_ASSETS, placeContractTrade, placeSpotTrade, isLoading };
 
   return (
     <BalanceContext.Provider value={value}>

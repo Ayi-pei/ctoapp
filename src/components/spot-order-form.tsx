@@ -11,12 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Trade } from "@/types";
+import type { SpotTrade } from "@/types";
 
 type SpotOrderFormProps = {
   tradingPair: string;
-  balance: number;
-  onPlaceTrade: (trade: Omit<Trade, 'id' | 'time' | 'price'>) => void;
+  balances: { [key: string]: { available: number; frozen: number } };
+  onPlaceTrade: (trade: SpotTrade) => void;
   baseAsset: string;
   quoteAsset: string;
   currentPrice: number;
@@ -24,7 +24,7 @@ type SpotOrderFormProps = {
 
 export function SpotOrderForm({ 
     tradingPair, 
-    balance, 
+    balances, 
     onPlaceTrade, 
     baseAsset, 
     quoteAsset,
@@ -37,21 +37,30 @@ export function SpotOrderForm({
   const [total, setTotal] = useState("");
   const [sliderValue, setSliderValue] = useState(0);
   const { toast } = useToast();
+  
+  const quoteAssetBalance = balances[quoteAsset]?.available || 0;
+  const baseAssetBalance = balances[baseAsset]?.available || 0;
 
   const handleSliderChange = (value: number[]) => {
     setSliderValue(value[0]);
-    const newTotal = (balance * value[0]) / 100;
-    setTotal(newTotal.toFixed(2));
-    if (currentPrice > 0) {
-        setAmount((newTotal / currentPrice).toFixed(6));
+    if (orderType === 'buy') {
+        const newTotal = (quoteAssetBalance * value[0]) / 100;
+        setTotal(newTotal.toFixed(2));
+        if (currentPrice > 0) {
+            setAmount((newTotal / currentPrice).toFixed(6));
+        }
+    } else { // sell
+        const newAmount = (baseAssetBalance * value[0]) / 100;
+        setAmount(newAmount.toFixed(6));
+        setTotal((newAmount * currentPrice).toFixed(2));
     }
   };
 
   const handleTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newTotal = e.target.value;
       setTotal(newTotal);
-      if(balance > 0) {
-        const percentage = (parseFloat(newTotal) / balance) * 100;
+      if (orderType === 'buy' && quoteAssetBalance > 0) {
+        const percentage = (parseFloat(newTotal) / quoteAssetBalance) * 100;
         setSliderValue(Math.min(100, Math.max(0, percentage)));
       }
        if (currentPrice > 0) {
@@ -64,12 +73,11 @@ export function SpotOrderForm({
       setAmount(newAmount);
       const newTotal = parseFloat(newAmount) * currentPrice;
       setTotal(newTotal.toFixed(2));
-      if(balance > 0) {
-        const percentage = (newTotal / balance) * 100;
+      if (orderType === 'sell' && baseAssetBalance > 0) {
+        const percentage = (parseFloat(newAmount) / baseAssetBalance) * 100;
         setSliderValue(Math.min(100, Math.max(0, percentage)));
       }
   }
-
 
   const handleSubmit = () => {
     const numericAmount = parseFloat(amount);
@@ -83,18 +91,31 @@ export function SpotOrderForm({
     }
 
     const numericTotal = parseFloat(total);
-    if (orderType === 'buy' && numericTotal > balance) {
+    if (orderType === 'buy' && numericTotal > quoteAssetBalance) {
         toast({
             variant: "destructive",
             title: "下单失败",
-            description: `可用余额不足 (${balance.toFixed(2)} ${quoteAsset})。`,
+            description: `可用余额不足 (${quoteAssetBalance.toFixed(2)} ${quoteAsset})。`,
         });
         return;
     }
     
-    // In a real app, you would also check base asset balance for selling
+     if (orderType === 'sell' && numericAmount > baseAssetBalance) {
+        toast({
+            variant: "destructive",
+            title: "下单失败",
+            description: `可用余额不足 (${baseAssetBalance.toFixed(6)} ${baseAsset})。`,
+        });
+        return;
+    }
     
-    onPlaceTrade({ type: orderType, amount: numericAmount });
+    onPlaceTrade({ 
+        type: orderType, 
+        baseAsset,
+        quoteAsset,
+        amount: numericAmount,
+        total: numericTotal
+    });
 
     toast({
       title: "下单成功",
@@ -133,7 +154,7 @@ export function SpotOrderForm({
                     id="price" 
                     placeholder={tradeType === 'market' ? '市价' : '请输入价格'}
                     disabled={tradeType === 'market'}
-                    value={tradeType === 'market' ? '' : price}
+                    value={tradeType === 'market' ? currentPrice.toFixed(2) : price}
                     onChange={(e) => setPrice(e.target.value)}
                 />
             </div>
@@ -168,7 +189,7 @@ export function SpotOrderForm({
             </div>
 
             <div className="text-xs text-muted-foreground">
-                可用: {balance.toFixed(2)} {quoteAsset}
+                可用: {orderType === 'buy' ? `${quoteAssetBalance.toFixed(2)} ${quoteAsset}` : `${baseAssetBalance.toFixed(6)} ${baseAsset}`}
             </div>
 
             <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}>

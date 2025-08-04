@@ -18,7 +18,7 @@ import { useMarket } from "@/context/market-data-context";
 function TradePageContent() {
   const marketData = useMarket();
   const { tradingPair, data, summaryData } = marketData;
-  const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance();
+  const { balances, placeSpotTrade, placeContractTrade, isLoading: isBalanceLoading } = useBalance();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
   const defaultTab = tab === 'contract' ? 'contract' : 'spot';
@@ -64,8 +64,8 @@ function TradePageContent() {
                   <div className="flex flex-col gap-4">
                       <SpotOrderForm
                           tradingPair={tradingPair}
-                          balance={balance}
-                          onPlaceTrade={placeTrade}
+                          balances={balances}
+                          onPlaceTrade={placeSpotTrade}
                           baseAsset={baseAsset}
                           quoteAsset={quoteAsset}
                           currentPrice={data.summary.price}
@@ -81,8 +81,8 @@ function TradePageContent() {
                   <div className="flex flex-col gap-4">
                       <OrderForm
                           tradingPair={tradingPair}
-                          balance={balance}
-                          onPlaceTrade={placeTrade}
+                          balance={balances['USDT']?.available || 0}
+                          onPlaceTrade={placeContractTrade}
                       />
                   </div>
               </div>

@@ -17,15 +17,20 @@ const cryptoIcons: { [key: string]: React.ElementType } = {
   "ETH": CircleDollarSign,
 };
 
-type Asset = {
-    name: string;
-    icon: React.ElementType;
-    available: number;
-    frozen: number;
+
+type AssetRowProps = {
+    asset: {
+        name: string;
+        icon: React.ElementType;
+    };
+    balance: {
+        available: number;
+        frozen: number;
+    };
     usdtValue: number;
 }
 
-const AssetRow = ({ asset }: { asset: Asset }) => {
+const AssetRow = ({ asset, balance, usdtValue }: AssetRowProps) => {
     const Icon = asset.icon;
     return (
         <div className="py-4">
@@ -36,15 +41,15 @@ const AssetRow = ({ asset }: { asset: Asset }) => {
             <div className="grid grid-cols-3 text-sm">
                 <div>
                     <p className="text-muted-foreground">可用</p>
-                    <p>{asset.available.toFixed(4)}</p>
+                    <p>{balance.available.toFixed(4)}</p>
                 </div>
                  <div>
                     <p className="text-muted-foreground">占用</p>
-                    <p>{asset.frozen.toFixed(4)}</p>
+                    <p>{balance.frozen.toFixed(4)}</p>
                 </div>
                  <div className="text-right">
                     <p className="text-muted-foreground">折合(USDT)</p>
-                    <p>{asset.usdtValue.toFixed(4)}</p>
+                    <p>{usdtValue.toFixed(4)}</p>
                 </div>
             </div>
         </div>
@@ -53,24 +58,23 @@ const AssetRow = ({ asset }: { asset: Asset }) => {
 
 
 export default function AssetsPage() {
-    const { balance } = useBalance();
+    const { balances, assets } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     
-    const totalBalance = balance;
-
-     const otherAssets: Asset[] = [
-        { name: "BTC", icon: cryptoIcons.BTC, available: 0, frozen: 0, usdtValue: 0 },
-        { name: "ETH", icon: cryptoIcons.ETH, available: 0, frozen: 0, usdtValue: 0 },
-    ];
-    
-    const usdtAsset: Asset = {
-        name: "USDT",
-        icon: cryptoIcons.USDT,
-        available: balance,
-        frozen: 0,
-        usdtValue: balance,
+    // In a real app, you'd fetch prices to calculate USDT value.
+    // For now, we'll use a mock or simplified logic.
+    const getUsdtValue = (assetName: string, amount: number) => {
+        if (assetName === 'USDT') return amount;
+        if (assetName === 'BTC') return amount * 68000; // Mock price
+        if (assetName === 'ETH') return amount * 3800; // Mock price
+        return 0;
     }
+
+    const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
+        return acc + getUsdtValue(name, balance.available);
+    }, 0);
+    
 
     return (
         <DashboardLayout>
@@ -120,12 +124,14 @@ export default function AssetsPage() {
                         <CardTitle className="text-lg">资产明细</CardTitle>
                     </CardHeader>
                     <CardContent>
-                       <AssetRow asset={usdtAsset} />
-                       <Separator />
-                       {otherAssets.map((asset, index) => (
+                       {assets.map((asset, index) => (
                            <React.Fragment key={asset.name}>
-                            <AssetRow asset={asset} />
-                            {index < otherAssets.length -1 && <Separator />}
+                            <AssetRow 
+                                asset={asset} 
+                                balance={balances[asset.name]} 
+                                usdtValue={getUsdtValue(asset.name, balances[asset.name].available)}
+                            />
+                            {index < assets.length -1 && <Separator />}
                            </React.Fragment>
                        ))}
                     </CardContent>

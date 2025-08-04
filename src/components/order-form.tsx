@@ -5,13 +5,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContractOrderSheet } from "./contract-order-sheet";
-import { Trade } from "@/types";
+import { ContractTrade } from "@/types";
 
 
 type OrderFormProps = {
   tradingPair: string;
   balance: number;
-  onPlaceTrade: (trade: Omit<Trade, 'id' | 'time' | 'price'>) => void;
+  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
 }
 
 export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps) {

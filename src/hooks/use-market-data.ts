@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Order, Trade, PriceDataPoint, MarketSummary } from '@/types';
+import { Order, MarketTrade, PriceDataPoint, MarketSummary } from '@/types';
 
 const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
@@ -72,7 +72,7 @@ const generateInitialData = (pair: string) => {
 
 
   // Trade history data
-  const trades: Trade[] = [];
+  const trades: MarketTrade[] = [];
   for (let i = 0; i < 30; i++) {
     const type = Math.random() > 0.5 ? 'buy' : 'sell';
     const price = lastPrice * randomInRange(0.999, 1.001);
@@ -180,7 +180,7 @@ export const useMarketData = () => {
                         const type = Math.random() > 0.5 ? 'buy' : 'sell';
                         const price = newPrice * randomInRange(0.9998, 1.0002);
                         const amount = randomInRange(0.01, 1.5);
-                        const newTrade: Trade = {
+                        const newTrade: MarketTrade = {
                             id: `trade-${Date.now()}`,
                             type,
                             price,

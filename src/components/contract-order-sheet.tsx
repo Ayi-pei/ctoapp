@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
-import { Trade } from "@/types";
+import { ContractTrade } from "@/types";
 
 type ContractOrderSheetProps = {
   isOpen: boolean;
@@ -24,7 +24,7 @@ type ContractOrderSheetProps = {
   orderType: 'buy' | 'sell';
   tradingPair: string;
   balance: number;
-  onPlaceTrade: (trade: Omit<Trade, 'id' | 'time' | 'price'>) => void;
+  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
 };
 
 const periods = [
