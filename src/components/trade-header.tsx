@@ -1,5 +1,6 @@
 
 "use client";
+import Link from 'next/link';
 
 import {
   Select,
@@ -8,8 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
-import { User, Menu } from "lucide-react";
+import { User, Menu, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
@@ -31,7 +40,7 @@ const Logo = () => (
 export function TradeHeader() {
   const pathname = usePathname();
   const { tradingPair, availablePairs, changeTradingPair } = useMarket();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const isDashboard = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
@@ -62,10 +71,33 @@ export function TradeHeader() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => { /* Profile action */ }}>
-          <User className="h-6 w-6" />
-          <span className="sr-only">Profile</span>
-        </Button>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <User className="h-6 w-6" />
+                    <span className="sr-only">Profile</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>我的账户 ({user?.username})</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <Link href="/profile" passHref>
+                    <DropdownMenuItem>
+                        个人资料
+                    </DropdownMenuItem>
+                </Link>
+                <Link href="/assets" passHref>
+                    <DropdownMenuItem>
+                        我的资产
+                    </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>退出登录</span>
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

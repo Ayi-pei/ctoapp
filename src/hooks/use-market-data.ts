@@ -113,7 +113,7 @@ const generateInitialDataForPair = (pair: string) => {
 
 
 export const useMarketData = () => {
-  const { isTestUser } = useAuth();
+  const { user } = useAuth();
   const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
@@ -121,7 +121,7 @@ export const useMarketData = () => {
   // In a production environment, this function would fetch data from a real API.
   const fetchInitialData = useCallback(async () => {
     // If it's not a test user, you would fetch real data here.
-    if (!isTestUser) {
+    if (user && !user.isTestUser) {
         console.log("Real user detected. API calls would be made here.");
         // --- PRODUCTION API CALL ---
         // Example: const response = await fetch('/api/v1/market-data/all');
@@ -140,7 +140,7 @@ export const useMarketData = () => {
     setAllData(mockInitialData);
     setIsInitialised(true);
 
-  }, [isTestUser]);
+  }, [user]);
 
   useEffect(() => {
     fetchInitialData();
@@ -158,7 +158,7 @@ export const useMarketData = () => {
 
     // For test users, we simulate real-time updates.
     // For real users, this would be replaced with a WebSocket connection.
-    if (!isTestUser) {
+    if (user && !user.isTestUser) {
         console.log("Real user: WebSocket connection would be established here.");
         // return () => ws.close();
     }
@@ -236,7 +236,7 @@ export const useMarketData = () => {
     }, 1500); // Update every 1.5 seconds
 
     return () => clearInterval(interval);
-  }, [isInitialised, tradingPair, isTestUser]);
+  }, [isInitialised, tradingPair, user]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];

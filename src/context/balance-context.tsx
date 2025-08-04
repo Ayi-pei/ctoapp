@@ -24,9 +24,19 @@ const ALL_ASSETS = [
     { name: "ETH", icon: CircleDollarSign },
 ];
 
+export type Investment = {
+    id: string;
+    productName: string;
+    amount: number;
+    date: string;
+}
+
 
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
+  investments: Investment[];
+  balance: number; // Keep this for now for finance page
+  addInvestment: (productName: string, amount: number) => boolean;
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
   placeSpotTrade: (trade: SpotTrade) => void;
@@ -36,45 +46,77 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isTestUser } = useAuth();
-  const [balances, setBalances] = useState(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+  const { user } = useAuth();
+  const [balances, setBalances] = useState(user?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const isTestUser = user?.isTestUser ?? false;
 
   useEffect(() => {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
-    if (isAuthenticated) {
+    if (user) {
         try {
-            const storedBalances = localStorage.getItem('userBalances');
+            const storedBalances = localStorage.getItem(`userBalances_${user.username}`);
+            const storedInvestments = localStorage.getItem(`userInvestments_${user.username}`);
+
             if (storedBalances) {
                 setBalances(JSON.parse(storedBalances));
             } else {
-                // Set initial balances based on user type if nothing is stored
                 setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
             }
+
+            if (storedInvestments) {
+                setInvestments(JSON.parse(storedInvestments));
+            } else {
+                setInvestments([]);
+            }
+
         } catch (error) {
             console.error("Could not access localStorage or parse balances.", error);
             setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+            setInvestments([]);
         } finally {
             setIsLoading(false);
         }
     } else {
       // Not authenticated, clear balances
-      setBalances(INITIAL_BALANCES_REAL_USER); // Reset to empty state
+      setBalances(INITIAL_BALANCES_REAL_USER);
+      setInvestments([]);
       setIsLoading(false);
     }
-  }, [isAuthenticated, isTestUser]);
+  }, [user, isTestUser]);
 
   useEffect(() => {
     // This effect persists balance changes to localStorage
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && user) {
       try {
-        localStorage.setItem('userBalances', JSON.stringify(balances));
+        localStorage.setItem(`userBalances_${user.username}`, JSON.stringify(balances));
+        localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(investments));
       } catch (error) {
          console.error("Could not access localStorage to save balances.", error);
       }
     }
-  }, [balances, isLoading, isAuthenticated]);
+  }, [balances, investments, isLoading, user]);
+  
+  const addInvestment = (productName: string, amount: number) => {
+    if (balances.USDT.available < amount) {
+        return false;
+    }
+    setBalances(prev => ({
+        ...prev,
+        USDT: { ...prev.USDT, available: prev.USDT.available - amount }
+    }));
+    const newInvestment: Investment = {
+        id: new Date().toISOString(),
+        productName,
+        amount,
+        date: new Date().toLocaleDateString()
+    }
+    setInvestments(prev => [...prev, newInvestment]);
+    return true;
+  }
 
   const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => {
     setBalances(prevBalances => {
@@ -113,7 +155,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  const value = { balances, assets: ALL_ASSETS, placeContractTrade, placeSpotTrade, isLoading };
+  const value = { 
+      balances, 
+      assets: ALL_ASSETS, 
+      placeContractTrade, 
+      placeSpotTrade, 
+      isLoading,
+      investments,
+      balance: balances.USDT?.available || 0, // for finance page
+      addInvestment,
+    };
 
   return (
     <BalanceContext.Provider value={value}>

@@ -1,0 +1,157 @@
+
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import DashboardLayout from "@/components/dashboard-layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
+
+const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1, "请输入当前密码"),
+    newPassword: z.string().min(8, "新密码必须至少8个字符"),
+    confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+    message: "两次输入的新密码不匹配",
+    path: ["confirmPassword"],
+});
+
+
+export default function ProfilePage() {
+    const { toast } = useToast();
+    const { user, logout } = useAuth();
+    const router = useRouter();
+
+    const form = useForm<z.infer<typeof changePasswordSchema>>({
+        resolver: zodResolver(changePasswordSchema),
+        defaultValues: {
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+        },
+    });
+
+    const onSubmit = (values: z.infer<typeof changePasswordSchema>) => {
+        try {
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const currentUserIndex = users.findIndex((u: any) => u.username === user?.username);
+
+            if (currentUserIndex === -1) {
+                toast({ variant: "destructive", title: "错误", description: "未找到用户信息" });
+                return;
+            }
+
+            const currentUser = users[currentUserIndex];
+
+            if (currentUser.password !== values.currentPassword) {
+                toast({ variant: "destructive", title: "密码错误", description: "当前密码不正确。" });
+                return;
+            }
+
+            // Update password
+            users[currentUserIndex].password = values.newPassword;
+            localStorage.setItem('users', JSON.stringify(users));
+
+            toast({
+                title: "密码已更新",
+                description: "您的密码已成功修改。请重新登录。",
+            });
+            
+            // Logout and redirect to login
+            logout();
+            router.push('/login');
+
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "操作失败",
+                description: "发生未知错误，请重试。",
+            });
+        }
+    }
+
+    return (
+        <DashboardLayout>
+            <div className="p-4 md:p-8 space-y-6">
+                 <h1 className="text-2xl font-bold">个人中心</h1>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>账户信息</CardTitle>
+                        <CardDescription>这里是您的基本账户信息。</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center">
+                            <span className="w-24 text-muted-foreground">用户名</span>
+                            <span>{user?.username}</span>
+                        </div>
+                         <div className="flex items-center">
+                            <span className="w-24 text-muted-foreground">账户类型</span>
+                             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-primary/20 text-primary">
+                                {user?.isTestUser ? "测试账户" : "真实账户"}
+                            </span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>修改密码</CardTitle>
+                        <CardDescription>定期修改密码以保护您的账户安全。</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-md">
+                                <FormField
+                                    control={form.control}
+                                    name="currentPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>当前密码</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" placeholder="请输入当前密码" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>新密码</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" placeholder="请输入8-12位的新密码" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>确认新密码</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" placeholder="请再次输入新密码" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit">确认修改</Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </div>
+        </DashboardLayout>
+    );
+}

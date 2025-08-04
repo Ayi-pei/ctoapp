@@ -3,9 +3,14 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+type User = {
+  username: string;
+  isTestUser: boolean;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  isTestUser: boolean;
+  user: User | null;
   login: (username: string, password: string) => boolean;
   logout: () => void;
 }
@@ -14,38 +19,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isTestUser, setIsTestUser] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
   
-  // On initial load, assume not authenticated until checked.
-  // This avoids rendering protected routes prematurely.
   useEffect(() => {
     try {
-      const loggedInUser = localStorage.getItem('loggedInUser');
-      if (loggedInUser) {
+      const loggedInUsername = localStorage.getItem('loggedInUser');
+      if (loggedInUsername) {
         const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const currentUser = users.find((u: any) => u.username === loggedInUser);
+        const currentUser = users.find((u: any) => u.username === loggedInUsername);
         if (currentUser) {
           setIsAuthenticated(true);
-          setIsTestUser(currentUser.isTestUser || false);
+          setUser({ username: currentUser.username, isTestUser: currentUser.isTestUser || false });
         }
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
       }
     } catch (e) {
         console.error("Failed to parse auth data from localStorage", e);
         // Clear potentially corrupted data
         localStorage.removeItem('loggedInUser');
         setIsAuthenticated(false);
-        setIsTestUser(false);
+        setUser(null);
     }
   }, []);
 
   const login = (username: string, password: string): boolean => {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = users.find((u: any) => u.username === username && u.password === password);
-      if (user) {
+      const foundUser = users.find((u: any) => u.username === username && u.password === password);
+      if (foundUser) {
         localStorage.setItem('loggedInUser', username);
+        const userData = { username: foundUser.username, isTestUser: foundUser.isTestUser || false };
         setIsAuthenticated(true);
-        setIsTestUser(user.isTestUser || false);
+        setUser(userData);
         return true;
       }
       return false;
@@ -59,11 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('loggedInUser');
     localStorage.removeItem('userBalances'); // Clear balances on logout
     setIsAuthenticated(false);
-    setIsTestUser(false);
+    setUser(null);
   };
 
+  // Expose isTestUser through the user object
+  const isTestUser = user?.isTestUser || false;
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isTestUser, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user: { ...user, isTestUser } as User, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
