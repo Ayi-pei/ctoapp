@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRightLeft, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, ShoppingBag } from "lucide-react";
+import { ArrowRightLeft, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +29,6 @@ export default function DashboardPage() {
         { name: '下载中心', icon: Download, href: '/coming-soon' },
         { name: '推广中心', icon: Gift, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
-        { name: '理财', icon: ShoppingBag, href: '/finance' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
     ];
     
@@ -106,17 +105,26 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Features Grid */}
-                <div className="grid grid-cols-4 gap-4 text-center">
-                    {features.map(feature => {
+                 <div className="grid grid-cols-4 gap-4 text-center">
+                    {features.slice(0, 4).map(feature => {
                         const Icon = feature.icon;
                         return (
-                            <Link href={feature.href} key={feature.name}>
-                                 <div className="flex flex-col items-center space-y-2">
-                                    <div className="bg-card p-4 rounded-full">
-                                        <Icon className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">{feature.name}</p>
+                            <Link href={feature.href} key={feature.name} className="flex flex-col items-center space-y-2">
+                                <div className="bg-card p-4 rounded-full">
+                                    <Icon className="h-6 w-6 text-primary" />
                                 </div>
+                                <p className="text-xs text-muted-foreground">{feature.name}</p>
+                            </Link>
+                        )
+                    })}
+                    {features.slice(4).map(feature => {
+                        const Icon = feature.icon;
+                        return (
+                            <Link href={feature.href} key={feature.name} className="flex flex-col items-center space-y-2">
+                                <div className="bg-card p-4 rounded-full">
+                                    <Icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">{feature.name}</p>
                             </Link>
                         )
                     })}

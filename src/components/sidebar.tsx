@@ -3,14 +3,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LineChart, CandlestickChart, Wallet, ShoppingBag } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: '首页', icon: Home },
   { href: '/market', label: '行情', icon: LineChart },
   { href: '/trade', label: '交易', icon: CandlestickChart },
-  { href: '/finance', label: '理财', icon: ShoppingBag },
   { href: '/assets', label: '资产', icon: Wallet },
 ];
 

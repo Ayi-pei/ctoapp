@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBalance } from "@/context/balance-context";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign, Gem, ShoppingBag } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign } from "lucide-react";
 import React, { useState } from 'react';
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
@@ -15,7 +15,6 @@ const cryptoIcons: { [key: string]: React.ElementType } = {
   "USDT": CircleDollarSign,
   "BTC": CircleDollarSign,
   "ETH": CircleDollarSign,
-  "理财产品": ShoppingBag,
 };
 
 type Asset = {
@@ -54,12 +53,11 @@ const AssetRow = ({ asset }: { asset: Asset }) => {
 
 
 export default function AssetsPage() {
-    const { balance, investments } = useBalance();
+    const { balance } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     
-    const totalInvestmentValue = investments.reduce((sum, inv) => sum + inv.amount, 0);
-
+    const totalBalance = balance;
 
      const otherAssets: Asset[] = [
         { name: "BTC", icon: cryptoIcons.BTC, available: 0, frozen: 0, usdtValue: 0 },
@@ -73,12 +71,6 @@ export default function AssetsPage() {
         frozen: 0,
         usdtValue: balance,
     }
-
-    const financialProducts: Asset[] = [
-        { name: "理财产品", icon: cryptoIcons["理财产品"], available: totalInvestmentValue, frozen: 0, usdtValue: totalInvestmentValue },
-    ]
-    
-    const totalBalance = balance + totalInvestmentValue;
 
     return (
         <DashboardLayout>
@@ -129,13 +121,6 @@ export default function AssetsPage() {
                     </CardHeader>
                     <CardContent>
                        <AssetRow asset={usdtAsset} />
-                       <Separator />
-                       {financialProducts.map((asset, index) => (
-                           <React.Fragment key={asset.name}>
-                            <AssetRow asset={asset} />
-                            {index < financialProducts.length -1 && <Separator />}
-                           </React.Fragment>
-                       ))}
                        <Separator />
                        {otherAssets.map((asset, index) => (
                            <React.Fragment key={asset.name}>
