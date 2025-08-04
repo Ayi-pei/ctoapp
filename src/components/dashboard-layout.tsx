@@ -11,12 +11,11 @@ import { useMarketData as useMarketDataHook } from '@/hooks/use-market-data';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
-  useMarketData?: () => ReturnType<typeof useMarketDataHook>
 };
 
-const DashboardLayout = ({ children, useMarketData: useMarketDataProp }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { isAuthenticated, logout } = useAuth();
-  const { tradingPair, changeTradingPair, availablePairs } = useMarketDataProp ? useMarketDataProp() : useMarketDataHook();
+  const { tradingPair, changeTradingPair, availablePairs } = useMarketDataHook();
   const router = useRouter();
 
   useEffect(() => {

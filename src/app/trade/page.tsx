@@ -118,7 +118,7 @@ function TradePageContent() {
   }
 
   return (
-    <DashboardLayout useMarketData={() => marketData}>
+    <DashboardLayout>
       {renderContent()}
     </DashboardLayout>
   );
