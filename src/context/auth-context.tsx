@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 type User = {
   username: string;
   isTestUser: boolean;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +14,7 @@ interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => boolean;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUser = users.find((u: any) => u.username === loggedInUsername);
         if (currentUser) {
           setIsAuthenticated(true);
-          setUser({ username: currentUser.username, isTestUser: currentUser.isTestUser || false });
+          setUser({ 
+              username: currentUser.username, 
+              isTestUser: currentUser.isTestUser || false,
+              avatar: currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.username.charAt(0).toUpperCase()}`
+          });
         }
       } else {
         setIsAuthenticated(false);
@@ -50,7 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const foundUser = users.find((u: any) => u.username === username && u.password === password);
       if (foundUser) {
         localStorage.setItem('loggedInUser', username);
-        const userData = { username: foundUser.username, isTestUser: foundUser.isTestUser || false };
+        const userData = { 
+            username: foundUser.username, 
+            isTestUser: foundUser.isTestUser || false,
+            avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`
+        };
         setIsAuthenticated(true);
         setUser(userData);
         return true;
@@ -68,12 +78,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     setUser(null);
   };
+  
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+        const updatedUser = { ...user, ...userData };
+        setUser(updatedUser);
 
-  // Expose isTestUser through the user object
-  const isTestUser = user?.isTestUser || false;
+        try {
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const userIndex = users.findIndex((u: any) => u.username === user.username);
+            if (userIndex !== -1) {
+                users[userIndex] = { ...users[userIndex], ...userData };
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+        } catch(e) {
+             console.error("Failed to update user data in localStorage", e);
+        }
+    }
+  }
+
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user: { ...user, isTestUser } as User, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

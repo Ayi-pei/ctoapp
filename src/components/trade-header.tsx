@@ -22,6 +22,7 @@ import { User, Menu, LogOut } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 // Simple SVG Logo component
 const Logo = () => (
@@ -73,8 +74,13 @@ export function TradeHeader() {
       <div className="flex items-center gap-4">
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                    <User className="h-6 w-6" />
+                <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar>
+                        <AvatarImage src={user?.avatar} alt={user?.username} />
+                        <AvatarFallback>
+                            {user?.username ? user.username.charAt(0).toUpperCase() : <User />}
+                        </AvatarFallback>
+                    </Avatar>
                     <span className="sr-only">Profile</span>
                 </Button>
             </DropdownMenuTrigger>

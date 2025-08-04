@@ -13,6 +13,18 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label";
+
 
 const changePasswordSchema = z.object({
     currentPassword: z.string().min(1, "请输入当前密码"),
@@ -26,8 +38,11 @@ const changePasswordSchema = z.object({
 
 export default function ProfilePage() {
     const { toast } = useToast();
-    const { user, logout } = useAuth();
+    const { user, logout, updateUser } = useAuth();
     const router = useRouter();
+    const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
+
 
     const form = useForm<z.infer<typeof changePasswordSchema>>({
         resolver: zodResolver(changePasswordSchema),
@@ -76,6 +91,16 @@ export default function ProfilePage() {
             });
         }
     }
+    
+    const handleAvatarChange = () => {
+        updateUser({ avatar: avatarUrl });
+        toast({
+            title: "头像已更新",
+            description: "您的头像已成功更新。",
+        });
+        setIsAvatarDialogOpen(false);
+    };
+
 
     return (
         <DashboardLayout>
@@ -87,6 +112,43 @@ export default function ProfilePage() {
                         <CardDescription>这里是您的基本账户信息。</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="flex items-center space-x-4">
+                            <Avatar className="h-20 w-20">
+                                <AvatarImage src={user?.avatar} alt={user?.username} />
+                                <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline">更换头像</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>更换头像</DialogTitle>
+                                        <DialogDescription>
+                                            输入新的头像URL。这是一个模拟功能，图片不会被上传。
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="avatar-url" className="text-right">
+                                                图片URL
+                                            </Label>
+                                            <Input
+                                                id="avatar-url"
+                                                value={avatarUrl}
+                                                onChange={(e) => setAvatarUrl(e.target.value)}
+                                                className="col-span-3"
+                                                placeholder="https://example.com/avatar.png"
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="button" variant="secondary" onClick={() => setIsAvatarDialogOpen(false)}>取消</Button>
+                                        <Button type="button" onClick={handleAvatarChange}>保存</Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
                         <div className="flex items-center">
                             <span className="w-24 text-muted-foreground">用户名</span>
                             <span>{user?.username}</span>
