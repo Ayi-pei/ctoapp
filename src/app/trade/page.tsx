@@ -3,7 +3,6 @@
 
 import { useMarketData } from "@/hooks/use-market-data";
 import { OrderBook } from "@/components/order-book";
-import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarketOverview } from "@/components/market-overview";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -12,6 +11,7 @@ import { SpotOrderForm } from "@/components/spot-order-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
+import { OrderForm } from "@/components/order-form";
 
 export default function TradePage() {
   const marketData = useMarketData();
@@ -46,21 +46,44 @@ export default function TradePage() {
         <div className="mb-4">
             <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-4">
-            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-          </div>
-          <div className="flex flex-col gap-4">
-             <SpotOrderForm
-                tradingPair={tradingPair}
-                balance={balance}
-                onPlaceTrade={placeTrade}
-                baseAsset={baseAsset}
-                quoteAsset={quoteAsset}
-                currentPrice={data.summary.price}
-             />
-          </div>
-        </div>
+        <Tabs defaultValue="spot" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="spot">币币交易</TabsTrigger>
+                <TabsTrigger value="contract">秒合约</TabsTrigger>
+            </TabsList>
+            <TabsContent value="spot">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="flex flex-col gap-4">
+                        <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        <SpotOrderForm
+                            tradingPair={tradingPair}
+                            balance={balance}
+                            onPlaceTrade={placeTrade}
+                            baseAsset={baseAsset}
+                            quoteAsset={quoteAsset}
+                            currentPrice={data.summary.price}
+                        />
+                    </div>
+                </div>
+            </TabsContent>
+            <TabsContent value="contract">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="flex flex-col gap-4">
+                        <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        <OrderForm
+                            tradingPair={tradingPair}
+                            balance={balance}
+                            onPlaceTrade={placeTrade}
+                        />
+                    </div>
+                </div>
+            </TabsContent>
+        </Tabs>
+        
         <div className="pt-4">
             <Tabs defaultValue="current">
                 <TabsList>
