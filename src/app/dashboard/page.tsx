@@ -109,18 +109,14 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-4 gap-4 text-center">
                     {features.map(feature => {
                         const Icon = feature.icon;
-                        const FeatureComponent = (
-                             <div className="flex flex-col items-center space-y-2">
-                                <div className="bg-card p-4 rounded-full">
-                                    <Icon className="h-6 w-6 text-primary" />
-                                </div>
-                                <p className="text-xs text-muted-foreground">{feature.name}</p>
-                            </div>
-                        );
-                        
                         return (
                             <Link href={feature.href} key={feature.name}>
-                                {FeatureComponent}
+                                 <div className="flex flex-col items-center space-y-2">
+                                    <div className="bg-card p-4 rounded-full">
+                                        <Icon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{feature.name}</p>
+                                </div>
                             </Link>
                         )
                     })}
