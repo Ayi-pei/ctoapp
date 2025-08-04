@@ -8,6 +8,8 @@ import { ArrowRight, Bell, Download, Gem, Gift, Headphones, Landmark, Megaphone,
 import { MarketList } from "@/components/market-list";
 import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from 'next/link';
+import { cn } from "@/lib/utils";
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -25,14 +27,14 @@ const iconMap: { [key: string]: React.ElementType } = {
 export default function DashboardPage() {
     const { summaryData } = useMarketData();
     const features = [
-        { name: '质押挖矿', icon: Gem },
-        { name: '助力贷', icon: Landmark },
-        { name: '闪兑', icon: Repeat },
-        { name: '下载中心', icon: Download },
-        { name: '推广中心', icon: Gift },
-        { name: '秒合约', icon: Scale },
-        { name: '理财', icon: Users },
-        { name: '币币交易', icon: ArrowRight },
+        { name: '质押挖矿', icon: Gem, href: '#' },
+        { name: '助力贷', icon: Landmark, href: '#' },
+        { name: '闪兑', icon: Repeat, href: '#' },
+        { name: '下载中心', icon: Download, href: '#' },
+        { name: '推广中心', icon: Gift, href: '#' },
+        { name: '秒合约', icon: Scale, href: '/trade' },
+        { name: '理财', icon: Users, href: '/finance' },
+        { name: '币币交易', icon: ArrowRight, href: '/trade' },
     ];
 
     return (
@@ -89,12 +91,27 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-4 gap-4 text-center">
                     {features.map(feature => {
                         const Icon = feature.icon;
-                        return (
-                            <div key={feature.name} className="flex flex-col items-center space-y-2">
+                        const isLink = feature.href !== '#';
+                        const FeatureComponent = (
+                             <div className="flex flex-col items-center space-y-2">
                                 <div className="bg-card p-4 rounded-full">
                                     <Icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-xs text-muted-foreground">{feature.name}</p>
+                            </div>
+                        );
+                        
+                        if (isLink) {
+                            return (
+                                <Link href={feature.href} key={feature.name}>
+                                    {FeatureComponent}
+                                </Link>
+                            )
+                        }
+
+                        return (
+                            <div key={feature.name} className="opacity-50 cursor-not-allowed">
+                                 {FeatureComponent}
                             </div>
                         )
                     })}
