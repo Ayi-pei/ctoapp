@@ -209,7 +209,7 @@ export const useMarketData = () => {
   }, [isInitialised, tradingPair]);
 
   const data = allData.get(tradingPair) || null;
-  const summaryData = Array.from(allData.values()).map(d => d.summary);
+  const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
 
   return { 
       tradingPair, 

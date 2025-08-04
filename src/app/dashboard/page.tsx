@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -28,7 +29,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData } = useMarketData();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarketData();
     const { balance } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -43,6 +44,28 @@ export default function DashboardPage() {
         { name: '理财', icon: Users, href: '/finance' },
         { name: '币币交易', icon: ArrowRight, href: '/trade' },
     ];
+    
+    const renderMarketList = (data: any[]) => {
+        if (!summaryData.length) {
+            return (
+                <div className="space-y-4 mt-4">
+                    {[...Array(3)].map((_, i) => (
+                         <div key={i} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2">
+                             <Skeleton className="h-8 w-8 rounded-full" />
+                             <Skeleton className="h-4 w-24" />
+                             <Skeleton className="h-10 w-20" />
+                              <div className="flex flex-col items-end gap-1">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-3 w-12" />
+                             </div>
+                         </div>
+                    ))}
+                </div>
+            )
+        }
+        return <MarketList summary={data} />
+    }
+
 
     return (
         <DashboardLayout>
@@ -132,13 +155,13 @@ export default function DashboardPage() {
                         <TabsTrigger value="gold">国际黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular">
-                        <MarketList summary={cryptoSummaryData} />
+                       {renderMarketList(cryptoSummaryData)}
                     </TabsContent>
                     <TabsContent value="forex">
-                       <MarketList summary={forexSummaryData} />
+                       {renderMarketList(forexSummaryData)}
                     </TabsContent>
                     <TabsContent value="gold">
-                        <MarketList summary={goldSummaryData} />
+                        {renderMarketList(goldSummaryData)}
                     </TabsContent>
                 </Tabs>
             </div>
