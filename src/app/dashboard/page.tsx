@@ -1,5 +1,6 @@
 
 "use client";
+import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,8 @@ import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
+import { DepositDialog } from "@/components/deposit-dialog";
+import { WithdrawDialog } from "@/components/withdraw-dialog";
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -27,6 +30,8 @@ const iconMap: { [key: string]: React.ElementType } = {
 export default function DashboardPage() {
     const { summaryData } = useMarketData();
     const { balance } = useBalance();
+    const [isDepositOpen, setIsDepositOpen] = useState(false);
+    const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
     const features = [
         { name: '质押挖矿', icon: Gem, href: '#' },
@@ -48,8 +53,8 @@ export default function DashboardPage() {
                         <p className="text-muted-foreground text-sm">账户余额(USDT)</p>
                         <p className="text-3xl font-bold mt-1">{balance.toFixed(2)}</p>
                         <div className="grid grid-cols-2 gap-4 mt-4">
-                            <Button className="bg-primary/80 hover:bg-primary">充币</Button>
-                            <Button variant="secondary">提币</Button>
+                            <Button className="bg-primary/80 hover:bg-primary" onClick={() => setIsDepositOpen(true)}>充币</Button>
+                            <Button variant="secondary" onClick={() => setIsWithdrawOpen(true)}>提币</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -145,6 +150,8 @@ export default function DashboardPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+            <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
+            <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
         </DashboardLayout>
     );
 }
