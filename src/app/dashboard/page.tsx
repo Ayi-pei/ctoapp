@@ -4,12 +4,12 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRight, Bell, Download, Gem, Gift, Headphones, Landmark, Megaphone, Repeat, Scale, Users } from "lucide-react";
+import { ArrowRight, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, Users } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
-import { cn } from "@/lib/utils";
+import { useBalance } from "@/context/balance-context";
 
 
 const iconMap: { [key: string]: React.ElementType } = {
@@ -26,6 +26,8 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 export default function DashboardPage() {
     const { summaryData } = useMarketData();
+    const { balance } = useBalance();
+
     const features = [
         { name: '质押挖矿', icon: Gem, href: '#' },
         { name: '助力贷', icon: Landmark, href: '#' },
@@ -44,7 +46,7 @@ export default function DashboardPage() {
                 <Card className="bg-card">
                     <CardContent className="p-4">
                         <p className="text-muted-foreground text-sm">账户余额(USDT)</p>
-                        <p className="text-3xl font-bold mt-1">10,000.00</p>
+                        <p className="text-3xl font-bold mt-1">{balance.toFixed(2)}</p>
                         <div className="grid grid-cols-2 gap-4 mt-4">
                             <Button className="bg-primary/80 hover:bg-primary">充币</Button>
                             <Button variant="secondary">提币</Button>

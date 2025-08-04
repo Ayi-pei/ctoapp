@@ -8,12 +8,12 @@ import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarketOverview } from "@/components/market-overview";
 import DashboardLayout from "@/components/dashboard-layout";
-import { useBalance } from "@/hooks/use-balance";
+import { useBalance } from "@/context/balance-context";
 
 export default function TradePage() {
   const marketData = useMarketData();
   const { tradingPair, data, summaryData } = marketData;
-  const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance(10000);
+  const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance();
 
   const renderContent = () => {
     if (!data || !summaryData.length || isBalanceLoading) {
