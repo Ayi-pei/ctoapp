@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LineChart, CandlestickChart, Wallet } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Wallet, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { href: '/market', label: '行情', icon: LineChart },
   { href: '/trade', label: '交易', icon: CandlestickChart },
   { href: '/assets', label: '资产', icon: Wallet },
+  { href: '/profile', label: '我的', icon: User },
 ];
 
 export function BottomNav() {
