@@ -22,30 +22,31 @@ export default function TradePage() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
                 <div className="flex flex-col gap-4">
                     <Skeleton className="h-[500px] w-full" />
-                    <Skeleton className="h-[300px] w-full" />
                 </div>
                 <div className="flex flex-col gap-4">
-                    <Skeleton className="h-[500px] w-full" />
-                    <Skeleton className="h-[300px] w-full" />
+                    <Skeleton className="h-[420px] w-full" />
+                    <Skeleton className="h-[420px] w-full" />
                 </div>
             </div>
         </main>
       );
     }
 
+    const currentSummary = summaryData.find(s => s.pair === tradingPair);
+
     return (
       <main className="p-4">
         <div className="mb-4">
-          <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} />
+            <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
-          <div className="flex flex-col gap-4">
-            <OrderForm />
-          </div>
-          <div className="flex flex-col gap-4">
-            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-            <TradeHistory trades={data.trades} />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4">
+            <div className="flex flex-col gap-4">
+                <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+            </div>
+            <div className="flex flex-col gap-4">
+                <OrderForm />
+                <TradeHistory trades={data.trades} />
+            </div>
         </div>
       </main>
     );
