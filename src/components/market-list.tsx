@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 const cryptoIcons: { [key: string]: string } = {
   "BTC": "/icons/btc.svg",
