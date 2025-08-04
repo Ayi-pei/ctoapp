@@ -1,13 +1,56 @@
 
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
+import { MarketList } from "@/components/market-list";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMarketData } from "@/hooks/use-market-data";
 
 export default function MarketPage() {
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarketData();
+
+    const renderMarketList = (data: any[]) => {
+        if (!summaryData.length) {
+            return (
+                <div className="space-y-4 mt-4">
+                    {[...Array(5)].map((_, i) => (
+                         <div key={i} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2 px-4">
+                             <Skeleton className="h-8 w-8 rounded-full" />
+                             <div className="space-y-2">
+                                <Skeleton className="h-4 w-16" />
+                             </div>
+                             <Skeleton className="h-10 w-20" />
+                              <div className="flex flex-col items-end gap-1">
+                                <Skeleton className="h-4 w-20" />
+                                <Skeleton className="h-3 w-16" />
+                             </div>
+                         </div>
+                    ))}
+                </div>
+            )
+        }
+        return <div className="px-4"><MarketList summary={data} /></div>
+    }
+
     return (
         <DashboardLayout>
-            <div className="flex flex-col items-center justify-center h-full">
-                <h1 className="text-4xl font-bold">行情</h1>
-                <p className="text-muted-foreground">行情信息将在这里显示。</p>
+            <div className="flex flex-col h-full">
+                 <Tabs defaultValue="popular" className="pt-4">
+                    <TabsList className="grid w-full grid-cols-3 bg-transparent px-4">
+                        <TabsTrigger value="popular" className="data-[state=active]:bg-card data-[state=active]:shadow-none">热门币种</TabsTrigger>
+                        <TabsTrigger value="forex" className="data-[state=active]:bg-card data-[state=active]:shadow-none">外汇币种</TabsTrigger>
+                        <TabsTrigger value="gold" className="data-[state=active]:bg-card data-[state=active]:shadow-none">国际黄金</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="popular" className="mt-4">
+                       {renderMarketList(cryptoSummaryData)}
+                    </TabsContent>
+                    <TabsContent value="forex" className="mt-4">
+                       {renderMarketList(forexSummaryData)}
+                    </TabsContent>
+                    <TabsContent value="gold" className="mt-4">
+                        {renderMarketList(goldSummaryData)}
+                    </TabsContent>
+                </Tabs>
             </div>
         </DashboardLayout>
     );
