@@ -32,8 +32,8 @@ const getBasePrice = (pair: string) => {
     }
 }
 
-// Generates initial data for a given pair
-const generateInitialData = (pair: string) => {
+// ----- MOCK DATA GENERATION (for development) -----
+const generateInitialDataForPair = (pair: string) => {
   const basePrice = getBasePrice(pair);
 
   // Price chart data
@@ -108,21 +108,43 @@ const generateInitialData = (pair: string) => {
       }
   };
 };
+// ----- END MOCK DATA GENERATION -----
+
 
 export const useMarketData = () => {
   const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
 
-  useEffect(() => {
-    const initialData = new Map();
-    TRADING_PAIRS.forEach(pair => {
-        initialData.set(pair, generateInitialData(pair));
-    });
-    setAllData(initialData);
-    setIsInitialised(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // In a production environment, this function would fetch data from a real API.
+  const fetchInitialData = useCallback(async () => {
+    try {
+        // --- PRODUCTION API CALL ---
+        // Example: const response = await fetch('/api/v1/market-data/all');
+        // const data = await response.json();
+        // const initialData = new Map(Object.entries(data));
+        // setAllData(initialData);
+
+        // For now, we fall back to mock data generation.
+        throw new Error("Using mock data");
+
+    } catch (error) {
+        console.warn("API fetch failed, falling back to mock data:", error);
+        // Fallback to mock data if API fails or is not available
+        const mockInitialData = new Map();
+        TRADING_PAIRS.forEach(pair => {
+            mockInitialData.set(pair, generateInitialDataForPair(pair));
+        });
+        setAllData(mockInitialData);
+    } finally {
+        setIsInitialised(true);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchInitialData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchInitialData]);
 
   const changeTradingPair = useCallback((newPair: string) => {
     if (TRADING_PAIRS.includes(newPair)) {
@@ -133,6 +155,8 @@ export const useMarketData = () => {
   useEffect(() => {
     if (!isInitialised) return;
 
+    // In a production environment, you would likely use a WebSocket for real-time updates.
+    // The setInterval below simulates real-time data flow for demonstration purposes.
     const interval = setInterval(() => {
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
