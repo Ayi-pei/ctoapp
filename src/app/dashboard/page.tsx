@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRight, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, ShoppingBag } from "lucide-react";
+import { ArrowRightLeft, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, ShoppingBag } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +30,7 @@ export default function DashboardPage() {
         { name: '推广中心', icon: Gift, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade' },
         { name: '理财', icon: ShoppingBag, href: '/finance' },
-        { name: '币币交易', icon: ArrowRight, href: '/trade' },
+        { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
     ];
     
     const renderMarketList = (data: any[]) => {
