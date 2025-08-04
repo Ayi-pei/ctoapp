@@ -15,7 +15,7 @@ const InvestmentProductCard = () => (
                 <div className="flex items-center gap-3">
                      <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
                     <div>
-                        <h4 className="font-semibold">USDT Smart contract</h4>
+                        <h4 className="font-semibold">USDT Metfone contract</h4>
                     </div>
                 </div>
                 <div className="text-right">
