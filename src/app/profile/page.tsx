@@ -38,7 +38,7 @@ const changePasswordSchema = z.object({
 
 export default function ProfilePage() {
     const { toast } = useToast();
-    const { user, logout, updateUser } = useAuth();
+    const { user, updateUser } = useAuth();
     const router = useRouter();
     const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
@@ -80,7 +80,6 @@ export default function ProfilePage() {
             });
             
             // Logout and redirect to login
-            logout();
             router.push('/login');
 
         } catch (error) {
