@@ -2,6 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -13,15 +14,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(true);
-
+  
+  // On initial load, assume not authenticated until checked.
+  // This avoids rendering protected routes prematurely.
   useEffect(() => {
-    // Check for logged-in user in localStorage on initial load
     const loggedInUser = localStorage.getItem('loggedInUser');
     if (loggedInUser) {
       setIsAuthenticated(true);
     }
-    setIsLoading(false);
   }, []);
 
   const login = (username: string, password: string): boolean => {
@@ -39,11 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('loggedInUser');
     setIsAuthenticated(false);
   };
-
-  // Render a loading state or null while checking auth status
-  if (isLoading) {
-    return null; 
-  }
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
