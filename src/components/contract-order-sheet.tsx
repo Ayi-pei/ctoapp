@@ -45,8 +45,9 @@ export function ContractOrderSheet({
   onPlaceTrade,
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
-  const [selectedPeriod, setSelectedPeriod] = useState(periods[0].value);
+  const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
   
   const asset = tradingPair.split('/')[0];
   const orderTypeText = orderType === 'buy' ? "买涨" : "买跌";
@@ -56,7 +57,7 @@ export function ContractOrderSheet({
     setAmount(value.toString());
   };
 
-  const handleConfirm = () => {
+  const handleInitialConfirm = () => {
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) {
         toast({
@@ -74,7 +75,11 @@ export function ContractOrderSheet({
         });
         return;
     }
-    
+    setIsConfirming(true);
+  };
+  
+  const handleFinalConfirm = () => {
+    const numericAmount = parseFloat(amount);
     onPlaceTrade({ type: orderType, amount: numericAmount });
 
     toast({
@@ -82,68 +87,123 @@ export function ContractOrderSheet({
         description: `您已成功下单 ${numericAmount} USDT 进行 ${orderTypeText}。`
     });
     
-    setAmount("");
-    onOpenChange(false);
+    resetState();
   };
+
+  const resetState = () => {
+    setAmount("");
+    setSelectedPeriod(periods[0]);
+    setIsConfirming(false);
+    onOpenChange(false);
+  }
+
+  const handleBack = () => {
+    setIsConfirming(false);
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetState();
+    }
+    onOpenChange(open);
+  }
+  
+  const renderConfirmationView = () => (
+    <>
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <span>订单确认</span>
+          </SheetTitle>
+        </SheetHeader>
+        <div className="py-6 space-y-4 text-sm">
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">订单类型</span>
+                <span className={cn("font-semibold", orderTypeColor)}>{asset} {orderTypeText}</span>
+            </div>
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">买入量</span>
+                <span className="font-semibold">{amount} USDT</span>
+            </div>
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">周期</span>
+                <span className="font-semibold">{selectedPeriod.label}</span>
+            </div>
+            <div className="flex justify-between">
+                <span className="text-muted-foreground">预估收益</span>
+                <span className="font-semibold text-green-500">{(parseFloat(amount) * (parseFloat(selectedPeriod.rate)/100)).toFixed(2)} USDT ({selectedPeriod.rate})</span>
+            </div>
+        </div>
+        <SheetFooter className="flex-col space-y-4">
+            <Button onClick={handleFinalConfirm} size="lg" className="w-full">确定</Button>
+            <Button onClick={handleBack} variant="outline" size="lg" className="w-full">返回</Button>
+        </SheetFooter>
+    </>
+  );
+
+  const renderOrderCreationView = () => (
+    <>
+      <SheetHeader>
+        <SheetTitle className="flex items-center gap-2 text-lg">
+          <span>{asset}</span>
+          <span className={orderTypeColor}>{orderTypeText}</span>
+        </SheetTitle>
+      </SheetHeader>
+      
+      <div className="py-6 space-y-6">
+          <div>
+              <h4 className="text-sm font-medium mb-2">选择周期</h4>
+              <div className="grid grid-cols-4 gap-2">
+                  {periods.map(p => (
+                      <Button
+                          key={p.value}
+                          variant={selectedPeriod.value === p.value ? "default" : "secondary"}
+                          onClick={() => setSelectedPeriod(p)}
+                          className="flex flex-col h-16"
+                      >
+                          <span>{p.label}</span>
+                          <span className="text-xs">{p.rate}</span>
+                      </Button>
+                  ))}
+              </div>
+          </div>
+
+          <div>
+              <h4 className="text-sm font-medium mb-2">买入量</h4>
+              <Input 
+                  type="number"
+                  placeholder="最少 1 USDT"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="mb-2"
+              />
+              <div className="grid grid-cols-4 gap-2">
+                   {amounts.map(a => (
+                      <Button
+                          key={a}
+                          variant="secondary"
+                          onClick={() => handleAmountClick(a)}
+                      >
+                          {a}
+                      </Button>
+                  ))}
+              </div>
+          </div>
+      </div>
+
+      <SheetFooter className="flex-col space-y-4">
+          <p className="text-sm text-muted-foreground text-center">
+              可用余额: {balance.toFixed(2)} USDT
+          </p>
+        <Button onClick={handleInitialConfirm} size="lg" className="w-full">确定</Button>
+      </SheetFooter>
+    </>
+  );
 
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="rounded-t-lg">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-lg">
-            <span>{asset}</span>
-            <span className={orderTypeColor}>{orderTypeText}</span>
-          </SheetTitle>
-        </SheetHeader>
-        
-        <div className="py-6 space-y-6">
-            <div>
-                <h4 className="text-sm font-medium mb-2">选择周期</h4>
-                <div className="grid grid-cols-4 gap-2">
-                    {periods.map(p => (
-                        <Button
-                            key={p.value}
-                            variant={selectedPeriod === p.value ? "default" : "secondary"}
-                            onClick={() => setSelectedPeriod(p.value)}
-                            className="flex flex-col h-16"
-                        >
-                            <span>{p.label}</span>
-                            <span className="text-xs">{p.rate}</span>
-                        </Button>
-                    ))}
-                </div>
-            </div>
-
-            <div>
-                <h4 className="text-sm font-medium mb-2">买入量</h4>
-                <Input 
-                    type="number"
-                    placeholder="最少 1 USDT"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="mb-2"
-                />
-                <div className="grid grid-cols-4 gap-2">
-                     {amounts.map(a => (
-                        <Button
-                            key={a}
-                            variant="secondary"
-                            onClick={() => handleAmountClick(a)}
-                        >
-                            {a}
-                        </Button>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        <SheetFooter className="flex-col space-y-4">
-            <p className="text-sm text-muted-foreground text-center">
-                可用余额: {balance.toFixed(2)} USDT
-            </p>
-          <Button onClick={handleConfirm} size="lg" className="w-full">确定</Button>
-        </SheetFooter>
+        {isConfirming ? renderConfirmationView() : renderOrderCreationView()}
          <SheetClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
           <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
