@@ -1,5 +1,6 @@
 
 "use client";
+import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Gem, Star, User } from "lucide-react";
 import Image from "next/image";
+import { InvestmentDialog } from "@/components/investment-dialog";
+import { useBalance, Investment } from "@/context/balance-context";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
 
 type InvestmentProductProps = {
     name: string;
@@ -16,6 +21,7 @@ type InvestmentProductProps = {
     lockPeriod: number;
     progress: number;
     icon: React.ReactNode;
+    onInvest: (product: Omit<InvestmentProductProps, 'icon' | 'onInvest'>) => void;
 };
 
 const MfIcon = () => (
@@ -49,7 +55,7 @@ const SmIcon = () => (
 );
 
 
-const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress, icon }: InvestmentProductProps) => (
+const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress, icon, onInvest }: InvestmentProductProps) => (
     <Card className="bg-card">
         <CardContent className="p-4 space-y-4">
             <div className="flex items-start justify-between">
@@ -88,19 +94,52 @@ const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockP
                 <Progress value={progress} className="h-2" />
             </div>
 
-            <Button className="w-full bg-primary/90 hover:bg-primary">立即参投</Button>
+            <Button className="w-full bg-primary/90 hover:bg-primary" onClick={() => onInvest({ name, rate, minInvestment, maxInvestment, lockPeriod, progress })}>立即参投</Button>
         </CardContent>
     </Card>
 );
 
+const MyInvestmentsList = ({ investments }: { investments: Investment[] }) => (
+    <Card>
+        <CardHeader>
+            <CardTitle>我的投资记录</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>产品名称</TableHead>
+                        <TableHead className="text-right">投资金额 (USDT)</TableHead>
+                        <TableHead className="text-right">投资日期</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {investments.map(inv => (
+                        <TableRow key={inv.id}>
+                            <TableCell className="font-medium">{inv.productName}</TableCell>
+                            <TableCell className="text-right">{inv.amount.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{inv.date}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
+)
+
 
 export default function FinancePage() {
-    const valueAddedProducts: Omit<InvestmentProductProps, 'icon'>[] = [
+    const { toast } = useToast();
+    const { balance, addInvestment, investments } = useBalance();
+    const [selectedProduct, setSelectedProduct] = useState<Omit<InvestmentProductProps, 'icon' | 'onInvest'> | null>(null);
+    const [isInvestmentDialogOpen, setIsInvestmentDialogOpen] = useState(false);
+
+    const valueAddedProducts: Omit<InvestmentProductProps, 'icon'| 'onInvest'>[] = [
         { name: "USDT Metfone contract", rate: 0.75, minInvestment: 500, maxInvestment: 200000, lockPeriod: 15, progress: 25 },
         { name: "USDT Smart contract", rate: 0.90, minInvestment: 1000, maxInvestment: 500000, lockPeriod: 30, progress: 60 },
     ];
 
-    const regularProducts: Omit<InvestmentProductProps, 'icon'>[] = [
+    const regularProducts: Omit<InvestmentProductProps, 'icon'| 'onInvest'>[] = [
         { name: "USDT Regular Saver", rate: 0.35, minInvestment: 100, maxInvestment: 50000, lockPeriod: 7, progress: 78 },
     ];
     
@@ -108,6 +147,30 @@ export default function FinancePage() {
         "USDT Metfone contract": <MfIcon />,
         "USDT Smart contract": <SmIcon />,
         "USDT Regular Saver": <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
+    }
+
+    const handleInvestClick = (product: Omit<InvestmentProductProps, 'icon' | 'onInvest'>) => {
+        setSelectedProduct(product);
+        setIsInvestmentDialogOpen(true);
+    }
+    
+    const handleConfirmInvestment = (amount: number) => {
+        if (!selectedProduct) return;
+        const success = addInvestment(selectedProduct.name, amount);
+        if (success) {
+            toast({
+                title: "投资成功",
+                description: `您已成功投资 ${amount} USDT 到 ${selectedProduct.name}。`
+            });
+        } else {
+             toast({
+                variant: "destructive",
+                title: "投资失败",
+                description: "您的余额不足。"
+            });
+        }
+        setIsInvestmentDialogOpen(false);
+        setSelectedProduct(null);
     }
 
 
@@ -145,7 +208,7 @@ export default function FinancePage() {
                     <TabsContent value="value-added">
                         <div className="space-y-4">
                            {valueAddedProducts.map(product => (
-                                <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} />
+                                <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} onInvest={handleInvestClick} />
                            ))}
                         </div>
                     </TabsContent>
@@ -156,7 +219,7 @@ export default function FinancePage() {
                         <div className="space-y-4">
                            {regularProducts.length > 0 ? (
                                 regularProducts.map(product => (
-                                    <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} />
+                                    <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} onInvest={handleInvestClick}/>
                                 ))
                            ) : (
                                 renderEmptyState("暂无普通产品")
@@ -164,10 +227,23 @@ export default function FinancePage() {
                         </div>
                     </TabsContent>
                     <TabsContent value="my-investments">
-                        {renderEmptyState("暂无投资记录")}
+                        {investments.length > 0 ? (
+                            <MyInvestmentsList investments={investments} />
+                        ) : (
+                             renderEmptyState("暂无投资记录")
+                        )}
                     </TabsContent>
                 </Tabs>
             </div>
+             {selectedProduct && (
+                <InvestmentDialog
+                    isOpen={isInvestmentDialogOpen}
+                    onOpenChange={setIsInvestmentDialogOpen}
+                    product={selectedProduct}
+                    balance={balance}
+                    onConfirm={handleConfirmInvestment}
+                />
+            )}
         </DashboardLayout>
     );
 }

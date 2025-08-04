@@ -54,9 +54,11 @@ const AssetRow = ({ asset }: { asset: Asset }) => {
 
 
 export default function AssetsPage() {
-    const { balance } = useBalance();
+    const { balance, investments } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    
+    const totalInvestmentValue = investments.reduce((sum, inv) => sum + inv.amount, 0);
 
 
      const otherAssets: Asset[] = [
@@ -73,8 +75,10 @@ export default function AssetsPage() {
     }
 
     const financialProducts: Asset[] = [
-        { name: "理财产品", icon: cryptoIcons["理财产品"], available: 1500, frozen: 0, usdtValue: 1500 },
+        { name: "理财产品", icon: cryptoIcons["理财产品"], available: totalInvestmentValue, frozen: 0, usdtValue: totalInvestmentValue },
     ]
+    
+    const totalBalance = balance + totalInvestmentValue;
 
     return (
         <DashboardLayout>
@@ -88,7 +92,7 @@ export default function AssetsPage() {
                                 <RefreshCw className="w-4 h-4" />
                             </div>
                         </div>
-                        <p className="text-3xl font-bold mb-4">{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <p className="text-3xl font-bold mb-4">{totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
 
                         <div className="grid grid-cols-4 gap-4 text-center">
                             <div className="flex flex-col items-center space-y-2" onClick={() => setIsDepositOpen(true)}>
@@ -126,17 +130,17 @@ export default function AssetsPage() {
                     <CardContent>
                        <AssetRow asset={usdtAsset} />
                        <Separator />
-                       {otherAssets.map((asset, index) => (
-                           <React.Fragment key={asset.name}>
-                            <AssetRow asset={asset} />
-                            {index < otherAssets.length -1 && <Separator />}
-                           </React.Fragment>
-                       ))}
-                       <Separator />
                        {financialProducts.map((asset, index) => (
                            <React.Fragment key={asset.name}>
                             <AssetRow asset={asset} />
                             {index < financialProducts.length -1 && <Separator />}
+                           </React.Fragment>
+                       ))}
+                       <Separator />
+                       {otherAssets.map((asset, index) => (
+                           <React.Fragment key={asset.name}>
+                            <AssetRow asset={asset} />
+                            {index < otherAssets.length -1 && <Separator />}
                            </React.Fragment>
                        ))}
                     </CardContent>
