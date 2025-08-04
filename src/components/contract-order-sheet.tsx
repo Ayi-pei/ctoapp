@@ -130,7 +130,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">预估收益</span>
-                <span className="font-semibold text-green-500">{(parseFloat(amount) * (parseFloat(selectedPeriod.rate)/100)).toFixed(2)} USDT ({selectedPeriod.rate})</span>
+                <span className="font-semibold text-green-500">以最终系统价格结算</span>
             </div>
         </div>
         <SheetFooter className="flex-col space-y-4">
