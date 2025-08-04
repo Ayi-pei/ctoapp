@@ -8,18 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Gem, Star, User } from "lucide-react";
 import Image from "next/image";
 
-const InvestmentProductCard = () => (
+type InvestmentProductProps = {
+    name: string;
+    rate: number;
+    minInvestment: number;
+    maxInvestment: number;
+    lockPeriod: number;
+    progress: number;
+};
+
+const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress }: InvestmentProductProps) => (
     <Card className="bg-card">
         <CardContent className="p-4 space-y-4">
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                      <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
                     <div>
-                        <h4 className="font-semibold">USDT Metfone contract</h4>
+                        <h4 className="font-semibold">{name}</h4>
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-2xl font-bold text-green-500">0.75 %</p>
+                    <p className="text-2xl font-bold text-green-500">{rate.toFixed(2)} %</p>
                     {/* Placeholder for sparkline */}
                 </div>
             </div>
@@ -27,24 +36,24 @@ const InvestmentProductCard = () => (
             <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                     <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />起投金额:</span>
-                    <span>500 USDT</span>
+                    <span>{minInvestment} USDT</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />限投金额:</span>
-                    <span>200,000 USDT</span>
+                    <span>{maxInvestment.toLocaleString()} USDT</span>
                 </div>
                 <div className="flex justify-between">
                     <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />锁仓天数:</span>
-                    <span>15</span>
+                    <span>{lockPeriod}</span>
                 </div>
             </div>
 
             <div>
                 <div className="flex justify-between mb-1 text-sm">
                     <span className="text-muted-foreground">项目进度:</span>
-                    <span>25%</span>
+                    <span>{progress}%</span>
                 </div>
-                <Progress value={25} className="h-2" />
+                <Progress value={progress} className="h-2" />
             </div>
 
             <Button className="w-full bg-primary/90 hover:bg-primary">立即参投</Button>
@@ -54,6 +63,11 @@ const InvestmentProductCard = () => (
 
 
 export default function FinancePage() {
+    const products: InvestmentProductProps[] = [
+        { name: "USDT Metfone contract", rate: 0.75, minInvestment: 500, maxInvestment: 200000, lockPeriod: 15, progress: 25 },
+        { name: "USDT Smart contract", rate: 0.90, minInvestment: 1000, maxInvestment: 500000, lockPeriod: 30, progress: 60 },
+    ];
+
     const renderEmptyState = (text: string) => (
          <Card>
             <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
@@ -87,8 +101,9 @@ export default function FinancePage() {
                     </TabsList>
                     <TabsContent value="value-added">
                         <div className="space-y-4">
-                            <InvestmentProductCard />
-                             <InvestmentProductCard />
+                           {products.map(product => (
+                                <InvestmentProductCard key={product.name} {...product} />
+                           ))}
                         </div>
                     </TabsContent>
                     <TabsContent value="membership">
