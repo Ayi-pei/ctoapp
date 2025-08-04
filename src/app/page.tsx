@@ -2,8 +2,6 @@
 "use client";
 
 import { useAuth } from '@/context/auth-context';
-import LoginPage from './login/page';
-import TradePage from './trade/page';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -15,7 +13,7 @@ export default function Home() {
     if (!isAuthenticated) {
       router.push('/login');
     } else {
-      router.push('/trade');
+      router.push('/dashboard');
     }
   }, [isAuthenticated, router]);
 
