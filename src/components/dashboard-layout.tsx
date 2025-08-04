@@ -17,7 +17,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { isAuthenticated, logout } = useAuth();
   const { tradingPair, changeTradingPair, availablePairs } = useMarketData();
   const router = useRouter();
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,14 +24,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     }
   }, [isAuthenticated, router]);
 
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
 
   if (!isAuthenticated) {
     return null; // Or a loading spinner
@@ -47,12 +38,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         onLogout={logout}
       />
       <div className="flex flex-1 overflow-hidden">
-        {!isMobile && <Sidebar />}
-        <main className="flex-1 overflow-y-auto">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
           {children}
         </main>
       </div>
-      {isMobile && <BottomNav />}
+       <BottomNav />
     </div>
   );
 };
