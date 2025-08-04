@@ -63,9 +63,13 @@ const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockP
 
 
 export default function FinancePage() {
-    const products: InvestmentProductProps[] = [
+    const valueAddedProducts: InvestmentProductProps[] = [
         { name: "USDT Metfone contract", rate: 0.75, minInvestment: 500, maxInvestment: 200000, lockPeriod: 15, progress: 25 },
         { name: "USDT Smart contract", rate: 0.90, minInvestment: 1000, maxInvestment: 500000, lockPeriod: 30, progress: 60 },
+    ];
+
+    const regularProducts: InvestmentProductProps[] = [
+        { name: "USDT Regular Saver", rate: 0.35, minInvestment: 100, maxInvestment: 50000, lockPeriod: 7, progress: 78 },
     ];
 
     const renderEmptyState = (text: string) => (
@@ -101,7 +105,7 @@ export default function FinancePage() {
                     </TabsList>
                     <TabsContent value="value-added">
                         <div className="space-y-4">
-                           {products.map(product => (
+                           {valueAddedProducts.map(product => (
                                 <InvestmentProductCard key={product.name} {...product} />
                            ))}
                         </div>
@@ -110,7 +114,15 @@ export default function FinancePage() {
                          {renderEmptyState("暂无会员专区产品")}
                     </TabsContent>
                     <TabsContent value="regular">
-                        {renderEmptyState("暂无普通产品")}
+                        <div className="space-y-4">
+                           {regularProducts.length > 0 ? (
+                                regularProducts.map(product => (
+                                    <InvestmentProductCard key={product.name} {...product} />
+                                ))
+                           ) : (
+                                renderEmptyState("暂无普通产品")
+                           )}
+                        </div>
                     </TabsContent>
                     <TabsContent value="my-investments">
                         {renderEmptyState("暂无投资记录")}
