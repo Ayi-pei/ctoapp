@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,8 +14,8 @@ import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 
 const loginSchema = z.object({
-  username: z.string().min(1, '请输入用户名'),
-  password: z.string().min(1, '请输入密码'),
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 export default function LoginPage() {
@@ -36,8 +35,8 @@ export default function LoginPage() {
     if (!success) {
       toast({
         variant: 'destructive',
-        title: '登录失败',
-        description: '用户名或密码错误。',
+        title: 'Login Failed',
+        description: 'Incorrect username or password.',
       });
     }
   };
@@ -46,7 +45,7 @@ export default function LoginPage() {
     <AuthLayout>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">登录</CardTitle>
+          <CardTitle className="text-2xl text-center">Login</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -56,9 +55,9 @@ export default function LoginPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>用户名</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入用户名" {...field} />
+                      <Input placeholder="Enter your username" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -69,23 +68,23 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>密码</FormLabel>
+                    <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="请输入密码" {...field} />
+                      <Input type="password" placeholder="Enter your password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full">
-                登录
+                Login
               </Button>
             </form>
           </Form>
            <div className="mt-4 text-center text-sm">
-            没有账户？{' '}
+            Don't have an account?{' '}
             <Link href="/register" className="underline">
-              立即注册
+              Register now
             </Link>
           </div>
         </CardContent>

@@ -14,10 +14,10 @@ import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 
 const registerSchema = z.object({
-  username: z.string().min(6, '用户名必须至少6位').max(10, '用户名不能超过10位').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含英文和数字'),
-  password: z.string().min(8, '密码必须至少8位').max(12, '密码不能超过12位'),
+  username: z.string().min(6, 'Username must be at least 6 characters').max(10, 'Username cannot exceed 10 characters').regex(/^[a-zA-Z0-9]+$/, 'Username can only contain letters and numbers'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(12, 'Password cannot exceed 12 characters'),
   invitationCode: z.string().refine(code => code === '111222', {
-    message: '邀请码不正确',
+    message: 'Incorrect invitation code',
   }),
 });
 
@@ -42,8 +42,8 @@ export default function RegisterPage() {
       if (existingUser) {
         toast({
           variant: 'destructive',
-          title: '注册失败',
-          description: '用户名已存在。',
+          title: 'Registration Failed',
+          description: 'Username already exists.',
         });
         return;
       }
@@ -52,15 +52,15 @@ export default function RegisterPage() {
       localStorage.setItem('users', JSON.stringify(users));
 
       toast({
-        title: '注册成功',
-        description: '您现在可以登录了。',
+        title: 'Registration Successful',
+        description: 'You can now log in.',
       });
       router.push('/login');
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: '注册失败',
-        description: '发生未知错误，请重试。',
+        title: 'Registration Failed',
+        description: 'An unknown error occurred. Please try again.',
       });
     }
   };
@@ -69,7 +69,7 @@ export default function RegisterPage() {
     <AuthLayout>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">注册</CardTitle>
+          <CardTitle className="text-2xl text-center">Register</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -79,9 +79,9 @@ export default function RegisterPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>用户名</FormLabel>
+                    <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="6-10位英文或数字" {...field} />
+                      <Input placeholder="6-10 letters or numbers" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -92,9 +92,9 @@ export default function RegisterPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>密码</FormLabel>
+                    <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="8-12位" {...field} />
+                      <Input type="password" placeholder="8-12 characters" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -105,23 +105,23 @@ export default function RegisterPage() {
                 name="invitationCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>邀请码</FormLabel>
+                    <FormLabel>Invitation Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入邀请码" {...field} />
+                      <Input placeholder="Enter invitation code" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full">
-                注册
+                Register
               </Button>
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">
-            已有账户？{' '}
+            Already have an account?{' '}
             <Link href="/login" className="underline">
-              立即登录
+              Login now
             </Link>
           </div>
         </CardContent>
