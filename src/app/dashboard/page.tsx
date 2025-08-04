@@ -18,7 +18,7 @@ import { useMarket } from "@/context/market-data-context";
 
 export default function DashboardPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
-    const { balance } = useBalance();
+    const { balances } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
@@ -31,6 +31,17 @@ export default function DashboardPage() {
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
     ];
+    
+    const getUsdtValue = (assetName: string, amount: number) => {
+        if (assetName === 'USDT') return amount;
+        if (assetName === 'BTC') return amount * 68000; // Mock price
+        if (assetName === 'ETH') return amount * 3800; // Mock price
+        return 0;
+    }
+
+    const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
+        return acc + getUsdtValue(name, balance.available);
+    }, 0);
     
     const renderMarketList = (data: any[]) => {
         if (!summaryData.length) {
@@ -61,7 +72,7 @@ export default function DashboardPage() {
                 <Card className="bg-card">
                     <CardContent className="p-4">
                         <p className="text-muted-foreground text-sm">账户余额(USDT)</p>
-                        <p className="text-3xl font-bold mt-1">{balance.toFixed(2)}</p>
+                        <p className="text-3xl font-bold mt-1">{totalBalance.toFixed(2)}</p>
                         <div className="grid grid-cols-2 gap-4 mt-4">
                             <Button className="bg-primary/80 hover:bg-primary" onClick={() => setIsDepositOpen(true)}>充币</Button>
                             <Button variant="secondary" onClick={() => setIsWithdrawOpen(true)}>提币</Button>
@@ -141,4 +152,5 @@ export default function DashboardPage() {
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
         </DashboardLayout>
     );
-}
+
+    
