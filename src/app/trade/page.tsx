@@ -12,11 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { OrderForm } from "@/components/order-form";
+import { useSearchParams } from 'next/navigation';
+import React from 'react';
 
-export default function TradePage() {
+
+function TradePageContent() {
   const marketData = useMarketData();
   const { tradingPair, data, summaryData } = marketData;
   const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance();
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') === 'contract' ? 'contract' : 'spot';
 
   const renderContent = () => {
     if (!data || !summaryData.length || isBalanceLoading) {
@@ -46,7 +51,7 @@ export default function TradePage() {
         <div className="mb-4">
             <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
         </div>
-        <Tabs defaultValue="spot" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="spot">币币交易</TabsTrigger>
                 <TabsTrigger value="contract">秒合约</TabsTrigger>
@@ -117,4 +122,13 @@ export default function TradePage() {
       {renderContent()}
     </DashboardLayout>
   );
+}
+
+
+export default function TradePage() {
+    return (
+        <React.Suspense fallback={<div>Loading...</div>}>
+            <TradePageContent />
+        </React.Suspense>
+    )
 }

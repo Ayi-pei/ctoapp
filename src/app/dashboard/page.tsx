@@ -28,7 +28,7 @@ export default function DashboardPage() {
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '下载中心', icon: Download, href: '/coming-soon' },
         { name: '推广中心', icon: Gift, href: '/coming-soon' },
-        { name: '秒合约', icon: Scale, href: '/trade' },
+        { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '理财', icon: ShoppingBag, href: '/finance' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
     ];
