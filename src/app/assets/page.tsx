@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBalance } from "@/context/balance-context";
 import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign } from "lucide-react";
-import React from 'react';
+import React, { useState } from 'react';
+import { DepositDialog } from "@/components/deposit-dialog";
+import { WithdrawDialog } from "@/components/withdraw-dialog";
+
 
 const cryptoIcons: { [key: string]: React.ElementType } = {
   "USDT": CircleDollarSign,
@@ -51,6 +54,9 @@ const AssetRow = ({ asset }: { asset: Asset }) => {
 
 export default function AssetsPage() {
     const { balance } = useBalance();
+    const [isDepositOpen, setIsDepositOpen] = useState(false);
+    const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+
 
      const otherAssets: Asset[] = [
         { name: "BTC", icon: cryptoIcons.BTC, available: 0, frozen: 0, usdtValue: 0 },
@@ -80,13 +86,13 @@ export default function AssetsPage() {
                         <p className="text-3xl font-bold mb-4">{balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
 
                         <div className="grid grid-cols-4 gap-4 text-center">
-                            <div className="flex flex-col items-center space-y-2">
+                            <div className="flex flex-col items-center space-y-2" onClick={() => setIsDepositOpen(true)}>
                                 <Button variant="secondary" size="icon" className="w-12 h-12 rounded-full bg-primary/20 text-primary">
                                     <ArrowDownToLine />
                                 </Button>
                                 <span className="text-xs">充币</span>
                             </div>
-                             <div className="flex flex-col items-center space-y-2">
+                             <div className="flex flex-col items-center space-y-2" onClick={() => setIsWithdrawOpen(true)}>
                                 <Button variant="secondary" size="icon" className="w-12 h-12 rounded-full bg-primary/20 text-primary">
                                     <ArrowUpFromLine />
                                 </Button>
@@ -125,6 +131,8 @@ export default function AssetsPage() {
                 </Card>
 
             </div>
+            <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
+            <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
         </DashboardLayout>
     );
 }
