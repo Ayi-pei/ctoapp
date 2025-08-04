@@ -1,123 +1,59 @@
+
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ContractOrderSheet } from "./contract-order-sheet";
+import { Trade } from "@/types";
 
-const formSchema = z.object({
-  price: z.coerce.number().positive("Price must be positive"),
-  amount: z.coerce.number().positive("Amount must be positive"),
-});
 
-export function OrderForm() {
-  const [total, setTotal] = useState(0);
-  const { toast } = useToast();
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      price: undefined,
-      amount: undefined,
-    },
-  });
+type OrderFormProps = {
+  tradingPair: string;
+  balance: number;
+  onPlaceTrade: (trade: Omit<Trade, 'id' | 'time' | 'price'>) => void;
+}
 
-  const handleValueChange = () => {
-    const price = form.getValues("price");
-    const amount = form.getValues("amount");
-    if (price > 0 && amount > 0) {
-      setTotal(price * amount);
-    } else {
-      setTotal(0);
-    }
-  };
-  
-  const onSubmit = (values: z.infer<typeof formSchema>, orderType: 'Buy' | 'Sell') => {
-    toast({
-      title: "Order Submitted!",
-      description: `${orderType} order for ${values.amount} at $${values.price} placed successfully.`,
-    });
-    form.reset();
-    setTotal(0);
-  };
+export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps) {
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
 
-  const renderFormContent = (orderType: 'Buy' | 'Sell') => (
-    <Form {...form}>
-      <form
-        onChange={handleValueChange}
-        onSubmit={form.handleSubmit((data) => onSubmit(data, orderType))}
-        className="space-y-4"
-      >
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price (USDT)</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="0.00" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="amount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Amount</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="0.00" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="text-sm text-muted-foreground">
-          Total: <span className="font-medium text-foreground">{total.toFixed(4)} USDT</span>
-        </div>
-        <Button
-          type="submit"
-          className={`w-full ${orderType === 'Buy' ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-        >
-          {orderType}
-        </Button>
-      </form>
-    </Form>
-  );
+    const handleOpenSheet = (type: 'buy' | 'sell') => {
+        setOrderType(type);
+        setIsSheetOpen(true);
+    };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Place Order</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="buy" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="buy">Buy</TabsTrigger>
-            <TabsTrigger value="sell">Sell</TabsTrigger>
-          </TabsList>
-          <TabsContent value="buy">
-            {renderFormContent('Buy')}
-          </TabsContent>
-          <TabsContent value="sell">
-            {renderFormContent('Sell')}
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>秒合约</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                    <Button
+                        size="lg"
+                        className="bg-green-600 hover:bg-green-700 text-white text-lg h-12"
+                        onClick={() => handleOpenSheet('buy')}
+                    >
+                        看涨
+                    </Button>
+                    <Button
+                        size="lg"
+                        className="bg-red-600 hover:bg-red-700 text-white text-lg h-12"
+                        onClick={() => handleOpenSheet('sell')}
+                    >
+                        看跌
+                    </Button>
+                </div>
+                 <ContractOrderSheet
+                    isOpen={isSheetOpen}
+                    onOpenChange={setIsSheetOpen}
+                    orderType={orderType}
+                    tradingPair={tradingPair}
+                    balance={balance}
+                    onPlaceTrade={onPlaceTrade}
+                />
+            </CardContent>
+        </Card>
+    );
 }

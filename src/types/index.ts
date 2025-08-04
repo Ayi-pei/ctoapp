@@ -1,3 +1,4 @@
+
 export type Order = {
   price: number;
   size: number;
@@ -22,4 +23,6 @@ export type MarketSummary = {
     price: number;
     change: number;
     volume: number;
+    high: number;
+    low: number;
 };

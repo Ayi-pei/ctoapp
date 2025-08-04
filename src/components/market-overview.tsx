@@ -4,43 +4,43 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { MarketSummary } from "@/types";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 
 type MarketOverviewProps = {
   summary: MarketSummary[];
   onSelectPair: (pair: string) => void;
+  currentPair: string;
 };
 
-export function MarketOverview({ summary, onSelectPair }: MarketOverviewProps) {
+export function MarketOverview({ summary, onSelectPair, currentPair }: MarketOverviewProps) {
+  const currentMarket = summary.find(s => s.pair === currentPair);
+
   return (
     <Card>
-      <CardContent className="p-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-          {summary.map((item) => (
-            <div
-              key={item.pair}
-              onClick={() => onSelectPair(item.pair)}
-              className="p-3 rounded-md hover:bg-muted cursor-pointer transition-colors"
-            >
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-sm">{item.pair}</span>
-                <span
-                  className={`flex items-center text-sm font-medium ${
-                    item.change >= 0 ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {item.change >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 mr-1" />
-                  )}
-                  {item.change.toFixed(2)}%
-                </span>
-              </div>
-              <div className="text-lg font-bold mt-1">
-                ${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-              </div>
-            </div>
-          ))}
+      <CardContent className="p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+          <div className="col-span-2 md:col-span-1">
+             <h2 className="text-xl font-bold">{currentMarket?.pair}</h2>
+             <p className={`text-2xl font-bold ${currentMarket && currentMarket.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {currentMarket?.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+             </p>
+              <p className={`text-sm font-medium ${currentMarket && currentMarket.change >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {currentMarket?.change.toFixed(2)}%
+              </p>
+          </div>
+          <div className="text-sm">
+            <p className="text-muted-foreground">24h High</p>
+            <p className="font-medium">{currentMarket?.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="text-sm">
+             <p className="text-muted-foreground">24h Low</p>
+            <p className="font-medium">{currentMarket?.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+           <div className="text-sm">
+             <p className="text-muted-foreground">24h Volume</p>
+             <p className="font-medium">{(currentMarket?.volume / 1000).toFixed(2)}K</p>
+          </div>
         </div>
       </CardContent>
     </Card>

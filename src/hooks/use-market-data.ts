@@ -74,6 +74,8 @@ const generateInitialData = (pair: string) => {
   const price24hAgo = basePrice * randomInRange(0.95, 1.05);
   const currentPrice = priceData[priceData.length - 1].price;
   const change = ((currentPrice - price24hAgo) / price24hAgo) * 100;
+  const low = Math.min(...priceData.map(p => p.price), price24hAgo);
+  const high = Math.max(...priceData.map(p => p.price), price24hAgo);
 
 
   return { 
@@ -84,7 +86,9 @@ const generateInitialData = (pair: string) => {
           pair,
           price: currentPrice,
           change: change,
-          volume: randomInRange(1000000, 50000000)
+          volume: randomInRange(1000000, 50000000),
+          high,
+          low
       }
   };
 };
@@ -122,7 +126,7 @@ export const useMarketData = () => {
                  // Update Price
                 const oldPrice = prevData.summary.price;
                 const newPrice = oldPrice * randomInRange(0.9995, 1.0005);
-                const price24hAgo = prevData.summary.price / (1 + prevData.summary.change / 100)
+                const price24hAgo = prevData.summary.low; // Simplified for this simulation
                 const newChange = ((newPrice - price24hAgo) / price24hAgo) * 100;
 
 
@@ -130,6 +134,8 @@ export const useMarketData = () => {
                     ...prevData.summary,
                     price: newPrice,
                     change: newChange,
+                    high: Math.max(prevData.summary.high, newPrice),
+                    low: Math.min(prevData.summary.low, newPrice),
                 };
                 
                 // If it's the active pair, update everything

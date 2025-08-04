@@ -8,12 +8,14 @@ import { TradeHistory } from "@/components/trade-history";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarketOverview } from "@/components/market-overview";
 import DashboardLayout from "@/components/dashboard-layout";
+import { useBalance } from "@/hooks/use-balance";
 
 export default function TradePage() {
   const { tradingPair, changeTradingPair, data, summaryData } = useMarketData();
+  const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance(10000);
 
   const renderContent = () => {
-    if (!data || !summaryData) {
+    if (!data || !summaryData || isBalanceLoading) {
       return (
         <main className="p-4">
             <div className="mb-4">
@@ -21,10 +23,10 @@ export default function TradePage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
                 <div className="flex flex-col gap-4">
-                    <Skeleton className="h-[500px] w-full" />
+                  <Skeleton className="h-[500px] w-full" />
                 </div>
                 <div className="flex flex-col gap-4">
-                    <Skeleton className="h-[420px] w-full" />
+                    <Skeleton className="h-[220px] w-full" />
                     <Skeleton className="h-[420px] w-full" />
                 </div>
             </div>
@@ -32,20 +34,22 @@ export default function TradePage() {
       );
     }
 
-    const currentSummary = summaryData.find(s => s.pair === tradingPair);
-
     return (
       <main className="p-4">
         <div className="mb-4">
-            <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} />
+            <MarketOverview summary={summaryData} onSelectPair={changeTradingPair} currentPair={tradingPair} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4">
             <div className="flex flex-col gap-4">
                 <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                 <TradeHistory trades={data.trades} />
             </div>
             <div className="flex flex-col gap-4">
-                <OrderForm />
-                <TradeHistory trades={data.trades} />
+                <OrderForm 
+                  tradingPair={tradingPair}
+                  balance={balance}
+                  onPlaceTrade={placeTrade} 
+                />
             </div>
         </div>
       </main>

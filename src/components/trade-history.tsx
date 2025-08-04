@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +29,15 @@ export function TradeHistory({ trades }: { trades: Trade[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Trade History</CardTitle>
+        <CardTitle className="text-lg">市价成交</CardTitle>
       </CardHeader>
       <CardContent className="h-[300px] overflow-y-auto pr-0">
         <Table>
           <TableHeader>
             <TableRow className="text-xs">
-              <TableHead className="p-1">Price (USDT)</TableHead>
-              <TableHead className="p-1 text-right">Amount</TableHead>
-              <TableHead className="p-1 text-right">Time</TableHead>
+              <TableHead className="p-1">价格 (USDT)</TableHead>
+              <TableHead className="p-1 text-right">数量</TableHead>
+              <TableHead className="p-1 text-right">时间</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
