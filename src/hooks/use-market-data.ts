@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Order, MarketTrade, PriceDataPoint, MarketSummary } from '@/types';
+import { useAuth } from '@/context/auth-context';
 
 const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
@@ -112,34 +113,34 @@ const generateInitialDataForPair = (pair: string) => {
 
 
 export const useMarketData = () => {
+  const { isTestUser } = useAuth();
   const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
 
   // In a production environment, this function would fetch data from a real API.
   const fetchInitialData = useCallback(async () => {
-    try {
+    // If it's not a test user, you would fetch real data here.
+    if (!isTestUser) {
+        console.log("Real user detected. API calls would be made here.");
         // --- PRODUCTION API CALL ---
         // Example: const response = await fetch('/api/v1/market-data/all');
         // const data = await response.json();
         // const initialData = new Map(Object.entries(data));
         // setAllData(initialData);
-
-        // For now, we fall back to mock data generation.
-        throw new Error("Using mock data");
-
-    } catch (error) {
-        console.warn("API fetch failed, falling back to mock data:", error);
-        // Fallback to mock data if API fails or is not available
-        const mockInitialData = new Map();
-        TRADING_PAIRS.forEach(pair => {
-            mockInitialData.set(pair, generateInitialDataForPair(pair));
-        });
-        setAllData(mockInitialData);
-    } finally {
-        setIsInitialised(true);
+        // For now, real users will also see mock data until an API is connected.
     }
-  }, []);
+
+    // For test users, or as a fallback for real users if the API fails.
+    console.warn("Generating mock market data.");
+    const mockInitialData = new Map();
+    TRADING_PAIRS.forEach(pair => {
+        mockInitialData.set(pair, generateInitialDataForPair(pair));
+    });
+    setAllData(mockInitialData);
+    setIsInitialised(true);
+
+  }, [isTestUser]);
 
   useEffect(() => {
     fetchInitialData();
@@ -155,8 +156,13 @@ export const useMarketData = () => {
   useEffect(() => {
     if (!isInitialised) return;
 
-    // In a production environment, you would likely use a WebSocket for real-time updates.
-    // The setInterval below simulates real-time data flow for demonstration purposes.
+    // For test users, we simulate real-time updates.
+    // For real users, this would be replaced with a WebSocket connection.
+    if (!isTestUser) {
+        console.log("Real user: WebSocket connection would be established here.");
+        // return () => ws.close();
+    }
+    
     const interval = setInterval(() => {
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
@@ -230,7 +236,7 @@ export const useMarketData = () => {
     }, 1500); // Update every 1.5 seconds
 
     return () => clearInterval(interval);
-  }, [isInitialised, tradingPair]);
+  }, [isInitialised, tradingPair, isTestUser]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];

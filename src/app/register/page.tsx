@@ -16,8 +16,8 @@ import AuthLayout from '@/components/auth-layout';
 const registerSchema = z.object({
   username: z.string().min(6, '用户名必须至少6个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
   password: z.string().min(8, '密码必须至少8个字符').max(12, '密码不能超过12个字符'),
-  invitationCode: z.string().refine(code => code === '111222', {
-    message: '邀请码错误',
+  invitationCode: z.string().regex(/^[a-zA-Z0-9]{6}$/, {
+    message: '邀请码必须是6位字母或数字',
   }),
 });
 
@@ -48,7 +48,13 @@ export default function RegisterPage() {
         return;
       }
       
-      users.push({ username: values.username, password: values.password });
+      const isTestUser = values.invitationCode === '111222';
+
+      users.push({ 
+          username: values.username, 
+          password: values.password,
+          isTestUser: isTestUser,
+      });
       localStorage.setItem('users', JSON.stringify(users));
 
       toast({
@@ -107,7 +113,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>邀请码</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入邀请码" {...field} />
+                      <Input placeholder="请输入6位邀请码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

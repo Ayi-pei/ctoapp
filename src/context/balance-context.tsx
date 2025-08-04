@@ -4,9 +4,16 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { ContractTrade, SpotTrade } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
+import { useAuth } from './auth-context';
 
-const INITIAL_BALANCES = {
+const INITIAL_BALANCES_TEST_USER = {
     USDT: { available: 10000, frozen: 0 },
+    BTC: { available: 0.5, frozen: 0 },
+    ETH: { available: 10, frozen: 0 },
+};
+
+const INITIAL_BALANCES_REAL_USER = {
+    USDT: { available: 0, frozen: 0 },
     BTC: { available: 0, frozen: 0 },
     ETH: { available: 0, frozen: 0 },
 };
@@ -29,34 +36,45 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const [balances, setBalances] = useState(INITIAL_BALANCES);
+  const { isAuthenticated, isTestUser } = useAuth();
+  const [balances, setBalances] = useState(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedBalances = localStorage.getItem('userBalances');
-      if (storedBalances) {
-        setBalances(JSON.parse(storedBalances));
-      } else {
-        setBalances(INITIAL_BALANCES);
-      }
-    } catch (error) {
-      console.error("Could not access localStorage.", error);
-      setBalances(INITIAL_BALANCES);
-    } finally {
-        setIsLoading(false);
+    // This effect runs when auth state changes (login/logout)
+    setIsLoading(true);
+    if (isAuthenticated) {
+        try {
+            const storedBalances = localStorage.getItem('userBalances');
+            if (storedBalances) {
+                setBalances(JSON.parse(storedBalances));
+            } else {
+                // Set initial balances based on user type if nothing is stored
+                setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+            }
+        } catch (error) {
+            console.error("Could not access localStorage or parse balances.", error);
+            setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+        } finally {
+            setIsLoading(false);
+        }
+    } else {
+      // Not authenticated, clear balances
+      setBalances(INITIAL_BALANCES_REAL_USER); // Reset to empty state
+      setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, isTestUser]);
 
   useEffect(() => {
-    if (!isLoading) {
+    // This effect persists balance changes to localStorage
+    if (!isLoading && isAuthenticated) {
       try {
         localStorage.setItem('userBalances', JSON.stringify(balances));
       } catch (error) {
-         console.error("Could not access localStorage.", error);
+         console.error("Could not access localStorage to save balances.", error);
       }
     }
-  }, [balances, isLoading]);
+  }, [balances, isLoading, isAuthenticated]);
 
   const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => {
     setBalances(prevBalances => {
