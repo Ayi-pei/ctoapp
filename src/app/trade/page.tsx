@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useMarketData } from "@/hooks/use-market-data";
 import { OrderBook } from "@/components/order-book";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarketOverview } from "@/components/market-overview";
@@ -14,9 +13,10 @@ import Image from "next/image";
 import { OrderForm } from "@/components/order-form";
 import { useSearchParams } from 'next/navigation';
 import React from 'react';
+import { useMarket } from "@/context/market-data-context";
 
 function TradePageContent({ defaultTab }: { defaultTab: string }) {
-  const marketData = useMarketData();
+  const marketData = useMarket();
   const { tradingPair, data, summaryData } = marketData;
   const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance();
 

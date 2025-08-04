@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { BalanceProvider } from '@/context/balance-context';
+import { MarketDataProvider } from '@/context/market-data-context';
 
 export const metadata: Metadata = {
   title: 'TradeFlow',
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background text-foreground">
         <AuthProvider>
           <BalanceProvider>
-            {children}
+            <MarketDataProvider>
+              {children}
+            </MarketDataProvider>
           </BalanceProvider>
         </AuthProvider>
         <Toaster />

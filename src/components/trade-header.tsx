@@ -11,13 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { User, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-
-type TradeHeaderProps = {
-  tradingPair: string;
-  availablePairs: string[];
-  onTradingPairChange: (pair: string) => void;
-  onLogout: () => void;
-};
+import { useMarket } from "@/context/market-data-context";
+import { useAuth } from "@/context/auth-context";
 
 // Simple SVG Logo component
 const Logo = () => (
@@ -33,13 +28,10 @@ const Logo = () => (
 )
 
 
-export function TradeHeader({
-  tradingPair,
-  availablePairs,
-  onTradingPairChange,
-  onLogout,
-}: TradeHeaderProps) {
+export function TradeHeader() {
   const pathname = usePathname();
+  const { tradingPair, availablePairs, changeTradingPair } = useMarket();
+  const { logout } = useAuth();
 
   const isDashboard = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
@@ -53,7 +45,7 @@ export function TradeHeader({
       <div className="flex-grow flex justify-center">
          {isTradePage && (
             <div className="w-[150px]">
-                <Select value={tradingPair} onValueChange={onTradingPairChange}>
+                <Select value={tradingPair} onValueChange={changeTradingPair}>
                     <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Pair" />
                     </SelectTrigger>

@@ -4,10 +4,10 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { MarketList } from "@/components/market-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMarketData } from "@/hooks/use-market-data";
+import { useMarket } from "@/context/market-data-context";
 
 export default function MarketPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarketData();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
 
     const renderMarketList = (data: any[]) => {
         if (!summaryData.length) {

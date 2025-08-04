@@ -5,8 +5,8 @@ import { MarketSummary } from "@/types";
 import { Area, AreaChart } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { useMarketData } from "@/hooks/use-market-data";
 import { useRouter } from "next/navigation";
+import { useMarket } from "@/context/market-data-context";
 
 const cryptoIcons: { [key: string]: string } = {
   "BTC": "/icons/btc.svg",
@@ -32,7 +32,7 @@ const generateSparklineData = () => {
 }
 
 export function MarketList({ summary }: { summary: MarketSummary[] }) {
-  const { changeTradingPair } = useMarketData();
+  const { changeTradingPair } = useMarket();
   const router = useRouter();
 
   const handlePairClick = (pair: string) => {

@@ -5,19 +5,19 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRightLeft, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale } from "lucide-react";
+import { ArrowRightLeft, Download, Gem, Gift, Landmark, Megaphone, Repeat, Scale, User, BarChart } from "lucide-react";
 import { MarketList } from "@/components/market-list";
-import { useMarketData } from "@/hooks/use-market-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMarket } from "@/context/market-data-context";
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarketData();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
     const { balance } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -106,18 +106,7 @@ export default function DashboardPage() {
 
                 {/* Features Grid */}
                  <div className="grid grid-cols-4 gap-4 text-center">
-                    {features.slice(0, 4).map(feature => {
-                        const Icon = feature.icon;
-                        return (
-                            <Link href={feature.href} key={feature.name} className="flex flex-col items-center space-y-2">
-                                <div className="bg-card p-4 rounded-full">
-                                    <Icon className="h-6 w-6 text-primary" />
-                                </div>
-                                <p className="text-xs text-muted-foreground">{feature.name}</p>
-                            </Link>
-                        )
-                    })}
-                    {features.slice(4).map(feature => {
+                    {features.map(feature => {
                         const Icon = feature.icon;
                         return (
                             <Link href={feature.href} key={feature.name} className="flex flex-col items-center space-y-2">

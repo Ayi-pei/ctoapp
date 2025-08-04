@@ -1,21 +1,19 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TradeHeader } from './trade-header';
-import { useMarketData as useMarketDataHook } from '@/hooks/use-market-data';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, logout } = useAuth();
-  const { tradingPair, changeTradingPair, availablePairs } = useMarketDataHook();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -31,12 +29,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <TradeHeader 
-        tradingPair={tradingPair}
-        availablePairs={availablePairs}
-        onTradingPairChange={changeTradingPair}
-        onLogout={logout}
-      />
+      <TradeHeader />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
