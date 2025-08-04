@@ -12,15 +12,24 @@ import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
+  username: z.string().min(1, '请输入用户名'),
+  password: z.string().min(1, '请输入密码'),
 });
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, router]);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -35,8 +44,8 @@ export default function LoginPage() {
     if (!success) {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description: 'Incorrect username or password.',
+        title: '登录失败',
+        description: '用户名或密码错误。',
       });
     }
   };
@@ -45,7 +54,7 @@ export default function LoginPage() {
     <AuthLayout>
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Login</CardTitle>
+          <CardTitle className="text-2xl text-center">登录</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -55,9 +64,9 @@ export default function LoginPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your username" {...field} />
+                      <Input placeholder="请输入您的用户名" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -68,23 +77,23 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} />
+                      <Input type="password" placeholder="请输入您的密码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <Button type="submit" className="w-full">
-                Login
+                登录
               </Button>
             </form>
           </Form>
            <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
+            没有账户?{' '}
             <Link href="/register" className="underline">
-              Register now
+              立即注册
             </Link>
           </div>
         </CardContent>
