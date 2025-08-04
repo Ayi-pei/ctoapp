@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { ArrowRight, Bell, Download, Gem, Gift, Headphones, Landmark, Megaphone, Repeat, Scale, Users } from "lucide-react";
+import { MarketList } from "@/components/market-list";
+import { useMarketData } from "@/hooks/use-market-data";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const iconMap: { [key: string]: React.ElementType } = {
     '质押挖矿': Gem,
@@ -19,6 +23,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 
 export default function DashboardPage() {
+    const { summaryData } = useMarketData();
     const features = [
         { name: '质押挖矿', icon: Gem },
         { name: '助力贷', icon: Landmark },
@@ -94,6 +99,32 @@ export default function DashboardPage() {
                         )
                     })}
                 </div>
+                
+                {/* Market List */}
+                <Tabs defaultValue="popular">
+                    <TabsList className="grid w-full grid-cols-3 bg-card">
+                        <TabsTrigger value="popular">热门币种</TabsTrigger>
+                        <TabsTrigger value="forex">外汇币种</TabsTrigger>
+                        <TabsTrigger value="gold">国际黄金</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="popular">
+                        <MarketList summary={summaryData} />
+                    </TabsContent>
+                    <TabsContent value="forex">
+                        <Card>
+                            <CardContent className="p-6">
+                                <p className="text-center text-muted-foreground">外汇币种数据即将上线。</p>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="gold">
+                        <Card>
+                             <CardContent className="p-6">
+                                <p className="text-center text-muted-foreground">国际黄金数据即将上线。</p>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
         </DashboardLayout>
     );
