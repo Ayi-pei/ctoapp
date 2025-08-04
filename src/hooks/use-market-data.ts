@@ -4,9 +4,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, Trade, PriceDataPoint, MarketSummary } from '@/types';
 
-const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD'];
+const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
+const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
 
 // Helper function to generate a random number within a range
@@ -25,6 +26,8 @@ const getBasePrice = (pair: string) => {
         case 'BNB/USDT': return 600;
         case 'MATIC/USDT': return 0.7;
         case 'XAU/USD': return 2330;
+        case 'EUR/USD': return 1.07;
+        case 'GBP/USD': return 1.25;
         default: return 100;
     }
 }
@@ -216,5 +219,6 @@ export const useMarketData = () => {
       summaryData,
       cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
       goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
+      forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
     };
 };

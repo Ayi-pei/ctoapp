@@ -15,6 +15,8 @@ const cryptoIcons: { [key: string]: string } = {
   "MATIC": "/icons/matic.svg",
   "SOL": "/icons/sol.svg",
   "XAU": "/icons/gold.svg",
+  "EUR": "/icons/eur.svg",
+  "GBP": "/icons/gbp.svg",
 };
 
 const generateSparklineData = () => {
