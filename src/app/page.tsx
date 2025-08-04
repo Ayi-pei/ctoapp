@@ -1,20 +1,23 @@
 
 "use client";
 
-import { AuthProvider, useAuth } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
 import LoginPage from './login/page';
 import TradePage from './trade/page';
-
-function App() {
-  const { isAuthenticated } = useAuth();
-
-  return isAuthenticated ? <TradePage /> : <LoginPage />;
-}
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Home() {
-  return (
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  );
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login');
+    } else {
+      router.push('/trade');
+    }
+  }, [isAuthenticated, router]);
+
+  return null; // or a loading spinner
 }
