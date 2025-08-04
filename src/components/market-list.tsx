@@ -5,6 +5,9 @@ import { MarketSummary } from "@/types";
 import { Area, AreaChart } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
+import { useMarketData } from "@/hooks/use-market-data";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const cryptoIcons: { [key: string]: string } = {
   "BTC": "/icons/btc.svg",
@@ -30,6 +33,13 @@ const generateSparklineData = () => {
 }
 
 export function MarketList({ summary }: { summary: MarketSummary[] }) {
+  const { changeTradingPair } = useMarketData();
+  const router = useRouter();
+
+  const handlePairClick = (pair: string) => {
+      changeTradingPair(pair);
+      router.push('/trade');
+  }
 
   return (
     <Card className="bg-card border-none shadow-none">
@@ -41,7 +51,7 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
                     const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 
                     return (
-                        <div key={item.pair} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2">
+                        <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2 cursor-pointer hover:bg-muted/50 rounded-lg">
                              <img 
                                 src={cryptoIcons[item.pair.split('/')[0]]} 
                                 alt={`${item.pair.split('/')[0]} logo`} 
