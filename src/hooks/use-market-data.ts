@@ -4,7 +4,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, Trade, PriceDataPoint, MarketSummary } from '@/types';
 
-const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
+const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD'];
+const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
+const GOLD_PAIRS = ['XAU/USD'];
+
 
 // Helper function to generate a random number within a range
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
@@ -21,6 +24,7 @@ const getBasePrice = (pair: string) => {
         case 'LTC/USDT': return 85;
         case 'BNB/USDT': return 600;
         case 'MATIC/USDT': return 0.7;
+        case 'XAU/USD': return 2330;
         default: return 100;
     }
 }
@@ -204,5 +208,13 @@ export const useMarketData = () => {
   const data = allData.get(tradingPair) || null;
   const summaryData = Array.from(allData.values()).map(d => d.summary);
 
-  return { tradingPair, changeTradingPair, data, availablePairs: TRADING_PAIRS, summaryData };
+  return { 
+      tradingPair, 
+      changeTradingPair, 
+      data, 
+      availablePairs: TRADING_PAIRS, 
+      summaryData,
+      cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
+      goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
+    };
 };

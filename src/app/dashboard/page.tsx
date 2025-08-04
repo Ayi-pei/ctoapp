@@ -28,7 +28,7 @@ const iconMap: { [key: string]: React.ElementType } = {
 
 
 export default function DashboardPage() {
-    const { summaryData } = useMarketData();
+    const { cryptoSummaryData, goldSummaryData } = useMarketData();
     const { balance } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function DashboardPage() {
                         <TabsTrigger value="gold">国际黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular">
-                        <MarketList summary={summaryData} />
+                        <MarketList summary={cryptoSummaryData} />
                     </TabsContent>
                     <TabsContent value="forex">
                         <Card>
@@ -142,11 +142,7 @@ export default function DashboardPage() {
                         </Card>
                     </TabsContent>
                     <TabsContent value="gold">
-                        <Card>
-                             <CardContent className="p-6">
-                                <p className="text-center text-muted-foreground">国际黄金数据即将上线。</p>
-                            </CardContent>
-                        </Card>
+                        <MarketList summary={goldSummaryData} />
                     </TabsContent>
                 </Tabs>
             </div>

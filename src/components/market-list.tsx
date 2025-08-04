@@ -14,6 +14,7 @@ const cryptoIcons: { [key: string]: string } = {
   "BNB": "/icons/bnb.svg",
   "MATIC": "/icons/matic.svg",
   "SOL": "/icons/sol.svg",
+  "XAU": "/icons/gold.svg",
 };
 
 const generateSparklineData = () => {
@@ -56,7 +57,7 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
                                 }} className="h-full w-full p-0">
                                     <AreaChart accessibilityLayer data={sparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
                                         <defs>
-                                            <linearGradient id={`color-${item.pair.split('/')[0]}`} x1="0" y1="0" x2="0" y2="1">
+                                            <linearGradient id={`color-${item.pair.replace('/', '')}`} x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor={color} stopOpacity={0.8}/>
                                                 <stop offset="95%" stopColor={color} stopOpacity={0}/>
                                             </linearGradient>
@@ -66,7 +67,7 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
                                             type="monotone"
                                             stroke={color}
                                             fillOpacity={1}
-                                            fill={`url(#color-${item.pair.split('/')[0]})`}
+                                            fill={`url(#color-${item.pair.replace('/', '')})`}
                                             strokeWidth={2}
                                         />
                                     </AreaChart>
