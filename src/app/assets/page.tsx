@@ -5,45 +5,48 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBalance } from "@/context/balance-context";
-import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw } from "lucide-react";
-import Image from "next/image";
+import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign } from "lucide-react";
+import React from 'react';
 
-const cryptoIcons: { [key: string]: string } = {
-  "USDT": "/icons/usdt.svg",
-  "BTC": "/icons/btc.svg",
-  "ETH": "/icons/eth.svg",
+const cryptoIcons: { [key: string]: React.ElementType } = {
+  "USDT": CircleDollarSign,
+  "BTC": CircleDollarSign,
+  "ETH": CircleDollarSign,
 };
 
 type Asset = {
     name: string;
-    icon: string;
+    icon: React.ElementType;
     available: number;
     frozen: number;
     usdtValue: number;
 }
 
-const AssetRow = ({ asset }: { asset: Asset }) => (
-    <div className="py-4">
-        <div className="flex items-center gap-3 mb-4">
-            <img src={asset.icon} alt={`${asset.name} logo`} className="h-8 w-8" />
-            <span className="font-semibold">{asset.name}</span>
+const AssetRow = ({ asset }: { asset: Asset }) => {
+    const Icon = asset.icon;
+    return (
+        <div className="py-4">
+            <div className="flex items-center gap-3 mb-4">
+                <Icon className="h-8 w-8 text-primary" />
+                <span className="font-semibold">{asset.name}</span>
+            </div>
+            <div className="grid grid-cols-3 text-sm">
+                <div>
+                    <p className="text-muted-foreground">可用</p>
+                    <p>{asset.available.toFixed(4)}</p>
+                </div>
+                 <div>
+                    <p className="text-muted-foreground">占用</p>
+                    <p>{asset.frozen.toFixed(4)}</p>
+                </div>
+                 <div className="text-right">
+                    <p className="text-muted-foreground">折合(USDT)</p>
+                    <p>{asset.usdtValue.toFixed(4)}</p>
+                </div>
+            </div>
         </div>
-        <div className="grid grid-cols-3 text-sm">
-            <div>
-                <p className="text-muted-foreground">可用</p>
-                <p>{asset.available.toFixed(4)}</p>
-            </div>
-             <div>
-                <p className="text-muted-foreground">占用</p>
-                <p>{asset.frozen.toFixed(4)}</p>
-            </div>
-             <div className="text-right">
-                <p className="text-muted-foreground">折合(USDT)</p>
-                <p>{asset.usdtValue.toFixed(4)}</p>
-            </div>
-        </div>
-    </div>
-);
+    );
+}
 
 
 export default function AssetsPage() {
@@ -112,11 +115,11 @@ export default function AssetsPage() {
                     <CardContent>
                        <AssetRow asset={usdtAsset} />
                        <Separator />
-                       {otherAssets.map(asset => (
-                           <>
-                            <AssetRow key={asset.name} asset={asset} />
-                            <Separator />
-                           </>
+                       {otherAssets.map((asset, index) => (
+                           <React.Fragment key={asset.name}>
+                            <AssetRow asset={asset} />
+                            {index < otherAssets.length -1 && <Separator />}
+                           </React.Fragment>
                        ))}
                     </CardContent>
                 </Card>
