@@ -7,15 +7,16 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TradeHeader } from './trade-header';
-import { useMarketData } from '@/hooks/use-market-data';
+import { useMarketData as useMarketDataHook } from '@/hooks/use-market-data';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
+  useMarketData?: () => ReturnType<typeof useMarketDataHook>
 };
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, useMarketData: useMarketDataProp }: DashboardLayoutProps) => {
   const { isAuthenticated, logout } = useAuth();
-  const { tradingPair, changeTradingPair, availablePairs } = useMarketData();
+  const { tradingPair, changeTradingPair, availablePairs } = useMarketDataProp ? useMarketDataProp() : useMarketDataHook();
   const router = useRouter();
 
   useEffect(() => {

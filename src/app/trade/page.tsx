@@ -11,7 +11,8 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { useBalance } from "@/hooks/use-balance";
 
 export default function TradePage() {
-  const { tradingPair, data, summaryData, availablePairs, changeTradingPair } = useMarketData();
+  const marketData = useMarketData();
+  const { tradingPair, data, summaryData } = marketData;
   const { balance, placeTrade, isLoading: isBalanceLoading } = useBalance(10000);
 
   const renderContent = () => {
@@ -57,7 +58,7 @@ export default function TradePage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout useMarketData={() => marketData}>
       {renderContent()}
     </DashboardLayout>
   );
