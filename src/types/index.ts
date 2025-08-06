@@ -1,4 +1,5 @@
 
+
 export type Order = {
   price: number;
   size: number;
@@ -53,6 +54,7 @@ export type Transaction = {
   asset: string;
   amount: number;
   address?: string; // for withdrawals
+  transactionHash?: string; // for deposits as proof
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string; // ISO date string
 };

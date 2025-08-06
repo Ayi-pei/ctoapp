@@ -148,6 +148,7 @@ export default function AdminUsersPage() {
                                     <TableHead>类型</TableHead>
                                     <TableHead>资产</TableHead>
                                     <TableHead>金额</TableHead>
+                                    <TableHead>凭证</TableHead>
                                     <TableHead>时间</TableHead>
                                     <TableHead className="text-right">操作</TableHead>
                                 </TableRow>
@@ -163,6 +164,7 @@ export default function AdminUsersPage() {
                                         </TableCell>
                                         <TableCell>{t.asset}</TableCell>
                                         <TableCell>{t.amount.toFixed(2)}</TableCell>
+                                        <TableCell className="text-xs truncate max-w-xs">{t.transactionHash || t.address || 'N/A'}</TableCell>
                                         <TableCell>{new Date(t.createdAt).toLocaleString()}</TableCell>
                                         <TableCell className="text-right space-x-2">
                                              <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleTransaction(t.id, 'approved')}>
@@ -175,7 +177,7 @@ export default function AdminUsersPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={7} className="text-center text-muted-foreground">
                                             当前没有待处理的请求。
                                         </TableCell>
                                     </TableRow>
