@@ -18,7 +18,7 @@ const userNavItems = [
 
 const adminNavItems = [
     { href: '/admin/users', label: '用户管理', icon: Users },
-    { href: '/coming-soon', label: '资金管理', icon: Landmark },
+    { href: '/admin/finance', label: '资金管理', icon: Landmark },
     { href: '/admin/orders', label: '订单详情', icon: FileText },
     { href: '/coming-soon', label: '系统设置', icon: Settings },
 ]
