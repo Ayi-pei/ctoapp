@@ -40,6 +40,7 @@ interface BalanceContextType {
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
   placeSpotTrade: (trade: SpotTrade) => void;
+  updateBalance: (username: string, asset: string, amount: number) => void;
   isLoading: boolean;
 }
 
@@ -52,21 +53,27 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const isTestUser = user?.isTestUser ?? false;
+  
+  const loadUserBalances = useCallback((username: string, isTest: boolean) => {
+    try {
+        const storedBalances = localStorage.getItem(`userBalances_${username}`);
+        if (storedBalances) {
+            return JSON.parse(storedBalances);
+        }
+    } catch (e) { console.error(e); }
+    return isTest ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
+  }, []);
+
 
   useEffect(() => {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
     if (user) {
         try {
-            const storedBalances = localStorage.getItem(`userBalances_${user.username}`);
+            const userBalances = loadUserBalances(user.username, isTestUser);
+            setBalances(userBalances);
+
             const storedInvestments = localStorage.getItem(`userInvestments_${user.username}`);
-
-            if (storedBalances) {
-                setBalances(JSON.parse(storedBalances));
-            } else {
-                setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
-            }
-
             if (storedInvestments) {
                 setInvestments(JSON.parse(storedInvestments));
             } else {
@@ -86,10 +93,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       setInvestments([]);
       setIsLoading(false);
     }
-  }, [user, isTestUser]);
+  }, [user, isTestUser, loadUserBalances]);
 
   useEffect(() => {
-    // This effect persists balance changes to localStorage
+    // This effect persists the current user's balance changes to localStorage
     if (!isLoading && user) {
       try {
         localStorage.setItem(`userBalances_${user.username}`, JSON.stringify(balances));
@@ -100,6 +107,29 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   }, [balances, investments, isLoading, user]);
   
+  const updateBalance = (username: string, asset: string, amount: number) => {
+    try {
+        const userIsTest = (JSON.parse(localStorage.getItem('users') || '[]')).find((u:any) => u.username === username)?.isTestUser || false;
+        const userBalances = loadUserBalances(username, userIsTest);
+        
+        if (!userBalances[asset]) {
+            userBalances[asset] = { available: 0, frozen: 0 };
+        }
+        userBalances[asset].available += amount;
+
+        localStorage.setItem(`userBalances_${username}`, JSON.stringify(userBalances));
+
+        // If the updated user is the currently logged-in user, update the state as well
+        if (user && user.username === username) {
+            setBalances(userBalances);
+        }
+
+    } catch (error) {
+        console.error(`Failed to update balance for ${username}:`, error);
+    }
+  };
+
+
   const addInvestment = (productName: string, amount: number) => {
     if (balances.USDT.available < amount) {
         return false;
@@ -164,6 +194,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       investments,
       balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
+      updateBalance
     };
 
   return (

@@ -44,3 +44,15 @@ export type MarketSummary = {
     high: number;
     low: number;
 };
+
+// Represents a user's deposit or withdrawal request
+export type Transaction = {
+  id: string;
+  userId: string; // username
+  type: 'deposit' | 'withdrawal';
+  asset: string;
+  amount: number;
+  address?: string; // for withdrawals
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string; // ISO date string
+};
