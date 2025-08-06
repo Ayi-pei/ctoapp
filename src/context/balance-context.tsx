@@ -38,8 +38,8 @@ interface BalanceContextType {
   balance: number; // Keep this for now for finance page
   addInvestment: (productName: string, amount: number) => boolean;
   assets: { name: string, icon: React.ElementType }[];
-  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
-  placeSpotTrade: (trade: SpotTrade) => void;
+  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
   updateBalance: (username: string, asset: string, amount: number) => void;
   isLoading: boolean;
 }
@@ -148,7 +148,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => {
+  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => {
     setBalances(prevBalances => {
         const newBalances = { ...prevBalances };
         newBalances.USDT = {
@@ -161,7 +161,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // For simulation, we are just deducting the amount.
   }, []);
   
-  const placeSpotTrade = useCallback((trade: SpotTrade) => {
+  const placeSpotTrade = useCallback((trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => {
     setBalances(prevBalances => {
         const newBalances = JSON.parse(JSON.stringify(prevBalances));
         

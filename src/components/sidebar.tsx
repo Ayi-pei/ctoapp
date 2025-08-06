@@ -17,9 +17,9 @@ const userNavItems = [
 ];
 
 const adminNavItems = [
-    { href: '/admin', label: '用户管理', icon: Users },
+    { href: '/admin/users', label: '用户管理', icon: Users },
     { href: '/coming-soon', label: '资金管理', icon: Landmark },
-    { href: '/coming-soon', label: '订单详情', icon: FileText },
+    { href: '/admin/orders', label: '订单详情', icon: FileText },
     { href: '/coming-soon', label: '系统设置', icon: Settings },
 ]
 
@@ -47,7 +47,7 @@ export function Sidebar() {
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted',
                     // Exact match for admin base, startsWith for others
-                    (pathname === item.href) ? 'bg-primary text-primary-foreground' : ''
+                    (pathname.startsWith(item.href) && item.href !== '/') ? 'bg-primary text-primary-foreground' : (pathname === '/' && item.href === '/') ? 'bg-primary text-primary-foreground' : ''
                   )}
                 >
                   <item.icon className="h-5 w-5" />
