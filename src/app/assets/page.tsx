@@ -6,9 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBalance } from "@/context/balance-context";
 import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign } from "lucide-react";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
+import type { Transaction } from "@/types";
+import { useAuth } from "@/context/auth-context";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 
 const cryptoIcons: { [key: string]: React.ElementType } = {
@@ -56,11 +61,39 @@ const AssetRow = ({ asset, balance, usdtValue }: AssetRowProps) => {
     );
 }
 
+const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
+    'pending': 'secondary',
+    'approved': 'default',
+    'rejected': 'destructive'
+}
+
+const statusText: { [key: string]: string } = {
+    'pending': '待审核',
+    'approved': '已批准',
+    'rejected': '已拒绝'
+}
+
 
 export default function AssetsPage() {
+    const { user } = useAuth();
     const { balances, assets } = useBalance();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+    useEffect(() => {
+        if (user) {
+            try {
+                const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+                const userTransactions = allTransactions
+                    .filter(t => t.userId === user.username)
+                    .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                setTransactions(userTransactions);
+            } catch (error) {
+                console.error("Failed to fetch transactions from localStorage", error);
+            }
+        }
+    }, [user]);
     
     // In a real app, you'd fetch prices to calculate USDT value.
     // For now, we'll use a mock or simplified logic.
@@ -134,6 +167,54 @@ export default function AssetsPage() {
                             {index < assets.length -1 && <Separator />}
                            </React.Fragment>
                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">最近记录</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                       <Table>
+                           <TableHeader>
+                               <TableRow>
+                                   <TableHead>类型</TableHead>
+                                   <TableHead>资产</TableHead>
+                                   <TableHead>金额</TableHead>
+                                   <TableHead>状态</TableHead>
+                                   <TableHead className="text-right">时间</TableHead>
+                               </TableRow>
+                           </TableHeader>
+                           <TableBody>
+                               {transactions.length > 0 ? transactions.map(t => (
+                                   <TableRow key={t.id}>
+                                       <TableCell>
+                                           <span className={cn("font-semibold", t.type === 'deposit' ? 'text-green-500' : 'text-orange-500')}>
+                                               {t.type === 'deposit' ? '充币' : '提币'}
+                                            </span>
+                                        </TableCell>
+                                       <TableCell>{t.asset}</TableCell>
+                                       <TableCell>{t.amount.toFixed(2)}</TableCell>
+                                       <TableCell>
+                                           <Badge variant={statusVariant[t.status]} className={cn(
+                                               t.status === 'approved' && 'bg-green-500/20 text-green-500',
+                                               t.status === 'pending' && 'bg-yellow-500/20 text-yellow-500',
+                                               t.status === 'rejected' && 'bg-red-500/20 text-red-500',
+                                           )}>
+                                               {statusText[t.status]}
+                                           </Badge>
+                                       </TableCell>
+                                       <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
+                                   </TableRow>
+                               )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                            暂无记录
+                                        </TableCell>
+                                    </TableRow>
+                               )}
+                           </TableBody>
+                       </Table>
                     </CardContent>
                 </Card>
 
