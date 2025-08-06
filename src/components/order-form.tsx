@@ -11,7 +11,7 @@ import { ContractTrade } from "@/types";
 type OrderFormProps = {
   tradingPair: string;
   balance: number;
-  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
+  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
 }
 
 export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps) {

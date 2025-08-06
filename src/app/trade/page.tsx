@@ -65,7 +65,7 @@ function TradePageContent() {
                       <SpotOrderForm
                           tradingPair={tradingPair}
                           balances={balances}
-                          onPlaceTrade={placeSpotTrade}
+                          onPlaceTrade={(trade) => placeSpotTrade(trade, tradingPair)}
                           baseAsset={baseAsset}
                           quoteAsset={quoteAsset}
                           currentPrice={data.summary.price}
@@ -82,7 +82,7 @@ function TradePageContent() {
                       <OrderForm
                           tradingPair={tradingPair}
                           balance={balances['USDT']?.available || 0}
-                          onPlaceTrade={placeContractTrade}
+                          onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
                       />
                   </div>
               </div>

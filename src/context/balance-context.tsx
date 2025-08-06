@@ -38,8 +38,8 @@ interface BalanceContextType {
   balance: number; // Keep this for now for finance page
   addInvestment: (productName: string, amount: number) => boolean;
   assets: { name: string, icon: React.ElementType }[];
-  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
+  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
   updateBalance: (username: string, asset: string, amount: number) => void;
   isLoading: boolean;
 }
@@ -148,7 +148,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'time' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => {
+  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
+    if (!user) return;
+    
     setBalances(prevBalances => {
         const newBalances = { ...prevBalances };
         newBalances.USDT = {
@@ -157,11 +159,29 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         };
         return newBalances;
     });
-    // Here you would also add logic to handle winning/losing the trade after the period
-    // For simulation, we are just deducting the amount.
-  }, []);
+
+    const fullTrade = {
+        ...trade,
+        id: `contract_${Date.now()}`,
+        userId: user.username,
+        tradingPair,
+        orderType: 'contract' as const,
+        status: 'filled' as const,
+        createdAt: new Date().toISOString(),
+    }
+
+    try {
+        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
+        existingTrades.push(fullTrade);
+        localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
+    } catch (error) {
+        console.error("Failed to save contract trade to localStorage", error);
+    }
+  }, [user]);
   
-  const placeSpotTrade = useCallback((trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => {
+  const placeSpotTrade = useCallback((trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
+     if (!user) return;
+    
     setBalances(prevBalances => {
         const newBalances = JSON.parse(JSON.stringify(prevBalances));
         
@@ -182,7 +202,26 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         
         return newBalances;
     });
-  }, []);
+    
+    const fullTrade = {
+        ...trade,
+        id: `spot_${Date.now()}`,
+        userId: user.username,
+        tradingPair,
+        orderType: 'spot' as const,
+        status: 'filled' as const,
+        createdAt: new Date().toISOString(),
+    }
+
+    try {
+        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
+        existingTrades.push(fullTrade);
+        localStorage.setItem('spotTrades', JSON.stringify(existingTrades));
+    } catch (error) {
+        console.error("Failed to save spot trade to localStorage", error);
+    }
+
+  }, [user]);
 
 
   const value = { 
