@@ -14,6 +14,7 @@ import type { Transaction } from '@/types';
 import { useBalance } from '@/context/balance-context';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 
 type UserData = AuthUser & {
@@ -76,12 +77,18 @@ export default function AdminUsersPage() {
     }, [users, searchQuery]);
 
     const handleViewDetails = (userToView: UserData) => {
-        setSelectedUser(userToView);
+        // We need to fetch the latest user data from localStorage before opening the dialog
         try {
+            const allUsersData = JSON.parse(localStorage.getItem('users') || '[]');
+            const latestUserData = allUsersData.find((u: any) => u.username === userToView.username);
+            
+            setSelectedUser({ ...userToView, ...latestUserData });
+            
             const userBalances = JSON.parse(localStorage.getItem(`userBalances_${userToView.username}`) || '{}');
             setSelectedUserBalances(userBalances);
         } catch (error) {
              console.error(`Failed to fetch balances for user ${userToView.username}`, error);
+             setSelectedUser(userToView);
              setSelectedUserBalances(null);
         }
         setIsDetailsOpen(true);
@@ -203,6 +210,7 @@ export default function AdminUsersPage() {
                                 <TableRow>
                                     <TableHead>用户名</TableHead>
                                     <TableHead>账户类型</TableHead>
+                                    <TableHead>账户状态</TableHead>
                                     <TableHead>注册日期</TableHead>
                                     <TableHead className="text-right">操作</TableHead>
                                 </TableRow>
@@ -212,9 +220,14 @@ export default function AdminUsersPage() {
                                     <TableRow key={u.username}>
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${u.isTestUser ? 'bg-green-500/20 text-green-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                                            <Badge variant="outline" className={`font-semibold ${u.isTestUser ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500'}`}>
                                                 {u.isTestUser ? '测试账户' : '真实账户'}
-                                            </span>
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={u.isFrozen ? "destructive" : "default"} className={u.isFrozen ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}>
+                                                {u.isFrozen ? '已冻结' : '正常'}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell>{u.registeredAt}</TableCell>
                                         <TableCell className="text-right">
@@ -226,7 +239,7 @@ export default function AdminUsersPage() {
                                 ))}
                                 {filteredUsers.length === 0 && (
                                      <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
                                             找不到匹配的用户。
                                         </TableCell>
                                     </TableRow>
@@ -242,7 +255,11 @@ export default function AdminUsersPage() {
                     onOpenChange={setIsDetailsOpen}
                     user={selectedUser}
                     balances={selectedUserBalances}
-                    onUpdate={loadData}
+                    onUpdate={() => {
+                        loadData();
+                        // Also force refresh the selected user data in the dialog
+                        handleViewDetails(selectedUser);
+                    }}
                 />
             )}
         </DashboardLayout>

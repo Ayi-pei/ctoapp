@@ -54,6 +54,7 @@ export default function RegisterPage() {
           username: values.username, 
           password: values.password,
           isTestUser: isTestUser,
+          isFrozen: false, // Default value for new users
       });
       localStorage.setItem('users', JSON.stringify(users));
 

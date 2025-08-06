@@ -44,6 +44,20 @@ export default function LoginPage() {
   }, [isAuthenticated, isAdmin, router]);
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
+    // We check the raw users list to see if the account is frozen before attempting to log in.
+    try {
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const foundUser = users.find((u: any) => u.username === values.username);
+        if (foundUser && foundUser.isFrozen) {
+            toast({
+                variant: 'destructive',
+                title: '登录失败',
+                description: '您的账户已被冻结，请联系客服。',
+            });
+            return;
+        }
+    } catch (e) { console.error("Could not check user status from local storage", e)}
+
     const success = login(values.username, values.password);
     if (!success) {
       toast({

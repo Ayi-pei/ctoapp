@@ -8,6 +8,7 @@ export type User = {
   isTestUser: boolean;
   isAdmin: boolean;
   avatar?: string;
+  isFrozen?: boolean;
 }
 
 interface AuthContextType {
@@ -50,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               username: currentUser.username, 
               isTestUser: currentUser.isTestUser || false,
               isAdmin: false,
-              avatar: currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.username.charAt(0).toUpperCase()}`
+              avatar: currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.username.charAt(0).toUpperCase()}`,
+              isFrozen: currentUser.isFrozen || false,
           });
         }
       } else {
@@ -90,14 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       const foundUser = users.find((u: any) => u.username === username && u.password === password);
+      
       if (foundUser) {
+        if (foundUser.isFrozen) {
+          // alert("Your account is frozen. Please contact support.");
+          // Ideally use a toast notification here
+          return false;
+        }
+
         localStorage.setItem('loggedInUser', username);
         localStorage.removeItem('isAdminLoggedIn');
         const userData = { 
             username: foundUser.username, 
             isTestUser: foundUser.isTestUser || false,
             isAdmin: false,
-            avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`
+            avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`,
+            isFrozen: foundUser.isFrozen || false,
         };
         setIsAuthenticated(true);
         setIsAdmin(false);
