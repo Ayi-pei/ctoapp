@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import type { Transaction } from '@/types';
 import { useBalance } from '@/context/balance-context';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 
 
 type UserData = AuthUser & {
@@ -34,6 +35,7 @@ export default function AdminUsersPage() {
     const { toast } = useToast();
 
     const [users, setUsers] = useState<UserData[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
     const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [selectedUserBalances, setSelectedUserBalances] = useState<UserBalance | null>(null);
@@ -67,6 +69,11 @@ export default function AdminUsersPage() {
             loadData();
         }
     }, [isAdmin]);
+    
+    const filteredUsers = useMemo(() => {
+        if (!searchQuery) return users;
+        return users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [users, searchQuery]);
 
     const handleViewDetails = (userToView: UserData) => {
         setSelectedUser(userToView);
@@ -179,8 +186,14 @@ export default function AdminUsersPage() {
                 </Card>
 
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>用户列表</CardTitle>
+                         <Input 
+                            placeholder="搜索用户名..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="max-w-sm"
+                        />
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -193,7 +206,7 @@ export default function AdminUsersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {users.map((u) => (
+                                {filteredUsers.map((u) => (
                                     <TableRow key={u.username}>
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
@@ -209,6 +222,13 @@ export default function AdminUsersPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
+                                {filteredUsers.length === 0 && (
+                                     <TableRow>
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                            找不到匹配的用户。
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
