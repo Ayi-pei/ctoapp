@@ -220,6 +220,7 @@ export default function AdminUsersPage() {
                     onOpenChange={setIsDetailsOpen}
                     user={selectedUser}
                     balances={selectedUserBalances}
+                    onUpdate={loadData}
                 />
             )}
         </DashboardLayout>
