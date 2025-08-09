@@ -17,6 +17,10 @@ export default function AdminSettingsPage() {
     const handleSettingChange = (pair: string, key: keyof TradingPairSettings, value: any) => {
         updateSettings(pair, { [key]: value });
     };
+    
+    const handleTimeChange = (pair: string, key: 'limitBuyStart' | 'limitBuyEnd', value: string) => {
+        updateSettings(pair, { [key]: value || null });
+    };
 
     const handleSave = () => {
         // The context now saves on every change, but we can keep the button for user feedback.
@@ -36,7 +40,13 @@ export default function AdminSettingsPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {availablePairs.map((pair) => {
-                        const pairSettings = settings[pair] || { trend: 'normal', tradingDisabled: false, profitRate: 0.85 };
+                        const pairSettings = settings[pair] || { 
+                            trend: 'normal', 
+                            tradingDisabled: false, 
+                            profitRate: 0.85,
+                            limitBuyStart: null,
+                            limitBuyEnd: null,
+                        };
                         return (
                              <Card key={pair}>
                                 <CardHeader>
@@ -64,14 +74,38 @@ export default function AdminSettingsPage() {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor={`limit-buy-${pair}`}>限定买入</Label>
-                                        <Switch
-                                            id={`limit-buy-${pair}`}
-                                            checked={pairSettings.tradingDisabled}
-                                            onCheckedChange={(checked) => handleSettingChange(pair, 'tradingDisabled', checked)}
-                                        />
+                                    
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor={`limit-buy-${pair}`}>限定买入</Label>
+                                            <Switch
+                                                id={`limit-buy-${pair}`}
+                                                checked={pairSettings.tradingDisabled}
+                                                onCheckedChange={(checked) => handleSettingChange(pair, 'tradingDisabled', checked)}
+                                            />
+                                        </div>
+                                        {pairSettings.tradingDisabled && (
+                                            <div className="grid grid-cols-2 gap-2 pl-2 border-l-2">
+                                                 <div>
+                                                    <Label htmlFor={`limit-start-${pair}`} className="text-xs">开始时间</Label>
+                                                    <Input
+                                                        id={`limit-start-${pair}`}
+                                                        type="time"
+                                                        value={pairSettings.limitBuyStart || ""}
+                                                        onChange={(e) => handleTimeChange(pair, 'limitBuyStart', e.target.value)}
+                                                    />
+                                                </div>
+                                                 <div>
+                                                    <Label htmlFor={`limit-end-${pair}`} className="text-xs">结束时间</Label>
+                                                    <Input
+                                                        id={`limit-end-${pair}`}
+                                                        type="time"
+                                                        value={pairSettings.limitBuyEnd || ""}
+                                                        onChange={(e) => handleTimeChange(pair, 'limitBuyEnd', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     <div className="space-y-2">

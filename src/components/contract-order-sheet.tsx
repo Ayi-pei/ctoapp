@@ -58,7 +58,13 @@ export function ContractOrderSheet({
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   
-  const pairSettings = settings[tradingPair] || { profitRate: 0.85, tradingDisabled: false, trend: 'normal' };
+  const pairSettings = settings[tradingPair] || { 
+      profitRate: 0.85, 
+      tradingDisabled: false, 
+      trend: 'normal',
+      limitBuyStart: null,
+      limitBuyEnd: null,
+  };
   const currentProfitRate = pairSettings.profitRate;
 
   const asset = tradingPair.split('/')[0];
@@ -70,13 +76,35 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
+    // Check for trading restrictions
     if (pairSettings.tradingDisabled) {
-        toast({
-            variant: "destructive",
-            title: "交易受限",
-            description: "该币种当前已限定买入，请稍后再试。",
-        });
-        return;
+        let isTimeRestricted = false;
+        if (pairSettings.limitBuyStart && pairSettings.limitBuyEnd) {
+             const now = new Date();
+             const currentTime = now.getHours() * 60 + now.getMinutes();
+             
+             const [startH, startM] = pairSettings.limitBuyStart.split(':').map(Number);
+             const startTime = startH * 60 + startM;
+             
+             const [endH, endM] = pairSettings.limitBuyEnd.split(':').map(Number);
+             const endTime = endH * 60 + endM;
+
+             if (currentTime >= startTime && currentTime <= endTime) {
+                 isTimeRestricted = true;
+             }
+        } else {
+            // If times are not set, it's restricted 24/7 as long as the switch is on
+            isTimeRestricted = true;
+        }
+
+        if (isTimeRestricted) {
+             toast({
+                variant: "destructive",
+                title: "交易受限",
+                description: "该币种当前已限定买入，请稍后再试。",
+            });
+            return;
+        }
     }
 
     const numericAmount = parseFloat(amount);

@@ -8,6 +8,8 @@ export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
     tradingDisabled: boolean;
     profitRate: number;
+    limitBuyStart: string | null;
+    limitBuyEnd: string | null;
 };
 
 type AllSettings = {
@@ -24,6 +26,8 @@ const defaultSettings: AllSettings = availablePairs.reduce((acc, pair) => {
         trend: 'normal',
         tradingDisabled: false,
         profitRate: 0.85, // Default 85% profit rate
+        limitBuyStart: null,
+        limitBuyEnd: null,
     };
     return acc;
 }, {} as AllSettings);
@@ -39,7 +43,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             if (storedSettings) {
                 // Merge stored settings with defaults to ensure all pairs are present
                 const parsedSettings = JSON.parse(storedSettings);
-                const mergedSettings = { ...defaultSettings, ...parsedSettings };
+                const mergedSettings = { ...defaultSettings };
+                // Make sure to merge deeply for each pair
+                for (const pair of availablePairs) {
+                    if (parsedSettings[pair]) {
+                        mergedSettings[pair] = { ...defaultSettings[pair], ...parsedSettings[pair] };
+                    }
+                }
                 setSettings(mergedSettings);
             } else {
                 setSettings(defaultSettings);
@@ -53,7 +63,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
             const updatedPairSettings = {
-                ...prevSettings[pair],
+                ...(prevSettings[pair] || defaultSettings[pair]),
                 ...newSettings,
             };
             const allNewSettings = {
