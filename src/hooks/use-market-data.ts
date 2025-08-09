@@ -2,12 +2,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Order, MarketTrade, PriceDataPoint, MarketSummary } from '@/types';
+import { Order, MarketTrade, PriceDataPoint, MarketSummary, availablePairs } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useSettings } from '@/context/settings-context';
 
 
-export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];

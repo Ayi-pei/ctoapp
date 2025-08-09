@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings, TradingPairSettings } from "@/context/settings-context";
-import { availablePairs } from "@/hooks/use-market-data";
+import { availablePairs } from "@/types";
 
 export default function AdminSettingsPage() {
     const { settings, updateSettings } = useSettings();

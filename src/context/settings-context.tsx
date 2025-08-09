@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { availablePairs } from '@/hooks/use-market-data';
+import { availablePairs } from '@/types';
 
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
