@@ -152,5 +152,4 @@ export default function DashboardPage() {
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
         </DashboardLayout>
     );
-
-    
+}
