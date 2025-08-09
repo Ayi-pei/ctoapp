@@ -24,6 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label";
+import { PasswordResetRequest } from "@/types";
 
 
 const changePasswordSchema = z.object({
@@ -54,33 +55,35 @@ export default function ProfilePage() {
     });
 
     const onSubmit = (values: z.infer<typeof changePasswordSchema>) => {
+        if (!user) return;
         try {
             const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const currentUserIndex = users.findIndex((u: any) => u.username === user?.username);
+            const currentUser = users.find((u: any) => u.username === user.username);
 
-            if (currentUserIndex === -1) {
-                toast({ variant: "destructive", title: "错误", description: "未找到用户信息" });
-                return;
-            }
-
-            const currentUser = users[currentUserIndex];
-
-            if (currentUser.password !== values.currentPassword) {
+            if (!currentUser || currentUser.password !== values.currentPassword) {
                 toast({ variant: "destructive", title: "密码错误", description: "当前密码不正确。" });
                 return;
             }
+            
+            const newRequest: PasswordResetRequest = {
+                id: `pwd_reset_${Date.now()}`,
+                userId: user.username,
+                type: 'password_reset',
+                newPassword: values.newPassword,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            }
 
-            // Update password
-            users[currentUserIndex].password = values.newPassword;
-            localStorage.setItem('users', JSON.stringify(users));
+            const existingRequests = JSON.parse(localStorage.getItem('adminRequests') || '[]');
+            existingRequests.push(newRequest);
+            localStorage.setItem('adminRequests', JSON.stringify(existingRequests));
 
             toast({
-                title: "密码已更新",
-                description: "您的密码已成功修改。请重新登录。",
+                title: "请求已提交",
+                description: "您的密码修改请求已提交给管理员审核。",
             });
-            
-            // Logout and redirect to login
-            router.push('/login');
+
+            form.reset();
 
         } catch (error) {
             toast({
@@ -163,7 +166,7 @@ export default function ProfilePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>修改密码</CardTitle>
-                        <CardDescription>定期修改密码以保护您的账户安全。</CardDescription>
+                        <CardDescription>提交修改密码请求，等待管理员审核。</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -207,7 +210,7 @@ export default function ProfilePage() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit">确认修改</Button>
+                                <Button type="submit">提交审核</Button>
                             </form>
                         </Form>
                     </CardContent>

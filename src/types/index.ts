@@ -58,3 +58,13 @@ export type Transaction = {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string; // ISO date string
 };
+
+// Represents a user's password reset request
+export type PasswordResetRequest = {
+  id: string;
+  userId: string;
+  type: 'password_reset';
+  newPassword: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string; // ISO date string
+};

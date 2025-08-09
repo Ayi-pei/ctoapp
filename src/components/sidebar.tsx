@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LineChart, CandlestickChart, Wallet, User, Shield, Landmark, FileText, Users, Settings } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Wallet, User, Shield, Landmark, FileText, Users, Settings, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 
@@ -18,6 +18,7 @@ const userNavItems = [
 
 const adminNavItems = [
     { href: '/admin/users', label: '用户管理', icon: Users },
+    { href: '/admin/requests', label: '审核请求', icon: Bell },
     { href: '/admin/finance', label: '资金管理', icon: Landmark },
     { href: '/admin/orders', label: '订单详情', icon: FileText },
     { href: '/admin/settings', label: '系统设置', icon: Settings },

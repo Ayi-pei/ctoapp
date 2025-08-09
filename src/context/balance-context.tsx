@@ -48,20 +48,30 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [balances, setBalances] = useState(user?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+  const [balances, setBalances] = useState(INITIAL_BALANCES_REAL_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const isTestUser = user?.isTestUser ?? false;
   
-  const loadUserBalances = useCallback((username: string, isTest: boolean) => {
+  const loadUserBalances = useCallback((username: string) => {
     try {
         const storedBalances = localStorage.getItem(`userBalances_${username}`);
         if (storedBalances) {
             return JSON.parse(storedBalances);
         }
-    } catch (e) { console.error(e); }
-    return isTest ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
+        
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const currentUser = users.find((u: any) => u.username === username);
+        return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
+
+    } catch (e) { 
+        console.error(e);
+        // Fallback based on user type if parsing fails
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const currentUser = users.find((u: any) => u.username === username);
+        return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
+    }
   }, []);
 
 
@@ -70,7 +80,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     if (user) {
         try {
-            const userBalances = loadUserBalances(user.username, isTestUser);
+            const userBalances = loadUserBalances(user.username);
             setBalances(userBalances);
 
             const storedInvestments = localStorage.getItem(`userInvestments_${user.username}`);
@@ -109,8 +119,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
   const updateBalance = (username: string, asset: string, amount: number) => {
     try {
-        const userIsTest = (JSON.parse(localStorage.getItem('users') || '[]')).find((u:any) => u.username === username)?.isTestUser || false;
-        const userBalances = loadUserBalances(username, userIsTest);
+        const userBalances = loadUserBalances(username);
         
         if (!userBalances[asset]) {
             userBalances[asset] = { available: 0, frozen: 0 };
