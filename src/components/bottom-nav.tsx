@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, LineChart, CandlestickChart, Wallet, User, Landmark, FileText, Users, Settings, Bell } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Wallet, User, Landmark, FileText, Users, Settings, Bell, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 
@@ -11,7 +11,6 @@ const userNavItems = [
   { href: '/dashboard', label: '首页', icon: Home },
   { href: '/market', label: '行情', icon: LineChart },
   { href: '/trade', label: '交易', icon: CandlestickChart },
-  { href: '/finance', label: '理财', icon: Landmark },
   { href: '/assets', label: '资产', icon: Wallet },
   { href: '/profile', label: '我的', icon: User },
 ];
