@@ -1,9 +1,11 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { BalanceProvider } from '@/context/balance-context';
 import { MarketDataProvider } from '@/context/market-data-context';
+import { SettingsProvider } from '@/context/settings-context';
 
 export const metadata: Metadata = {
   title: 'TradeFlow',
@@ -24,11 +26,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <AuthProvider>
-          <MarketDataProvider>
-            <BalanceProvider>
-              {children}
-            </BalanceProvider>
-          </MarketDataProvider>
+          <SettingsProvider>
+            <MarketDataProvider>
+              <BalanceProvider>
+                {children}
+              </BalanceProvider>
+            </MarketDataProvider>
+          </SettingsProvider>
         </AuthProvider>
         <Toaster />
       </body>

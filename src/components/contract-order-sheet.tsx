@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
+import { useSettings } from "@/context/settings-context";
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -35,10 +36,10 @@ type ContractOrderSheetProps = {
 };
 
 const periods = [
-    { label: "30s", value: 30, rate: 0.85 },
-    { label: "60s", value: 60, rate: 0.90 },
-    { label: "300s", value: 300, rate: 0.95 },
-    { label: "3600s", value: 3600, rate: 1.00 },
+    { label: "30s", value: 30 },
+    { label: "60s", value: 60 },
+    { label: "300s", value: 300 },
+    { label: "3600s", value: 3600 },
 ];
 
 const amounts = [10, 20, 50, 100, 500, 1000, 2000];
@@ -52,10 +53,14 @@ export function ContractOrderSheet({
   onPlaceTrade,
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
+  const { settings } = useSettings();
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   
+  const pairSettings = settings[tradingPair] || { profitRate: 0.85, tradingDisabled: false, trend: 'normal' };
+  const currentProfitRate = pairSettings.profitRate;
+
   const asset = tradingPair.split('/')[0];
   const orderTypeText = orderType === 'buy' ? "买涨" : "买跌";
   const orderTypeColor = orderType === 'buy' ? "text-green-500" : "text-red-500";
@@ -65,6 +70,15 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
+    if (pairSettings.tradingDisabled) {
+        toast({
+            variant: "destructive",
+            title: "交易受限",
+            description: "该币种当前已限定买入，请稍后再试。",
+        });
+        return;
+    }
+
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) {
         toast({
@@ -91,7 +105,7 @@ export function ContractOrderSheet({
         type: orderType, 
         amount: numericAmount,
         period: selectedPeriod.value,
-        profitRate: selectedPeriod.rate,
+        profitRate: currentProfitRate,
     });
 
     toast({
@@ -142,7 +156,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">预估收益</span>
-                <span className="font-semibold text-green-500">{(parseFloat(amount) * selectedPeriod.rate).toFixed(2)} USDT ({(selectedPeriod.rate * 100)}%)</span>
+                <span className="font-semibold text-green-500">{(parseFloat(amount) * currentProfitRate).toFixed(2)} USDT ({(currentProfitRate * 100)}%)</span>
             </div>
         </div>
         <SheetFooter className="flex-col space-y-4">
@@ -173,7 +187,7 @@ export function ContractOrderSheet({
                           className="flex flex-col h-16"
                       >
                           <span>{p.label}</span>
-                          <span className="text-xs text-green-400">+{(p.rate*100).toFixed(0)}%</span>
+                          <span className="text-xs text-green-400">+{(currentProfitRate*100).toFixed(0)}%</span>
                       </Button>
                   ))}
               </div>

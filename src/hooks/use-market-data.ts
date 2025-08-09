@@ -4,8 +4,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, MarketTrade, PriceDataPoint, MarketSummary } from '@/types';
 import { useAuth } from '@/context/auth-context';
+import { useSettings } from '@/context/settings-context';
 
-const TRADING_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
+
+export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
@@ -114,7 +116,8 @@ const generateInitialDataForPair = (pair: string) => {
 
 export const useMarketData = () => {
   const { user } = useAuth();
-  const [tradingPair, setTradingPair] = useState(TRADING_PAIRS[0]);
+  const { settings } = useSettings();
+  const [tradingPair, setTradingPair] = useState(availablePairs[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
 
@@ -134,7 +137,7 @@ export const useMarketData = () => {
     // For test users, or as a fallback for real users if the API fails.
     console.warn("Generating mock market data.");
     const mockInitialData = new Map();
-    TRADING_PAIRS.forEach(pair => {
+    availablePairs.forEach(pair => {
         mockInitialData.set(pair, generateInitialDataForPair(pair));
     });
     setAllData(mockInitialData);
@@ -148,7 +151,7 @@ export const useMarketData = () => {
   }, [fetchInitialData]);
 
   const changeTradingPair = useCallback((newPair: string) => {
-    if (TRADING_PAIRS.includes(newPair)) {
+    if (availablePairs.includes(newPair)) {
       setTradingPair(newPair);
     }
   }, []);
@@ -169,9 +172,18 @@ export const useMarketData = () => {
 
             newAllData.forEach((prevData, pair) => {
                 if (!prevData) return;
+                const pairSettings = settings[pair] || { trend: 'normal' };
+
+                let priceMultiplier = randomInRange(0.9995, 1.0005); // Default: normal fluctuation
+                if (pairSettings.trend === 'up') {
+                    priceMultiplier = randomInRange(1.0001, 1.0008); // Force upward trend
+                } else if (pairSettings.trend === 'down') {
+                    priceMultiplier = randomInRange(0.9992, 0.9999); // Force downward trend
+                }
+                
                  // Update Price
                 const oldPrice = prevData.summary.price;
-                const newPrice = oldPrice * randomInRange(0.9995, 1.0005);
+                const newPrice = oldPrice * priceMultiplier;
                 const price24hAgo = prevData.summary.low; // Simplified for this simulation
                 const newChange = ((newPrice - price24hAgo) / price24hAgo) * 100;
 
@@ -236,7 +248,7 @@ export const useMarketData = () => {
     }, 1500); // Update every 1.5 seconds
 
     return () => clearInterval(interval);
-  }, [isInitialised, tradingPair, user]);
+  }, [isInitialised, tradingPair, user, settings]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
@@ -245,7 +257,7 @@ export const useMarketData = () => {
       tradingPair, 
       changeTradingPair, 
       data, 
-      availablePairs: TRADING_PAIRS, 
+      availablePairs: availablePairs, 
       summaryData,
       cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
       goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
