@@ -7,11 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContractOrderSheet } from "./contract-order-sheet";
 import { ContractTrade } from "@/types";
 
+type ContractTradeParams = {
+  type: 'buy' | 'sell';
+  amount: number;
+  period: number;
+  profitRate: number;
+}
 
 type OrderFormProps = {
   tradingPair: string;
   balance: number;
-  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
+  onPlaceTrade: (trade: ContractTradeParams) => void;
 }
 
 export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps) {

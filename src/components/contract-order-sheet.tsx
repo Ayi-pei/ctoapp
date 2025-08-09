@@ -16,7 +16,14 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
-import { ContractTrade } from "@/types";
+
+type ContractTradeParams = {
+  type: 'buy' | 'sell';
+  amount: number;
+  period: number;
+  profitRate: number;
+}
+
 
 type ContractOrderSheetProps = {
   isOpen: boolean;
@@ -24,14 +31,14 @@ type ContractOrderSheetProps = {
   orderType: 'buy' | 'sell';
   tradingPair: string;
   balance: number;
-  onPlaceTrade: (trade: Omit<ContractTrade, 'id' | 'time' | 'price'>) => void;
+  onPlaceTrade: (trade: ContractTradeParams) => void;
 };
 
 const periods = [
-    { label: "30s", value: 30, rate: "100%" },
-    { label: "60s", value: 60, rate: "15%" },
-    { label: "300s", value: 300, rate: "20%" },
-    { label: "3600s", value: 3600, rate: "30%" },
+    { label: "30s", value: 30, rate: 0.85 },
+    { label: "60s", value: 60, rate: 0.90 },
+    { label: "300s", value: 300, rate: 0.95 },
+    { label: "3600s", value: 3600, rate: 1.00 },
 ];
 
 const amounts = [10, 20, 50, 100, 500, 1000, 2000];
@@ -80,7 +87,12 @@ export function ContractOrderSheet({
   
   const handleFinalConfirm = () => {
     const numericAmount = parseFloat(amount);
-    onPlaceTrade({ type: orderType, amount: numericAmount });
+    onPlaceTrade({ 
+        type: orderType, 
+        amount: numericAmount,
+        period: selectedPeriod.value,
+        profitRate: selectedPeriod.rate,
+    });
 
     toast({
         title: "下单成功",
@@ -130,7 +142,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">预估收益</span>
-                <span className="font-semibold text-green-500">以最终系统价格结算</span>
+                <span className="font-semibold text-green-500">{(parseFloat(amount) * selectedPeriod.rate).toFixed(2)} USDT ({(selectedPeriod.rate * 100)}%)</span>
             </div>
         </div>
         <SheetFooter className="flex-col space-y-4">
@@ -161,7 +173,7 @@ export function ContractOrderSheet({
                           className="flex flex-col h-16"
                       >
                           <span>{p.label}</span>
-                          <span className="text-xs">{p.rate}</span>
+                          <span className="text-xs text-green-400">+{(p.rate*100).toFixed(0)}%</span>
                       </Button>
                   ))}
               </div>

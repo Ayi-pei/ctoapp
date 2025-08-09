@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { ContractTrade, SpotTrade } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
 import { useAuth } from './auth-context';
+import { useMarket } from './market-data-context';
 
 const INITIAL_BALANCES_TEST_USER = {
     USDT: { available: 10000, frozen: 0 },
@@ -31,6 +32,13 @@ export type Investment = {
     date: string;
 }
 
+type ContractTradeParams = {
+  type: 'buy' | 'sell';
+  amount: number;
+  period: number;
+  profitRate: number;
+}
+
 
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
@@ -38,7 +46,7 @@ interface BalanceContextType {
   balance: number; // Keep this for now for finance page
   addInvestment: (productName: string, amount: number) => boolean;
   assets: { name: string, icon: React.ElementType }[];
-  placeContractTrade: (trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
+  placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
   updateBalance: (username: string, asset: string, amount: number) => void;
   isLoading: boolean;
@@ -48,6 +56,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { data: marketData } = useMarket(); // Get current market data
   const [balances, setBalances] = useState(INITIAL_BALANCES_REAL_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,6 +125,74 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [balances, investments, isLoading, user]);
+
+  useEffect(() => {
+    // Contract settlement simulation
+    if (!user) return;
+
+    const interval = setInterval(() => {
+        try {
+            const allTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]');
+            const userActiveTrades = allTrades.filter(t => t.userId === user.username && t.status === 'active');
+            
+            if (userActiveTrades.length === 0) return;
+
+            let balanceUpdated = false;
+            const now = Date.now();
+
+            userActiveTrades.forEach(trade => {
+                if (now >= trade.settlementTime) {
+                    // Settle this trade
+                    // Simulate final price - in a real app this would come from an API
+                    const settlementPrice = trade.entryPrice * (1 + (Math.random() - 0.5) * 0.001); // Tiny random fluctuation
+                    let outcome: 'win' | 'loss';
+
+                    if (trade.type === 'buy') { // Predicted price would go up
+                        outcome = settlementPrice > trade.entryPrice ? 'win' : 'loss';
+                    } else { // Predicted price would go down
+                        outcome = settlementPrice < trade.entryPrice ? 'win' : 'loss';
+                    }
+
+                    const profit = outcome === 'win' ? trade.amount * trade.profitRate : -trade.amount;
+
+                    // Find the trade in the main array to update it
+                    const tradeIndex = allTrades.findIndex(t => t.id === trade.id);
+                    if (tradeIndex !== -1) {
+                        allTrades[tradeIndex] = {
+                            ...allTrades[tradeIndex],
+                            status: 'settled',
+                            settlementPrice: settlementPrice,
+                            outcome: outcome,
+                            profit: profit
+                        };
+                        
+                        // Update balance
+                        setBalances(prev => {
+                            const newBalance = prev.USDT.available + trade.amount + profit;
+                            return {
+                                ...prev,
+                                USDT: { ...prev.USDT, available: newBalance }
+                            }
+                        });
+                        balanceUpdated = true;
+                    }
+                }
+            });
+
+            if (balanceUpdated) {
+                localStorage.setItem('contractTrades', JSON.stringify(allTrades));
+            }
+
+        } catch (error) {
+            console.error("Error during settlement simulation:", error);
+        }
+
+    }, 2000); // Check for settlements every 2 seconds
+
+    return () => clearInterval(interval);
+
+  }, [user]);
+
   
   const updateBalance = (username: string, asset: string, amount: number) => {
     try {
@@ -157,9 +234,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return true;
   }
 
-  const placeContractTrade = useCallback((trade: Omit<ContractTrade, 'id' | 'price' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
-    if (!user) return;
+  const placeContractTrade = useCallback((trade: ContractTradeParams, tradingPair: string) => {
+    if (!user || !marketData) return;
     
+    // Deduct amount from balance immediately
     setBalances(prevBalances => {
         const newBalances = { ...prevBalances };
         newBalances.USDT = {
@@ -169,13 +247,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         return newBalances;
     });
 
-    const fullTrade = {
+    const now = Date.now();
+    const fullTrade: ContractTrade = {
         ...trade,
-        id: `contract_${Date.now()}`,
+        id: `contract_${now}`,
         userId: user.username,
         tradingPair,
-        orderType: 'contract' as const,
-        status: 'filled' as const,
+        orderType: 'contract',
+        status: 'active',
+        entryPrice: marketData.summary.price,
+        settlementTime: now + (trade.period * 1000),
         createdAt: new Date().toISOString(),
     }
 
@@ -186,7 +267,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     } catch (error) {
         console.error("Failed to save contract trade to localStorage", error);
     }
-  }, [user]);
+  }, [user, marketData]);
   
   const placeSpotTrade = useCallback((trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
      if (!user) return;
@@ -212,13 +293,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         return newBalances;
     });
     
-    const fullTrade = {
+    const fullTrade: SpotTrade = {
         ...trade,
         id: `spot_${Date.now()}`,
         userId: user.username,
         tradingPair,
-        orderType: 'spot' as const,
-        status: 'filled' as const,
+        orderType: 'spot',
+        status: 'filled',
         createdAt: new Date().toISOString(),
     }
 

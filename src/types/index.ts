@@ -18,17 +18,37 @@ export type MarketTrade = {
 
 // Represents a user's contract trade action
 export type ContractTrade = {
-  type: 'buy' | 'sell';
+  id: string;
+  userId: string;
+  tradingPair: string;
+  orderType: 'contract';
+  type: 'buy' | 'sell'; // buy for long, sell for short
   amount: number; // This is the amount in USDT for the contract
+  entryPrice: number;
+  settlementTime: number; // a timestamp in ms
+  period: number; // in seconds
+  profitRate: number; // e.g., 0.85 for 85%
+  status: 'active' | 'settled';
+  // Fields below are added after settlement
+  settlementPrice?: number;
+  outcome?: 'win' | 'loss';
+  profit?: number; // can be negative
+  createdAt: string;
 };
 
 // Represents a user's spot trade action
 export type SpotTrade = {
+    id: string;
+    userId: string;
+    tradingPair: string;
+    orderType: 'spot';
     type: 'buy' | 'sell';
     baseAsset: string;
     quoteAsset: string;
     amount: number; // amount of base asset
     total: number; // total in quote asset
+    status: 'filled' | 'cancelled';
+    createdAt: string;
 }
 
 
