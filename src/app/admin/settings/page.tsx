@@ -87,7 +87,7 @@ export default function AdminSettingsPage() {
                                         {pairSettings.tradingDisabled && (
                                             <div className="grid grid-cols-2 gap-2 pl-2 border-l-2">
                                                  <div>
-                                                    <Label htmlFor={`limit-start-${pair}`} className="text-xs">开始时间</Label>
+                                                    <Label htmlFor={`limit-start-${pair}`} className="text-xs">每日开始时间</Label>
                                                     <Input
                                                         id={`limit-start-${pair}`}
                                                         type="time"
@@ -96,7 +96,7 @@ export default function AdminSettingsPage() {
                                                     />
                                                 </div>
                                                  <div>
-                                                    <Label htmlFor={`limit-end-${pair}`} className="text-xs">结束时间</Label>
+                                                    <Label htmlFor={`limit-end-${pair}`} className="text-xs">每日结束时间</Label>
                                                     <Input
                                                         id={`limit-end-${pair}`}
                                                         type="time"
