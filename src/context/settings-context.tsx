@@ -4,12 +4,18 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs } from '@/types';
 
+export type SpecialTimeFrame = {
+    id: string; // e.g., timestamp or a unique string
+    startTime: string;
+    endTime: string;
+    profitRate: number;
+};
+
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
-    tradingDisabled: boolean;
-    profitRate: number;
-    limitBuyStart: string | null;
-    limitBuyEnd: string | null;
+    tradingDisabled: boolean; // This now acts as a master switch for all special time frames
+    baseProfitRate: number; // The default profit rate outside of any special time frames
+    specialTimeFrames: SpecialTimeFrame[];
 };
 
 type AllSettings = {
@@ -19,16 +25,21 @@ type AllSettings = {
 interface SettingsContextType {
     settings: AllSettings;
     updateSettings: (pair: string, newSettings: Partial<TradingPairSettings>) => void;
+    addSpecialTimeFrame: (pair: string) => void;
+    removeSpecialTimeFrame: (pair: string, frameId: string) => void;
+    updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => void;
 }
 
+const getDefaultPairSettings = (): TradingPairSettings => ({
+    trend: 'normal',
+    tradingDisabled: false,
+    baseProfitRate: 0.85, // Default 85% profit rate
+    specialTimeFrames: [],
+});
+
+
 const defaultSettings: AllSettings = availablePairs.reduce((acc, pair) => {
-    acc[pair] = {
-        trend: 'normal',
-        tradingDisabled: false,
-        profitRate: 0.85, // Default 85% profit rate
-        limitBuyStart: null,
-        limitBuyEnd: null,
-    };
+    acc[pair] = getDefaultPairSettings();
     return acc;
 }, {} as AllSettings);
 
@@ -41,14 +52,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         try {
             const storedSettings = localStorage.getItem('marketSettings');
             if (storedSettings) {
-                // Merge stored settings with defaults to ensure all pairs are present
                 const parsedSettings = JSON.parse(storedSettings);
                 const mergedSettings = { ...defaultSettings };
-                // Make sure to merge deeply for each pair
                 for (const pair of availablePairs) {
-                    if (parsedSettings[pair]) {
-                        mergedSettings[pair] = { ...defaultSettings[pair], ...parsedSettings[pair] };
-                    }
+                    // Make sure each pair has the default structure, then override with stored data
+                    mergedSettings[pair] = { 
+                        ...getDefaultPairSettings(), 
+                        ...(parsedSettings[pair] || {}) 
+                    };
                 }
                 setSettings(mergedSettings);
             } else {
@@ -60,29 +71,84 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const saveSettings = (newSettings: AllSettings) => {
+        try {
+            localStorage.setItem('marketSettings', JSON.stringify(newSettings));
+        } catch(e) {
+            console.error("Failed to save settings to localStorage", e);
+        }
+    }
+
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
             const updatedPairSettings = {
-                ...(prevSettings[pair] || defaultSettings[pair]),
+                ...(prevSettings[pair] || getDefaultPairSettings()),
                 ...newSettings,
             };
             const allNewSettings = {
                 ...prevSettings,
                 [pair]: updatedPairSettings,
             };
-            
-            try {
-                localStorage.setItem('marketSettings', JSON.stringify(allNewSettings));
-            } catch(e) {
-                console.error("Failed to save settings to localStorage", e);
-            }
-
+            saveSettings(allNewSettings);
             return allNewSettings;
         });
     }, []);
 
+    const addSpecialTimeFrame = useCallback((pair: string) => {
+        setSettings(prevSettings => {
+            const newFrame: SpecialTimeFrame = {
+                id: `frame_${Date.now()}`,
+                startTime: "00:00",
+                endTime: "23:59",
+                profitRate: 0.90, // Default 90%
+            };
+            const pairSettings = prevSettings[pair] || getDefaultPairSettings();
+            const updatedFrames = [...pairSettings.specialTimeFrames, newFrame];
+            const allNewSettings = {
+                ...prevSettings,
+                [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
+            };
+            saveSettings(allNewSettings);
+            return allNewSettings;
+        });
+    }, []);
+
+    const removeSpecialTimeFrame = useCallback((pair: string, frameId: string) => {
+        setSettings(prevSettings => {
+            const pairSettings = prevSettings[pair];
+            if (!pairSettings) return prevSettings;
+            
+            const updatedFrames = pairSettings.specialTimeFrames.filter(frame => frame.id !== frameId);
+            const allNewSettings = {
+                ...prevSettings,
+                [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
+            };
+            saveSettings(allNewSettings);
+            return allNewSettings;
+        });
+    }, []);
+
+    const updateSpecialTimeFrame = useCallback((pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => {
+        setSettings(prevSettings => {
+            const pairSettings = prevSettings[pair];
+            if (!pairSettings) return prevSettings;
+
+            const updatedFrames = pairSettings.specialTimeFrames.map(frame =>
+                frame.id === frameId ? { ...frame, ...updates } : frame
+            );
+
+            const allNewSettings = {
+                ...prevSettings,
+                [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
+            };
+            saveSettings(allNewSettings);
+            return allNewSettings;
+        });
+    }, []);
+
+
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, addSpecialTimeFrame, removeSpecialTimeFrame, updateSpecialTimeFrame }}>
             {children}
         </SettingsContext.Provider>
     );

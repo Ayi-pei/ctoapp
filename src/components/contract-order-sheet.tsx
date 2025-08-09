@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -57,15 +57,33 @@ export function ContractOrderSheet({
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
+  const [currentProfitRate, setCurrentProfitRate] = useState(0.85);
+
+  const pairSettings = settings[tradingPair];
   
-  const pairSettings = settings[tradingPair] || { 
-      profitRate: 0.85, 
-      tradingDisabled: false, 
-      trend: 'normal',
-      limitBuyStart: null,
-      limitBuyEnd: null,
-  };
-  const currentProfitRate = pairSettings.profitRate;
+  useEffect(() => {
+    if (!pairSettings) return;
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    let activeProfitRate = pairSettings.baseProfitRate;
+
+    for (const frame of pairSettings.specialTimeFrames) {
+        const [startH, startM] = frame.startTime.split(':').map(Number);
+        const startTime = startH * 60 + startM;
+        const [endH, endM] = frame.endTime.split(':').map(Number);
+        const endTime = endH * 60 + endM;
+        
+        if (currentTime >= startTime && currentTime <= endTime) {
+            activeProfitRate = frame.profitRate;
+            break; 
+        }
+    }
+    setCurrentProfitRate(activeProfitRate);
+
+  }, [pairSettings, isOpen]); // Rerun when settings change or dialog opens
+
 
   const asset = tradingPair.split('/')[0];
   const orderTypeText = orderType === 'buy' ? "买涨" : "买跌";
@@ -76,28 +94,19 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
-    // Check for trading restrictions
-    if (pairSettings.tradingDisabled) {
-        let isTimeRestricted = false;
-        if (pairSettings.limitBuyStart && pairSettings.limitBuyEnd) {
-             const now = new Date();
-             const currentTime = now.getHours() * 60 + now.getMinutes();
-             
-             const [startH, startM] = pairSettings.limitBuyStart.split(':').map(Number);
-             const startTime = startH * 60 + startM;
-             
-             const [endH, endM] = pairSettings.limitBuyEnd.split(':').map(Number);
-             const endTime = endH * 60 + endM;
+    if (pairSettings?.tradingDisabled) {
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+        
+        const isInSpecialFrame = pairSettings.specialTimeFrames.some(frame => {
+            const [startH, startM] = frame.startTime.split(':').map(Number);
+            const startTime = startH * 60 + startM;
+            const [endH, endM] = frame.endTime.split(':').map(Number);
+            const endTime = endH * 60 + endM;
+            return currentTime >= startTime && currentTime <= endTime;
+        });
 
-             if (currentTime >= startTime && currentTime <= endTime) {
-                 isTimeRestricted = true;
-             }
-        } else {
-            // If times are not set, it's restricted 24/7 as long as the switch is on
-            isTimeRestricted = true;
-        }
-
-        if (isTimeRestricted) {
+        if (isInSpecialFrame) {
              toast({
                 variant: "destructive",
                 title: "交易受限",
@@ -184,7 +193,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">预估收益</span>
-                <span className="font-semibold text-green-500">{(parseFloat(amount) * currentProfitRate).toFixed(2)} USDT ({(currentProfitRate * 100)}%)</span>
+                <span className="font-semibold text-green-500">{(parseFloat(amount) * currentProfitRate).toFixed(2)} USDT ({(currentProfitRate * 100).toFixed(0)}%)</span>
             </div>
         </div>
         <SheetFooter className="flex-col space-y-4">
