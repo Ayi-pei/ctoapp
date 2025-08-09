@@ -91,7 +91,7 @@ export default function AdminUsersPage() {
     if (!user || !isAdmin) {
         return (
              <DashboardLayout>
-                <div className="p-8 text-center">
+                <div className="p-4 md:p-8 text-center">
                     <p>您需要以管理员身份登录才能访问此页面。</p>
                 </div>
             </DashboardLayout>
@@ -105,13 +105,13 @@ export default function AdminUsersPage() {
                 <h1 className="text-2xl font-bold">用户管理</h1>
                 
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
+                    <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
                         <CardTitle>用户列表</CardTitle>
                          <Input 
                             placeholder="搜索用户名..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="max-w-sm"
+                            className="w-full md:max-w-sm"
                         />
                     </CardHeader>
                     <CardContent>
@@ -120,8 +120,8 @@ export default function AdminUsersPage() {
                                 <TableRow>
                                     <TableHead>用户名</TableHead>
                                     <TableHead>账户类型</TableHead>
-                                    <TableHead>账户状态</TableHead>
-                                    <TableHead>注册日期</TableHead>
+                                    <TableHead>状态</TableHead>
+                                    <TableHead className="hidden md:table-cell">注册日期</TableHead>
                                     <TableHead className="text-right">操作</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -131,18 +131,18 @@ export default function AdminUsersPage() {
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className={`font-semibold ${u.isTestUser ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500'}`}>
-                                                {u.isTestUser ? '测试账户' : '真实账户'}
+                                                {u.isTestUser ? '测试' : '真实'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={u.isFrozen ? "destructive" : "default"} className={u.isFrozen ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}>
-                                                {u.isFrozen ? '已冻结' : '正常'}
+                                                {u.isFrozen ? '冻结' : '正常'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{u.registeredAt}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{u.registeredAt}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleViewDetails(u)}>
-                                                查看详情
+                                                详情
                                             </Button>
                                         </TableCell>
                                     </TableRow>
