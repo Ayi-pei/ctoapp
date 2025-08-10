@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Order, MarketTrade, PriceDataPoint, MarketSummary, availablePairs } from '@/types';
-import { useAuth } from '@/context/auth-context';
 import { useSettings } from '@/context/settings-context';
+import { getMarketData } from '@/ai/flows/get-market-data';
 
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
@@ -160,20 +160,16 @@ export const useMarketData = () => {
 
         if (assetsToFetch.length > 0) {
             try {
-                const response = await fetch(`https://api.coincap.io/v2/assets?ids=${assetsToFetch.join(',')}`);
-                if (response.ok) {
-                    const json = await response.json();
-                    realTimeData = json.data.reduce((acc: any, asset: any) => {
-                        acc[asset.id] = asset;
-                        return acc;
-                    }, {});
+                const result = await getMarketData({ assetIds: assetsToFetch });
+                if (result && Object.keys(result.data).length > 0) {
+                    realTimeData = result.data;
                 } else {
                     fetchFailed = true;
-                    console.warn(`API request to coincap.io was not successful: ${response.status}. Falling back to simulator.`);
+                    console.warn(`getMarketData flow returned no data. Falling back to simulator.`);
                 }
             } catch (error) {
                 fetchFailed = true;
-                console.warn(`API request to coincap.io failed: ${error}. Falling back to simulator.`);
+                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator.`);
             }
         }
        
@@ -188,9 +184,12 @@ export const useMarketData = () => {
                 let newSummary;
                 let newPriceData = prevData.priceData;
 
-                if (!fetchFailed && pairSettings.trend === 'normal' && COINCAP_MAP[pair] && realTimeData[COINCAP_MAP[pair]]) {
+                const assetId = COINCAP_MAP[pair];
+                const shouldUseRealData = !fetchFailed && pairSettings.trend === 'normal' && assetId && realTimeData[assetId];
+
+                if (shouldUseRealData) {
                     // --- Use REAL Data ---
-                    const assetData = realTimeData[COINCAP_MAP[pair]];
+                    const assetData = realTimeData[assetId];
                     const newPrice = parseFloat(assetData.priceUsd);
                     
                     newSummary = {
