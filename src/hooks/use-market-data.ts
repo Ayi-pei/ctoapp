@@ -34,7 +34,7 @@ const getBasePrice = (pair: string) => {
     }
 }
 
-// ----- MOCK DATA GENERATION (for development) -----
+// ----- MOCK DATA GENERATION (for development and admin override) -----
 const generateInitialDataForPair = (pair: string) => {
   const basePrice = getBasePrice(pair);
 
@@ -112,42 +112,32 @@ const generateInitialDataForPair = (pair: string) => {
 };
 // ----- END MOCK DATA GENERATION -----
 
+const COINCAP_MAP: { [key: string]: string } = {
+    'BTC/USDT': 'bitcoin',
+    'ETH/USDT': 'ethereum',
+    'SOL/USDT': 'solana',
+    'XRP/USDT': 'xrp',
+    'LTC/USDT': 'litecoin',
+    'BNB/USDT': 'binance-coin',
+    'MATIC/USDT': 'polygon',
+};
+
 
 export const useMarketData = () => {
-  const { user } = useAuth();
   const { settings } = useSettings();
   const [tradingPair, setTradingPair] = useState(availablePairs[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
 
-  // In a production environment, this function would fetch data from a real API.
-  const fetchInitialData = useCallback(async () => {
-    // If it's not a test user, you would fetch real data here.
-    if (user && !user.isTestUser) {
-        console.log("Real user detected. API calls would be made here.");
-        // --- PRODUCTION API CALL ---
-        // Example: const response = await fetch('/api/v1/market-data/all');
-        // const data = await response.json();
-        // const initialData = new Map(Object.entries(data));
-        // setAllData(initialData);
-        // For now, real users will also see mock data until an API is connected.
-    }
-
-    // For test users, or as a fallback for real users if the API fails.
-    console.warn("Generating mock market data.");
+  // Initialize with mock data first
+  useEffect(() => {
     const mockInitialData = new Map();
     availablePairs.forEach(pair => {
         mockInitialData.set(pair, generateInitialDataForPair(pair));
     });
     setAllData(mockInitialData);
     setIsInitialised(true);
-
-  }, [user]);
-
-  useEffect(() => {
-    fetchInitialData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchInitialData]);
+  }, []);
 
   const changeTradingPair = useCallback((newPair: string) => {
     if (availablePairs.includes(newPair)) {
@@ -155,99 +145,115 @@ export const useMarketData = () => {
     }
   }, []);
 
+  // Real-time data fetching and simulation interval
   useEffect(() => {
     if (!isInitialised) return;
 
-    // For test users, we simulate real-time updates.
-    // For real users, this would be replaced with a WebSocket connection.
-    if (user && !user.isTestUser) {
-        console.log("Real user: WebSocket connection would be established here.");
-        // return () => ws.close();
-    }
-    
-    const interval = setInterval(() => {
-        setAllData(prevAllData => {
-            const newAllData = new Map(prevAllData);
+    const interval = setInterval(async () => {
+        const assetsToFetch = availablePairs
+            .filter(pair => COINCAP_MAP[pair] && settings[pair]?.trend === 'normal')
+            .map(pair => COINCAP_MAP[pair]);
 
-            newAllData.forEach((prevData, pair) => {
-                if (!prevData) return;
-                const pairSettings = settings[pair] || { trend: 'normal' };
+        try {
+            // --- REAL DATA FETCHING ---
+            let realTimeData: { [key: string]: any } = {};
+            if (assetsToFetch.length > 0) {
+                 const response = await fetch(`https://api.coincap.io/v2/assets?ids=${assetsToFetch.join(',')}`);
+                 if (response.ok) {
+                    const json = await response.json();
+                    realTimeData = json.data.reduce((acc: any, asset: any) => {
+                        acc[asset.id] = asset;
+                        return acc;
+                    }, {});
+                 }
+            }
+           
+            // --- UPDATE ALL PAIRS ---
+            setAllData(prevAllData => {
+                const newAllData = new Map(prevAllData);
 
-                let priceMultiplier = randomInRange(0.9995, 1.0005); // Default: normal fluctuation
-                if (pairSettings.trend === 'up') {
-                    priceMultiplier = randomInRange(1.0001, 1.0008); // Force upward trend
-                } else if (pairSettings.trend === 'down') {
-                    priceMultiplier = randomInRange(0.9992, 0.9999); // Force downward trend
-                }
-                
-                 // Update Price
-                const oldPrice = prevData.summary.price;
-                const newPrice = oldPrice * priceMultiplier;
-                const price24hAgo = prevData.summary.low; // Simplified for this simulation
-                const newChange = ((newPrice - price24hAgo) / price24hAgo) * 100;
-
-
-                const newSummary = {
-                    ...prevData.summary,
-                    price: newPrice,
-                    change: newChange,
-                    high: Math.max(prevData.summary.high, newPrice),
-                    low: Math.min(prevData.summary.low, newPrice),
-                };
-                
-                // If it's the active pair, update everything
-                if (pair === tradingPair) {
-                    // Update Price Chart
-                    const newPriceData = [...prevData.priceData.slice(1)];
-                    newPriceData.push({
-                        time: formatTime(new Date()),
-                        price: newPrice,
-                    });
-
-                    // Update Order Book
-                    const newAsks = prevData.orderBook.asks.map(order => ({
-                        ...order,
-                        size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
-                    })).filter(order => order.size > 0.001).slice(0, 20);
+                newAllData.forEach((prevData, pair) => {
+                    if (!prevData) return;
+                    const pairSettings = settings[pair] || { trend: 'normal' };
                     
-                    const newBids = prevData.orderBook.bids.map(order => ({
-                        ...order,
-                        size: Math.max(0, order.size * randomInRange(0.95, 1.05)),
-                    })).filter(order => order.size > 0.001).slice(0, 20);
+                    let newSummary;
+                    let newPriceData = prevData.priceData;
 
-                    // Update Trades
-                    const newTrades = [...prevData.trades];
-                    if (Math.random() > 0.7) {
-                        const type = Math.random() > 0.5 ? 'buy' : 'sell';
-                        const price = newPrice * randomInRange(0.9998, 1.0002);
-                        const amount = randomInRange(0.01, 1.5);
-                        const newTrade: MarketTrade = {
-                            id: `trade-${Date.now()}`,
-                            type,
-                            price,
-                            amount,
-                            time: formatTime(new Date()),
+                    if (pairSettings.trend === 'normal' && COINCAP_MAP[pair] && realTimeData[COINCAP_MAP[pair]]) {
+                        // --- Use REAL Data ---
+                        const assetData = realTimeData[COINCAP_MAP[pair]];
+                        const newPrice = parseFloat(assetData.priceUsd);
+                        const oldPrice = prevData.summary.price;
+                        
+                        newSummary = {
+                            ...prevData.summary,
+                            price: newPrice,
+                            change: parseFloat(assetData.changePercent24Hr),
+                            volume: parseFloat(assetData.volumeUsd24Hr),
+                            high: Math.max(prevData.summary.high, newPrice), // Simplification
+                            low: Math.min(prevData.summary.low, newPrice),   // Simplification
                         };
-                        newTrades.unshift(newTrade);
-                        if (newTrades.length > 50) newTrades.pop();
+                        
+                        if (pair === tradingPair) {
+                             newPriceData = [...prevData.priceData.slice(1), {
+                                time: formatTime(new Date()),
+                                price: newPrice,
+                            }];
+                        }
+
+                    } else {
+                        // --- Use MOCK/SIMULATED Data (Admin Override) ---
+                        let priceMultiplier = randomInRange(0.9995, 1.0005); // Default: normal fluctuation
+                        if (pairSettings.trend === 'up') {
+                            priceMultiplier = randomInRange(1.0001, 1.0008); 
+                        } else if (pairSettings.trend === 'down') {
+                            priceMultiplier = randomInRange(0.9992, 0.9999);
+                        }
+                        
+                        const newPrice = prevData.summary.price * priceMultiplier;
+                        newSummary = { ...prevData.summary, price: newPrice };
+                        
+                         if (pair === tradingPair) {
+                             newPriceData = [...prevData.priceData.slice(1), {
+                                time: formatTime(new Date()),
+                                price: newPrice,
+                            }];
+                        }
                     }
-                    newAllData.set(pair, {
-                        ...prevData,
-                        priceData: newPriceData,
-                        orderBook: { asks: newAsks, bids: newBids },
-                        trades: newTrades,
-                        summary: newSummary
-                    });
-                } else {
-                     newAllData.set(pair, { ...prevData, summary: newSummary});
-                }
+
+                    let updatedData = { ...prevData, summary: newSummary, priceData: newPriceData };
+                    
+                    // For active pair, also update order book and trades for visual effect
+                    if (pair === tradingPair) {
+                         const newAsks = prevData.orderBook.asks.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => a.price - b.price);
+                         const newBids = prevData.orderBook.bids.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => b.price - a.price);
+
+                        const newTrades = [...prevData.trades];
+                        if (Math.random() > 0.7) {
+                            newTrades.unshift({
+                                id: `trade-${Date.now()}`,
+                                type: Math.random() > 0.5 ? 'buy' : 'sell',
+                                price: newSummary.price * randomInRange(0.9998, 1.0002),
+                                amount: randomInRange(0.01, 1.5),
+                                time: formatTime(new Date()),
+                            });
+                            if (newTrades.length > 50) newTrades.pop();
+                        }
+                        updatedData = { ...updatedData, orderBook: { asks: newAsks, bids: newBids }, trades: newTrades };
+                    }
+                    
+                    newAllData.set(pair, updatedData);
+                });
+                return newAllData;
             });
-            return newAllData;
-        });
-    }, 1500); // Update every 1.5 seconds
+
+        } catch (error) {
+            console.error("Failed to fetch or process market data:", error);
+        }
+    }, 2500); // Update every 2.5 seconds
 
     return () => clearInterval(interval);
-  }, [isInitialised, tradingPair, user, settings]);
+  }, [isInitialised, tradingPair, settings]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
