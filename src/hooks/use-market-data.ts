@@ -168,14 +168,12 @@ export const useMarketData = () => {
                         return acc;
                     }, {});
                 } else {
-                    // Handle non-ok HTTP responses (like 4xx, 5xx)
                     fetchFailed = true;
-                    console.warn("API request to coincap.io was not successful:", response.status);
+                    console.warn(`API request to coincap.io was not successful: ${response.status}. Falling back to simulator.`);
                 }
             } catch (error) {
-                // Handle network errors (like 'Failed to fetch')
                 fetchFailed = true;
-                console.error("API request to coincap.io failed:", error);
+                console.warn(`API request to coincap.io failed: ${error}. Falling back to simulator.`);
             }
         }
        
