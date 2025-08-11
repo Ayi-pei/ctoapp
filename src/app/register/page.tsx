@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
+import type { User } from '@/context/auth-context';
 
 const registerSchema = z.object({
   username: z.string().min(6, '用户名必须至少6个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
@@ -46,7 +47,7 @@ export default function RegisterPage() {
 
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
     try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
       
       const existingUser = users.find((user: any) => user.username === values.username);
       if (existingUser) {
@@ -68,19 +69,20 @@ export default function RegisterPage() {
           newInvitationCode = generateCode();
       }
 
-      const newUser = { 
+      const newUser: User = { 
           username: values.username, 
           password: values.password,
+          isAdmin: false,
           isTestUser: isTestUser,
-          isFrozen: false, // Default value for new users
+          isFrozen: false,
           invitationCode: newInvitationCode,
           inviter: inviter.username,
-          downline: [], // Initialize empty downline
+          downline: [],
+          registeredAt: new Date().toISOString(),
       };
       
       users.push(newUser);
 
-      // Add the new user to the inviter's downline
       const inviterIndex = users.findIndex((u: any) => u.username === inviter.username);
       if (inviterIndex !== -1) {
           users[inviterIndex].downline.push(newUser.username);

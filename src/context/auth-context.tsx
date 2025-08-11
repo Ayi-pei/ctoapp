@@ -9,11 +9,11 @@ export type User = {
   isAdmin: boolean;
   avatar?: string;
   isFrozen?: boolean;
-  invitationCode: string; // Now mandatory
+  invitationCode: string;
   inviter: string | null;
   downline: string[];
   registeredAt?: string;
-  password?: string; // Only for local storage, not for context state
+  password?: string;
 }
 
 interface AuthContextType {
@@ -33,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   useEffect(() => {
-    // Initialize admin user if not present
     try {
         const usersRaw = localStorage.getItem('users');
         let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
@@ -41,13 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!adminUser) {
             users.push({
                 username: 'demo123',
-                password: '111222', // This is just for local simulation
+                password: '111222',
                 isAdmin: true,
                 isTestUser: false,
                 isFrozen: false,
-                invitationCode: '111222', // Special code for initial registrations
+                invitationCode: '111222',
                 inviter: null,
                 downline: [],
+                registeredAt: new Date().toISOString(),
             });
             localStorage.setItem('users', JSON.stringify(users));
         }
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUserData = allUsers.find(u => u.username === loggedInUsername);
 
         if (currentUserData) {
-            const { password, ...userState } = currentUserData; // Exclude password from context state
+            const { password, ...userState } = currentUserData;
             
             setIsAuthenticated(true);
             setUser(userState);
@@ -75,21 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
         } else {
-             // If user in session is not found in db, logout
              logout();
         }
 
       } else {
-        // No one is logged in
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
       }
     } catch (e) {
         console.error("Failed to parse auth data from localStorage", e);
-        // Clear potentially corrupted data
         localStorage.removeItem('loggedInUser');
-        localStorage.removeItem('isAdminLoggedIn'); // Old key, clear it too
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
@@ -127,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     setUser(null);
     setIsAdmin(false);
-    // Redirect handled by components
   };
   
   const updateUser = (userData: Partial<User>) => {
@@ -139,7 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
             const userIndex = users.findIndex((u: User) => u.username === user.username);
             if (userIndex !== -1) {
-                // Important: keep password from storage if it exists
                 const storedPassword = users[userIndex].password;
                 users[userIndex] = { ...users[userIndex], ...userData, password: storedPassword };
                 localStorage.setItem('users', JSON.stringify(users));

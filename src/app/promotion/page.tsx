@@ -15,6 +15,7 @@ type FullUser = User & {
     invitationCode: string;
     inviter: string | null;
     downline: string[];
+    registeredAt?: string;
 };
 
 type DownlineMember = {
@@ -26,13 +27,12 @@ type DownlineMember = {
 export default function PromotionPage() {
     const { toast } = useToast();
     const { user } = useAuth();
-    const [currentUser, setCurrentUser] = useState<FullUser | null>(null);
     const [downline, setDownline] = useState<DownlineMember[]>([]);
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
 
     const copyToClipboard = () => {
-        if (currentUser?.invitationCode) {
-            navigator.clipboard.writeText(currentUser.invitationCode);
+        if (user?.invitationCode) {
+            navigator.clipboard.writeText(user.invitationCode);
             toast({
                 title: "已复制",
                 description: "您的邀请码已成功复制到剪贴板。",
@@ -40,7 +40,7 @@ export default function PromotionPage() {
         }
     };
     
-    const fetchAllUsers = useCallback(() => {
+    const fetchAllUsers = useCallback((): FullUser[] => {
         try {
             return JSON.parse(localStorage.getItem('users') || '[]') as FullUser[];
         } catch (e) {
@@ -50,35 +50,30 @@ export default function PromotionPage() {
     }, []);
 
     useEffect(() => {
-        if (user) {
+        if (user && user.invitationCode) {
             const allUsers = fetchAllUsers();
-            const foundUser = allUsers.find(u => u.username === user.username);
             
-            if (foundUser) {
-                setCurrentUser(foundUser);
+            // Fetch full downline details
+            const getDownline = (username: string, level: number, maxLevel: number): DownlineMember[] => {
+                if (level > maxLevel) return [];
+                const directDownlineUser = allUsers.find(u => u.username === username);
+                if (!directDownlineUser || !directDownlineUser.downline) return [];
+                
+                let members: DownlineMember[] = directDownlineUser.downline.map(name => ({
+                    username: name,
+                    level: level,
+                    registeredAt: allUsers.find(u => u.username === name)?.registeredAt || new Date().toISOString(),
+                }));
 
-                // Fetch full downline details
-                const getDownline = (username: string, level: number, maxLevel: number): DownlineMember[] => {
-                    if (level > maxLevel) return [];
-                    const directDownlineUser = allUsers.find(u => u.username === username);
-                    if (!directDownlineUser || !directDownlineUser.downline) return [];
-                    
-                    let members: DownlineMember[] = directDownlineUser.downline.map(name => ({
-                        username: name,
-                        level: level,
-                        registeredAt: allUsers.find(u => u.username === name)?.registeredAt || new Date().toISOString(),
-                    }));
+                directDownlineUser.downline.forEach(name => {
+                    members = members.concat(getDownline(name, level + 1, maxLevel));
+                });
+                
+                return members;
+            };
 
-                    directDownlineUser.downline.forEach(name => {
-                        members = members.concat(getDownline(name, level + 1, maxLevel));
-                    });
-                    
-                    return members;
-                };
-
-                const userDownline = getDownline(foundUser.username, 1, 3);
-                setDownline(userDownline);
-            }
+            const userDownline = getDownline(user.username, 1, 3);
+            setDownline(userDownline);
             
             // Load commission logs
             try {
@@ -106,7 +101,7 @@ export default function PromotionPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row items-center gap-4">
                         <div className="flex-1 w-full p-4 text-center border-2 border-dashed rounded-lg bg-muted">
-                            <span className="text-3xl font-bold tracking-widest">{currentUser?.invitationCode || '...'}</span>
+                            <span className="text-3xl font-bold tracking-widest">{user?.invitationCode || '...'}</span>
                         </div>
                         <Button onClick={copyToClipboard} size="lg">
                             <Copy className="mr-2 h-5 w-5" />
@@ -137,7 +132,7 @@ export default function PromotionPage() {
                                         <TableRow key={member.username}>
                                             <TableCell>{member.username}</TableCell>
                                             <TableCell>LV {member.level}</TableCell>
-                                            <TableCell className="text-right text-xs">{new Date(member.registeredAt).toLocaleDateString()}</TableCell>
+                                            <TableCell className="text-right text-xs">{new Date(member.registeredAt || Date.now()).toLocaleDateString()}</TableCell>
                                         </TableRow>
                                     )) : (
                                          <TableRow>
