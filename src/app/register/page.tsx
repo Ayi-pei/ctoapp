@@ -55,11 +55,12 @@ export default function RegisterPage() {
         return;
       }
 
-      const inviter = users.find((user: any) => user.invitationCode === values.invitationCode);
-      if (!inviter) {
+      const inviterIndex = users.findIndex((user: any) => user.invitationCode === values.invitationCode);
+      if (inviterIndex === -1) {
          toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
         return;
       }
+      const inviter = users[inviterIndex];
       
       const isTestUser = values.invitationCode === '111222'; // Keep this special code logic
 
@@ -81,12 +82,16 @@ export default function RegisterPage() {
           registeredAt: new Date().toISOString(),
       };
       
-      users.push(newUser);
-
-      const inviterIndex = users.findIndex((u: any) => u.username === inviter.username);
-      if (inviterIndex !== -1) {
-          users[inviterIndex].downline.push(newUser.username);
+      // Add the new user to the inviter's downline
+      if (inviter.downline) {
+        inviter.downline.push(newUser.username);
+      } else {
+        inviter.downline = [newUser.username];
       }
+      
+      // Update the users array with the modified inviter and the new user
+      users[inviterIndex] = inviter;
+      users.push(newUser);
 
       localStorage.setItem('users', JSON.stringify(users));
 

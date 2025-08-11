@@ -40,41 +40,8 @@ export default function PromotionPage() {
         }
     };
     
-    const fetchAllUsers = useCallback((): FullUser[] => {
-        try {
-            return JSON.parse(localStorage.getItem('users') || '[]') as FullUser[];
-        } catch (e) {
-            console.error(e);
-            return [];
-        }
-    }, []);
-
     useEffect(() => {
-        if (user && user.invitationCode) {
-            const allUsers = fetchAllUsers();
-            
-            // Fetch full downline details
-            const getDownline = (username: string, level: number, maxLevel: number): DownlineMember[] => {
-                if (level > maxLevel) return [];
-                const directDownlineUser = allUsers.find(u => u.username === username);
-                if (!directDownlineUser || !directDownlineUser.downline) return [];
-                
-                let members: DownlineMember[] = directDownlineUser.downline.map(name => ({
-                    username: name,
-                    level: level,
-                    registeredAt: allUsers.find(u => u.username === name)?.registeredAt || new Date().toISOString(),
-                }));
-
-                directDownlineUser.downline.forEach(name => {
-                    members = members.concat(getDownline(name, level + 1, maxLevel));
-                });
-                
-                return members;
-            };
-
-            const userDownline = getDownline(user.username, 1, 3);
-            setDownline(userDownline);
-            
+        if (user?.username) {
             // Load commission logs
             try {
                 const allCommissions = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as CommissionLog[];
@@ -86,8 +53,43 @@ export default function PromotionPage() {
                 console.error(e);
                 setCommissions([]);
             }
+
+            // Fetch full downline details
+            try {
+                const allUsers: FullUser[] = JSON.parse(localStorage.getItem('users') || '[]') as FullUser[];
+                const userMap = new Map(allUsers.map(u => [u.username, u]));
+                
+                const getDownline = (username: string, level: number, maxLevel: number): DownlineMember[] => {
+                    if (level > maxLevel) return [];
+                    
+                    const directDownlineUser = userMap.get(username);
+                    if (!directDownlineUser || !directDownlineUser.downline) return [];
+                    
+                    let members: DownlineMember[] = [];
+                    for (const downlineName of directDownlineUser.downline) {
+                        const downlineUserObject = userMap.get(downlineName);
+                        if (downlineUserObject) {
+                            members.push({
+                                username: downlineUserObject.username,
+                                level: level,
+                                registeredAt: downlineUserObject.registeredAt || new Date().toISOString(),
+                            });
+                            // Recursively get the next level
+                            members = members.concat(getDownline(downlineName, level + 1, maxLevel));
+                        }
+                    }
+                    return members;
+                };
+
+                const userDownline = getDownline(user.username, 1, 3);
+                setDownline(userDownline);
+
+            } catch (error) {
+                 console.error("Failed to load user downline:", error);
+                 setDownline([]);
+            }
         }
-    }, [user, fetchAllUsers]);
+    }, [user]);
 
     return (
         <DashboardLayout>
