@@ -147,7 +147,7 @@ export const useMarketData = () => {
 
   // Real-time data fetching and simulation interval
   useEffect(() => {
-    if (!isInitialised) return;
+    if (!isInitialised || !Object.keys(settings).length) return;
 
     const interval = setInterval(async () => {
         const assetsToFetch = availablePairs
@@ -157,21 +157,18 @@ export const useMarketData = () => {
         // --- REAL DATA FETCHING ---
         let realTimeData: GetMarketDataOutput['data'] = {};
         let fetchFailed = false;
-
+        
         if (assetsToFetch.length > 0) {
             try {
                 const result = await getMarketData({ assetIds: assetsToFetch });
                 if (result && Object.keys(result.data).length > 0) {
                     realTimeData = result.data;
                 } else {
-                    // This case handles when the flow succeeds but returns no data.
                     fetchFailed = true;
-                    console.warn(`getMarketData flow returned no data. Falling back to simulator for this cycle.`);
                 }
             } catch (error) {
-                // This case handles a complete failure of the flow (e.g., network error).
                 fetchFailed = true;
-                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator for this cycle.`);
+                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator.`);
             }
         }
        
