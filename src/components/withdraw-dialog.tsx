@@ -27,7 +27,7 @@ type WithdrawDialogProps = {
 export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { balances } = useBalance();
+    const { balances, freezeBalance } = useBalance();
     const [address, setAddress] = useState("");
     const [amount, setAmount] = useState("");
 
@@ -65,6 +65,10 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
         };
 
         try {
+            // First, freeze the balance
+            freezeBalance('USDT', numericAmount);
+            
+            // Then, add the transaction request
             const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
             existingTransactions.push(newTransaction);
             localStorage.setItem('transactions', JSON.stringify(existingTransactions));

@@ -48,7 +48,8 @@ interface BalanceContextType {
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
-  updateBalance: (username: string, asset: string, amount: number) => void;
+  updateBalance: (username: string, asset: string, amount: number, type?: 'available' | 'frozen') => void;
+  freezeBalance: (asset: string, amount: number) => void;
   isLoading: boolean;
 }
 
@@ -140,7 +141,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(() => {
         try {
-            const allTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]');
+            const allTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
             const userActiveTrades = allTrades.filter(t => t.userId === user.username && t.status === 'active');
             
             if (userActiveTrades.length === 0) return;
@@ -202,14 +203,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   
-  const updateBalance = (username: string, asset: string, amount: number) => {
+  const updateBalance = (username: string, asset: string, amount: number, type: 'available' | 'frozen' = 'available') => {
     try {
         const userBalances = loadUserBalances(username);
         
         if (!userBalances[asset]) {
             userBalances[asset] = { available: 0, frozen: 0 };
         }
-        userBalances[asset].available += amount;
+        userBalances[asset][type] += amount;
 
         localStorage.setItem(`userBalances_${username}`, JSON.stringify(userBalances));
 
@@ -222,6 +223,18 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         console.error(`Failed to update balance for ${username}:`, error);
     }
   };
+
+  const freezeBalance = (asset: string, amount: number) => {
+    if (!user) return;
+    setBalances(prev => {
+        const newAvailable = prev[asset].available - amount;
+        const newFrozen = prev[asset].frozen + amount;
+        return {
+            ...prev,
+            [asset]: { available: newAvailable, frozen: newFrozen }
+        }
+    });
+  }
 
 
   const addInvestment = (productName: string, amount: number) => {
@@ -255,8 +268,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 const commissionRate = COMMISSION_RATES[level as keyof CommissionRates];
                 const commissionAmount = tradeAmount * commissionRate;
 
-                // Update upline's balance in localStorage
-                updateBalance(currentUplineUsername, 'USDT', commissionAmount);
+                // Update upline's balance in localStorage and potentially in state
+                updateBalance(currentUplineUsername, 'USDT', commissionAmount, 'available');
                 
                 // Create commission log
                 const newLog: CommissionLog = {
@@ -312,7 +325,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
+        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
         existingTrades.push(fullTrade);
         localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
         // Handle commissions after placing the trade
@@ -357,7 +370,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
+        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as [];
         existingTrades.push(fullTrade);
         localStorage.setItem('spotTrades', JSON.stringify(existingTrades));
     } catch (error) {
@@ -376,7 +389,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       investments,
       balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
-      updateBalance
+      updateBalance,
+      freezeBalance
     };
 
   return (

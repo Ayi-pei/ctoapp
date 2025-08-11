@@ -72,10 +72,12 @@ export default function AdminRequestsPage() {
 
             let requestType: 'finance' | 'password' | null = null;
             let requestIndex = -1;
+            let transaction: Transaction | null = null;
             
             requestIndex = allFinanceRequests.findIndex(r => r.id === requestId);
             if (requestIndex !== -1) {
                 requestType = 'finance';
+                transaction = allFinanceRequests[requestIndex];
             } else {
                 requestIndex = allPasswordRequests.findIndex(r => r.id === requestId);
                 if (requestIndex !== -1) {
@@ -88,13 +90,22 @@ export default function AdminRequestsPage() {
                 return;
             }
 
-            if (requestType === 'finance') {
-                const transaction = allFinanceRequests[requestIndex];
+            if (requestType === 'finance' && transaction) {
                 transaction.status = newStatus;
                 
-                if (newStatus === 'approved') {
-                    const amountChange = transaction.type === 'deposit' ? transaction.amount : -transaction.amount;
-                    updateBalance(transaction.userId, transaction.asset, amountChange);
+                if (transaction.type === 'deposit') {
+                    if (newStatus === 'approved') {
+                        updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
+                    }
+                } else if (transaction.type === 'withdrawal') {
+                    if (newStatus === 'approved') {
+                        // On approval, the frozen amount is removed permanently
+                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
+                    } else { // rejected
+                        // On rejection, move amount from frozen back to available
+                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
+                        updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
+                    }
                 }
                  localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
 
