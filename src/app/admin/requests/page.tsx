@@ -95,16 +95,17 @@ export default function AdminRequestsPage() {
                 
                 if (transaction.type === 'deposit') {
                     if (newStatus === 'approved') {
+                        // On approval of deposit, add amount to user's available balance.
                         updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
                     }
                 } else if (transaction.type === 'withdrawal') {
                     if (newStatus === 'approved') {
-                        // On approval, the frozen amount is removed permanently
+                        // On approval of withdrawal, the frozen amount is removed permanently.
                         updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
                     } else { // rejected
-                        // On rejection, move amount from frozen back to available
-                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
+                        // On rejection of withdrawal, move amount from frozen back to available.
                         updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
+                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
                     }
                 }
                  localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
