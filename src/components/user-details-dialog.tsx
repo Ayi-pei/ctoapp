@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Users } from "lucide-react";
 
 type UserBalance = {
     [key: string]: {
@@ -24,6 +26,12 @@ type UserBalance = {
         frozen: number;
     }
 } | null;
+
+type DownlineMember = AuthUser & {
+    level: number;
+    children?: DownlineMember[];
+};
+
 
 type UserDetailsDialogProps = {
     isOpen: boolean;
@@ -35,7 +43,42 @@ type UserDetailsDialogProps = {
 
 export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpdate }: UserDetailsDialogProps) {
     const [newPassword, setNewPassword] = useState("");
+    const [downlineTree, setDownlineTree] = useState<DownlineMember[]>([]);
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (isOpen && user) {
+            try {
+                const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+                const userMap = new Map(allUsers.map(u => [u.username, u]));
+
+                const getDownlineRecursive = (username: string, level: number): DownlineMember[] => {
+                    if (level > 3) return []; // Limit to 3 levels
+
+                    const directUpline = userMap.get(username);
+                    if (!directUpline || !directUpline.downline) return [];
+
+                    return directUpline.downline.map(downlineName => {
+                        const downlineUser = userMap.get(downlineName);
+                        if (!downlineUser) return null;
+                        return {
+                            ...downlineUser,
+                            level,
+                            children: getDownlineRecursive(downlineName, level + 1),
+                        };
+                    }).filter((member): member is DownlineMember => member !== null);
+                };
+                
+                const tree = getDownlineRecursive(user.username, 1);
+                setDownlineTree(tree);
+
+            } catch (error) {
+                console.error("Failed to build downline tree:", error);
+                setDownlineTree([]);
+            }
+        }
+    }, [isOpen, user]);
+
 
     if (!user) {
         return null;
@@ -83,6 +126,30 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
     }
 
+    const renderDownline = (members: DownlineMember[]) => {
+        if (!members || members.length === 0) {
+            return <p className="text-sm text-muted-foreground pl-4">无下级成员。</p>;
+        }
+        return (
+             <Accordion type="multiple" className="w-full">
+                {members.map(member => (
+                    <AccordionItem value={member.username} key={member.username} className="border-b-0">
+                         <AccordionTrigger className="py-2 hover:no-underline">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
+                                    LV {member.level}
+                                </span>
+                                <span>{member.username}</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-6 border-l border-dashed ml-3">
+                            {renderDownline(member.children || [])}
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+        )
+    }
 
     const balanceEntries = balances ? Object.entries(balances) : [];
     const registeredAtDate = user.registeredAt ? new Date(user.registeredAt).toLocaleDateString() : 'N/A';
@@ -96,7 +163,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         查看用户的详细信息、资产余额并管理用户。
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-6">
+                <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
                     <div>
                         <h4 className="font-semibold mb-2">基本信息</h4>
                         <p className="text-sm"><strong>用户名:</strong> {user.username}</p>
@@ -131,6 +198,11 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                             <p className="text-sm text-muted-foreground">该用户暂无余额信息。</p>
                         )}
                        
+                    </div>
+
+                     <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (三级代理)</h4>
+                        {renderDownline(downlineTree)}
                     </div>
 
                     <Separator />
