@@ -44,9 +44,36 @@ const getMarketDataFlow = ai.defineFlow(
     outputSchema: GetMarketDataOutputSchema,
   },
   async (input) => {
-    // This flow is now a stub that returns an empty data object.
-    // The client-side useMarketData hook will detect this and fall back to the simulator.
-    // This provides a stable, controllable environment for the demo.
-    return { data: {} };
+    if (!input.assetIds || input.assetIds.length === 0) {
+        return { data: {} };
+    }
+    
+    try {
+        const response = await fetch(`https://api.coincap.io/v2/assets?ids=${input.assetIds.join(',')}`);
+        if (!response.ok) {
+            console.error(`Coincap API request failed with status: ${response.status}`);
+            // Return empty data on failure so the client can fall back to simulator
+            return { data: {} };
+        }
+
+        const json = await response.json();
+        const realTimeData = json.data.reduce((acc: any, asset: any) => {
+            acc[asset.id] = {
+                id: asset.id,
+                symbol: asset.symbol,
+                priceUsd: asset.priceUsd,
+                changePercent24Hr: asset.changePercent24Hr,
+                volumeUsd24Hr: asset.volumeUsd24Hr,
+            };
+            return acc;
+        }, {} as { [key: string]: z.infer<typeof AssetDataSchema> });
+        
+        return { data: realTimeData };
+
+    } catch (error) {
+        console.error('Error fetching from Coincap API in getMarketDataFlow:', error);
+        // On any fetch error, return empty data so the client falls back to the simulator.
+        return { data: {} };
+    }
   }
 );
