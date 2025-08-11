@@ -244,34 +244,24 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
     const handleCommissionDistribution = (sourceUser: User, tradeAmount: number) => {
         try {
-            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-            const allBalances = allUsers.reduce((acc, u) => {
-                acc[u.username] = loadUserBalances(u.username);
-                return acc;
-            }, {} as { [key:string]: any });
+            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as User[];
             const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
 
-            let currentUpline = allUsers.find(u => u.username === sourceUser.inviter);
+            let currentUplineUsername = sourceUser.inviter;
             
             for (let level = 1; level <= 3; level++) {
-                if (!currentUpline) break;
+                if (!currentUplineUsername) break;
 
                 const commissionRate = COMMISSION_RATES[level as keyof CommissionRates];
                 const commissionAmount = tradeAmount * commissionRate;
 
-                // Update upline's balance
-                if (!allBalances[currentUpline.username!]) {
-                     allBalances[currentUpline.username!] = { USDT: { available: 0, frozen: 0 } };
-                }
-                if (!allBalances[currentUpline.username!].USDT) {
-                     allBalances[currentUpline.username!].USDT = { available: 0, frozen: 0 };
-                }
-                allBalances[currentUpline.username!].USDT.available += commissionAmount;
+                // Update upline's balance in localStorage
+                updateBalance(currentUplineUsername, 'USDT', commissionAmount);
                 
                 // Create commission log
                 const newLog: CommissionLog = {
                     id: `comm_${Date.now()}_${level}`,
-                    uplineUsername: currentUpline.username,
+                    uplineUsername: currentUplineUsername,
                     sourceUsername: sourceUser.username,
                     sourceLevel: level,
                     tradeAmount,
@@ -280,23 +270,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                     createdAt: new Date().toISOString(),
                 };
                 allCommissions.push(newLog);
-
-                // If this upline is the currently logged in user, update their state
-                if (user && user.username === currentUpline.username) {
-                    setBalances(prev => ({
-                        ...prev,
-                        USDT: { ...prev.USDT, available: prev.USDT.available + commissionAmount }
-                    }));
-                }
                 
-                // Move to the next level upline
-                currentUpline = allUsers.find(u => u.username === currentUpline!.inviter);
+                // Find the next upline for the next iteration
+                const currentUplineUser = allUsers.find(u => u.username === currentUplineUsername);
+                currentUplineUsername = currentUplineUser ? currentUplineUser.inviter : null;
             }
             
-            // Persist all updated balances and new commissions
-            Object.keys(allBalances).forEach(username => {
-                 localStorage.setItem(`userBalances_${username}`, JSON.stringify(allBalances[username]));
-            });
+            // Persist the new commissions log
             localStorage.setItem('commissionLogs', JSON.stringify(allCommissions));
 
         } catch (error) {
