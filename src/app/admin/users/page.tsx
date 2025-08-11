@@ -10,16 +10,13 @@ import { useAuth } from '@/context/auth-context';
 import type { User as AuthUser } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import type { Transaction } from '@/types';
 import { useBalance } from '@/context/balance-context';
-import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 
 type UserData = AuthUser & {
     registeredAt: string; 
-    password?: string;
 };
 
 type UserBalance = {
@@ -35,7 +32,7 @@ export default function AdminUsersPage() {
     
     const [users, setUsers] = useState<UserData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+    const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
     const [selectedUserBalances, setSelectedUserBalances] = useState<UserBalance | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
@@ -47,10 +44,10 @@ export default function AdminUsersPage() {
 
     const loadData = () => {
         try {
-            const allUsersData = JSON.parse(localStorage.getItem('users') || '[]');
+            const allUsersData: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
             const formattedUsers = allUsersData.map((u: any) => ({
                 ...u,
-                registeredAt: new Date().toLocaleDateString() 
+                registeredAt: u.registeredAt ? new Date(u.registeredAt).toLocaleDateString() : 'N/A'
             }));
             setUsers(formattedUsers);
 
@@ -72,10 +69,10 @@ export default function AdminUsersPage() {
 
     const handleViewDetails = (userToView: UserData) => {
         try {
-            const allUsersData = JSON.parse(localStorage.getItem('users') || '[]');
+            const allUsersData: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
             const latestUserData = allUsersData.find((u: any) => u.username === userToView.username);
             
-            setSelectedUser({ ...userToView, ...latestUserData });
+            setSelectedUser(latestUserData || null);
             
             const userBalances = JSON.parse(localStorage.getItem(`userBalances_${userToView.username}`) || '{}');
             setSelectedUserBalances(userBalances);
@@ -167,7 +164,7 @@ export default function AdminUsersPage() {
                     balances={selectedUserBalances}
                     onUpdate={() => {
                         loadData();
-                        handleViewDetails(selectedUser);
+                        handleViewDetails(selectedUser as UserData);
                     }}
                 />
             )}

@@ -60,9 +60,8 @@ export default function RegisterPage() {
          toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
         return;
       }
-      const inviter = users[inviterIndex];
       
-      const isTestUser = values.invitationCode === '111222'; // Keep this special code logic
+      const isTestUser = values.invitationCode === '111222';
 
       // Generate a unique invitation code for the new user
       let newInvitationCode = generateCode();
@@ -77,12 +76,13 @@ export default function RegisterPage() {
           isTestUser: isTestUser,
           isFrozen: false,
           invitationCode: newInvitationCode,
-          inviter: inviter.username,
+          inviter: users[inviterIndex].username,
           downline: [],
           registeredAt: new Date().toISOString(),
       };
       
       // Add the new user to the inviter's downline
+      const inviter = users[inviterIndex];
       if (inviter.downline) {
         inviter.downline.push(newUser.username);
       } else {

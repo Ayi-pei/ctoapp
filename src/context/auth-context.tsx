@@ -66,12 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { password, ...userState } = currentUserData;
             
             setIsAuthenticated(true);
-            setUser(userState);
+            // Make sure to set the full user object to the state
+            setUser(userState as User); 
             setIsAdmin(currentUserData.isAdmin || false);
 
             if (!currentUserData.avatar) {
               const avatar = `https://placehold.co/100x100.png?text=${currentUserData.username.charAt(0).toUpperCase()}`;
-              setUser(prev => prev ? {...prev, avatar} : null);
+              // Update state correctly
+              setUser(prev => prev ? {...prev, avatar} : { ...userState, avatar } as User);
             }
 
         } else {
@@ -106,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { password: userPassword, ...userState } = foundUser;
 
         setIsAuthenticated(true);
-        setUser(userState);
+        setUser(userState as User);
         setIsAdmin(foundUser.isAdmin);
         
         return true;

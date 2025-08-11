@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,6 @@ import { useAuth, User } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CommissionLog } from "@/types";
 
-type FullUser = User & {
-    invitationCode: string;
-    inviter: string | null;
-    downline: string[];
-    registeredAt?: string;
-};
 
 type DownlineMember = {
     username: string;
@@ -26,7 +20,7 @@ type DownlineMember = {
 
 export default function PromotionPage() {
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user } = useAuth(); // This user object should now be complete
     const [downline, setDownline] = useState<DownlineMember[]>([]);
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
 
@@ -41,7 +35,7 @@ export default function PromotionPage() {
     };
     
     useEffect(() => {
-        if (user?.username) {
+        if (user?.username && user.invitationCode) {
             // Load commission logs
             try {
                 const allCommissions = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as CommissionLog[];
@@ -56,32 +50,32 @@ export default function PromotionPage() {
 
             // Fetch full downline details
             try {
-                const allUsers: FullUser[] = JSON.parse(localStorage.getItem('users') || '[]') as FullUser[];
+                const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as User[];
                 const userMap = new Map(allUsers.map(u => [u.username, u]));
                 
-                const getDownline = (username: string, level: number, maxLevel: number): DownlineMember[] => {
+                const getDownlineRecursive = (username: string, level: number, maxLevel: number): DownlineMember[] => {
                     if (level > maxLevel) return [];
                     
-                    const directDownlineUser = userMap.get(username);
-                    if (!directDownlineUser || !directDownlineUser.downline) return [];
+                    const directUpline = userMap.get(username);
+                    if (!directUpline || !directUpline.downline) return [];
                     
                     let members: DownlineMember[] = [];
-                    for (const downlineName of directDownlineUser.downline) {
-                        const downlineUserObject = userMap.get(downlineName);
-                        if (downlineUserObject) {
+                    for (const downlineName of directUpline.downline) {
+                        const downlineUser = userMap.get(downlineName);
+                        if (downlineUser) {
                             members.push({
-                                username: downlineUserObject.username,
+                                username: downlineUser.username,
                                 level: level,
-                                registeredAt: downlineUserObject.registeredAt || new Date().toISOString(),
+                                registeredAt: downlineUser.registeredAt || new Date().toISOString(),
                             });
-                            // Recursively get the next level
-                            members = members.concat(getDownline(downlineName, level + 1, maxLevel));
+                            // Recursively get the next level's downline
+                            members = members.concat(getDownlineRecursive(downlineName, level + 1, maxLevel));
                         }
                     }
                     return members;
                 };
 
-                const userDownline = getDownline(user.username, 1, 3);
+                const userDownline = getDownlineRecursive(user.username, 1, 3);
                 setDownline(userDownline);
 
             } catch (error) {
@@ -103,7 +97,7 @@ export default function PromotionPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row items-center gap-4">
                         <div className="flex-1 w-full p-4 text-center border-2 border-dashed rounded-lg bg-muted">
-                            <span className="text-3xl font-bold tracking-widest">{user?.invitationCode || '...'}</span>
+                            <span className="text-3xl font-bold tracking-widest">{user?.invitationCode || '加载中...'}</span>
                         </div>
                         <Button onClick={copyToClipboard} size="lg">
                             <Copy className="mr-2 h-5 w-5" />

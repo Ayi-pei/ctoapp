@@ -18,10 +18,6 @@ import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
 
-type UserData = AuthUser & {
-    registeredAt: string;
-};
-
 type UserBalance = {
     [key: string]: {
         available: number;
@@ -32,7 +28,7 @@ type UserBalance = {
 type UserDetailsDialogProps = {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    user: UserData | null;
+    user: AuthUser | null;
     balances: UserBalance;
     onUpdate: () => void;
 };
@@ -89,6 +85,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
 
 
     const balanceEntries = balances ? Object.entries(balances) : [];
+    const registeredAtDate = user.registeredAt ? new Date(user.registeredAt).toLocaleDateString() : 'N/A';
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -104,8 +101,10 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         <h4 className="font-semibold mb-2">基本信息</h4>
                         <p className="text-sm"><strong>用户名:</strong> {user.username}</p>
                         <p className="text-sm"><strong>账户类型:</strong> {user.isTestUser ? '测试账户' : '真实账户'}</p>
-                         <p className="text-sm"><strong>注册日期:</strong> {user.registeredAt}</p>
-                         <p className="text-sm"><strong>账户状态:</strong> {user.isFrozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
+                        <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
+                        <p className="text-sm"><strong>邀请人:</strong> {user.inviter || '无'}</p>
+                        <p className="text-sm"><strong>邀请码:</strong> {user.invitationCode}</p>
+                        <p className="text-sm"><strong>账户状态:</strong> {user.isFrozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
                     </div>
                      <div>
                         <h4 className="font-semibold mb-2">资产余额</h4>
