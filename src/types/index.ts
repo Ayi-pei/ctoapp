@@ -90,3 +90,15 @@ export type PasswordResetRequest = {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string; // ISO date string
 };
+
+
+export type CommissionLog = {
+    id: string;
+    uplineUsername: string; // User receiving the commission
+    sourceUsername: string; // User who generated the commission
+    sourceLevel: number; // 1, 2, or 3
+    tradeAmount: number;
+    commissionRate: number;
+    commissionAmount: number;
+    createdAt: string; // ISO date string
+}

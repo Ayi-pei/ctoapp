@@ -27,7 +27,7 @@ export default function DashboardPage() {
         { name: '助力贷', icon: Landmark, href: '/coming-soon' },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '下载中心', icon: Download, href: '/download' },
-        { name: '推广中心', icon: Gift, href: '/coming-soon' },
+        { name: '推广中心', icon: Gift, href: '/promotion' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
     ];

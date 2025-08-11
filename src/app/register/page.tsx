@@ -21,6 +21,16 @@ const registerSchema = z.object({
   }),
 });
 
+// Helper to generate a random 6-digit alphanumeric code
+const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 export default function RegisterPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -37,25 +47,45 @@ export default function RegisterPage() {
   const onSubmit = (values: z.infer<typeof registerSchema>) => {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
+      
       const existingUser = users.find((user: any) => user.username === values.username);
-
       if (existingUser) {
-        toast({
-          variant: 'destructive',
-          title: '注册失败',
-          description: '用户名已存在。',
-        });
+        toast({ variant: 'destructive', title: '注册失败', description: '用户名已存在。'});
+        return;
+      }
+
+      const inviter = users.find((user: any) => user.invitationCode === values.invitationCode);
+      if (!inviter) {
+         toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
         return;
       }
       
-      const isTestUser = values.invitationCode === '111222';
+      const isTestUser = values.invitationCode === '111222'; // Keep this special code logic
 
-      users.push({ 
+      // Generate a unique invitation code for the new user
+      let newInvitationCode = generateCode();
+      while (users.some((user: any) => user.invitationCode === newInvitationCode)) {
+          newInvitationCode = generateCode();
+      }
+
+      const newUser = { 
           username: values.username, 
           password: values.password,
           isTestUser: isTestUser,
           isFrozen: false, // Default value for new users
-      });
+          invitationCode: newInvitationCode,
+          inviter: inviter.username,
+          downline: [], // Initialize empty downline
+      };
+      
+      users.push(newUser);
+
+      // Add the new user to the inviter's downline
+      const inviterIndex = users.findIndex((u: any) => u.username === inviter.username);
+      if (inviterIndex !== -1) {
+          users[inviterIndex].downline.push(newUser.username);
+      }
+
       localStorage.setItem('users', JSON.stringify(users));
 
       toast({
@@ -64,6 +94,7 @@ export default function RegisterPage() {
       });
       router.push('/login');
     } catch (error) {
+      console.error(error);
       toast({
         variant: 'destructive',
         title: '注册失败',

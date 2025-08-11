@@ -9,6 +9,10 @@ export type User = {
   isAdmin: boolean;
   avatar?: string;
   isFrozen?: boolean;
+  invitationCode?: string;
+  inviter?: string;
+  downline?: string[];
+  registeredAt?: string;
 }
 
 interface AuthContextType {
@@ -28,6 +32,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   useEffect(() => {
+    // Initialize admin user if not present
+    try {
+        const usersRaw = localStorage.getItem('users');
+        let users = usersRaw ? JSON.parse(usersRaw) : [];
+        const adminUser = users.find((u: any) => u.username === 'demo123');
+        if (!adminUser) {
+            users.push({
+                username: 'demo123',
+                password: '111222', // This is just for local simulation
+                isAdmin: true,
+                isTestUser: false,
+                isFrozen: false,
+                invitationCode: '111222', // Special code for initial registrations
+                inviter: null,
+                downline: [],
+            });
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+    } catch (e) {
+        console.error("Failed to initialize admin user", e);
+    }
+
+
     try {
       const loggedInUsername = localStorage.getItem('loggedInUser');
       const adminLoggedIn = localStorage.getItem('isAdminLoggedIn');
@@ -72,46 +99,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (username: string, password: string): boolean => {
-    // Admin Login
-    if (username === 'demo123' && password === '111222') {
-        localStorage.setItem('loggedInUser', username);
-        localStorage.setItem('isAdminLoggedIn', 'true');
-        const adminData = {
-            username: username,
-            isTestUser: false,
-            isAdmin: true,
-            avatar: `https://placehold.co/100x100.png?text=A`
-        }
-        setIsAuthenticated(true);
-        setIsAdmin(true);
-        setUser(adminData);
-        return true;
-    }
-
-    // Regular User Login
     try {
       const users = JSON.parse(localStorage.getItem('users') || '[]');
       const foundUser = users.find((u: any) => u.username === username && u.password === password);
       
       if (foundUser) {
         if (foundUser.isFrozen) {
-          // alert("Your account is frozen. Please contact support.");
-          // Ideally use a toast notification here
           return false;
         }
 
-        localStorage.setItem('loggedInUser', username);
-        localStorage.removeItem('isAdminLoggedIn');
-        const userData = { 
-            username: foundUser.username, 
-            isTestUser: foundUser.isTestUser || false,
-            isAdmin: false,
-            avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`,
-            isFrozen: foundUser.isFrozen || false,
-        };
-        setIsAuthenticated(true);
-        setIsAdmin(false);
-        setUser(userData);
+        if (foundUser.isAdmin) {
+           localStorage.setItem('loggedInUser', username);
+           localStorage.setItem('isAdminLoggedIn', 'true');
+            const adminData = {
+                username: username,
+                isTestUser: false,
+                isAdmin: true,
+                avatar: `https://placehold.co/100x100.png?text=A`
+            }
+            setIsAuthenticated(true);
+            setIsAdmin(true);
+            setUser(adminData);
+        } else {
+            localStorage.setItem('loggedInUser', username);
+            localStorage.removeItem('isAdminLoggedIn');
+            const userData = { 
+                username: foundUser.username, 
+                isTestUser: foundUser.isTestUser || false,
+                isAdmin: false,
+                avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`,
+                isFrozen: foundUser.isFrozen || false,
+            };
+            setIsAuthenticated(true);
+            setIsAdmin(false);
+            setUser(userData);
+        }
         return true;
       }
       return false;

@@ -2,9 +2,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { ContractTrade, SpotTrade } from '@/types';
+import { ContractTrade, SpotTrade, CommissionLog } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
-import { useAuth } from './auth-context';
+import { useAuth, User } from './auth-context';
 import { useMarket } from './market-data-context';
 
 const INITIAL_BALANCES_TEST_USER = {
@@ -53,6 +53,14 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
+
+const COMMISSION_RATES = {
+    1: 0.08, // Level 1: 8%
+    2: 0.04, // Level 2: 4%
+    3: 0.02, // Level 3: 2%
+};
+
+type CommissionRates = typeof COMMISSION_RATES;
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -233,6 +241,69 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     setInvestments(prev => [...prev, newInvestment]);
     return true;
   }
+  
+    const handleCommissionDistribution = (sourceUser: User, tradeAmount: number) => {
+        try {
+            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+            const allBalances = allUsers.reduce((acc, u) => {
+                acc[u.username] = loadUserBalances(u.username);
+                return acc;
+            }, {} as { [key:string]: any });
+            const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
+
+            let currentUpline = allUsers.find(u => u.username === sourceUser.inviter);
+            
+            for (let level = 1; level <= 3; level++) {
+                if (!currentUpline) break;
+
+                const commissionRate = COMMISSION_RATES[level as keyof CommissionRates];
+                const commissionAmount = tradeAmount * commissionRate;
+
+                // Update upline's balance
+                if (!allBalances[currentUpline.username!]) {
+                     allBalances[currentUpline.username!] = { USDT: { available: 0, frozen: 0 } };
+                }
+                if (!allBalances[currentUpline.username!].USDT) {
+                     allBalances[currentUpline.username!].USDT = { available: 0, frozen: 0 };
+                }
+                allBalances[currentUpline.username!].USDT.available += commissionAmount;
+                
+                // Create commission log
+                const newLog: CommissionLog = {
+                    id: `comm_${Date.now()}_${level}`,
+                    uplineUsername: currentUpline.username,
+                    sourceUsername: sourceUser.username,
+                    sourceLevel: level,
+                    tradeAmount,
+                    commissionRate,
+                    commissionAmount,
+                    createdAt: new Date().toISOString(),
+                };
+                allCommissions.push(newLog);
+
+                // If this upline is the currently logged in user, update their state
+                if (user && user.username === currentUpline.username) {
+                    setBalances(prev => ({
+                        ...prev,
+                        USDT: { ...prev.USDT, available: prev.USDT.available + commissionAmount }
+                    }));
+                }
+                
+                // Move to the next level upline
+                currentUpline = allUsers.find(u => u.username === currentUpline!.inviter);
+            }
+            
+            // Persist all updated balances and new commissions
+            Object.keys(allBalances).forEach(username => {
+                 localStorage.setItem(`userBalances_${username}`, JSON.stringify(allBalances[username]));
+            });
+            localStorage.setItem('commissionLogs', JSON.stringify(allCommissions));
+
+        } catch (error) {
+            console.error("Failed to distribute commissions:", error);
+        }
+    };
+
 
   const placeContractTrade = useCallback((trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
@@ -264,10 +335,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
         existingTrades.push(fullTrade);
         localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
+        // Handle commissions after placing the trade
+        handleCommissionDistribution(user, trade.amount);
     } catch (error) {
         console.error("Failed to save contract trade to localStorage", error);
     }
-  }, [user, marketData]);
+  }, [user, marketData, handleCommissionDistribution]);
   
   const placeSpotTrade = useCallback((trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
      if (!user) return;
