@@ -68,6 +68,7 @@ export function ContractOrderSheet({
     const currentTime = now.getHours() * 60 + now.getMinutes();
     
     let activeProfitRate = pairSettings.baseProfitRate;
+    let isInSpecialFrame = false;
 
     for (const frame of pairSettings.specialTimeFrames) {
         const [startH, startM] = frame.startTime.split(':').map(Number);
@@ -77,10 +78,18 @@ export function ContractOrderSheet({
         
         if (currentTime >= startTime && currentTime <= endTime) {
             activeProfitRate = frame.profitRate;
+            isInSpecialFrame = true;
             break; 
         }
     }
-    setCurrentProfitRate(activeProfitRate);
+
+    if (pairSettings.tradingDisabled && !isInSpecialFrame) {
+      // If limited trading is on AND we are outside a special frame,
+      // the profit rate doesn't matter as much, but we can reflect the base.
+      setCurrentProfitRate(pairSettings.baseProfitRate);
+    } else {
+      setCurrentProfitRate(activeProfitRate);
+    }
 
   }, [pairSettings, isOpen]); // Rerun when settings change or dialog opens
 
@@ -94,6 +103,7 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
+    // Check for trading restrictions
     if (pairSettings?.tradingDisabled) {
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
@@ -106,11 +116,13 @@ export function ContractOrderSheet({
             return currentTime >= startTime && currentTime <= endTime;
         });
 
-        if (isInSpecialFrame) {
+        // If trading is generally disabled, it's only allowed INSIDE special frames.
+        // So, if trading is disabled AND we are NOT in a special frame, block the trade.
+        if (!isInSpecialFrame) {
              toast({
                 variant: "destructive",
                 title: "交易受限",
-                description: "该币种当前已限定买入，请稍后再试。",
+                description: "该币种当前不在可交易时间段内。",
             });
             return;
         }
