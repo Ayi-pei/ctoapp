@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, MarketTrade, PriceDataPoint, MarketSummary, availablePairs } from '@/types';
 import { useSettings } from '@/context/settings-context';
-import { getMarketData } from '@/ai/flows/get-market-data';
+import { getMarketData, GetMarketDataOutput } from '@/ai/flows/get-market-data';
 
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
@@ -155,7 +155,7 @@ export const useMarketData = () => {
             .map(pair => COINCAP_MAP[pair]);
 
         // --- REAL DATA FETCHING ---
-        let realTimeData: { [key: string]: any } = {};
+        let realTimeData: GetMarketDataOutput['data'] = {};
         let fetchFailed = false;
 
         if (assetsToFetch.length > 0) {
@@ -164,12 +164,14 @@ export const useMarketData = () => {
                 if (result && Object.keys(result.data).length > 0) {
                     realTimeData = result.data;
                 } else {
+                    // This case handles when the flow succeeds but returns no data.
                     fetchFailed = true;
-                    console.warn(`getMarketData flow returned no data. Falling back to simulator.`);
+                    console.warn(`getMarketData flow returned no data. Falling back to simulator for this cycle.`);
                 }
             } catch (error) {
+                // This case handles a complete failure of the flow (e.g., network error).
                 fetchFailed = true;
-                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator.`);
+                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator for this cycle.`);
             }
         }
        
