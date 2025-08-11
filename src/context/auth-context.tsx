@@ -9,10 +9,11 @@ export type User = {
   isAdmin: boolean;
   avatar?: string;
   isFrozen?: boolean;
-  invitationCode?: string;
-  inviter?: string;
-  downline?: string[];
+  invitationCode: string; // Now mandatory
+  inviter: string | null;
+  downline: string[];
   registeredAt?: string;
+  password?: string; // Only for local storage, not for context state
 }
 
 interface AuthContextType {
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize admin user if not present
     try {
         const usersRaw = localStorage.getItem('users');
-        let users = usersRaw ? JSON.parse(usersRaw) : [];
+        let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
         const adminUser = users.find((u: any) => u.username === 'demo123');
         if (!adminUser) {
             users.push({
@@ -57,32 +58,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const loggedInUsername = localStorage.getItem('loggedInUser');
-      const adminLoggedIn = localStorage.getItem('isAdminLoggedIn');
+      if (loggedInUsername) {
+        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+        const currentUserData = allUsers.find(u => u.username === loggedInUsername);
 
-      if (adminLoggedIn === 'true' && loggedInUsername) {
-        setIsAuthenticated(true);
-        setIsAdmin(true);
-        setUser({ 
-            username: loggedInUsername, 
-            isTestUser: false,
-            isAdmin: true,
-            avatar: `https://placehold.co/100x100.png?text=A`
-        });
-      } else if (loggedInUsername) {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const currentUser = users.find((u: any) => u.username === loggedInUsername);
-        if (currentUser) {
-          setIsAuthenticated(true);
-          setIsAdmin(false);
-          setUser({ 
-              username: currentUser.username, 
-              isTestUser: currentUser.isTestUser || false,
-              isAdmin: false,
-              avatar: currentUser.avatar || `https://placehold.co/100x100.png?text=${currentUser.username.charAt(0).toUpperCase()}`,
-              isFrozen: currentUser.isFrozen || false,
-          });
+        if (currentUserData) {
+            const { password, ...userState } = currentUserData; // Exclude password from context state
+            
+            setIsAuthenticated(true);
+            setUser(userState);
+            setIsAdmin(currentUserData.isAdmin || false);
+
+            if (!currentUserData.avatar) {
+              const avatar = `https://placehold.co/100x100.png?text=${currentUserData.username.charAt(0).toUpperCase()}`;
+              setUser(prev => prev ? {...prev, avatar} : null);
+            }
+
+        } else {
+             // If user in session is not found in db, logout
+             logout();
         }
+
       } else {
+        // No one is logged in
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
@@ -91,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Failed to parse auth data from localStorage", e);
         // Clear potentially corrupted data
         localStorage.removeItem('loggedInUser');
-        localStorage.removeItem('isAdminLoggedIn');
+        localStorage.removeItem('isAdminLoggedIn'); // Old key, clear it too
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
@@ -100,40 +98,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (username: string, password: string): boolean => {
     try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const foundUser = users.find((u: any) => u.username === username && u.password === password);
+      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+      const foundUser = users.find((u: User) => u.username === username && u.password === password);
       
       if (foundUser) {
         if (foundUser.isFrozen) {
           return false;
         }
 
-        if (foundUser.isAdmin) {
-           localStorage.setItem('loggedInUser', username);
-           localStorage.setItem('isAdminLoggedIn', 'true');
-            const adminData = {
-                username: username,
-                isTestUser: false,
-                isAdmin: true,
-                avatar: `https://placehold.co/100x100.png?text=A`
-            }
-            setIsAuthenticated(true);
-            setIsAdmin(true);
-            setUser(adminData);
-        } else {
-            localStorage.setItem('loggedInUser', username);
-            localStorage.removeItem('isAdminLoggedIn');
-            const userData = { 
-                username: foundUser.username, 
-                isTestUser: foundUser.isTestUser || false,
-                isAdmin: false,
-                avatar: foundUser.avatar || `https://placehold.co/100x100.png?text=${foundUser.username.charAt(0).toUpperCase()}`,
-                isFrozen: foundUser.isFrozen || false,
-            };
-            setIsAuthenticated(true);
-            setIsAdmin(false);
-            setUser(userData);
-        }
+        localStorage.setItem('loggedInUser', username);
+        const { password: userPassword, ...userState } = foundUser;
+
+        setIsAuthenticated(true);
+        setUser(userState);
+        setIsAdmin(foundUser.isAdmin);
+        
         return true;
       }
       return false;
@@ -145,7 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem('loggedInUser');
-    localStorage.removeItem('isAdminLoggedIn');
     setIsAuthenticated(false);
     setUser(null);
     setIsAdmin(false);
@@ -158,10 +136,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(updatedUser);
 
         try {
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const userIndex = users.findIndex((u: any) => u.username === user.username);
+            const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+            const userIndex = users.findIndex((u: User) => u.username === user.username);
             if (userIndex !== -1) {
-                users[userIndex] = { ...users[userIndex], ...userData };
+                // Important: keep password from storage if it exists
+                const storedPassword = users[userIndex].password;
+                users[userIndex] = { ...users[userIndex], ...userData, password: storedPassword };
                 localStorage.setItem('users', JSON.stringify(users));
             }
         } catch(e) {
