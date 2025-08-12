@@ -9,6 +9,19 @@ import type { Transaction } from "@/types";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -25,20 +38,72 @@ const statusText: { [key: string]: string } = {
 export default function AdminFinancePage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-    useEffect(() => {
-        if (!isAdmin) {
-            router.push('/login');
-        } else {
-            try {
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+    const loadTransactions = () => {
+        if (isAdmin) {
+             try {
                 const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
                 setTransactions(allTransactions.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             } catch (error) {
                 console.error("Failed to fetch transactions from localStorage", error);
             }
         }
+    }
+
+    useEffect(() => {
+        if (!isAdmin) {
+            router.push('/login');
+        } else {
+           loadTransactions();
+        }
     }, [isAdmin, router]);
+    
+    const handleOpenEditDialog = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleOpenDeleteDialog = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsDeleteDialogOpen(true);
+    }
+    
+    const handleDeleteTransaction = () => {
+        if (!selectedTransaction) return;
+        try {
+            const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+            const updatedTransactions = allTransactions.filter(t => t.id !== selectedTransaction.id);
+            localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+            loadTransactions(); // Reload data
+            toast({ title: "成功", description: "交易记录已删除。" });
+        } catch (error) {
+            toast({ variant: "destructive", title: "错误", description: "删除交易失败。" });
+        } finally {
+            setIsDeleteDialogOpen(false);
+            setSelectedTransaction(null);
+        }
+    };
+    
+    const handleSaveTransaction = (updatedTransaction: Transaction) => {
+        try {
+            const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+            const index = allTransactions.findIndex(t => t.id === updatedTransaction.id);
+            if (index !== -1) {
+                allTransactions[index] = updatedTransaction;
+                localStorage.setItem('transactions', JSON.stringify(allTransactions));
+                loadTransactions(); // Reload
+                toast({ title: "成功", description: "交易记录已更新。" });
+            }
+        } catch (error) {
+             toast({ variant: "destructive", title: "错误", description: "更新交易失败。" });
+        }
+    };
     
     if (!isAdmin) {
         return (
@@ -68,7 +133,8 @@ export default function AdminFinancePage() {
                                    <TableHead>金额</TableHead>
                                    <TableHead>状态</TableHead>
                                    <TableHead>凭证/地址</TableHead>
-                                   <TableHead className="text-right">时间</TableHead>
+                                   <TableHead>时间</TableHead>
+                                   <TableHead className="text-right">操作</TableHead>
                                </TableRow>
                            </TableHeader>
                            <TableBody>
@@ -93,10 +159,14 @@ export default function AdminFinancePage() {
                                        </TableCell>
                                        <TableCell className="text-xs truncate max-w-[150px]">{t.transactionHash || t.address || 'N/A'}</TableCell>
                                        <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
+                                       <TableCell className="text-right space-x-2">
+                                           <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(t)}>修改</Button>
+                                           <Button variant="destructive" size="sm" onClick={() => handleOpenDeleteDialog(t)}>删除</Button>
+                                       </TableCell>
                                    </TableRow>
                                )) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={8} className="text-center text-muted-foreground">
                                             暂无资金流水记录。
                                         </TableCell>
                                     </TableRow>
@@ -106,6 +176,31 @@ export default function AdminFinancePage() {
                     </CardContent>
                 </Card>
             </div>
+            
+            {selectedTransaction && (
+                <EditTransactionDialog
+                    isOpen={isEditDialogOpen}
+                    onOpenChange={setIsEditDialogOpen}
+                    transaction={selectedTransaction}
+                    onSave={handleSaveTransaction}
+                />
+            )}
+
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           此操作无法撤销。这将永久删除该条交易记录。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setSelectedTransaction(null)}>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteTransaction}>确认删除</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
         </DashboardLayout>
     );
 }
