@@ -10,6 +10,9 @@ import { SpotTrade, ContractTrade } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { subDays } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 type Order = (SpotTrade | ContractTrade) & {
     id: string;
@@ -22,6 +25,7 @@ type Order = (SpotTrade | ContractTrade) & {
 
 export default function ProfileOrdersPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
 
     useEffect(() => {
@@ -71,7 +75,12 @@ export default function ProfileOrdersPage() {
     return (
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
-                 <h1 className="text-2xl font-bold">交易订单</h1>
+                 <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                        <ChevronLeft className="h-6 w-6" />
+                    </Button>
+                    <h1 className="text-2xl font-bold">交易订单</h1>
+                </div>
 
                 <Card>
                     <CardHeader>
