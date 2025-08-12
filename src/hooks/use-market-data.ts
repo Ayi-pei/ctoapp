@@ -112,14 +112,14 @@ const generateInitialDataForPair = (pair: string) => {
 };
 // ----- END MOCK DATA GENERATION -----
 
-const COINCAP_MAP: { [key: string]: string } = {
-    'BTC/USDT': 'bitcoin',
-    'ETH/USDT': 'ethereum',
-    'SOL/USDT': 'solana',
-    'XRP/USDT': 'xrp',
-    'LTC/USDT': 'litecoin',
-    'BNB/USDT': 'binance-coin',
-    'MATIC/USDT': 'polygon',
+const TATUM_MAP: { [key: string]: string } = {
+    'BTC/USDT': 'BTC',
+    'ETH/USDT': 'ETH',
+    'SOL/USDT': 'SOL',
+    'XRP/USDT': 'XRP',
+    'LTC/USDT': 'LTC',
+    'BNB/USDT': 'BNB',
+    'MATIC/USDT': 'MATIC',
 };
 
 
@@ -151,8 +151,8 @@ export const useMarketData = () => {
 
     const interval = setInterval(async () => {
         const assetsToFetch = availablePairs
-            .filter(pair => COINCAP_MAP[pair] && settings[pair]?.trend === 'normal')
-            .map(pair => COINCAP_MAP[pair]);
+            .filter(pair => TATUM_MAP[pair] && settings[pair]?.trend === 'normal')
+            .map(pair => TATUM_MAP[pair]);
 
         // --- REAL DATA FETCHING ---
         let realTimeData: GetMarketDataOutput['data'] = {};
@@ -160,6 +160,7 @@ export const useMarketData = () => {
         
         if (assetsToFetch.length > 0) {
             try {
+                // Pass only the asset symbols like 'BTC', 'ETH'
                 const result = await getMarketData({ assetIds: assetsToFetch });
                 if (result && Object.keys(result.data).length > 0) {
                     realTimeData = result.data;
@@ -183,12 +184,15 @@ export const useMarketData = () => {
                 let newSummary;
                 let newPriceData = prevData.priceData;
 
-                const assetId = COINCAP_MAP[pair];
-                const shouldUseRealData = !fetchFailed && pairSettings.trend === 'normal' && assetId && realTimeData[assetId];
+                const tatumSymbol = TATUM_MAP[pair];
+                // Tatum getMarketData flow returns ids in lowercase, e.g. 'btc'
+                const assetDataFromTatum = realTimeData[tatumSymbol?.toLowerCase()];
+                const shouldUseRealData = !fetchFailed && pairSettings.trend === 'normal' && tatumSymbol && assetDataFromTatum;
+
 
                 if (shouldUseRealData) {
                     // --- Use REAL Data ---
-                    const assetData = realTimeData[assetId];
+                    const assetData = assetDataFromTatum;
                     const newPrice = parseFloat(assetData.priceUsd);
                     
                     newSummary = {
