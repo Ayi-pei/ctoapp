@@ -38,7 +38,7 @@ const ProfileHeader = () => {
                 </Avatar>
                 <h2 className="font-semibold text-lg">{user?.username}</h2>
                 <p className="text-sm">余额: {totalBalance.toFixed(2)} USDT</p>
-                <p className="text-sm mt-1"><Badge variant="secondary">信誉分: 100</Badge></p>
+                <div className="text-sm mt-1"><Badge variant="secondary">信誉分: 100</Badge></div>
 
                  <div className="flex gap-4 mt-4">
                     <Button onClick={() => setIsDepositOpen(true)} className="bg-white/20 hover:bg-white/30 text-white">充值</Button>
