@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -42,7 +42,8 @@ export default function AdminUsersPage() {
         }
     }, [isAdmin, router]);
 
-    const loadData = () => {
+    const loadData = useCallback(() => {
+        if (!isAdmin) return;
         try {
             const allUsersData: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
             const formattedUsers = allUsersData.map((u: any) => ({
@@ -54,13 +55,11 @@ export default function AdminUsersPage() {
         } catch (error) {
             console.error("Failed to fetch data from localStorage", error);
         }
-    }
+    }, [isAdmin]);
 
     useEffect(() => {
-        if (isAdmin) {
-            loadData();
-        }
-    }, [isAdmin]);
+        loadData();
+    }, [loadData]);
     
     const filteredUsers = useMemo(() => {
         if (!searchQuery) return users;
@@ -163,8 +162,9 @@ export default function AdminUsersPage() {
                     user={selectedUser}
                     balances={selectedUserBalances}
                     onUpdate={() => {
-                        loadData();
-                        handleViewDetails(selectedUser as UserData);
+                        loadData(); // This will now reload the user list
+                        // Also re-fetch the data for the currently open dialog
+                        handleViewDetails(selectedUser as UserData); 
                     }}
                 />
             )}

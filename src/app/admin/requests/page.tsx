@@ -44,6 +44,7 @@ export default function AdminRequestsPage() {
     }, [isAdmin, router]);
 
     const loadData = useCallback(() => {
+        if (!isAdmin) return;
         try {
             const financeRequests = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
             const passwordRequests = JSON.parse(localStorage.getItem('adminRequests') || '[]') as PasswordResetRequest[];
@@ -57,13 +58,11 @@ export default function AdminRequestsPage() {
         } catch (error) {
             console.error("Failed to fetch data from localStorage", error);
         }
-    }, []);
+    }, [isAdmin]);
 
     useEffect(() => {
-        if (isAdmin) {
-            loadData();
-        }
-    }, [isAdmin, loadData]);
+        loadData();
+    }, [loadData]);
 
     const handleRequest = (requestId: string, newStatus: 'approved' | 'rejected') => {
         try {

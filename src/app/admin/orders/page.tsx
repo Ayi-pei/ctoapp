@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
@@ -14,7 +14,7 @@ type Order = (SpotTrade | ContractTrade) & {
     userId: string;
     tradingPair: string;
     orderType: 'spot' | 'contract';
-    status: 'pending' | 'filled' | 'cancelled';
+    status: 'pending' | 'filled' | 'cancelled' | 'active' | 'settled';
     createdAt: string;
 };
 
@@ -30,10 +30,8 @@ export default function AdminOrdersPage() {
         }
     }, [isAdmin, router]);
 
-    useEffect(() => {
+    const loadOrders = useCallback(() => {
         if (isAdmin) {
-            // In a real app, you'd fetch this from your backend API.
-            // For now, we simulate by reading from localStorage if it exists.
             try {
                 const spotTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
                 const contractTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
@@ -46,6 +44,12 @@ export default function AdminOrdersPage() {
             }
         }
     }, [isAdmin]);
+
+    useEffect(() => {
+        if (isAdmin) {
+            loadOrders();
+        }
+    }, [isAdmin, loadOrders]);
 
     if (!isAdmin) {
         return (
@@ -94,7 +98,7 @@ export default function AdminOrdersPage() {
                                                 {order.type === 'buy' ? '买入' : '卖出'}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{(order as any).amount?.toFixed(4)}</TableCell>
+                                        <TableCell>{((order as SpotTrade).total || (order as ContractTrade).amount).toFixed(4)}</TableCell>
                                         <TableCell>{order.status}</TableCell>
                                         <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
                                     </TableRow>

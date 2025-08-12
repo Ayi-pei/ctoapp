@@ -1,6 +1,6 @@
 
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -47,7 +47,7 @@ export default function AdminFinancePage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-    const loadTransactions = () => {
+    const loadTransactions = useCallback(() => {
         if (isAdmin) {
              try {
                 const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
@@ -56,7 +56,7 @@ export default function AdminFinancePage() {
                 console.error("Failed to fetch transactions from localStorage", error);
             }
         }
-    }
+    }, [isAdmin]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -64,7 +64,7 @@ export default function AdminFinancePage() {
         } else {
            loadTransactions();
         }
-    }, [isAdmin, router]);
+    }, [isAdmin, router, loadTransactions]);
     
     const handleOpenEditDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
