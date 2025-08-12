@@ -33,8 +33,8 @@ function TradePage({ defaultTab }: { defaultTab: string }) {
    useEffect(() => {
         if (user) {
             try {
-                const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]');
-                const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]');
+                const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
+                const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
                 
                 const userContractTrades = allContractTrades.filter(t => t.userId === user.username);
                 const userSpotTrades = allSpotTrades.filter(t => t.userId === user.username);
@@ -51,7 +51,7 @@ function TradePage({ defaultTab }: { defaultTab: string }) {
                 console.error("Failed to fetch user trades:", error);
             }
         }
-    }, [user, marketData]); // re-run when market data updates to catch settlements
+    }, [user, summaryData.length]); // Depends on user and data load, but not the data itself.
 
 
   if (!data || !summaryData.length || isBalanceLoading) {
