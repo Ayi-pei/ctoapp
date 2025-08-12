@@ -12,7 +12,6 @@ const userNavItems = [
   { href: '/market', label: '行情', icon: LineChart },
   { href: '/trade', label: '交易', icon: CandlestickChart },
   { href: '/finance', label: '理财', icon: Landmark },
-  { href: '/assets', label: '资产', icon: Wallet },
   { href: '/download', label: '下载', icon: Download },
   { href: '/profile', label: '我的', icon: User },
 ];

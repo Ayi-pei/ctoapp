@@ -18,11 +18,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
-import { User, Menu, LogOut } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { User, Menu, LogOut, Home } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn } from '@/lib/utils';
 
 // Simple SVG Logo component
 const Logo = () => (
@@ -40,19 +41,31 @@ const Logo = () => (
 
 export function TradeHeader() {
   const pathname = usePathname();
+  const router = useRouter();
   const { tradingPair, availablePairs, changeTradingPair } = useMarket();
   const { logout, user } = useAuth();
 
-  const isDashboard = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
+  const showLogo = ['/dashboard', '/market', '/finance', '/promotion', '/download'].includes(pathname);
+  const showTitle = !isTradePage && !showLogo;
+  
+  const getTitle = () => {
+    if (pathname.startsWith('/profile')) return '我的';
+    if (pathname.startsWith('/admin')) return '管理后台';
+    return '';
+  }
 
+  const handleHomeClick = () => {
+      router.push('/dashboard');
+  }
 
   return (
-    <header className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
-      <div className="flex items-center gap-3">
-         {isDashboard ? <Logo /> : <Menu className="h-6 w-6 text-foreground md:hidden" />}
+    <header className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 h-16">
+      <div className="flex items-center gap-3 w-1/3">
+         {showLogo ? <Logo /> : <div className="md:hidden w-6 h-6" />}
       </div>
-      <div className="flex-grow flex justify-center">
+      
+      <div className="flex-grow flex justify-center w-1/3">
          {isTradePage && (
             <div className="w-[150px]">
                 <Select value={tradingPair} onValueChange={changeTradingPair}>
@@ -69,9 +82,11 @@ export function TradeHeader() {
                 </Select>
             </div>
          )}
+         {showTitle && <h1 className="text-lg font-semibold">{getTitle()}</h1>}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-end gap-4 w-1/3">
+        <Home className="h-6 w-6 text-foreground cursor-pointer" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
@@ -90,11 +105,6 @@ export function TradeHeader() {
                 <Link href="/profile" passHref>
                     <DropdownMenuItem>
                         个人资料
-                    </DropdownMenuItem>
-                </Link>
-                <Link href="/assets" passHref>
-                    <DropdownMenuItem>
-                        我的资产
                     </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />
