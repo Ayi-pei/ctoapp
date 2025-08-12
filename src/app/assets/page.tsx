@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBalance } from "@/context/balance-context";
 import { ArrowDownToLine, ArrowUpFromLine, Eye, RefreshCw, Repeat, RotateCcw, CircleDollarSign } from "lucide-react";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import type { Transaction } from "@/types";
@@ -81,7 +81,7 @@ export default function AssetsPage() {
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-    useEffect(() => {
+    const loadUserTransactions = useCallback(() => {
         if (user) {
             try {
                 const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
@@ -94,6 +94,24 @@ export default function AssetsPage() {
             }
         }
     }, [user]);
+
+    useEffect(() => {
+        loadUserTransactions();
+    }, [loadUserTransactions]);
+
+    useEffect(() => {
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === 'transactions') {
+                loadUserTransactions();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [loadUserTransactions]);
     
     // In a real app, you'd fetch prices to calculate USDT value.
     // For now, we'll use a mock or simplified logic.
