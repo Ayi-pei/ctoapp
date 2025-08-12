@@ -35,21 +35,27 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-background md:hidden z-50">
       <ul className="flex justify-around">
-        {itemsToShow.slice(0, 5).map((item) => ( // Show max 5 items on mobile
-          <li key={item.label} className="flex-1">
-            <Link href={item.href}>
-              <span
-                className={cn(
-                  'flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground',
-                  (pathname.startsWith(item.href) && item.href !== '/') || (pathname === '/' && item.href === '/dashboard') ? 'text-primary' : ''
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
+        {itemsToShow.slice(0, 5).map((item) => {
+            const isActive = (item.href === '/dashboard' || item.href === '/admin/users')
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
+            
+            return (
+              <li key={item.label} className="flex-1">
+                <Link href={item.href}>
+                  <span
+                    className={cn(
+                      'flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground',
+                      isActive ? 'text-primary' : ''
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </span>
+                </Link>
+              </li>
+            )
+        })}
       </ul>
     </nav>
   );
