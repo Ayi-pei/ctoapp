@@ -133,6 +133,17 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                             </SelectContent>
                         </Select>
                     </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="proof" className="text-right">
+                            凭证/地址
+                        </Label>
+                        <Input
+                            id={formData.type === 'deposit' ? 'transactionHash' : 'address'}
+                            value={formData.type === 'deposit' ? formData.transactionHash : formData.address}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                        />
+                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="createdAt" className="text-right">
                             时间
@@ -154,4 +165,3 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
         </Dialog>
     );
 }
-

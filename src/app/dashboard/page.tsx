@@ -14,6 +14,7 @@ import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMarket } from "@/context/market-data-context";
+import { announcements } from "@/app/announcements/page";
 
 
 export default function DashboardPage() {
@@ -30,6 +31,7 @@ export default function DashboardPage() {
         { name: '推广中心', icon: Gift, href: '/promotion' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
+        { name: '行情中心', icon: BarChart, href: '/market' },
     ];
     
     const getUsdtValue = (assetName: string, amount: number) => {
@@ -110,10 +112,14 @@ export default function DashboardPage() {
                 
 
                 {/* Announcement */}
-                <div className="bg-card p-3 rounded-lg flex items-center space-x-3">
-                    <Megaphone className="h-5 w-5 text-primary" />
-                    <p className="text-sm text-foreground flex-1 truncate">测试测试测试测试</p>
-                </div>
+                <Link href="/announcements">
+                    <div className="bg-card p-3 rounded-lg flex items-center space-x-3 overflow-hidden">
+                        <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
+                           {announcements.length > 0 ? announcements[0].title : "欢迎来到TradeFlow！"}
+                        </div>
+                    </div>
+                </Link>
 
                 {/* Features Grid */}
                  <div className="grid grid-cols-4 gap-4 text-center">

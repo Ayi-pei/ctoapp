@@ -8,7 +8,7 @@ import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 
-const announcements = [
+export const announcements = [
     {
         id: 1,
         title: "系统维护通知",
@@ -59,4 +59,3 @@ export default function AnnouncementsPage() {
         </DashboardLayout>
     );
 }
-
