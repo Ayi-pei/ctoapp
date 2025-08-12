@@ -119,7 +119,6 @@ export default function ProfilePage() {
         { label: "支付方式", icon: CreditCard, href: "/coming-soon" },
         { label: "推广分享海报", icon: Share2, href: "/promotion" },
         { label: "安全设置", icon: Shield, href: "/profile/settings" },
-        { label: "用户消息", icon: MessageSquare, href: "/coming-soon" },
         { label: "平台公告", icon: Bell, href: "/coming-soon" },
     ]
 
