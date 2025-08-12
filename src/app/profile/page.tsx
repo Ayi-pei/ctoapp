@@ -50,9 +50,9 @@ const ProfileHeader = () => {
 };
 
 
-const ListItem = ({ icon, label, href, onClick, children }: { icon: React.ElementType, label: string, href?: string, onClick?: () => void, children?: React.ReactNode }) => {
-    const content = (
-         <div className="flex items-center justify-between p-4 bg-card rounded-lg hover:bg-muted cursor-pointer">
+const ListItem = ({ icon, label, children }: { icon: React.ElementType, label: string, children?: React.ReactNode }) => {
+    return (
+        <div className="flex items-center justify-between p-4 bg-card rounded-lg hover:bg-muted cursor-pointer">
             <div className="flex items-center gap-4">
                 {React.createElement(icon, { className: "w-6 h-6 text-primary" })}
                 <span className="font-medium">{label}</span>
@@ -60,11 +60,6 @@ const ListItem = ({ icon, label, href, onClick, children }: { icon: React.Elemen
             {children || <ChevronRight className="w-5 h-5 text-muted-foreground" />}
         </div>
     );
-
-    if (href) {
-        return <Link href={href}>{content}</Link>;
-    }
-    return <div onClick={onClick}>{content}</div>;
 };
 
 const languages = [
@@ -120,7 +115,13 @@ export default function ProfilePage() {
         { label: "推广分享海报", icon: Share2, href: "/promotion" },
         { label: "安全设置", icon: Shield, href: "/profile/settings" },
         { label: "平台公告", icon: Bell, href: "/announcements" },
-    ]
+    ];
+
+    const actionItems = [
+        { label: "更换语言", icon: Globe, customComponent: <LanguageSwitcher /> },
+        { label: "退出登陆", icon: LogOut, onClick: logout },
+    ];
+
 
     return (
         <DashboardLayout>
@@ -129,12 +130,17 @@ export default function ProfilePage() {
                 
                 <div className="space-y-2">
                     {menuItems.map(item => (
-                        <ListItem key={item.label} {...item} />
+                        <Link href={item.href} key={item.label}>
+                            <ListItem label={item.label} icon={item.icon} />
+                        </Link>
                     ))}
-                    <ListItem icon={Globe} label="更换语言">
-                        <LanguageSwitcher />
-                    </ListItem>
-                    <ListItem icon={LogOut} label="退出登陆" onClick={logout} />
+                    {actionItems.map(item => (
+                         <div key={item.label} onClick={item.onClick}>
+                            <ListItem label={item.label} icon={item.icon}>
+                                {item.customComponent}
+                            </ListItem>
+                        </div>
+                    ))}
                 </div>
             </div>
         </DashboardLayout>
