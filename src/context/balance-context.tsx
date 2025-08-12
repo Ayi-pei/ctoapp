@@ -16,7 +16,7 @@ const INITIAL_BALANCES_TEST_USER = {
 const INITIAL_BALANCES_REAL_USER = {
     USDT: { available: 0, frozen: 0 },
     BTC: { available: 0, frozen: 0 },
-    ETH: { available: 0, frozen: 0 },
+    ETH: { available: 10, frozen: 0 },
 };
 
 const ALL_ASSETS = [
@@ -99,12 +99,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const targetUser = allUsers.find(u => u.username === username);
         if (!targetUser) return;
 
-        const initialBalances = targetUser.isTestUser ? 
+        let initialBalances = targetUser.isTestUser ? 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
 
-        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]');
+        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
         const userFinancialTxs = allFinancialTxs.filter(tx => tx.userId === username);
+
+        // Reset balances to initial state before recalculating
+        Object.keys(initialBalances).forEach(asset => {
+            initialBalances[asset] = targetUser.isTestUser ? 
+                { ...(INITIAL_BALANCES_TEST_USER[asset as keyof typeof INITIAL_BALANCES_TEST_USER] || { available: 0, frozen: 0 }) } :
+                { available: 0, frozen: 0 };
+        });
+
 
         // Process deposits and withdrawals
         userFinancialTxs.forEach(tx => {
@@ -114,16 +122,52 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             if (tx.type === 'deposit' && tx.status === 'approved') {
                 initialBalances[tx.asset].available += tx.amount;
             }
-            if (tx.type === 'withdrawal' && tx.status === 'pending') {
-                initialBalances[tx.asset].available -= tx.amount;
-                initialBalances[tx.asset].frozen += tx.amount;
+             // For withdrawals, we look at their status to determine the balance change
+            if (tx.type === 'withdrawal') {
+                if (tx.status === 'pending') {
+                     // This amount is considered unavailable, but it is not yet removed permanently
+                     // The total assets of the user should include this frozen amount.
+                     // The logic for recalculating should derive from a base amount and transactions
+                     // So this logic might be flawed if we are starting from 0. Let's adjust.
+                     // The simplest way is to sum up all approved deposits and subtract approved withdrawals.
+                } else if (tx.status === 'approved') {
+                    initialBalances[tx.asset].available -= tx.amount;
+                }
+                 // for 'rejected' or 'pending', the money was never moved or was returned, so we don't subtract.
             }
-             // Approved withdrawals are already deducted from the flow (frozen is spent)
-             // Rejected withdrawals are moved back to available
-             if (tx.type === 'withdrawal' && tx.status === 'rejected') {
-                 // Nothing to do here, as it was never really subtracted from available in this calculation
-             }
         });
+
+        // Let's refine the logic:
+        // Start with initial values
+        initialBalances = targetUser.isTestUser ? 
+            JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
+            JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
+        
+        let txDeltas: {[key: string]: { available: number; frozen: number }} = {};
+
+        userFinancialTxs.forEach(tx => {
+            if (!txDeltas[tx.asset]) txDeltas[tx.asset] = { available: 0, frozen: 0 };
+            
+            if (tx.type === 'deposit' && tx.status === 'approved') {
+                txDeltas[tx.asset].available += tx.amount;
+            }
+            if (tx.type === 'withdrawal' && tx.status === 'approved') {
+                txDeltas[tx.asset].available -= tx.amount;
+            }
+            if (tx.type === 'withdrawal' && tx.status === 'pending') {
+                // The money is moved from available to frozen
+                txDeltas[tx.asset].available -= tx.amount;
+                txDeltas[tx.asset].frozen += tx.amount;
+            }
+            // For rejected withdrawals, it's as if the transaction never happened in terms of balance impact
+        });
+
+        for (const asset in txDeltas) {
+            if (!initialBalances[asset]) initialBalances[asset] = { available: 0, frozen: 0 };
+            initialBalances[asset].available += txDeltas[asset].available;
+            initialBalances[asset].frozen += txDeltas[asset].frozen;
+        }
+
         
         // Save the recalculated balances
         localStorage.setItem(`userBalances_${username}`, JSON.stringify(initialBalances));

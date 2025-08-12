@@ -202,7 +202,7 @@ export default function AdminFinancePage() {
                         <AlertDialogTitle>确认删除?</AlertDialogTitle>
                         <AlertDialogDescription>
                            此操作无法撤销。这将永久删除该条交易记录。
-                        </Description>
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setSelectedTransaction(null)}>取消</AlertDialogCancel>

@@ -32,7 +32,7 @@ const requestTypeColor: { [key: string]: string } = {
 export default function AdminRequestsPage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
-    const { updateBalance } = useBalance();
+    const { recalculateBalanceForUser } = useBalance();
     const { toast } = useToast();
 
     const [requests, setRequests] = useState<AdminRequest[]>([]);
@@ -91,24 +91,11 @@ export default function AdminRequestsPage() {
             }
 
             if (requestType === 'finance' && transaction) {
-                transaction.status = newStatus;
-                
-                if (transaction.type === 'deposit') {
-                    if (newStatus === 'approved') {
-                        // On approval of deposit, add amount to user's available balance.
-                        updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
-                    }
-                } else if (transaction.type === 'withdrawal') {
-                    if (newStatus === 'approved') {
-                        // On approval of withdrawal, the frozen amount is removed permanently.
-                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
-                    } else { // rejected
-                        // On rejection of withdrawal, move amount from frozen back to available.
-                        updateBalance(transaction.userId, transaction.asset, transaction.amount, 'available');
-                        updateBalance(transaction.userId, transaction.asset, -transaction.amount, 'frozen');
-                    }
-                }
-                 localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
+                allFinanceRequests[requestIndex].status = newStatus;
+                localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
+
+                // Recalculate balance for the user after status change.
+                recalculateBalanceForUser(transaction.userId);
 
             } else { // password
                 const request = allPasswordRequests[requestIndex];
