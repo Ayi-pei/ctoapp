@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { ContractTrade, SpotTrade, CommissionLog } from '@/types';
+import { ContractTrade, SpotTrade, CommissionLog, Transaction } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
 import { useAuth, User } from './auth-context';
 import { useMarket } from './market-data-context';
@@ -50,6 +50,7 @@ interface BalanceContextType {
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
   updateBalance: (username: string, asset: string, amount: number, type?: 'available' | 'frozen') => void;
   freezeBalance: (asset: string, amount: number) => void;
+  recalculateBalanceForUser: (username: string) => void;
   isLoading: boolean;
 }
 
@@ -91,6 +92,51 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
     }
   }, []);
+
+  const recalculateBalanceForUser = useCallback((username: string) => {
+    try {
+        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+        const targetUser = allUsers.find(u => u.username === username);
+        if (!targetUser) return;
+
+        const initialBalances = targetUser.isTestUser ? 
+            JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
+            JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
+
+        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]');
+        const userFinancialTxs = allFinancialTxs.filter(tx => tx.userId === username);
+
+        // Process deposits and withdrawals
+        userFinancialTxs.forEach(tx => {
+            if (!initialBalances[tx.asset]) {
+                initialBalances[tx.asset] = { available: 0, frozen: 0 };
+            }
+            if (tx.type === 'deposit' && tx.status === 'approved') {
+                initialBalances[tx.asset].available += tx.amount;
+            }
+            if (tx.type === 'withdrawal' && tx.status === 'pending') {
+                initialBalances[tx.asset].available -= tx.amount;
+                initialBalances[tx.asset].frozen += tx.amount;
+            }
+             // Approved withdrawals are already deducted from the flow (frozen is spent)
+             // Rejected withdrawals are moved back to available
+             if (tx.type === 'withdrawal' && tx.status === 'rejected') {
+                 // Nothing to do here, as it was never really subtracted from available in this calculation
+             }
+        });
+        
+        // Save the recalculated balances
+        localStorage.setItem(`userBalances_${username}`, JSON.stringify(initialBalances));
+
+        // If the recalculated user is the one logged in, update the state
+        if (user && user.username === username) {
+            setBalances(initialBalances);
+        }
+
+    } catch (error) {
+        console.error(`Error recalculating balance for ${username}:`, error);
+    }
+  }, [user]);
 
 
   useEffect(() => {
@@ -390,7 +436,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
       updateBalance,
-      freezeBalance
+      freezeBalance,
+      recalculateBalanceForUser
     };
 
   return (

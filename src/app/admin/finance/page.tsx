@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useBalance } from "@/context/balance-context";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -39,6 +40,7 @@ export default function AdminFinancePage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+    const { recalculateBalanceForUser } = useBalance();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -80,6 +82,10 @@ export default function AdminFinancePage() {
             const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
             const updatedTransactions = allTransactions.filter(t => t.id !== selectedTransaction.id);
             localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+            
+            // Recalculate balance for the affected user
+            recalculateBalanceForUser(selectedTransaction.userId);
+            
             loadTransactions(); // Reload data
             toast({ title: "成功", description: "交易记录已删除。" });
         } catch (error) {
@@ -97,6 +103,10 @@ export default function AdminFinancePage() {
             if (index !== -1) {
                 allTransactions[index] = updatedTransaction;
                 localStorage.setItem('transactions', JSON.stringify(allTransactions));
+                
+                // After saving, recalculate the balance for the user
+                recalculateBalanceForUser(updatedTransaction.userId);
+
                 loadTransactions(); // Reload
                 toast({ title: "成功", description: "交易记录已更新。" });
             }
@@ -192,7 +202,7 @@ export default function AdminFinancePage() {
                         <AlertDialogTitle>确认删除?</AlertDialogTitle>
                         <AlertDialogDescription>
                            此操作无法撤销。这将永久删除该条交易记录。
-                        </AlertDialogDescription>
+                        </Description>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setSelectedTransaction(null)}>取消</AlertDialogCancel>
