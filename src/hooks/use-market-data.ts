@@ -7,7 +7,7 @@ import { useSettings } from '@/context/settings-context';
 import { getMarketData, GetMarketDataOutput } from '@/ai/flows/get-market-data';
 
 
-const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT'];
+const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
@@ -27,6 +27,9 @@ const getBasePrice = (pair: string) => {
         case 'LTC/USDT': return 85;
         case 'BNB/USDT': return 600;
         case 'MATIC/USDT': return 0.7;
+        case 'DOGE/USDT': return 0.15;
+        case 'ADA/USDT': return 0.45;
+        case 'SHIB/USDT': return 0.000025;
         case 'XAU/USD': return 2330;
         case 'EUR/USD': return 1.07;
         case 'GBP/USD': return 1.25;
@@ -120,6 +123,9 @@ const TATUM_MAP: { [key: string]: string } = {
     'LTC/USDT': 'LTC',
     'BNB/USDT': 'BNB',
     'MATIC/USDT': 'MATIC',
+    'DOGE/USDT': 'DOGE',
+    'ADA/USDT': 'ADA',
+    'SHIB/USDT': 'SHIB',
 };
 
 
