@@ -47,8 +47,10 @@ export function Sidebar() {
                 <span
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted',
-                    // Exact match for admin base, startsWith for others
-                    (pathname.startsWith(item.href) && item.href !== '/') ? 'bg-primary text-primary-foreground' : (pathname === '/' && item.href === '/') ? 'bg-primary text-primary-foreground' : ''
+                    // Exact match for dashboard, startsWith for others
+                    (pathname === item.href) || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                      ? 'bg-primary text-primary-foreground'
+                      : ''
                   )}
                 >
                   <item.icon className="h-5 w-5" />
