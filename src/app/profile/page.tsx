@@ -116,10 +116,10 @@ export default function ProfilePage() {
     
     const menuItems = [
         { label: "交易订单", icon: FileText, href: "/profile/orders" },
-        { label: "支付方式", icon: CreditCard, href: "/coming-soon" },
+        { label: "支付方式", icon: CreditCard, href: "/profile/payment" },
         { label: "推广分享海报", icon: Share2, href: "/promotion" },
         { label: "安全设置", icon: Shield, href: "/profile/settings" },
-        { label: "平台公告", icon: Bell, href: "/coming-soon" },
+        { label: "平台公告", icon: Bell, href: "/announcements" },
     ]
 
     return (
