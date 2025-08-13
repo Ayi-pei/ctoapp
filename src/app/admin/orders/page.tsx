@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import { SpotTrade, ContractTrade } from '@/types'; // Assuming types exist
+import { SpotTrade, ContractTrade } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 type Order = (SpotTrade | ContractTrade) & {
     id: string;
@@ -22,29 +24,42 @@ type Order = (SpotTrade | ContractTrade) & {
 export default function AdminOrdersPage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
 
-    const loadOrders = useCallback(() => {
-        // Only load if isAdmin is true, not just on mount.
-        if (!isAdmin) {
-            return;
-        }
+    const loadOrders = useCallback(async () => {
+        if (!isAdmin) return;
+
         try {
-            const spotTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
-            const contractTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
-            const allOrders = [...spotTrades, ...contractTrades].sort((a,b) => 
+            const { data: spotTrades, error: spotError } = await supabase
+                .from('spot_trades')
+                .select('*, user:users(username)');
+
+            const { data: contractTrades, error: contractError } = await supabase
+                .from('contract_trades')
+                .select('*, user:users(username)');
+
+            if (spotError) throw spotError;
+            if (contractError) throw contractError;
+
+            const formattedSpot = spotTrades.map((t: any) => ({ ...t, userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, orderType: 'spot', createdAt: t.created_at }));
+            const formattedContract = contractTrades.map((t: any) => ({ ...t, userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, orderType: 'contract', createdAt: t.created_at }));
+
+            const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
-            setOrders(allOrders);
+
+            setOrders(allOrders as Order[]);
         } catch (error) {
-            console.error("Failed to fetch orders from localStorage", error);
+            console.error("Failed to fetch orders from Supabase", error);
+            toast({ variant: "destructive", title: "错误", description: "加载订单记录失败。" });
         }
-    }, [isAdmin]);
+    }, [isAdmin, toast]);
 
     useEffect(() => {
-        if (isAdmin === false) { // Explicitly check for false after auth context resolves
+        if (isAdmin === false) {
             router.push('/login');
-        } else if (isAdmin === true) { // Explicitly check for true
+        } else if (isAdmin === true) {
             loadOrders();
         }
     }, [isAdmin, router, loadOrders]);

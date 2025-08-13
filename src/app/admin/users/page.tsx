@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Copy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 
 type UserData = AuthUser & {
@@ -49,31 +50,45 @@ export default function AdminUsersPage() {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [invitationCode, setInvitationCode] = useState('');
     
-    const loadData = useCallback(() => {
-        if (!isAdmin) return;
+    const loadData = useCallback(async () => {
+        if (!isAdmin || !user) return;
         try {
-            // Load users
-            const allUsersData: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-            const formattedUsers = allUsersData.map((u: any) => ({
+            const { data, error } = await supabase.from('users').select('*');
+            if (error) throw error;
+            
+            const formattedUsers = data.map((u: any) => ({
                 ...u,
-                registeredAt: u.registeredAt ? new Date(u.registeredAt).toLocaleDateString() : 'N/A'
+                is_test_user: u.is_test_user,
+                is_frozen: u.is_frozen,
+                registeredAt: u.registered_at ? new Date(u.registered_at).toLocaleDateString() : 'N/A'
             }));
             setUsers(formattedUsers);
 
-            // Load invitation code
-            const storedCode = localStorage.getItem('invitationCode');
-            if (storedCode) {
-                setInvitationCode(storedCode);
+            const { data: adminData, error: adminError } = await supabase
+                .from('users')
+                .select('invitation_code')
+                .eq('id', user.id)
+                .single();
+
+            if (adminError) throw adminError;
+            
+            if (adminData && adminData.invitation_code) {
+                setInvitationCode(adminData.invitation_code);
             } else {
                 const newCode = generateCode();
-                localStorage.setItem('invitationCode', newCode);
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ invitation_code: newCode })
+                    .eq('id', user.id);
+                if (updateError) throw updateError;
                 setInvitationCode(newCode);
             }
 
         } catch (error) {
-            console.error("Failed to fetch data from localStorage", error);
+            console.error("Failed to fetch data from Supabase", error);
+            toast({ variant: "destructive", title: "错误", description: "加载用户数据失败。" });
         }
-    }, [isAdmin]);
+    }, [isAdmin, user, toast]);
 
     useEffect(() => {
         if (isAdmin === false) {
@@ -84,14 +99,20 @@ export default function AdminUsersPage() {
     }, [isAdmin, router, loadData]);
 
 
-    const handleGenerateNewCode = () => {
+    const handleGenerateNewCode = async () => {
+        if (!user) return;
         const newCode = generateCode();
-        localStorage.setItem('invitationCode', newCode);
-        setInvitationCode(newCode);
-        toast({
-            title: "成功",
-            description: "新的邀请码已生成并生效。",
-        });
+        const { error } = await supabase.from('users').update({ invitation_code: newCode }).eq('id', user.id);
+
+        if (error) {
+            toast({ variant: "destructive", title: "错误", description: "生成新邀请码失败。" });
+        } else {
+            setInvitationCode(newCode);
+            toast({
+                title: "成功",
+                description: "新的邀请码已生成并生效。",
+            });
+        }
     }
 
     const copyToClipboard = () => {
@@ -109,18 +130,20 @@ export default function AdminUsersPage() {
         return users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [users, searchQuery]);
 
-    const handleViewDetails = (userToView: UserData) => {
+    const handleViewDetails = async (userToView: UserData) => {
         try {
-            const allUsersData: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-            const latestUserData = allUsersData.find((u: any) => u.username === userToView.username);
+            const { data: latestUserData, error: userError } = await supabase.from('users').select('*').eq('id', userToView.id).single();
+            if (userError) throw userError;
             
-            setSelectedUser(latestUserData || null);
+            setSelectedUser(latestUserData as AuthUser);
             
-            const userBalances = JSON.parse(localStorage.getItem(`userBalances_${userToView.username}`) || '{}');
-            setSelectedUserBalances(userBalances);
+            // Note: Balances are calculated dynamically in the context,
+            // we'll pass null here and let the dialog fetch it if needed or rely on context.
+            // For simplicity, we can just pass an empty object.
+            setSelectedUserBalances({}); 
         } catch (error) {
-             console.error(`Failed to fetch balances for user ${userToView.username}`, error);
-             setSelectedUser(userToView);
+             console.error(`Failed to fetch data for user ${userToView.username}`, error);
+             setSelectedUser(userToView as AuthUser);
              setSelectedUserBalances(null);
         }
         setIsDetailsOpen(true);
@@ -190,13 +213,13 @@ export default function AdminUsersPage() {
                                     <TableRow key={u.username}>
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className={`font-semibold ${u.isTestUser ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500'}`}>
-                                                {u.isTestUser ? '测试' : '真实'}
+                                            <Badge variant="outline" className={`font-semibold ${u.is_test_user ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500'}`}>
+                                                {u.is_test_user ? '测试' : '真实'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={u.isFrozen ? "destructive" : "default"} className={u.isFrozen ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}>
-                                                {u.isFrozen ? '冻结' : '正常'}
+                                            <Badge variant={u.is_frozen ? "destructive" : "default"} className={u.is_frozen ? 'bg-red-500/20 text-red-500' : 'bg-green-500/20 text-green-500'}>
+                                                {u.is_frozen ? '冻结' : '正常'}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">{u.registeredAt}</TableCell>
@@ -236,7 +259,3 @@ export default function AdminUsersPage() {
         </DashboardLayout>
     );
 }
-
-    
-
-    

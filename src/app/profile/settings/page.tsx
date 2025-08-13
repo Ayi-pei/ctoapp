@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { PasswordResetRequest } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 
 const changePasswordSchema = z.object({
@@ -39,29 +40,32 @@ export default function ProfileSettingsPage() {
         },
     });
 
-    const onSubmit = (values: z.infer<typeof changePasswordSchema>) => {
+    const onSubmit = async (values: z.infer<typeof changePasswordSchema>) => {
         if (!user) return;
+        
         try {
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const currentUser = users.find((u: any) => u.username === user.username);
+            // 1. Verify current password by trying to re-authenticate
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+                email: user.email!,
+                password: values.currentPassword
+            });
 
-            if (!currentUser || currentUser.password !== values.currentPassword) {
+            if (signInError) {
                 toast({ variant: "destructive", title: "密码错误", description: "当前密码不正确。" });
                 return;
             }
-            
-            const newRequest: PasswordResetRequest = {
-                id: `pwd_reset_${Date.now()}`,
-                userId: user.username,
+
+            // 2. Submit password change request to admin
+            const newRequest: Omit<PasswordResetRequest, 'id' | 'createdAt' | 'userId'> = {
+                user_id: user.id,
                 type: 'password_reset',
-                newPassword: values.newPassword,
+                new_password: values.newPassword,
                 status: 'pending',
-                createdAt: new Date().toISOString(),
             }
 
-            const existingRequests = JSON.parse(localStorage.getItem('adminRequests') || '[]');
-            existingRequests.push(newRequest);
-            localStorage.setItem('adminRequests', JSON.stringify(existingRequests));
+            const { error: requestError } = await supabase.from('admin_requests').insert(newRequest);
+            if (requestError) throw requestError;
+
 
             toast({
                 title: "请求已提交",
@@ -74,7 +78,7 @@ export default function ProfileSettingsPage() {
             toast({
                 variant: "destructive",
                 title: "操作失败",
-                description: "发生未知错误，请重试。",
+                description: `发生未知错误: ${(error as Error).message}`,
             });
         }
     }

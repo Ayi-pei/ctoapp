@@ -13,8 +13,9 @@ import { useBalance } from '@/context/balance-context';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
-type AdminRequest = Transaction | PasswordResetRequest;
+type AdminRequest = (Transaction | PasswordResetRequest) & { userId?: string };
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -38,76 +39,64 @@ export default function AdminRequestsPage() {
     const [requests, setRequests] = useState<AdminRequest[]>([]);
     
     useEffect(() => {
-        if (!isAdmin) {
+        if (isAdmin === false) {
             router.push('/login');
         }
     }, [isAdmin, router]);
 
-    const loadData = useCallback(() => {
+    const loadData = useCallback(async () => {
         if (!isAdmin) return;
         try {
-            const financeRequests = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            const passwordRequests = JSON.parse(localStorage.getItem('adminRequests') || '[]') as PasswordResetRequest[];
+            const { data: financeRequests, error: financeError } = await supabase
+                .from('transactions')
+                .select('*, user:users(username)')
+                .eq('status', 'pending');
 
-            const allRequests = [...financeRequests, ...passwordRequests]
-                .filter(r => r.status === 'pending')
-                .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const { data: passwordRequests, error: passwordError } = await supabase
+                .from('admin_requests')
+                .select('*, user:users(username)')
+                .eq('status', 'pending');
+                
+            if (financeError) throw financeError;
+            if (passwordError) throw passwordError;
 
-            setRequests(allRequests);
+            const formattedFinance = financeRequests.map((r: any) => ({ ...r, userId: r.user.username }));
+            const formattedPassword = passwordRequests.map((r: any) => ({ ...r, userId: r.user.username, newPassword: r.new_password }));
+
+            const allRequests = [...formattedFinance, ...formattedPassword]
+                .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            setRequests(allRequests as AdminRequest[]);
 
         } catch (error) {
-            console.error("Failed to fetch data from localStorage", error);
+            console.error("Failed to fetch data from Supabase", error);
+            toast({ variant: "destructive", title: "错误", description: "加载请求失败。" });
         }
-    }, [isAdmin]);
+    }, [isAdmin, toast]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
 
-    const handleRequest = (requestId: string, newStatus: 'approved' | 'rejected') => {
+    const handleRequest = async (request: AdminRequest, newStatus: 'approved' | 'rejected') => {
         try {
-            const allFinanceRequests: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]')
-            const allPasswordRequests: PasswordResetRequest[] = JSON.parse(localStorage.getItem('adminRequests') || '[]')
+            if (request.type === 'password_reset') {
+                 if (newStatus === 'approved') {
+                    const { data: userToUpdate, error: findErr } = await supabase.from('users').select('id').eq('username', request.userId).single();
+                    if(findErr || !userToUpdate) throw new Error("User not found");
 
-            let requestFound = false;
-
-            // Try to find and handle as a finance request
-            const financeIndex = allFinanceRequests.findIndex(r => r.id === requestId);
-            if (financeIndex !== -1) {
-                requestFound = true;
-                const transaction = allFinanceRequests[financeIndex];
-                transaction.status = newStatus;
-                localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
-                recalculateBalanceForUser(transaction.userId);
-            }
-
-            // Try to find and handle as a password request
-            const passwordIndex = allPasswordRequests.findIndex(r => r.id === requestId);
-            if (passwordIndex !== -1) {
-                requestFound = true;
-                const request = allPasswordRequests[passwordIndex];
-                
-                if (newStatus === 'approved') {
-                    const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
-                    const userIndex = allUsers.findIndex((u: any) => u.username === request.userId);
-                    if (userIndex !== -1) {
-                        allUsers[userIndex].password = request.newPassword;
-                        localStorage.setItem('users', JSON.stringify(allUsers));
-                    }
+                    const { error: updateErr } = await supabase.auth.admin.updateUserById(userToUpdate.id, { password: (request as PasswordResetRequest).newPassword });
+                    if(updateErr) throw updateErr;
                 }
-                // Remove the request from the list regardless of approval/rejection
-                const updatedPasswordRequests = allPasswordRequests.filter(r => r.id !== requestId);
-                localStorage.setItem('adminRequests', JSON.stringify(updatedPasswordRequests));
+                const { error } = await supabase.from('admin_requests').delete().eq('id', request.id);
+                if(error) throw error;
+            } else {
+                const { error } = await supabase.from('transactions').update({ status: newStatus }).eq('id', request.id);
+                if (error) throw error;
+                recalculateBalanceForUser(request.user_id);
             }
-
-
-            if (!requestFound) {
-                 toast({ variant: "destructive", title: "错误", description: "找不到该请求" });
-                return;
-            }
-
-            loadData(); // Reload data to update the UI
-
+            
+            loadData();
             toast({
                 title: "操作成功",
                 description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
@@ -115,7 +104,7 @@ export default function AdminRequestsPage() {
             
         } catch (error) {
             console.error("Failed to handle request:", error);
-            toast({ variant: "destructive", title: "错误", description: "处理请求失败" });
+            toast({ variant: "destructive", title: "错误", description: `处理请求失败: ${(error as Error).message}` });
         }
     };
 
@@ -165,10 +154,10 @@ export default function AdminRequestsPage() {
                                         </TableCell>
                                         <TableCell>{new Date(r.createdAt).toLocaleString()}</TableCell>
                                         <TableCell className="text-right space-x-2">
-                                             <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequest(r.id, 'approved')}>
+                                             <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequest(r, 'approved')}>
                                                 批准
                                             </Button>
-                                             <Button variant="outline" size="sm" className="text-red-500 border-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => handleRequest(r.id, 'rejected')}>
+                                             <Button variant="outline" size="sm" className="text-red-500 border-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => handleRequest(r, 'rejected')}>
                                                 拒绝
                                             </Button>
                                         </TableCell>

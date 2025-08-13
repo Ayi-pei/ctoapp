@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useBalance } from '@/context/balance-context';
 
 type Order = (SpotTrade | ContractTrade) & {
     id: string;
@@ -25,25 +26,7 @@ type Order = (SpotTrade | ContractTrade) & {
 export default function ProfileOrdersPage() {
     const { user } = useAuth();
     const router = useRouter();
-    const [orders, setOrders] = useState<Order[]>([]);
-
-    useEffect(() => {
-        if (user) {
-            try {
-                const spotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]');
-                const contractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]');
-
-                const allOrders = [...spotTrades, ...contractTrades]
-                    .filter(order => order.userId === user.username) // Remove date filter
-                    .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-                
-                setOrders(allOrders as Order[]);
-
-            } catch (error) {
-                console.error("Failed to fetch orders from localStorage", error);
-            }
-        }
-    }, [user]);
+    const { historicalTrades } = useBalance();
 
     const getStatusBadge = (order: Order) => {
         if (order.orderType === 'spot') {
@@ -96,7 +79,7 @@ export default function ProfileOrdersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {orders.length > 0 ? orders.map((order) => (
+                                {historicalTrades.length > 0 ? historicalTrades.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell>{order.tradingPair}</TableCell>
                                         <TableCell>
@@ -110,7 +93,7 @@ export default function ProfileOrdersPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>{((order as any).amount || (order as any).total)?.toFixed(4)}</TableCell>
-                                        <TableCell>{getStatusBadge(order)}</TableCell>
+                                        <TableCell>{getStatusBadge(order as Order)}</TableCell>
                                         <TableCell className="text-xs">{new Date(order.createdAt).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, CommissionLog, Transaction, Investment, availablePairs } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, availablePairs } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
 import { useAuth, User } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
@@ -37,7 +37,7 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -71,14 +71,23 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             
             if (contractError) throw contractError;
             if (spotError) throw spotError;
-
-            setActiveContractTrades(allContractTrades.filter(t => t.status === 'active'));
             
+            const activeTrades = allContractTrades.filter(t => t.status === 'active');
+            setActiveContractTrades(activeTrades.map(t => ({...t, userId: t.user_id, tradingPair: t.trading_pair, orderType: 'contract', createdAt: t.created_at} as ContractTrade)));
+
             const settledContractTrades = allContractTrades.filter(t => t.status === 'settled');
             const combinedHistory = [...settledContractTrades, ...allSpotTrades]
                 .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            
+            const formattedHistory = combinedHistory.map(t => {
+                const base = { userId: t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at };
+                if ('base_asset' in t) { // Spot Trade
+                    return { ...t, ...base, orderType: 'spot', baseAsset: t.base_asset, quoteAsset: t.quote_asset };
+                }
+                return { ...t, ...base, orderType: 'contract' }; // Contract Trade
+            });
 
-            setHistoricalTrades(combinedHistory as (SpotTrade | ContractTrade)[]);
+            setHistoricalTrades(formattedHistory as (SpotTrade | ContractTrade)[]);
 
         } catch (error) {
             console.error("Failed to fetch user trades:", error);
@@ -147,13 +156,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 calculatedBalances['USDT'].available -= trade.amount;
              }
              
-             if (trade.status === 'settled' && trade.profit !== undefined) {
+             if (trade.status === 'settled' && trade.profit !== undefined && trade.profit !== null) {
                  calculatedBalances['USDT'].available += (trade.amount + trade.profit);
              }
         });
 
         // 4. Investments
-        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', userId);
+        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', user.id);
         if(invError) throw invError;
         userInvestments.forEach(investment => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
@@ -188,7 +197,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const loadInvestments = async () => {
           const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
           if (error) console.error("Could not fetch investments", error);
-          else setInvestments(data || []);
+          else setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
         }
         loadInvestments();
         setIsLoading(false);
@@ -285,7 +294,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         
         await recalculateBalanceForUser(user.id);
         const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
-        setInvestments(data || []);
+        setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
         return true;
     } catch (e) {
         console.error(e);
@@ -355,7 +364,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at'>, tradingPair: string) => {
+  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'createdAt' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => {
      if (!user) return;
     
     try {

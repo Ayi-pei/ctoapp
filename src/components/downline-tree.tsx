@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import type { User as AuthUser } from "@/context/auth-context";
 import { Skeleton } from "./ui/skeleton";
+import { supabase } from "@/lib/supabase";
 
 type DownlineMember = Omit<AuthUser, 'downline'> & {
     level: number;
@@ -24,7 +25,7 @@ const DownlineList = ({ members }: { members: DownlineMember[] }) => {
             {members.map(member => (
                  <li key={member.username} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                     <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
-                        LV {member.level}
+                        LV 1
                     </span>
                     <span>{member.username}</span>
                 </li>
@@ -38,33 +39,26 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
-        try {
-            const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
-            const userMap = new Map(allUsers.map(u => [u.username, u]));
-            
-            // Only the admin can have a downline now.
-            const currentUser = userMap.get(username);
-            let userDownline: DownlineMember[] = [];
-            
-            if (currentUser && currentUser.isAdmin) {
-                userDownline = allUsers
-                    .filter(u => u.inviter === currentUser.username)
-                    .map(u => ({
-                        ...u,
-                        level: 1, // All users invited by admin are level 1
-                        children: [],
-                    }));
-            }
-            
-            setDownline(userDownline);
+        const fetchDownline = async () => {
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('inviter', username);
+                
+                if (error) throw error;
+                
+                setDownline(data.map(u => ({...u, level: 1 })) as DownlineMember[]);
 
-        } catch (error) {
-            console.error("Failed to load user downline:", error);
-            setDownline([]);
-        } finally {
-            setIsLoading(false);
+            } catch (error) {
+                console.error("Failed to load user downline:", error);
+                setDownline([]);
+            } finally {
+                setIsLoading(false);
+            }
         }
+        fetchDownline();
     }, [username]);
     
     if (isLoading) {
@@ -78,5 +72,3 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
 
     return <DownlineList members={downline} />;
 };
-
-    

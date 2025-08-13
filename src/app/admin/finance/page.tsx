@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useBalance } from "@/context/balance-context";
+import { supabase } from "@/lib/supabase";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -37,7 +38,7 @@ const statusText: { [key: string]: string } = {
 }
 
 export default function AdminFinancePage() {
-    const { isAdmin } = useAuth();
+    const { isAdmin, user } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const { recalculateBalanceForUser } = useBalance();
@@ -47,19 +48,30 @@ export default function AdminFinancePage() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-    const loadTransactions = useCallback(() => {
-        if (isAdmin) {
-             try {
-                const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-                setTransactions(allTransactions.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            } catch (error) {
-                console.error("Failed to fetch transactions from localStorage", error);
-            }
+    const loadTransactions = useCallback(async () => {
+        if (!isAdmin) return;
+         try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*, user:users(username)')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            
+            const formattedData = data.map((tx: any) => ({
+                ...tx,
+                userId: tx.user?.username || tx.user_id,
+            }));
+            
+            setTransactions(formattedData as Transaction[]);
+        } catch (error) {
+            console.error("Failed to fetch transactions from Supabase", error);
+            toast({ variant: "destructive", title: "错误", description: "加载资金流水失败。" });
         }
-    }, [isAdmin]);
+    }, [isAdmin, toast]);
 
     useEffect(() => {
-        if (isAdmin === false) { // Explicitly check for false after auth context resolves
+        if (isAdmin === false) {
             router.push('/login');
         } else if (isAdmin === true) {
            loadTransactions();
@@ -76,17 +88,15 @@ export default function AdminFinancePage() {
         setIsDeleteDialogOpen(true);
     }
     
-    const handleDeleteTransaction = () => {
+    const handleDeleteTransaction = async () => {
         if (!selectedTransaction) return;
         try {
-            const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            const updatedTransactions = allTransactions.filter(t => t.id !== selectedTransaction.id);
-            localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
+            const { error } = await supabase.from('transactions').delete().eq('id', selectedTransaction.id);
+            if (error) throw error;
+
+            recalculateBalanceForUser(selectedTransaction.user_id);
             
-            // Recalculate balance for the affected user
-            recalculateBalanceForUser(selectedTransaction.userId);
-            
-            loadTransactions(); // Reload data
+            loadTransactions();
             toast({ title: "成功", description: "交易记录已删除。" });
         } catch (error) {
             toast({ variant: "destructive", title: "错误", description: "删除交易失败。" });
@@ -96,25 +106,28 @@ export default function AdminFinancePage() {
         }
     };
     
-    const handleSaveTransaction = (updatedTransaction: Transaction) => {
+    const handleSaveTransaction = async (updatedTransaction: Transaction) => {
         try {
-            const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            const index = allTransactions.findIndex(t => t.id === updatedTransaction.id);
-            if (index !== -1) {
-                const originalTransaction = allTransactions[index];
-                allTransactions[index] = updatedTransaction;
-                localStorage.setItem('transactions', JSON.stringify(allTransactions));
+            const { error } = await supabase
+                .from('transactions')
+                .update({
+                    type: updatedTransaction.type,
+                    asset: updatedTransaction.asset,
+                    amount: updatedTransaction.amount,
+                    status: updatedTransaction.status,
+                    address: updatedTransaction.address,
+                    transaction_hash: updatedTransaction.transactionHash,
+                    created_at: updatedTransaction.createdAt,
+                })
+                .eq('id', updatedTransaction.id);
                 
-                // After saving, recalculate the balance for the user
-                // If the user being modified is different, recalculate for both.
-                if (originalTransaction.userId !== updatedTransaction.userId) {
-                    recalculateBalanceForUser(originalTransaction.userId);
-                }
-                recalculateBalanceForUser(updatedTransaction.userId);
-
-                loadTransactions(); // Reload
-                toast({ title: "成功", description: "交易记录已更新。" });
-            }
+            if (error) throw error;
+            
+            recalculateBalanceForUser(updatedTransaction.user_id);
+            
+            loadTransactions();
+            toast({ title: "成功", description: "交易记录已更新。" });
+            
         } catch (error) {
              toast({ variant: "destructive", title: "错误", description: "更新交易失败。" });
         }

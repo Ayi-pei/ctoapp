@@ -21,35 +21,47 @@ export type MarketTrade = {
 // Represents a user's contract trade action
 export type ContractTrade = {
   id: string;
+  user_id: string;
+  trading_pair: string;
+  order_type: 'contract';
+  type: 'buy' | 'sell'; // buy for long, sell for short
+  amount: number; // This is the amount in USDT for the contract
+  entry_price: number;
+  settlement_time: string; // ISO date string
+  period: number; // in seconds
+  profit_rate: number; // e.g., 0.85 for 85%
+  status: 'active' | 'settled';
+  // Fields below are added after settlement
+  settlement_price?: number;
+  outcome?: 'win' | 'loss';
+  profit?: number; // can be negative
+  created_at: string;
+  // Properties for frontend rendering
   userId: string;
   tradingPair: string;
   orderType: 'contract';
-  type: 'buy' | 'sell'; // buy for long, sell for short
-  amount: number; // This is the amount in USDT for the contract
-  entryPrice: number;
-  settlementTime: number; // a timestamp in ms
-  period: number; // in seconds
-  profitRate: number; // e.g., 0.85 for 85%
-  status: 'active' | 'settled';
-  // Fields below are added after settlement
-  settlementPrice?: number;
-  outcome?: 'win' | 'loss';
-  profit?: number; // can be negative
   createdAt: string;
 };
 
 // Represents a user's spot trade action
 export type SpotTrade = {
     id: string;
-    userId: string;
-    tradingPair: string;
-    orderType: 'spot';
+    user_id: string;
+    trading_pair: string;
+    order_type: 'spot';
     type: 'buy' | 'sell';
-    baseAsset: string;
-    quoteAsset: string;
+    base_asset: string;
+    quote_asset: string;
     amount: number; // amount of base asset
     total: number; // total in quote asset
     status: 'filled' | 'cancelled';
+    created_at: string;
+    // Properties for frontend rendering
+    userId: string;
+    tradingPair: string;
+    orderType: 'spot';
+    baseAsset: string;
+    quoteAsset: string;
     createdAt: string;
 }
 
@@ -71,37 +83,33 @@ export type MarketSummary = {
 // Represents a user's deposit or withdrawal request
 export type Transaction = {
   id: string;
-  userId: string; // username
+  user_id: string; // uuid
+  userId?: string; // username, optional for rendering
   type: 'deposit' | 'withdrawal' | 'adjustment';
   asset: string;
   amount: number;
   address?: string; // for withdrawals
-  transactionHash?: string; // for deposits as proof
+  transaction_hash?: string; // for deposits as proof
+  transactionHash?: string; // for deposits as proof (frontend)
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: string; // ISO date string
+  created_at: string; // ISO date string
+  createdAt: string; // ISO date string (frontend)
 };
 
 // Represents a user's password reset request
 export type PasswordResetRequest = {
   id: string;
-  userId: string;
+  user_id: string;
   type: 'password_reset';
-  newPassword: string;
+  new_password: string;
   status: 'pending' | 'approved' | 'rejected';
-  createdAt: string; // ISO date string
+  created_at: string; // ISO date string
+  // Properties for frontend rendering
+  userId: string;
+  newPassword: string;
+  createdAt: string;
 };
 
-
-export type CommissionLog = {
-    id: string;
-    uplineUsername: string; // User receiving the commission
-    sourceUsername: string; // User who generated the commission
-    sourceLevel: number; // Will always be 1 now
-    tradeAmount: number;
-    commissionRate: number;
-    commissionAmount: number;
-    createdAt: string; // ISO date string
-}
 
 export type Investment = {
     id: string;
@@ -109,5 +117,3 @@ export type Investment = {
     amount: number;
     date: string;
 }
-
-    
