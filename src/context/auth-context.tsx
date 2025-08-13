@@ -24,7 +24,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   updateUser: (userData: Partial<User>) => void;
@@ -53,10 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
-      // This might happen if the user exists in auth but not in the public table yet
-      // which can occur during registration before the profile is created.
-      // We sign out to prevent being in a broken state.
-      if (error.code === 'PGRST116') { // "Not found"
+      if (error.code === 'PGRST116') { 
           await supabase.auth.signOut();
       }
       return null;
@@ -76,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Initial check
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -94,19 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
+    const email = `${username}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       console.error('Login failed:', error.message);
       return false;
     }
-    // Auth state change will handle setting user and redirecting
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-      // 1. Validate invitation code
       const { data: inviterData, error: inviterError } = await supabase
         .from('users')
         .select('id, username')
@@ -118,11 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       
-      // 2. Sign up the new user in Supabase Auth
-      const email = `${username}@rsf.app`; // Create a dummy email
+      const email = `${username}@rsf.app`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username: username
+          }
+        }
       });
       
       if (authError) {
@@ -135,7 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("User registration did not return a user.");
       }
       
-      // 3. Create a corresponding profile in the public.users table
       const { error: profileError } = await supabase
         .from('users')
         .insert({
@@ -151,7 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
       if (profileError) {
          console.error("Failed to create user profile:", profileError.message);
-         // If profile creation fails, we must delete the auth user to prevent orphans
          const { error: deleteError } = await supabase.auth.admin.deleteUser(registeredUser.id);
          if(deleteError) console.error("Failed to clean up orphaned auth user:", deleteError.message);
          toast({ variant: 'destructive', title: '注册失败', description: '无法创建用户资料，请重试。' });
@@ -223,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   if (isLoading) {
-    return null; // Or a loading spinner
+    return null; 
   }
 
   return (
