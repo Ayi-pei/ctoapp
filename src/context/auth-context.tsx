@@ -53,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
+      // This case handles if a user exists in auth but not in public.users, a sign of inconsistent data.
+      // Signing them out is a safe default.
       if (error.code === 'PGRST116') { 
+          console.warn(`Profile not found for user ${supabaseUser.id}, signing out.`);
           await supabase.auth.signOut();
       }
       return null;
@@ -91,17 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const email = `${username}@rsf.app`;
+    // To allow login with username, we must construct the email supabase expects.
+    const email = `${username.toLowerCase()}@rsf.app`; 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    
     if (error) {
       console.error('Login failed:', error.message);
       return false;
     }
+    // onAuthStateChange will handle fetching the profile and updating state.
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
+      // 1. Validate invitation code and get the inviter's details.
       const { data: inviterData, error: inviterError } = await supabase
         .from('users')
         .select('id, username')
@@ -110,10 +117,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (inviterError || !inviterData) {
         toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
+        console.error("Invalid invitation code:", invitationCode, inviterError);
         return false;
       }
       
-      const email = `${username}@rsf.app`;
+      // 2. Create the authentication user in Supabase Auth.
+      const email = `${username.toLowerCase()}@rsf.app`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -126,31 +135,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (authError) {
         toast({ variant: 'destructive', title: '注册失败', description: authError.message });
+        console.error("Supabase auth.signUp error:", authError);
         return false;
       }
       
       const registeredUser = authData.user;
       if (!registeredUser) {
-        throw new Error("User registration did not return a user.");
+        throw new Error("User registration did not return a user object.");
       }
       
+      // 3. Create the corresponding user profile in the public.users table.
+      // This is the critical step that was missing/flawed.
       const { error: profileError } = await supabase
         .from('users')
         .insert({
-          id: registeredUser.id,
+          id: registeredUser.id, // Use the ID from the created auth user
           username: username,
           email: email,
-          is_admin: false,
-          is_test_user: false,
+          is_admin: false, // Default to non-admin
+          is_test_user: false, // Default to real user
           is_frozen: false,
-          inviter: inviterData.username,
+          inviter: inviterData.username, // Set the inviter
           registered_at: new Date().toISOString()
         });
         
+      // 4. If creating the profile fails, roll back by deleting the auth user.
       if (profileError) {
          console.error("Failed to create user profile:", profileError.message);
+         // IMPORTANT: Clean up the orphaned auth user.
          const { error: deleteError } = await supabase.auth.admin.deleteUser(registeredUser.id);
-         if(deleteError) console.error("Failed to clean up orphaned auth user:", deleteError.message);
+         if(deleteError) console.error("FATAL: Failed to clean up orphaned auth user:", deleteError.message);
          toast({ variant: 'destructive', title: '注册失败', description: '无法创建用户资料，请重试。' });
          return false;
       }
@@ -158,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
 
     } catch (error: any) {
-      console.error(error);
+      console.error("An unexpected error occurred during registration:", error);
       toast({
         variant: 'destructive',
         title: '注册失败',
@@ -167,7 +181,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
   }
-
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -193,20 +206,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isLoading) {
       const isAuthenticated = !!session;
       const publicPaths = ['/login', '/register'];
+      const isPublicPath = publicPaths.includes(pathname);
+
       if (isAuthenticated) {
-        if (isAdmin && !pathname.startsWith('/admin')) {
-          router.push('/admin/users');
-        } else if (!isAdmin && pathname.startsWith('/admin')) {
-          router.push('/dashboard');
+        // If logged in, redirect from public paths
+        if (isPublicPath) {
+          if (isAdmin) {
+            router.push('/admin');
+          } else {
+            router.push('/dashboard');
+          }
         }
       } else {
-        if (!publicPaths.includes(pathname)) {
+        // If not logged in, redirect from protected paths
+        if (!isPublicPath) {
             router.push('/login');
         }
       }
     }
   }, [session, isAdmin, isLoading, pathname, router]);
-
 
   const value = {
     isAuthenticated: !!session,
@@ -219,7 +237,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
   };
 
-  if (isLoading) {
+  if (isLoading && !session) {
+    // Render nothing or a loading spinner to avoid flashes of content.
     return null; 
   }
 

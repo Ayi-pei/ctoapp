@@ -33,6 +33,7 @@ export default function LoginPage() {
     },
   });
 
+  // This effect handles redirection after login state is confirmed.
   useEffect(() => {
     if (isAuthenticated) {
       if (isAdmin) {
@@ -46,15 +47,16 @@ export default function LoginPage() {
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     const success = await login(values.username, values.password);
 
-    if (!success) {
+    if (success) {
+       toast({
+        title: '登录成功',
+      });
+      // Redirection is now handled by the useEffect in AuthProvider and this component
+    } else {
       toast({
         variant: 'destructive',
         title: '登录失败',
         description: '用户名或密码错误。',
-      });
-    } else {
-       toast({
-        title: '登录成功',
       });
     }
   };
