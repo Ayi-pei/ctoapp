@@ -48,8 +48,8 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
-    const { updateUser, user: currentUser } = useAuth();
-    const balanceContext = useBalance();
+    const { updateUser: updateAuthUser, user: currentUser } = useAuth();
+    const { updateBalance: updateBalanceInContext, recalculateBalanceForUser } = useBalance();
 
 
     useEffect(() => {
@@ -76,11 +76,14 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
             toast({ variant: "destructive", title: "错误", description: "请输入有效的数字。" });
             return;
         }
+        
+        // Instead of directly setting, we now just apply a delta transaction-like update
+        updateBalanceInContext(user.username, asset, amount, 'available');
 
-        balanceContext.updateBalance(user.username, asset, amount, 'available');
         toast({ title: "成功", description: `${user.username} 的 ${asset} 余额已调整。` });
         
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
+        recalculateBalanceForUser(user.username); // This will re-fetch the correct state
         onUpdate(); // Trigger data reload in parent component
     };
 
@@ -98,7 +101,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                 localStorage.setItem('users', JSON.stringify(users));
                 
                 if(currentUser?.username === user.username) {
-                    updateUser({ password: newPassword.trim() });
+                    updateAuthUser({ password: newPassword.trim() });
                 }
 
                 toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
@@ -123,7 +126,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                 localStorage.setItem('users', JSON.stringify(users));
 
                 if (currentUser?.username === user.username) {
-                    updateUser({ isFrozen: freeze });
+                    updateAuthUser({ isFrozen: freeze });
                 }
                 
                 toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
@@ -184,7 +187,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                                                 <div className="flex items-center gap-2">
                                                     <Input
                                                         type="number"
-                                                        placeholder="输入调整值"
+                                                        placeholder="输入 +/- 调整值"
                                                         value={balanceAdjustments[asset] || ''}
                                                         onChange={(e) => handleAdjustmentChange(asset, e.target.value)}
                                                         className="h-8"

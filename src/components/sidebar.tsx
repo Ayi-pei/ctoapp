@@ -20,9 +20,10 @@ export function Sidebar() {
       <nav>
         <ul>
           {navItems.map((item) => {
-            const isActive = (item.href === '/dashboard' && pathname === item.href) ||
-                             (item.href === '/admin/users' && pathname === item.href) ||
-                             (item.href !== '/dashboard' && item.href !== '/admin/users' && pathname.startsWith(item.href));
+            // More robust active link logic
+            const isActive = item.href === '/dashboard' 
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
 
             return (
                  <li key={item.label}>

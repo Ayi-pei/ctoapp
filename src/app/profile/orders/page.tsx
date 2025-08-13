@@ -9,7 +9,6 @@ import { useAuth } from '@/context/auth-context';
 import { SpotTrade, ContractTrade } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -31,13 +30,11 @@ export default function ProfileOrdersPage() {
     useEffect(() => {
         if (user) {
             try {
-                const twoWeeksAgo = subDays(new Date(), 14);
-
                 const spotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]');
                 const contractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]');
 
                 const allOrders = [...spotTrades, ...contractTrades]
-                    .filter(order => order.userId === user.username && new Date(order.createdAt) >= twoWeeksAgo)
+                    .filter(order => order.userId === user.username) // Remove date filter
                     .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                 
                 setOrders(allOrders as Order[]);
@@ -84,7 +81,7 @@ export default function ProfileOrdersPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>最近两周的订单</CardTitle>
+                        <CardTitle>全部历史订单</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -131,4 +128,3 @@ export default function ProfileOrdersPage() {
         </DashboardLayout>
     );
 }
-

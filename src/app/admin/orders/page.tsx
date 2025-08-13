@@ -25,8 +25,8 @@ export default function AdminOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
 
     const loadOrders = useCallback(() => {
+        // Only load if isAdmin is true, not just on mount.
         if (!isAdmin) {
-            router.push('/login');
             return;
         }
         try {
@@ -39,11 +39,16 @@ export default function AdminOrdersPage() {
         } catch (error) {
             console.error("Failed to fetch orders from localStorage", error);
         }
-    }, [isAdmin, router]);
+    }, [isAdmin]);
 
     useEffect(() => {
-        loadOrders();
-    }, [loadOrders]);
+        if (isAdmin === false) { // Explicitly check for false after auth context resolves
+            router.push('/login');
+        } else if (isAdmin === true) { // Explicitly check for true
+            loadOrders();
+        }
+    }, [isAdmin, router, loadOrders]);
+
 
     if (!isAdmin) {
         return (

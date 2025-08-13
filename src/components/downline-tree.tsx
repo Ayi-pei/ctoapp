@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { User as AuthUser } from "@/context/auth-context";
+import { Skeleton } from "./ui/skeleton";
 
 type DownlineMember = AuthUser & {
     level: number;
@@ -22,7 +23,7 @@ const DownlineRecursive = ({ members }: { members: DownlineMember[] }) => {
         <Accordion type="multiple" className="w-full">
             {members.map(member => (
                 <AccordionItem value={member.username} key={member.username} className="border-b-0">
-                    <AccordionTrigger className="py-2 hover:no-underline [&[data-state=open]>svg]:-rotate-90">
+                    <AccordionTrigger className="py-2 hover:no-underline [&[data-state=open]>svg]:rotate-90">
                         <div className="flex items-center gap-2">
                             <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
                                 LV {member.level}
@@ -77,7 +78,15 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
     }, [username]);
     
     if (isLoading) {
-        return <p>Loading team data...</p>
+        return (
+            <div className="space-y-2 p-4">
+                <Skeleton className="h-6 w-3/4" />
+                <div className="pl-6 space-y-2">
+                    <Skeleton className="h-5 w-1/2" />
+                    <Skeleton className="h-5 w-2/3" />
+                </div>
+            </div>
+        )
     }
 
     return <DownlineRecursive members={downline} />;

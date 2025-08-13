@@ -72,7 +72,7 @@ export type MarketSummary = {
 export type Transaction = {
   id: string;
   userId: string; // username
-  type: 'deposit' | 'withdrawal';
+  type: 'deposit' | 'withdrawal' | 'adjustment';
   asset: string;
   amount: number;
   address?: string; // for withdrawals

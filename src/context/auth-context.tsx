@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   useEffect(() => {
-    // This effect ensures the admin user exists and is configured correctly.
+    // This effect ensures the admin user exists and is configured correctly, but only creates it if it doesn't exist.
     try {
         const usersRaw = localStorage.getItem('users');
         let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAdmin: true,
                 isTestUser: false,
                 isFrozen: false,
-                invitationCode: 'ADMIN1', // Unique admin invite code
+                invitationCode: 'ADMIN1',
                 inviter: null,
                 downline: [],
                 registeredAt: new Date().toISOString(),

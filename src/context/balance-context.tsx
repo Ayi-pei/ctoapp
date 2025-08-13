@@ -39,7 +39,6 @@ interface BalanceContextType {
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
   updateBalance: (username: string, asset: string, amount: number, type?: 'available' | 'frozen') => void;
-  freezeBalance: (asset: string, amount: number) => void;
   recalculateBalanceForUser: (username: string) => void;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -112,7 +111,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const recalculateBalanceForUser = useCallback((username: string) => {
     try {
-        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
+        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
         const targetUser = allUsers.find(u => u.username === username);
         if (!targetUser) return;
 
@@ -120,32 +119,36 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
 
-        // 1. Financial Transactions (Deposits/Withdrawals)
-        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+        // 1. Financial Transactions (Deposits/Withdrawals/Admin Adjustments)
+        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]') as [];
         const userFinancialTxs = allFinancialTxs.filter(tx => tx.userId === username);
+
         userFinancialTxs.forEach(tx => {
             if (!calculatedBalances[tx.asset]) calculatedBalances[tx.asset] = { available: 0, frozen: 0 };
             
-            if (tx.type === 'deposit' && tx.status === 'approved') {
-                calculatedBalances[tx.asset].available += tx.amount;
+            if (tx.type === 'deposit') {
+                if (tx.status === 'approved') {
+                    calculatedBalances[tx.asset].available += tx.amount;
+                }
             } else if (tx.type === 'withdrawal') {
                  if (tx.status === 'pending') {
-                    // This amount is already 'virtually' moved to frozen on request.
-                    // The initial balance starts from 0, so we deduct from available and add to frozen.
                     calculatedBalances[tx.asset].available -= tx.amount;
                     calculatedBalances[tx.asset].frozen += tx.amount;
-                 } else if (tx.status === 'approved') {
-                    // The amount is now gone from frozen.
-                    // No change to available.
                  } else if (tx.status === 'rejected') {
-                    // The amount is returned from frozen to available.
+                    // Money was never taken, it was just frozen. Now it is unfrozen.
                     calculatedBalances[tx.asset].available += tx.amount;
+                 } else if (tx.status === 'approved') {
+                    // Money is gone from frozen.
+                    calculatedBalances[tx.asset].frozen -= tx.amount;
                  }
+            } else if (tx.type === 'adjustment') { // Admin adjustments
+                calculatedBalances[tx.asset].available += tx.amount;
             }
         });
 
+
         // 2. Spot Trades
-        const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
+        const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as [];
         const userSpotTrades = allSpotTrades.filter(t => t.userId === username && t.status === 'filled');
         userSpotTrades.forEach(trade => {
             if (!calculatedBalances[trade.baseAsset]) calculatedBalances[trade.baseAsset] = { available: 0, frozen: 0 };
@@ -161,43 +164,37 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         });
 
         // 3. Contract Trades
-        const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
+        const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
         const userContractTrades = allContractTrades.filter(t => t.userId === username);
         userContractTrades.forEach(trade => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              
              if (trade.status === 'active') {
-                // The trade amount is deducted from available upon placing the trade.
                 calculatedBalances['USDT'].available -= trade.amount;
              }
              
              if (trade.status === 'settled' && trade.profit !== undefined) {
-                 // Return the original amount + profit/loss
-                 // This effectively "undoes" the initial deduction and adds the profit.
                  calculatedBalances['USDT'].available += (trade.amount + trade.profit);
              }
         });
 
         // 4. Investments
-        const userInvestments: Investment[] = JSON.parse(localStorage.getItem(`userInvestments_${username}`) || '[]') as Investment[];
+        const userInvestments: Investment[] = JSON.parse(localStorage.getItem(`userInvestments_${username}`) || '[]') as [];
         userInvestments.forEach(investment => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             // Investment amount is deducted.
              calculatedBalances['USDT'].available -= investment.amount;
         });
 
         // 5. Commissions
-        const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as CommissionLog[];
+        const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as [];
         const userCommissions = allCommissions.filter(c => c.uplineUsername === username);
         userCommissions.forEach(log => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              calculatedBalances['USDT'].available += log.commissionAmount;
         })
         
-        // Save the recalculated balances
         localStorage.setItem(`userBalances_${username}`, JSON.stringify(calculatedBalances));
 
-        // If the recalculated user is the one logged in, update the state
         if (user && user.username === username) {
             setBalances(calculatedBalances);
         }
@@ -319,37 +316,27 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   
   const updateBalance = (username: string, asset: string, amount: number, type: 'available' | 'frozen' = 'available') => {
+    // This function acts like creating a transaction. It adds an adjustment record.
     try {
-        const userBalances = loadUserBalances(username);
+        const adjustmentTx: Transaction = {
+            id: `adj_${Date.now()}`,
+            userId: username,
+            type: 'adjustment',
+            asset: asset,
+            amount: amount,
+            status: 'approved', // Admin adjustments are auto-approved
+            createdAt: new Date().toISOString()
+        };
+        const allTxs = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+        allTxs.push(adjustmentTx);
+        localStorage.setItem('transactions', JSON.stringify(allTxs));
         
-        if (!userBalances[asset]) {
-            userBalances[asset] = { available: 0, frozen: 0 };
-        }
-        userBalances[asset][type] += amount;
-
-        localStorage.setItem(`userBalances_${username}`, JSON.stringify(userBalances));
-
-        if (user && user.username === username) {
-            setBalances(userBalances);
-        }
-
+        // After logging the transaction, recalculate the balance
+        recalculateBalanceForUser(username);
     } catch (error) {
         console.error(`Failed to update balance for ${username}:`, error);
     }
   };
-
-  const freezeBalance = (asset: string, amount: number) => {
-    if (!user) return;
-    setBalances(prev => {
-        if (!prev[asset]) return prev;
-        const newAvailable = prev[asset].available - amount;
-        const newFrozen = prev[asset].frozen + amount;
-        return {
-            ...prev,
-            [asset]: { available: newAvailable, frozen: newFrozen }
-        }
-    });
-  }
 
 
   const addInvestment = (productName: string, amount: number) => {
@@ -372,7 +359,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
     const handleCommissionDistribution = (sourceUser: User, tradeAmount: number) => {
         try {
-            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as User[];
+            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
             const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
 
             let currentUplineUsername = sourceUser.inviter;
@@ -499,7 +486,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
       updateBalance,
-      freezeBalance,
       recalculateBalanceForUser,
       activeContractTrades,
       historicalTrades,
