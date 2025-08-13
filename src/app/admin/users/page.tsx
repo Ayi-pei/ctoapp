@@ -49,14 +49,6 @@ export default function AdminUsersPage() {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [invitationCode, setInvitationCode] = useState('');
     
-    useEffect(() => {
-        if (isAdmin === false) {
-            router.push('/login');
-        } else if (isAdmin === true) {
-            loadData();
-        }
-    }, [isAdmin, router]);
-
     const loadData = useCallback(() => {
         if (!isAdmin) return;
         try {
@@ -84,8 +76,13 @@ export default function AdminUsersPage() {
     }, [isAdmin]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (isAdmin === false) {
+            router.push('/login');
+        } else if (isAdmin === true) {
+            loadData();
+        }
+    }, [isAdmin, router, loadData]);
+
 
     const handleGenerateNewCode = () => {
         const newCode = generateCode();
@@ -98,11 +95,13 @@ export default function AdminUsersPage() {
     }
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(invitationCode);
-        toast({
-            title: "已复制",
-            description: "邀请码已成功复制到剪贴板。",
-        });
+        if (invitationCode) {
+            navigator.clipboard.writeText(invitationCode);
+            toast({
+                title: "已复制",
+                description: "邀请码已成功复制到剪贴板。",
+            });
+        }
     };
     
     const filteredUsers = useMemo(() => {
@@ -151,7 +150,7 @@ export default function AdminUsersPage() {
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row items-center gap-4">
                         <div className="flex-1 w-full p-4 text-center border-2 border-dashed rounded-lg bg-muted">
-                            <span className="text-3xl font-bold tracking-widest">{invitationCode || '生成中...'}</span>
+                            <span className="text-3xl font-bold tracking-widest">{invitationCode || '...'}</span>
                         </div>
                         <div className="flex gap-2">
                              <Button onClick={copyToClipboard} size="lg" variant="outline">
@@ -237,5 +236,7 @@ export default function AdminUsersPage() {
         </DashboardLayout>
     );
 }
+
+    
 
     
