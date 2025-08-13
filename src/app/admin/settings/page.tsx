@@ -22,6 +22,14 @@ export default function AdminSettingsPage() {
     } = useSettings();
     const { toast } = useToast();
 
+    const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
+        const currentTrend = settings[pair]?.trend;
+        // If the user is trying to set a trend that's already active, toggle it off to 'normal'
+        // Otherwise, set the new trend.
+        const finalTrend = currentTrend === newTrend ? 'normal' : newTrend;
+        updateSettings(pair, { trend: finalTrend });
+    };
+    
     const handleSettingChange = (pair: string, key: keyof TradingPairSettings, value: any) => {
         updateSettings(pair, { [key]: value });
     };
@@ -59,13 +67,16 @@ export default function AdminSettingsPage() {
                                     {/* Trend Control */}
                                     <div className="space-y-2">
                                         <Label>价格趋势 (模拟)</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                           关闭所有开关则默认使用真实市场数据。
+                                        </p>
                                         <div className="flex items-center space-x-4">
                                              <div className="flex items-center space-x-2">
                                                 <Label htmlFor={`trend-up-${pair}`}>拉升</Label>
                                                 <Switch
                                                     id={`trend-up-${pair}`}
                                                     checked={pairSettings.trend === 'up'}
-                                                    onCheckedChange={(checked) => handleSettingChange(pair, 'trend', checked ? 'up' : 'normal')}
+                                                    onCheckedChange={() => handleTrendChange(pair, 'up')}
                                                 />
                                             </div>
                                             <div className="flex items-center space-x-2">
@@ -73,7 +84,7 @@ export default function AdminSettingsPage() {
                                                 <Switch
                                                     id={`trend-down-${pair}`}
                                                     checked={pairSettings.trend === 'down'}
-                                                    onCheckedChange={(checked) => handleSettingChange(pair, 'trend', checked ? 'down' : 'normal')}
+                                                    onCheckedChange={() => handleTrendChange(pair, 'down')}
                                                 />
                                             </div>
                                         </div>
