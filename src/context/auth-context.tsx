@@ -34,6 +34,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const INITIAL_ADMIN_INVITATION_CODE = "STARTERCODE";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -106,17 +108,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-      const { data: inviterData, error: inviterError } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('invitation_code', invitationCode)
-        .single();
-      
-      if (inviterError || !inviterData) {
-        toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-        console.error("Invalid invitation code:", invitationCode, inviterError);
-        return false;
-      }
+        let inviterUsername: string | null = null;
+        let isAdminUser = false;
+
+        // Check for the universal starter code
+        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
+             const { data: existingUsers, error: countError } = await supabase.from('users').select('id', { count: 'exact', head: true });
+             if(countError) throw countError;
+             
+             if (existingUsers.length > 0) {
+                 toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
+                 return false;
+             }
+             // This is the first user, make them an admin
+             isAdminUser = true;
+             inviterUsername = null; // No inviter for the first admin
+        } else {
+             const { data: inviterData, error: inviterError } = await supabase
+                .from('users')
+                .select('id, username')
+                .eq('invitation_code', invitationCode)
+                .single();
+            
+            if (inviterError || !inviterData) {
+                toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
+                console.error("Invalid invitation code:", invitationCode, inviterError);
+                return false;
+            }
+            inviterUsername = inviterData.username;
+        }
+
       
       const email = `${username.toLowerCase()}@rsf.app`;
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -141,10 +162,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: registeredUser.id,
           username: username,
           email: email,
-          is_admin: false,
-          is_test_user: false,
+          is_admin: isAdminUser,
+          is_test_user: isAdminUser, // Make admin a test user to have initial funds for testing
           is_frozen: false,
-          inviter: inviterData.username,
+          inviter: inviterUsername,
           registered_at: new Date().toISOString()
         });
         
