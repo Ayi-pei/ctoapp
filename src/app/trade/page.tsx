@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { OrderBook } from "@/components/order-book";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,13 +10,12 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { useBalance } from "@/context/balance-context";
 import { SpotOrderForm } from "@/components/spot-order-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import Image from "next/image";
 import { OrderForm } from "@/components/order-form";
 import { useMarket } from "@/context/market-data-context";
-import { useAuth } from '@/context/auth-context';
 import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -24,36 +23,15 @@ import { cn } from '@/lib/utils';
 function TradePage({ defaultTab }: { defaultTab: string }) {
   const marketData = useMarket();
   const { tradingPair, data, summaryData } = marketData;
-  const { balances, placeSpotTrade, placeContractTrade, isLoading: isBalanceLoading } = useBalance();
-  const { user } = useAuth();
+  const { 
+    balances, 
+    placeSpotTrade, 
+    placeContractTrade, 
+    isLoading: isBalanceLoading,
+    activeContractTrades,
+    historicalTrades,
+  } = useBalance();
   
-  const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
-  const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
-
-   useEffect(() => {
-        if (user) {
-            try {
-                const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
-                const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
-                
-                const userContractTrades = allContractTrades.filter(t => t.userId === user.username);
-                const userSpotTrades = allSpotTrades.filter(t => t.userId === user.username);
-
-                setActiveContractTrades(userContractTrades.filter(t => t.status === 'active'));
-                
-                const settledContractTrades = userContractTrades.filter(t => t.status === 'settled');
-                const combinedHistory = [...settledContractTrades, ...userSpotTrades]
-                    .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-                setHistoricalTrades(combinedHistory);
-
-            } catch (error) {
-                console.error("Failed to fetch user trades:", error);
-            }
-        }
-    }, [user, summaryData.length]); // Depends on user and data load, but not the data itself.
-
-
   if (!data || !summaryData.length || isBalanceLoading) {
     return (
        <DashboardLayout>

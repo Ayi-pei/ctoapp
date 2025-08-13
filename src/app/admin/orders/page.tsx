@@ -24,32 +24,26 @@ export default function AdminOrdersPage() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
 
-    useEffect(() => {
+    const loadOrders = useCallback(() => {
         if (!isAdmin) {
             router.push('/login');
+            return;
+        }
+        try {
+            const spotTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
+            const contractTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
+            const allOrders = [...spotTrades, ...contractTrades].sort((a,b) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            setOrders(allOrders);
+        } catch (error) {
+            console.error("Failed to fetch orders from localStorage", error);
         }
     }, [isAdmin, router]);
 
-    const loadOrders = useCallback(() => {
-        if (isAdmin) {
-            try {
-                const spotTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]');
-                const contractTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]');
-                const allOrders = [...spotTrades, ...contractTrades].sort((a,b) => 
-                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                );
-                setOrders(allOrders);
-            } catch (error) {
-                console.error("Failed to fetch orders from localStorage", error);
-            }
-        }
-    }, [isAdmin]);
-
     useEffect(() => {
-        if (isAdmin) {
-            loadOrders();
-        }
-    }, [isAdmin, loadOrders]);
+        loadOrders();
+    }, [loadOrders]);
 
     if (!isAdmin) {
         return (
@@ -59,6 +53,16 @@ export default function AdminOrdersPage() {
                 </div>
             </DashboardLayout>
         )
+    }
+
+    const getOrderAmount = (order: Order) => {
+        if (order.orderType === 'spot') {
+            return (order as SpotTrade).total.toFixed(4);
+        }
+        if (order.orderType === 'contract') {
+            return (order as ContractTrade).amount.toFixed(4);
+        }
+        return 'N/A';
     }
 
     return (
@@ -98,7 +102,7 @@ export default function AdminOrdersPage() {
                                                 {order.type === 'buy' ? '买入' : '卖出'}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{((order as SpotTrade).total || (order as ContractTrade).amount).toFixed(4)}</TableCell>
+                                        <TableCell>{getOrderAmount(order)}</TableCell>
                                         <TableCell>{order.status}</TableCell>
                                         <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
                                     </TableRow>
