@@ -3,31 +3,35 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 export type User = {
-  username: string;
+  id: string; // Supabase auth user ID
+  email?: string;
   isTestUser: boolean;
   isAdmin: boolean;
   avatar?: string;
   isFrozen?: boolean;
   inviter: string | null;
   registeredAt?: string;
-  password?: string;
-}
+  username: string; // Add username to the type
+};
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
+  session: Session | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,127 +39,130 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    try {
-      const usersRaw = localStorage.getItem('users');
-      let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
-      const adminUserExists = users.some((u: any) => u.username === 'demo123');
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          const { data: userProfile, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-      if (!adminUserExists) {
-        users.push({
-          username: 'demo123',
-          password: '111222',
-          isAdmin: true,
-          isTestUser: false,
-          isFrozen: false,
-          inviter: null,
-          registeredAt: new Date().toISOString(),
-        });
-        localStorage.setItem('users', JSON.stringify(users));
-      }
-
-      const loggedInUsername = localStorage.getItem('loggedInUser');
-      if (loggedInUsername) {
-        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-        const currentUserData = allUsers.find(u => u.username === loggedInUsername);
-
-        if (currentUserData) {
-          const { password, ...userState } = currentUserData;
-          setIsAuthenticated(true);
-          setUser(userState as User);
-          setIsAdmin(currentUserData.isAdmin || false);
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            setUser(null);
+            setIsAdmin(false);
+          } else if (userProfile) {
+            setUser(userProfile);
+            setIsAdmin(userProfile.is_admin || false);
+          }
         } else {
-          localStorage.removeItem('loggedInUser');
-          setIsAuthenticated(false);
           setUser(null);
           setIsAdmin(false);
         }
-      }
-    } catch (e) {
-      console.error("Failed to parse auth data from localStorage", e);
-      localStorage.removeItem('loggedInUser');
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsAdmin(false);
-    } finally {
         setIsLoading(false);
-    }
-  }, []);
-  
-  const login = (username: string, password: string): boolean => {
-    try {
-      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-      const foundUser = users.find((u: User) => u.username === username && u.password === password);
-
-      if (foundUser) {
-        if (foundUser.isFrozen) {
-          return false;
-        }
-
-        localStorage.setItem('loggedInUser', username);
-        const { password: userPassword, ...userState } = foundUser;
-
-        setIsAuthenticated(true);
-        setUser(userState as User);
-        setIsAdmin(!!foundUser.isAdmin);
-        router.push(foundUser.isAdmin ? '/admin' : '/dashboard');
-        return true;
       }
-      return false;
-    } catch (e) {
-      console.error("Failed to parse user data from localStorage during login", e);
+    );
+
+    // Initial check
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+       if (data.session?.user) {
+          const { data: userProfile, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', data.session.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching user profile on initial load:', error);
+            setUser(null);
+            setIsAdmin(false);
+          } else if (userProfile) {
+            setUser(userProfile);
+            setIsAdmin(userProfile.is_admin || false);
+          }
+        }
+      setIsLoading(false);
+    };
+    checkUser();
+
+    return () => {
+      authListener?.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('Login failed:', error.message);
       return false;
     }
+    // Auth state change will handle setting user and redirecting
+    return true;
   };
 
-  const logout = () => {
-    localStorage.removeItem('loggedInUser');
-    setIsAuthenticated(false);
-    setUser(null);
-    setIsAdmin(false);
+  const logout = async () => {
+    await supabase.auth.signOut();
     router.push('/login');
   };
 
-  const updateUser = (userData: Partial<User>) => {
-    setUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
-
-    if (user) {
-      try {
-        const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-        const userIndex = users.findIndex((u: User) => u.username === user.username);
-        if (userIndex !== -1) {
-          const newUserData = { ...users[userIndex], ...userData };
-          if (!userData.password) {
-            newUserData.password = users[userIndex].password;
-          }
-          users[userIndex] = newUserData;
-          localStorage.setItem('users', JSON.stringify(users));
-        }
-      } catch (e) {
-        console.error("Failed to update user data in localStorage", e);
-      }
+  const updateUser = async (userData: Partial<User>) => {
+     if (!user) return;
+    const { data, error } = await supabase
+        .from('users')
+        .update(userData)
+        .eq('id', user.id)
+        .select()
+        .single();
+    if (error) {
+        console.error("Failed to update user in Supabase", error);
+    } else {
+        setUser(data as User);
     }
-  }
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+  };
+  
+   useEffect(() => {
+    if (!isLoading) {
+      const isAuthenticated = !!session;
+      if (isAuthenticated) {
+        if (isAdmin && !pathname.startsWith('/admin')) {
+          router.push('/admin/users');
+        } else if (!isAdmin && pathname.startsWith('/admin')) {
+          router.push('/dashboard');
+        }
+      } else {
         const publicPaths = ['/login', '/register'];
         if (!publicPaths.includes(pathname)) {
             router.push('/login');
         }
+      }
     }
-  }, [isLoading, isAuthenticated, router, pathname]);
-  
+  }, [session, isAdmin, isLoading, pathname, router]);
+
+
+  const value = {
+    isAuthenticated: !!session,
+    user,
+    isAdmin,
+    login,
+    logout,
+    updateUser,
+    session,
+  };
+
   if (isLoading) {
-    return null; 
+    return null; // Or a loading spinner
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, isAdmin, login, logout, updateUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
-
 
 export function useAuth() {
   const context = useContext(AuthContext);

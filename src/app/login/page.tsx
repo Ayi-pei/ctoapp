@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 const loginSchema = z.object({
-  username: z.string().min(1, '请输入用户名'),
+  username: z.string().min(1, '请输入用户名'), // In Supabase, this will be treated as email
   password: z.string().min(1, '请输入密码'),
 });
 
@@ -43,26 +43,20 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isAdmin, router]);
 
-  const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    try {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const foundUser = users.find((u: any) => u.username === values.username);
-        if (foundUser && foundUser.isFrozen) {
-            toast({
-                variant: 'destructive',
-                title: '登录失败',
-                description: '您的账户已被冻结，请联系客服。',
-            });
-            return;
-        }
-    } catch (e) { console.error("Could not check user status from local storage", e)}
+  const onSubmit = async (values: z.infer<typeof loginSchema>) => {
+    // Supabase uses email for login, so we'll construct a dummy email.
+    const email = `${values.username}@rsf.app`;
+    const success = await login(email, values.password);
 
-    const success = login(values.username, values.password);
     if (!success) {
       toast({
         variant: 'destructive',
         title: '登录失败',
         description: '用户名或密码错误。',
+      });
+    } else {
+       toast({
+        title: '登录成功',
       });
     }
   };
