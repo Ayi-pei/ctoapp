@@ -26,11 +26,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,25 +64,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentUserData) {
           const { password, ...userState } = currentUserData;
-
           setIsAuthenticated(true);
           setUser(userState as User);
           setIsAdmin(currentUserData.isAdmin || false);
-
-          if (!currentUserData.avatar) {
-            const avatar = `https://placehold.co/100x100.png?text=${currentUserData.username.charAt(0).toUpperCase()}`;
-            setUser(prev => prev ? { ...prev, avatar } : { ...userState, avatar } as User);
-          }
-
         } else {
-          // If user in session is not found in user list, log them out.
-          logout();
+          localStorage.removeItem('loggedInUser');
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsAdmin(false);
         }
-
-      } else {
-        setIsAuthenticated(false);
-        setUser(null);
-        setIsAdmin(false);
       }
     } catch (e) {
       console.error("Failed to parse auth data from localStorage", e);
@@ -90,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false);
       setUser(null);
       setIsAdmin(false);
+    } finally {
+        setIsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = (username: string, password: string): boolean => {
@@ -110,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
         setUser(userState as User);
         setIsAdmin(!!foundUser.isAdmin);
-
+        router.push(foundUser.isAdmin ? '/admin' : '/dashboard');
         return true;
       }
       return false;
@@ -149,9 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // This effect handles redirection if the user is not authenticated.
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+        const publicPaths = ['/login', '/register'];
+        if (!publicPaths.includes(router.pathname)) {
+            router.push('/login');
+        }
+    }
+  }, [isLoading, isAuthenticated, router]);
+  
+
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, isAdmin, login, logout, updateUser }}>
-      {children}
+      {isLoading ? null : children}
     </AuthContext.Provider>
   );
 }

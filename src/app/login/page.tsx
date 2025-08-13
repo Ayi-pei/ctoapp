@@ -44,7 +44,6 @@ export default function LoginPage() {
   }, [isAuthenticated, isAdmin, router]);
 
   const onSubmit = (values: z.infer<typeof loginSchema>) => {
-    // We check the raw users list to see if the account is frozen before attempting to log in.
     try {
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const foundUser = users.find((u: any) => u.username === values.username);
