@@ -10,7 +10,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { TatumSDK, Network, Bitcoin, Eth } from '@tatumio/tatum';
 
 const GetMarketDataInputSchema = z.object({
@@ -46,12 +46,15 @@ const getMarketDataFlow = ai.defineFlow(
     outputSchema: GetMarketDataOutputSchema,
   },
   async (input) => {
+    if (!process.env.TATUM_API_KEY) {
+        console.warn('TATUM_API_KEY is not set. Falling back to simulator.');
+        return { data: {} };
+    }
     if (!input.assetIds || input.assetIds.length === 0) {
         return { data: {} };
     }
     
     try {
-        // We initialize with a specific chain, but can still access other chain functionalities.
         const tatum = await TatumSDK.init<Bitcoin>({ 
             network: Network.BITCOIN,
             apiKey: {
@@ -61,17 +64,17 @@ const getMarketDataFlow = ai.defineFlow(
 
         const assetDataPromises = input.assetIds.map(async (assetId) => {
             try {
-                // Use the exchange rate API to get price data
-                const rate = await tatum.rates.getCurrentRate(assetId, 'USDT');
+                // Use the more comprehensive getAssetRate API
+                const rate = await tatum.assets.getAssetRate(assetId, 'USDT');
+
                 if (rate && rate.value) {
                     return {
                         id: assetId.toLowerCase(),
                         symbol: assetId,
                         priceUsd: rate.value.toString(),
-                        // The free tier for exchange rates may not provide volume/change data.
-                        // We'll return '0' as a fallback.
-                        changePercent24Hr: '0', 
-                        volumeUsd24Hr: '0',
+                        // Correctly map the change and volume from the API response
+                        changePercent24Hr: rate.change24h?.toString() || '0', 
+                        volumeUsd24Hr: rate.volume24h?.toString() || '0',
                     };
                 }
                 return null;
@@ -104,5 +107,3 @@ const getMarketDataFlow = ai.defineFlow(
     }
   }
 );
-
-    
