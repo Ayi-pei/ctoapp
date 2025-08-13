@@ -7,16 +7,24 @@ import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminPage() {
-    const { isAdmin } = useAuth();
+    const { user, isAuthenticated, isAdmin } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        if (isAdmin) {
+        // Wait until auth state is confirmed
+        if (user === undefined) {
+            return;
+        }
+
+        if (isAuthenticated && isAdmin) {
             router.replace('/admin/users');
-        } else {
+        } else if (isAuthenticated && !isAdmin) {
+             router.replace('/dashboard');
+        }
+        else {
             router.replace('/login');
         }
-    }, [isAdmin, router]);
+    }, [user, isAuthenticated, isAdmin, router]);
 
     return (
         <div className="p-8">
