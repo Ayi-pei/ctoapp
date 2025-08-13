@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
 import { Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
-import { availablePairs } from "@/types";
+import { availablePairs, Transaction } from "@/types";
 import { DownlineTree } from "./downline-tree";
 
 
@@ -73,29 +73,37 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         const amountStr = balanceAdjustments[asset] || '0';
         const amount = parseFloat(amountStr);
 
-        if (isNaN(amount)) {
-            toast({ variant: "destructive", title: "错误", description: "请输入有效的数字。" });
+        if (isNaN(amount) || amount === 0) {
+            toast({ variant: "destructive", title: "错误", description: "请输入一个有效的、非零的调整值。" });
             return;
         }
 
         try {
-            const allTxs = JSON.parse(localStorage.getItem('transactions') || '[]') as any[];
-            allTxs.push({
+            const allTxs = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+            
+            const newAdjustment: Transaction = {
                 id: `adj_${Date.now()}`,
                 userId: user.username,
                 type: 'adjustment',
                 asset: asset,
                 amount: amount,
-                status: 'approved',
+                status: 'approved', // Admin adjustments are always pre-approved
                 createdAt: new Date().toISOString()
-            });
+            };
+            
+            allTxs.push(newAdjustment);
             localStorage.setItem('transactions', JSON.stringify(allTxs));
             
-            toast({ title: "成功", description: `${user.username} 的 ${asset} 余额已调整。` });
+            toast({ title: "成功", description: `${user.username} 的 ${asset} 余额调整记录已创建。` });
             
+            // Clear the input field for this asset
             setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
-            recalculateBalanceForUser(user.username); // This will re-fetch the correct state
-            onUpdate(); // Trigger data reload in parent component
+            
+            // Trigger a full recalculation for the user, which is the source of truth
+            recalculateBalanceForUser(user.username);
+            
+            // Trigger data reload in parent component to reflect new balance and state
+            onUpdate(); 
 
         } catch (error) {
             toast({ variant: "destructive", title: "错误", description: "调整余额失败。" });

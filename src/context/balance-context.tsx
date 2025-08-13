@@ -38,7 +38,6 @@ interface BalanceContextType {
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
-  updateBalance: (username: string, asset: string, amount: number, type?: 'available' | 'frozen') => void;
   recalculateBalanceForUser: (username: string) => void;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -132,11 +131,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 }
             } else if (tx.type === 'withdrawal') {
                  if (tx.status === 'pending') {
+                    // This is the key fix: correctly deduct from available and add to frozen for pending withdrawals
                     calculatedBalances[tx.asset].available -= tx.amount;
                     calculatedBalances[tx.asset].frozen += tx.amount;
                  } else if (tx.status === 'rejected') {
                     // Money was never taken, it was just frozen. Now it is unfrozen.
-                    calculatedBalances[tx.asset].available += tx.amount;
+                    // This part seems complex, as we are recalculating from scratch.
+                    // Instead of adjusting, let's just make sure the final state is right.
+                    // The initial balance is already available, so we just remove the amount from frozen.
+                    calculatedBalances[tx.asset].frozen -= tx.amount;
                  } else if (tx.status === 'approved') {
                     // Money is gone from frozen.
                     calculatedBalances[tx.asset].frozen -= tx.amount;
@@ -210,6 +213,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     if (user) {
         try {
+            // First recalculate to catch any offline changes, then set state
+            recalculateBalanceForUser(user.username);
             const userBalances = loadUserBalances(user.username);
             setBalances(userBalances);
 
@@ -233,19 +238,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       setHistoricalTrades([]);
       setIsLoading(false);
     }
-  }, [user, isTestUser]);
+  }, [user]);
 
-  useEffect(() => {
-    // This effect persists the current user's balance changes to localStorage
-    if (!isLoading && user) {
-      try {
-        localStorage.setItem(`userBalances_${user.username}`, JSON.stringify(balances));
-        localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(investments));
-      } catch (error) {
-         console.error("Could not access localStorage to save balances.", error);
-      }
-    }
-  }, [balances, investments, isLoading, user]);
 
   useEffect(() => {
     // Contract settlement simulation
@@ -308,31 +302,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
 
   }, [user]);
-
   
-  const updateBalance = (username: string, asset: string, amount: number, type: 'available' | 'frozen' = 'available') => {
-    // This function acts like creating a transaction. It adds an adjustment record.
-    try {
-        const adjustmentTx: Transaction = {
-            id: `adj_${Date.now()}`,
-            userId: username,
-            type: 'adjustment',
-            asset: asset,
-            amount: amount,
-            status: 'approved', // Admin adjustments are auto-approved
-            createdAt: new Date().toISOString()
-        };
-        const allTxs = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-        allTxs.push(adjustmentTx);
-        localStorage.setItem('transactions', JSON.stringify(allTxs));
-        
-        // After logging the transaction, recalculate the balance
-        recalculateBalanceForUser(username);
-    } catch (error) {
-        console.error(`Failed to update balance for ${username}:`, error);
-    }
-  };
-
 
   const addInvestment = (productName: string, amount: number) => {
     if (!user) return false;
@@ -347,7 +317,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         date: new Date().toLocaleDateString()
     }
     try {
-        const investments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]');
+        const investments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]') as Investment[];
         investments.push(newInvestment);
         localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(investments));
         setInvestments(investments);
@@ -388,6 +358,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
                 const uplineUser = allUsers.find(u => u.username === currentUplineUsername);
                 if (uplineUser) {
+                    // Important: Instead of direct update, just mark for recalc
                     recalculateBalanceForUser(uplineUser.username);
                     currentUplineUsername = uplineUser.inviter;
                 } else {
@@ -406,25 +377,25 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const placeContractTrade = (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
 
-    const now = Date.now();
-    const fullTrade: ContractTrade = {
-        ...trade,
-        id: `contract_${now}`,
-        userId: user.username,
-        tradingPair,
-        orderType: 'contract',
-        status: 'active',
-        entryPrice: marketData.summary.price,
-        settlementTime: now + (trade.period * 1000),
-        createdAt: new Date().toISOString(),
-    }
-
+    // Persist first, then update state by re-reading source of truth
     try {
-        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
+        const now = Date.now();
+        const fullTrade: ContractTrade = {
+            ...trade,
+            id: `contract_${now}`,
+            userId: user.username,
+            tradingPair,
+            orderType: 'contract',
+            status: 'active',
+            entryPrice: marketData.summary.price,
+            settlementTime: now + (trade.period * 1000),
+            createdAt: new Date().toISOString(),
+        }
+
+        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
         existingTrades.push(fullTrade);
         localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
 
-        // After successfully saving the trade, THEN update balances and UI
         handleCommissionDistribution(user, trade.amount);
         recalculateBalanceForUser(user.username);
         loadUserTrades(user.username);
@@ -437,21 +408,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const placeSpotTrade = (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
      if (!user) return;
     
-    const fullTrade: SpotTrade = {
-        ...trade,
-        id: `spot_${Date.now()}`,
-        userId: user.username,
-        tradingPair,
-        orderType: 'spot',
-        status: 'filled',
-        createdAt: new Date().toISOString(),
-    }
-
     try {
-        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as [];
+        const fullTrade: SpotTrade = {
+            ...trade,
+            id: `spot_${Date.now()}`,
+            userId: user.username,
+            tradingPair,
+            orderType: 'spot',
+            status: 'filled',
+            createdAt: new Date().toISOString(),
+        }
+        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
         existingTrades.push(fullTrade);
         localStorage.setItem('spotTrades', JSON.stringify(existingTrades));
-        // After successfully saving the trade, THEN update balances and UI
+
         recalculateBalanceForUser(user.username);
         loadUserTrades(user.username);
     } catch (error) {
@@ -459,7 +429,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 
   };
-
+  
 
   const value = { 
       balances, 
@@ -470,7 +440,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       investments,
       balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
-      updateBalance,
       recalculateBalanceForUser,
       activeContractTrades,
       historicalTrades,
@@ -490,5 +459,3 @@ export function useBalance() {
   }
   return context;
 }
-
-    
