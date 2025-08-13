@@ -72,8 +72,8 @@ const generateInitialDataForPair = (pair: string) => {
     bids.push({ price: bidPrice, size: bidSize, total: cumulativeBidSize });
     bidPrice *= randomInRange(0.9997, 0.9999);
   }
-   bids.sort((a,b) => b.price - a.price);
-   asks.sort((a,b) => a.price - b.price);
+   bids.sort((a: Order, b: Order) => b.price - a.price);
+   asks.sort((a: Order, b: Order) => a.price - b.price);
 
 
   // Trade history data
@@ -236,14 +236,13 @@ export const useMarketData = () => {
                 let updatedData = { 
                     ...prevData, 
                     summary: newSummary, 
-                    // Only update priceData for all pairs, heavy data only for active pair
                     priceData: newPriceData 
                 };
                 
                 // For the currently active trading pair, also update the heavy order book and trades for visual effect
                 if (pair === tradingPair) {
-                     const newAsks = prevData.orderBook.asks.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => a.price - b.price);
-                     const newBids = prevData.orderBook.bids.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => b.price - a.price);
+                     const newAsks = prevData.orderBook.asks.map((order: Order) => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a: Order,b: Order) => a.price - b.price);
+                     const newBids = prevData.orderBook.bids.map((order: Order) => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a: Order,b: Order) => b.price - a.price);
 
                     const newTrades = [...prevData.trades];
                     if (Math.random() > 0.7) {
@@ -284,3 +283,5 @@ export const useMarketData = () => {
       forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
     };
 };
+
+    

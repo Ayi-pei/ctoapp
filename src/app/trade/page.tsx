@@ -80,7 +80,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                 <TabsContent value="spot">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
-                            <SpotOrderForm
+                             <SpotOrderForm
                                 tradingPair={tradingPair}
                                 balances={balances}
                                 onPlaceTrade={(trade) => placeSpotTrade(trade, tradingPair)}
@@ -98,7 +98,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                 <TabsContent value="contract">
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
-                            <OrderForm
+                             <OrderForm
                                 tradingPair={tradingPair}
                                 balance={balances['USDT']?.available || 0}
                                 onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
@@ -226,3 +226,5 @@ export default function SuspenseWrapper() {
         </React.Suspense>
     )
 }
+
+    

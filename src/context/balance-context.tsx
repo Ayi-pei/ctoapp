@@ -1,19 +1,19 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, CommissionLog, Transaction, Investment, availablePairs } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
-import { useAuth, User } from './auth-context';
-import { useMarket } from './market-data-context';
+import { useAuth, User } from '@/context/auth-context';
+import { useMarket } from '@/context/market-data-context';
 
-const INITIAL_BALANCES_TEST_USER = {
+const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 10000, frozen: 0 },
     BTC: { available: 0.5, frozen: 0 },
     ETH: { available: 10, frozen: 0 },
 };
 
-const INITIAL_BALANCES_REAL_USER = {
+const INITIAL_BALANCES_REAL_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
     BTC: { available: 0, frozen: 0 },
     ETH: { available: 0, frozen: 0 },
@@ -55,7 +55,7 @@ type CommissionRates = typeof COMMISSION_RATES;
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: marketData } = useMarket(); // Get current market data
-  const [balances, setBalances] = useState(INITIAL_BALANCES_REAL_USER);
+  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_REAL_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,7 +83,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadUserTrades = (username: string) => {
+  const loadUserTrades = useCallback((username: string) => {
         try {
             const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
             const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
@@ -102,16 +102,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error("Failed to fetch user trades:", error);
         }
-    };
+    }, []);
 
 
-  const recalculateBalanceForUser = (username: string) => {
+  const recalculateBalanceForUser = useCallback((username: string) => {
     try {
         const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
         const targetUser = allUsers.find(u => u.username === username);
         if (!targetUser) return;
 
-        let calculatedBalances = targetUser.isTestUser ? 
+        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.isTestUser ? 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
 
@@ -197,7 +197,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     } catch (error) {
         console.error(`Error recalculating balance for ${username}:`, error);
     }
-  };
+  }, [user]);
 
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       setHistoricalTrades([]);
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, recalculateBalanceForUser, loadUserTrades]);
 
 
   useEffect(() => {
@@ -291,7 +291,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     return () => clearInterval(interval);
 
-  }, [user, recalculateBalanceForUser]);
+  }, [user, recalculateBalanceForUser, loadUserTrades]);
   
 
   const addInvestment = (productName: string, amount: number) => {
@@ -471,5 +471,7 @@ export function useBalance() {
   }
   return context;
 }
+
+    
 
     

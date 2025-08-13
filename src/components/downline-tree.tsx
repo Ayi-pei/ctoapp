@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { User as AuthUser } from "@/context/auth-context";
 import { Skeleton } from "./ui/skeleton";
 
@@ -41,7 +40,7 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
     useEffect(() => {
         setIsLoading(true);
         try {
-            const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
+            const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
             const userMap = new Map(allUsers.map(u => [u.username, u]));
             
             // Only the admin can have a downline now.

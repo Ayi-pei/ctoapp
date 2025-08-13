@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { TatumSDK, Network } from '@tatumio/tatum';
+import { TatumSDK, Network, Bitcoin, Eth } from '@tatumio/tatum';
 
 const GetMarketDataInputSchema = z.object({
   assetIds: z.array(z.string()).describe('A list of asset IDs to fetch data for (e.g., ["BTC", "ETH"]).'),
@@ -51,30 +51,27 @@ const getMarketDataFlow = ai.defineFlow(
     }
     
     try {
-        const tatum = await TatumSDK.init({ 
-            network: Network.ETHEREUM,
+        // We initialize with a specific chain, but can still access other chain functionalities.
+        const tatum = await TatumSDK.init<Bitcoin>({ 
+            network: Network.BITCOIN,
             apiKey: {
                 v4: process.env.TATUM_API_KEY,
             }
         });
 
-        // Tatum's free plan may only allow fetching one at a time.
-        // For a more robust solution, you might need a paid plan for batch requests or use Promise.all.
         const assetDataPromises = input.assetIds.map(async (assetId) => {
             try {
-                // Tatum uses symbol (e.g., BTC) instead of full name (e.g., bitcoin) for this call
-                 const assets = await tatum.getAssets({
-                    symbols: [assetId],
-                 });
-
-                if (assets.data && assets.data.length > 0) {
-                    const asset = assets.data[0];
+                // Use the exchange rate API to get price data
+                const rate = await tatum.rates.getCurrentRate(assetId, 'USDT');
+                if (rate && rate.value) {
                     return {
-                        id: assetId.toLowerCase(), // Normalizing to lowercase id like coincap
-                        symbol: asset.symbol,
-                        priceUsd: asset.marketCap && asset.circulatingSupply ? (asset.marketCap / asset.circulatingSupply).toString() : '0', // Approximate price if not directly available
-                        changePercent24Hr: asset.rateChange?.day?.toString() ?? '0',
-                        volumeUsd24Hr: asset.volume?.day?.toString() ?? '0',
+                        id: assetId.toLowerCase(),
+                        symbol: assetId,
+                        priceUsd: rate.value.toString(),
+                        // The free tier for exchange rates may not provide volume/change data.
+                        // We'll return '0' as a fallback.
+                        changePercent24Hr: '0', 
+                        volumeUsd24Hr: '0',
                     };
                 }
                 return null;
@@ -107,3 +104,5 @@ const getMarketDataFlow = ai.defineFlow(
     }
   }
 );
+
+    
