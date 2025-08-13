@@ -13,10 +13,13 @@ type DashboardLayoutProps = {
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    // Redirect to login if auth is not resolved or user is not authenticated.
+    // The check for `user === undefined` is removed as the context now handles the redirect on logout.
+    // We still keep a check here for initial load protection.
     if (!isAuthenticated) {
       router.push('/login');
     }

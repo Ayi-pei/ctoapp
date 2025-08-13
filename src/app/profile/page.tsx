@@ -137,7 +137,7 @@ export default function ProfilePage() {
                     {actionItems.map(item => (
                          <div key={item.label} onClick={item.onClick}>
                             <ListItem label={item.label} icon={item.icon}>
-                                {item.customComponent}
+                                {item.customComponent ? item.customComponent : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                             </ListItem>
                         </div>
                     ))}

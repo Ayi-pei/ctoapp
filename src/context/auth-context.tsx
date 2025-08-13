@@ -2,6 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 export type User = {
   username: string;
@@ -27,19 +28,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+function AuthProviderContent({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const router = useRouter();
   
   useEffect(() => {
-    // This effect ensures the admin user exists and is configured correctly, but only creates it if it doesn't exist.
     try {
         const usersRaw = localStorage.getItem('users');
         let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
         const adminUserExists = users.some((u: any) => u.username === 'demo123');
         
-        // Only create the admin user if it does not exist.
         if (!adminUserExists) {
             users.push({
                 username: 'demo123',
@@ -58,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Failed to initialize admin user", e);
     }
 
-    // This effect handles user session restoration.
     try {
       const loggedInUsername = localStorage.getItem('loggedInUser');
       if (loggedInUsername) {
@@ -126,18 +125,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     setUser(null);
     setIsAdmin(false);
+    router.push('/login');
   };
   
   const updateUser = (userData: Partial<User>) => {
     setUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
     
-    // Also update the master list in localStorage
     if (user) {
         try {
             const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
             const userIndex = users.findIndex((u: User) => u.username === user.username);
             if (userIndex !== -1) {
-                // Ensure we don't overwrite password if it's not being changed
                 const newUserData = { ...users[userIndex], ...userData };
                 if (!userData.password) {
                     newUserData.password = users[userIndex].password;
@@ -158,6 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return <AuthProviderContent>{children}</AuthProviderContent>;
+}
+
 
 export function useAuth() {
   const context = useContext(AuthContext);
