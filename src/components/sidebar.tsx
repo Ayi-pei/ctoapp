@@ -28,9 +28,10 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
 
-  const navItems = isAdmin && pathname.startsWith('/admin') ? adminNavItems : userNavItems;
+  const isUserSection = !pathname.startsWith('/admin');
+  const navItems = isAdmin && !isUserSection ? adminNavItems : userNavItems;
   
-  if (isAdmin && !pathname.startsWith('/admin')) {
+  if (isAdmin && isUserSection) {
       // If admin is logged in but not in admin section, show a specific menu
       // For now, we can just show user menu or a limited menu.
       // Or we can redirect them to /admin. For now, we just show user items.
@@ -41,24 +42,39 @@ export function Sidebar() {
     <aside className="w-64 flex-shrink-0 border-r border-border p-4 hidden md:block">
       <nav>
         <ul>
-          {navItems.map((item) => (
-            <li key={item.label}>
-              <Link href={item.href}>
-                <span
-                  className={cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted',
-                    // Exact match for dashboard, startsWith for others
-                    (pathname === item.href) || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-                      ? 'bg-primary text-primary-foreground'
-                      : ''
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
+          {navItems.map((item, index) => {
+            let isActive = false;
+            const basePath = isAdmin && !isUserSection ? adminNavItems[0].href : userNavItems[0].href;
+
+            if (index === 0) { // First item in the list
+                isActive = pathname === basePath;
+            } else {
+                isActive = pathname.startsWith(item.href);
+            }
+             // User nav has a different logic for the first item
+            if (!isAdmin || isUserSection) {
+                isActive = (item.href === '/dashboard' && pathname === item.href) || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            }
+
+
+            return (
+                 <li key={item.label}>
+                  <Link href={item.href}>
+                    <span
+                      className={cn(
+                        'flex items-center gap-3 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted',
+                        isActive
+                          ? 'bg-primary text-primary-foreground'
+                          : ''
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </span>
+                  </Link>
+                </li>
+            )
+          })}
         </ul>
       </nav>
     </aside>
