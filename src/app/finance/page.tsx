@@ -12,6 +12,7 @@ import { InvestmentDialog } from "@/components/investment-dialog";
 import { useBalance, Investment } from "@/context/balance-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 type InvestmentProductProps = {
     name: string;
@@ -154,9 +155,9 @@ export default function FinancePage() {
         setIsInvestmentDialogOpen(true);
     }
     
-    const handleConfirmInvestment = (amount: number) => {
+    const handleConfirmInvestment = async (amount: number) => {
         if (!selectedProduct) return;
-        const success = addInvestment(selectedProduct.name, amount);
+        const success = await addInvestment(selectedProduct.name, amount);
         if (success) {
             toast({
                 title: "投资成功",
@@ -247,3 +248,5 @@ export default function FinancePage() {
         </DashboardLayout>
     );
 }
+
+    
