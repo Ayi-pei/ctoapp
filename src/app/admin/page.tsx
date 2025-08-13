@@ -11,9 +11,10 @@ export default function AdminPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Wait until auth state is confirmed
+        // Wait until the auth state is fully resolved.
+        // `user` will be `undefined` on the initial render and `null` or an object after the context has checked localStorage.
         if (user === undefined) {
-            return;
+            return; // Do nothing until the auth context is initialized
         }
 
         if (isAuthenticated && isAdmin) {
@@ -22,10 +23,12 @@ export default function AdminPage() {
              router.replace('/dashboard');
         }
         else {
+            // If not authenticated (user is null), redirect to login
             router.replace('/login');
         }
     }, [user, isAuthenticated, isAdmin, router]);
 
+    // Render a loading skeleton while the redirection logic is processing
     return (
         <div className="p-8">
             <Skeleton className="h-24 w-full" />
