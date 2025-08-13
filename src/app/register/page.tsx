@@ -45,20 +45,22 @@ export default function RegisterPage() {
         return;
       }
       
-      // The single source of truth for the invitation code is in localStorage
       const validInvitationCode = localStorage.getItem('invitationCode');
       if (!validInvitationCode || values.invitationCode !== validInvitationCode) {
          toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
         return;
       }
-
+      
+      // The inviter is always the admin 'demo123' based on the new logic.
+      const inviter = 'demo123';
+      
       const newUser: User = { 
           username: values.username, 
           password: values.password,
           isAdmin: false,
-          isTestUser: false, // All new users are regular users
+          isTestUser: false, 
           isFrozen: false,
-          inviter: 'demo123', // Admin is the default inviter
+          inviter: inviter,
           registeredAt: new Date().toISOString(),
       };
       
@@ -144,5 +146,3 @@ export default function RegisterPage() {
     </AuthLayout>
   );
 }
-
-    
