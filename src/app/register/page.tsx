@@ -61,7 +61,7 @@ export default function RegisterPage() {
         return;
       }
       
-      const isTestUser = values.invitationCode === '888888';
+      const isTestUser = values.invitationCode === 'TESTER';
 
       // Generate a unique invitation code for the new user
       let newInvitationCode = generateCode();

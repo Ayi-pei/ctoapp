@@ -33,10 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   useEffect(() => {
+    // This effect ensures the admin user exists and is configured correctly.
     try {
         const usersRaw = localStorage.getItem('users');
         let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
         const adminUser = users.find((u: any) => u.username === 'demo123');
+        
+        // Only create the admin user if it does not exist.
         if (!adminUser) {
             users.push({
                 username: 'demo123',
@@ -44,25 +47,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAdmin: true,
                 isTestUser: false,
                 isFrozen: false,
-                invitationCode: '111222', // Admin has a unique code
+                invitationCode: 'ADMIN1', // Unique admin invite code
                 inviter: null,
                 downline: [],
                 registeredAt: new Date().toISOString(),
             });
-             localStorage.setItem('users', JSON.stringify(users));
+            localStorage.setItem('users', JSON.stringify(users));
         } else {
-            // Ensure admin password is correct if user already exists
+            // Optional: ensure admin password is correct if it was somehow changed, but avoid overwriting.
             const adminIndex = users.findIndex((u: any) => u.username === 'demo123');
             if (users[adminIndex].password !== '111222') {
-                users[adminIndex].password = '111222';
-                localStorage.setItem('users', JSON.stringify(users));
+                // This block can be used for recovery but is commented out to prevent resets.
+                // users[adminIndex].password = '111222';
+                // localStorage.setItem('users', JSON.stringify(users));
             }
         }
     } catch (e) {
         console.error("Failed to initialize admin user", e);
     }
 
-
+    // This effect handles user session restoration.
     try {
       const loggedInUsername = localStorage.getItem('loggedInUser');
       if (loggedInUsername) {
