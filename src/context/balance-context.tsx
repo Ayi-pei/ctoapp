@@ -46,7 +46,7 @@ interface BalanceContextType {
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
-const COMMISSION_RATES = {
+const COMMISSION_RATES: { [key: number]: number } = {
     1: 0.08, // Level 1: 8%
 };
 
@@ -65,6 +65,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   
   const loadUserBalances = (username: string) => {
+    // This function can only run on the client
+    if (typeof window === 'undefined') return INITIAL_BALANCES_REAL_USER;
     try {
         const storedBalances = localStorage.getItem(`userBalances_${username}`);
         if (storedBalances) {
@@ -84,6 +86,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   };
 
   const loadUserTrades = useCallback((username: string) => {
+        if (typeof window === 'undefined') return;
         try {
             const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
             const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
@@ -106,6 +109,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
 
   const recalculateBalanceForUser = useCallback((username: string) => {
+    if (typeof window === 'undefined') return;
     try {
         const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
         const targetUser = allUsers.find(u => u.username === username);
@@ -204,6 +208,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
     if (user) {
+        // All localStorage access is client-side only.
         try {
             // First recalculate to catch any offline changes, then set state
             recalculateBalanceForUser(user.username);
@@ -235,7 +240,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Contract settlement simulation
-    if (!user) return;
+    if (!user || typeof window === 'undefined') return;
 
     const interval = setInterval(() => {
         try {
@@ -321,9 +326,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }
   
     const handleCommissionDistribution = (sourceUser: User, tradeAmount: number) => {
+        if (typeof window === 'undefined') return;
         try {
             const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
-            const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
+            const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as [];
 
             const uplineUsername = sourceUser.inviter;
             if (!uplineUsername) return; // No inviter, no commission
@@ -414,7 +420,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
   const requestWithdrawal = (asset: string, amount: number, address: string) => {
       if (!user) return false;
-      if (amount > (balances[asset]?.available || 0)) {
+      const balance = balances[asset] as { available: number; frozen: number } | undefined;
+      if (amount > (balance?.available || 0)) {
           return false;
       }
        try {
@@ -471,7 +478,3 @@ export function useBalance() {
   }
   return context;
 }
-
-    
-
-    

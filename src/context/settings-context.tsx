@@ -49,6 +49,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>({});
     
     useEffect(() => {
+        // This effect runs only on the client
+        if (typeof window === 'undefined') {
+            return;
+        }
         try {
             const storedSettings = localStorage.getItem('marketSettings');
             if (storedSettings) {
@@ -72,6 +76,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const saveSettings = (newSettings: AllSettings) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
         try {
             localStorage.setItem('marketSettings', JSON.stringify(newSettings));
         } catch(e) {
