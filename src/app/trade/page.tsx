@@ -78,11 +78,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                     <TabsTrigger value="contract">秒合约</TabsTrigger>
                 </TabsList>
                 <TabsContent value="spot">
-                    <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 mt-4">
-                        <div className="flex flex-col gap-4">
-                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                            <TradeHistory trades={data.trades} />
-                        </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
                             <SpotOrderForm
                                 tradingPair={tradingPair}
@@ -93,20 +89,24 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                 currentPrice={data.summary.price}
                             />
                         </div>
+                        <div className="flex flex-col gap-4">
+                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                            <TradeHistory trades={data.trades} />
+                        </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="contract">
-                    <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 mt-4">
-                        <div className="flex flex-col gap-4">
-                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                             <TradeHistory trades={data.trades} />
-                        </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
                             <OrderForm
                                 tradingPair={tradingPair}
                                 balance={balances['USDT']?.available || 0}
                                 onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
                             />
+                        </div>
+                        <div className="flex flex-col gap-4">
+                             <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                             <TradeHistory trades={data.trades} />
                         </div>
                     </div>
                 </TabsContent>

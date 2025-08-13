@@ -153,7 +153,7 @@ export function SpotOrderForm({
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="market">市价委托</SelectItem>
-                    <SelectItem value="limit">限价委托</SelectItem>
+                    <SelectItem value="limit" disabled>限价委托 (暂不可用)</SelectItem>
                 </SelectContent>
             </Select>
 
