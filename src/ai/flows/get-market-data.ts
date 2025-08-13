@@ -63,7 +63,7 @@ const getMarketDataFlow = ai.defineFlow(
         const assetDataPromises = input.assetIds.map(async (assetId) => {
             try {
                 // Tatum uses symbol (e.g., BTC) instead of full name (e.g., bitcoin) for this call
-                 const assets = await tatum.assets.getAssets({
+                 const assets = await tatum.getAssets({
                     symbols: [assetId],
                  });
 
