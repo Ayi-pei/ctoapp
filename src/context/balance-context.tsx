@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, availablePairs } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
-import { useAuth, User } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
 
@@ -37,12 +37,12 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'createdAt' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
-  recalculateBalanceForUser: (userId: string) => void;
+  recalculateBalanceForUser: (userId: string) => Promise<any>;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -99,7 +99,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if (!userId) return;
     try {
         const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
-        if (userError || !targetUser) return;
+        if (userError || !targetUser) return {};
 
         let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.is_test_user ? 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
@@ -110,7 +110,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         if (txError) throw txError;
 
 
-        userFinancialTxs.forEach(tx => {
+        userFinancialTxs.forEach((tx: Transaction) => {
             if (!calculatedBalances[tx.asset]) calculatedBalances[tx.asset] = { available: 0, frozen: 0 };
             
             if (tx.type === 'deposit' && tx.status === 'approved') {
@@ -124,7 +124,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                  } else if (tx.status === 'approved') {
                     calculatedBalances[tx.asset].frozen -= tx.amount;
                  }
-            } else if (tx.type === 'adjustment') { // Admin adjustments
+            } else if (tx.type === 'adjustment' && tx.status === 'approved') { // Admin adjustments
                 calculatedBalances[tx.asset].available += tx.amount;
             }
         });
@@ -154,9 +154,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
              
              if (trade.status === 'active') {
                 calculatedBalances['USDT'].available -= trade.amount;
+                calculatedBalances['USDT'].frozen += trade.amount;
              }
              
              if (trade.status === 'settled' && trade.profit !== undefined && trade.profit !== null) {
+                 calculatedBalances['USDT'].frozen -= trade.amount;
                  calculatedBalances['USDT'].available += (trade.amount + trade.profit);
              }
         });
@@ -181,9 +183,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         if (user && user.id === userId) {
             setBalances(calculatedBalances);
         }
+        return calculatedBalances;
 
     } catch (error) {
         console.error(`Error recalculating balance for ${userId}:`, error);
+        return {};
     }
   }, [user]);
 
@@ -307,7 +311,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter').eq('id', sourceUserId).single();
             if (userError || !sourceUser || !sourceUser.inviter) return;
 
-            const { data: uplineUser, error: uplineError } = await supabase.from('users').select('id, is_admin').eq('username', sourceUser.inviter).single();
+            const { data: uplineUser, error: uplineError } = await supabase.from('users').select('id, username, is_admin').eq('username', sourceUser.inviter).single();
             if(uplineError || !uplineUser || !uplineUser.is_admin) return;
 
 
@@ -317,6 +321,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             const newLog = {
                 upline_user_id: uplineUser.id,
                 source_user_id: sourceUserId,
+                source_username: user?.username,
                 source_level: 1,
                 trade_amount: tradeAmount,
                 commission_rate: commissionRate,
@@ -448,3 +453,5 @@ export function useBalance() {
   }
   return context;
 }
+
+    
