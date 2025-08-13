@@ -6,6 +6,7 @@ import { ContractTrade, SpotTrade, CommissionLog, Transaction, Investment, avail
 import { CircleDollarSign } from 'lucide-react';
 import { useAuth, User } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
+import { supabase } from '@/lib/supabase';
 
 const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 10000, frozen: 0 },
@@ -33,15 +34,15 @@ type ContractTradeParams = {
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
-  addInvestment: (productName: string, amount: number) => boolean;
+  addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
-  requestWithdrawal: (asset: string, amount: number, address: string) => boolean;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at'>, tradingPair: string) => void;
+  requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
-  recalculateBalanceForUser: (username: string) => void;
+  recalculateBalanceForUser: (userId: string) => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -49,8 +50,6 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 const COMMISSION_RATES: { [key: number]: number } = {
     1: 0.08, // Level 1: 8%
 };
-
-type CommissionRates = typeof COMMISSION_RATES;
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -64,43 +63,22 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
 
   
-  const loadUserBalances = (username: string) => {
-    // This function can only run on the client
-    if (typeof window === 'undefined') return INITIAL_BALANCES_REAL_USER;
-    try {
-        const storedBalances = localStorage.getItem(`userBalances_${username}`);
-        if (storedBalances) {
-            return JSON.parse(storedBalances);
-        }
-        
-        const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-        const currentUser = users.find((u: any) => u.username === username);
-        return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
-
-    } catch (e) { 
-        console.error(e);
-        const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-        const currentUser = users.find((u) => u.username === username);
-        return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
-    }
-  };
-
-  const loadUserTrades = useCallback((username: string) => {
-        if (typeof window === 'undefined') return;
+  const loadUserTrades = useCallback(async (userId: string) => {
+        if (!userId) return;
         try {
-            const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
-            const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
+            const { data: allContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
+            const { data: allSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId);
             
-            const userContractTrades = allContractTrades.filter(t => t.userId === username);
-            const userSpotTrades = allSpotTrades.filter(t => t.userId === username);
+            if (contractError) throw contractError;
+            if (spotError) throw spotError;
 
-            setActiveContractTrades(userContractTrades.filter(t => t.status === 'active'));
+            setActiveContractTrades(allContractTrades.filter(t => t.status === 'active'));
             
-            const settledContractTrades = userContractTrades.filter(t => t.status === 'settled');
-            const combinedHistory = [...settledContractTrades, ...userSpotTrades]
-                .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const settledContractTrades = allContractTrades.filter(t => t.status === 'settled');
+            const combinedHistory = [...settledContractTrades, ...allSpotTrades]
+                .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-            setHistoricalTrades(combinedHistory);
+            setHistoricalTrades(combinedHistory as (SpotTrade | ContractTrade)[]);
 
         } catch (error) {
             console.error("Failed to fetch user trades:", error);
@@ -108,20 +86,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }, []);
 
 
-  const recalculateBalanceForUser = useCallback((username: string) => {
-    if (typeof window === 'undefined') return;
+  const recalculateBalanceForUser = useCallback(async (userId: string) => {
+    if (!userId) return;
     try {
-        const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
-        const targetUser = allUsers.find(u => u.username === username);
-        if (!targetUser) return;
+        const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
+        if (userError || !targetUser) return;
 
-        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.isTestUser ? 
+        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.is_test_user ? 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
 
         // 1. Financial Transactions (Deposits/Withdrawals/Admin Adjustments)
-        const allFinancialTxs: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]') as [];
-        const userFinancialTxs = allFinancialTxs.filter(tx => tx.userId === username);
+        const { data: userFinancialTxs, error: txError } = await supabase.from('transactions').select('*').eq('user_id', userId);
+        if (txError) throw txError;
+
 
         userFinancialTxs.forEach(tx => {
             if (!calculatedBalances[tx.asset]) calculatedBalances[tx.asset] = { available: 0, frozen: 0 };
@@ -130,14 +108,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 calculatedBalances[tx.asset].available += tx.amount;
             } else if (tx.type === 'withdrawal') {
                  if (tx.status === 'pending') {
-                    // This is the key logic: pending withdrawals are moved from available to frozen
                     calculatedBalances[tx.asset].available -= tx.amount;
                     calculatedBalances[tx.asset].frozen += tx.amount;
                  } else if (tx.status === 'rejected') {
-                    // Money is returned to available from frozen
                     calculatedBalances[tx.asset].available += tx.amount;
                  } else if (tx.status === 'approved') {
-                    // Money is permanently gone from frozen.
                     calculatedBalances[tx.asset].frozen -= tx.amount;
                  }
             } else if (tx.type === 'adjustment') { // Admin adjustments
@@ -147,24 +122,24 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
 
         // 2. Spot Trades
-        const allSpotTrades: SpotTrade[] = JSON.parse(localStorage.getItem('spotTrades') || '[]') as [];
-        const userSpotTrades = allSpotTrades.filter(t => t.userId === username && t.status === 'filled');
+        const {data: userSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId).eq('status', 'filled');
+        if (spotError) throw spotError;
         userSpotTrades.forEach(trade => {
-            if (!calculatedBalances[trade.baseAsset]) calculatedBalances[trade.baseAsset] = { available: 0, frozen: 0 };
-            if (!calculatedBalances[trade.quoteAsset]) calculatedBalances[trade.quoteAsset] = { available: 0, frozen: 0 };
+            if (!calculatedBalances[trade.base_asset]) calculatedBalances[trade.base_asset] = { available: 0, frozen: 0 };
+            if (!calculatedBalances[trade.quote_asset]) calculatedBalances[trade.quote_asset] = { available: 0, frozen: 0 };
 
             if (trade.type === 'buy') {
-                calculatedBalances[trade.quoteAsset].available -= trade.total;
-                calculatedBalances[trade.baseAsset].available += trade.amount;
+                calculatedBalances[trade.quote_asset].available -= trade.total;
+                calculatedBalances[trade.base_asset].available += trade.amount;
             } else { // sell
-                calculatedBalances[trade.baseAsset].available -= trade.amount;
-                calculatedBalances[trade.quoteAsset].available += trade.total;
+                calculatedBalances[trade.base_asset].available -= trade.amount;
+                calculatedBalances[trade.quote_asset].available += trade.total;
             }
         });
 
         // 3. Contract Trades
-        const allContractTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
-        const userContractTrades = allContractTrades.filter(t => t.userId === username);
+        const { data: userContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
+        if(contractError) throw contractError;
         userContractTrades.forEach(trade => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              
@@ -178,28 +153,28 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         });
 
         // 4. Investments
-        const userInvestments: Investment[] = JSON.parse(localStorage.getItem(`userInvestments_${username}`) || '[]') as [];
+        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', userId);
+        if(invError) throw invError;
         userInvestments.forEach(investment => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              calculatedBalances['USDT'].available -= investment.amount;
         });
 
         // 5. Commissions
-        const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as [];
-        const userCommissions = allCommissions.filter(c => c.uplineUsername === username);
+        const { data: userCommissions, error: commError } = await supabase.from('commission_logs').select('*').eq('upline_user_id', userId);
+        if(commError) throw commError;
         userCommissions.forEach(log => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             calculatedBalances['USDT'].available += log.commissionAmount;
+             calculatedBalances['USDT'].available += log.commission_amount;
         })
         
-        localStorage.setItem(`userBalances_${username}`, JSON.stringify(calculatedBalances));
-
-        if (user && user.username === username) {
+        // This is a calculated value, so we don't save it back. We just update the state for the current user.
+        if (user && user.id === userId) {
             setBalances(calculatedBalances);
         }
 
     } catch (error) {
-        console.error(`Error recalculating balance for ${username}:`, error);
+        console.error(`Error recalculating balance for ${userId}:`, error);
     }
   }, [user]);
 
@@ -208,25 +183,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
     if (user) {
-        // All localStorage access is client-side only.
-        try {
-            // First recalculate to catch any offline changes, then set state
-            recalculateBalanceForUser(user.username);
-            const userBalances = loadUserBalances(user.username);
-            setBalances(userBalances);
-
-            const storedInvestments = localStorage.getItem(`userInvestments_${user.username}`);
-            setInvestments(storedInvestments ? JSON.parse(storedInvestments) : []);
-            
-            loadUserTrades(user.username);
-
-        } catch (error) {
-            console.error("Could not access localStorage or parse balances.", error);
-            setBalances(user.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
-            setInvestments([]);
-        } finally {
-            setIsLoading(false);
+        recalculateBalanceForUser(user.id);
+        loadUserTrades(user.id);
+        const loadInvestments = async () => {
+          const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
+          if (error) console.error("Could not fetch investments", error);
+          else setInvestments(data || []);
         }
+        loadInvestments();
+        setIsLoading(false);
     } else {
       // Not authenticated, clear balances
       setBalances(INITIAL_BALANCES_REAL_USER);
@@ -242,50 +207,54 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // Contract settlement simulation
     if (!user || typeof window === 'undefined') return;
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
         try {
-            const allTrades: ContractTrade[] = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
-            const userActiveTrades = allTrades.filter(t => t.userId === user.username && t.status === 'active');
+            const { data: userActiveTrades, error } = await supabase
+                .from('contract_trades')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('status', 'active');
             
-            if (userActiveTrades.length === 0) return;
+            if (error || !userActiveTrades || userActiveTrades.length === 0) return;
 
             let tradeSettled = false;
             const now = Date.now();
 
-            userActiveTrades.forEach(trade => {
-                if (now >= trade.settlementTime) {
+            for (const trade of userActiveTrades) {
+                if (now >= new Date(trade.settlement_time).getTime()) {
                     // Settle this trade
-                    const settlementPrice = trade.entryPrice * (1 + (Math.random() - 0.5) * 0.001); // Tiny random fluctuation
+                    const settlementPrice = trade.entry_price * (1 + (Math.random() - 0.5) * 0.001); // Tiny random fluctuation
                     let outcome: 'win' | 'loss';
 
                     if (trade.type === 'buy') {
-                        outcome = settlementPrice > trade.entryPrice ? 'win' : 'loss';
+                        outcome = settlementPrice > trade.entry_price ? 'win' : 'loss';
                     } else {
-                        outcome = settlementPrice < trade.entryPrice ? 'win' : 'loss';
+                        outcome = settlementPrice < trade.entry_price ? 'win' : 'loss';
                     }
 
-                    const profit = outcome === 'win' ? trade.amount * trade.profitRate : -trade.amount;
-
-                    const tradeIndex = allTrades.findIndex(t => t.id === trade.id);
-                    if (tradeIndex !== -1) {
-                        allTrades[tradeIndex] = {
-                            ...allTrades[tradeIndex],
+                    const profit = outcome === 'win' ? trade.amount * trade.profit_rate : -trade.amount;
+                    
+                    const { error: updateError } = await supabase
+                        .from('contract_trades')
+                        .update({
                             status: 'settled',
-                            settlementPrice: settlementPrice,
+                            settlement_price: settlementPrice,
                             outcome: outcome,
                             profit: profit
-                        };
-                        
-                        tradeSettled = true;
+                        })
+                        .eq('id', trade.id);
+
+                    if (!updateError) {
+                      tradeSettled = true;
                     }
                 }
-            });
+            }
+            
 
             if (tradeSettled) {
-                localStorage.setItem('contractTrades', JSON.stringify(allTrades));
                 // Reload trades for the UI, then recalculate balance from the source of truth
-                loadUserTrades(user.username);
-                recalculateBalanceForUser(user.username);
+                loadUserTrades(user.id);
+                recalculateBalanceForUser(user.id);
             }
 
         } catch (error) {
@@ -299,25 +268,24 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [user, recalculateBalanceForUser, loadUserTrades]);
   
 
-  const addInvestment = (productName: string, amount: number) => {
+  const addInvestment = async (productName: string, amount: number) => {
     if (!user) return false;
     if (balances.USDT.available < amount) {
         return false;
     }
     
-    const newInvestment: Investment = {
-        id: new Date().toISOString(),
-        productName,
+    const newInvestment = {
+        product_name: productName,
         amount,
-        date: new Date().toLocaleDateString()
+        user_id: user.id
     }
     try {
-        const userInvestments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]') as Investment[];
-        userInvestments.push(newInvestment);
-        localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(userInvestments));
-        setInvestments(userInvestments);
-        // Recalculate balance after saving the new state
-        recalculateBalanceForUser(user.username);
+        const { error } = await supabase.from('investments').insert(newInvestment);
+        if (error) throw error;
+        
+        await recalculateBalanceForUser(user.id);
+        const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
+        setInvestments(data || []);
         return true;
     } catch (e) {
         console.error(e);
@@ -325,36 +293,32 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   }
   
-    const handleCommissionDistribution = (sourceUser: User, tradeAmount: number) => {
-        if (typeof window === 'undefined') return;
+    const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
         try {
-            const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
-            const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as [];
+            const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter').eq('id', sourceUserId).single();
+            if (userError || !sourceUser || !sourceUser.inviter) return;
 
-            const uplineUsername = sourceUser.inviter;
-            if (!uplineUsername) return; // No inviter, no commission
-            
-            const uplineUser = allUsers.find(u => u.username === uplineUsername);
-            if (!uplineUser || !uplineUser.isAdmin) return; // Only admin gets commission
+            const { data: uplineUser, error: uplineError } = await supabase.from('users').select('id, is_admin').eq('username', sourceUser.inviter).single();
+            if(uplineError || !uplineUser || !uplineUser.is_admin) return;
+
 
             const commissionRate = COMMISSION_RATES[1];
             const commissionAmount = tradeAmount * commissionRate;
 
-            const newLog: CommissionLog = {
-                id: `comm_${Date.now()}_1`,
-                uplineUsername: uplineUsername,
-                sourceUsername: sourceUser.username,
-                sourceLevel: 1,
-                tradeAmount,
-                commissionRate,
-                commissionAmount,
-                createdAt: new Date().toISOString(),
+            const newLog = {
+                upline_user_id: uplineUser.id,
+                source_user_id: sourceUserId,
+                source_level: 1,
+                trade_amount: tradeAmount,
+                commission_rate: commissionRate,
+                commission_amount: commissionAmount,
             };
-            allCommissions.push(newLog);
-            localStorage.setItem('commissionLogs', JSON.stringify(allCommissions));
+            
+            const { error: insertError } = await supabase.from('commission_logs').insert(newLog);
+            if (insertError) throw insertError;
 
             // Trigger balance update for the admin
-            recalculateBalanceForUser(uplineUsername);
+            recalculateBalanceForUser(uplineUser.id);
 
         } catch (error) {
             console.error("Failed to distribute commissions:", error);
@@ -362,89 +326,86 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     };
 
 
-  const placeContractTrade = (trade: ContractTradeParams, tradingPair: string) => {
+  const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
     
-    // Persist first, then update state by re-reading source of truth
     try {
         const now = Date.now();
-        const fullTrade: ContractTrade = {
+        const fullTrade = {
             ...trade,
-            id: `contract_${now}`,
-            userId: user.username,
-            tradingPair,
-            orderType: 'contract',
+            user_id: user.id,
+            trading_pair: tradingPair,
+            order_type: 'contract',
             status: 'active',
-            entryPrice: marketData.summary.price,
-            settlementTime: now + (trade.period * 1000),
-            createdAt: new Date().toISOString(),
+            entry_price: marketData.summary.price,
+            settlement_time: new Date(now + (trade.period * 1000)).toISOString(),
+            profit_rate: trade.profitRate,
         }
 
-        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
-        existingTrades.push(fullTrade);
-        localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
+        const { error } = await supabase.from('contract_trades').insert(fullTrade);
+        if (error) throw error;
 
-        handleCommissionDistribution(user, trade.amount);
-        recalculateBalanceForUser(user.username);
-        loadUserTrades(user.username);
+
+        await handleCommissionDistribution(user.id, trade.amount);
+        await recalculateBalanceForUser(user.id);
+        await loadUserTrades(user.id);
 
     } catch (error) {
-        console.error("Failed to save contract trade to localStorage", error);
+        console.error("Failed to save contract trade to Supabase", error);
     }
   };
   
-  const placeSpotTrade = (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => {
+  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'created_at'>, tradingPair: string) => {
      if (!user) return;
     
     try {
-        const fullTrade: SpotTrade = {
+        const fullTrade = {
             ...trade,
-            id: `spot_${Date.now()}`,
-            userId: user.username,
-            tradingPair,
-            orderType: 'spot',
+            user_id: user.id,
+            trading_pair: tradingPair,
+            order_type: 'spot',
             status: 'filled',
-            createdAt: new Date().toISOString(),
+            base_asset: trade.baseAsset,
+            quote_asset: trade.quoteAsset,
         }
-        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
-        existingTrades.push(fullTrade);
-        localStorage.setItem('spotTrades', JSON.stringify(existingTrades));
+        delete (fullTrade as any).baseAsset;
+        delete (fullTrade as any).quoteAsset;
+        
+        const { error } = await supabase.from('spot_trades').insert(fullTrade);
+        if (error) throw error;
 
-        recalculateBalanceForUser(user.username);
-        loadUserTrades(user.username);
+
+        await recalculateBalanceForUser(user.id);
+        await loadUserTrades(user.id);
     } catch (error) {
-        console.error("Failed to save spot trade to localStorage", error);
+        console.error("Failed to save spot trade to Supabase", error);
     }
 
   };
   
-  const requestWithdrawal = (asset: string, amount: number, address: string) => {
+  const requestWithdrawal = async (asset: string, amount: number, address: string) => {
       if (!user) return false;
       const balance = balances[asset] as { available: number; frozen: number } | undefined;
       if (amount > (balance?.available || 0)) {
           return false;
       }
        try {
-           const newTransaction: Transaction = {
-                id: `txn_${Date.now()}`,
-                userId: user.username,
+           const newTransaction = {
+                user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
                 amount: amount,
                 address: address,
                 status: 'pending',
-                createdAt: new Date().toISOString(),
             };
 
-            const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            existingTransactions.push(newTransaction);
-            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
+            const { error } = await supabase.from('transactions').insert(newTransaction);
+            if (error) throw error;
             
-            // After logging the request, recalculate balances which will handle the freezing
-            recalculateBalanceForUser(user.username);
+            await recalculateBalanceForUser(user.id);
             return true;
        } catch (error) {
-           console.error("Failed to save withdrawal request to localStorage", error);
+           console.error("Failed to save withdrawal request to Supabase", error);
            return false;
        }
   };

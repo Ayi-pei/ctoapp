@@ -9,13 +9,14 @@ import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 export type User = {
   id: string; // Supabase auth user ID
   email?: string;
-  isTestUser: boolean;
-  isAdmin: boolean;
+  is_test_user: boolean;
+  is_admin: boolean;
   avatar?: string;
-  isFrozen?: boolean;
+  is_frozen?: boolean;
   inviter: string | null;
-  registeredAt?: string;
+  registered_at?: string;
   username: string; // Add username to the type
+  invitation_code?: string;
 };
 
 interface AuthContextType {
@@ -127,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    useEffect(() => {
     if (!isLoading) {
       const isAuthenticated = !!session;
+      const publicPaths = ['/login', '/register'];
       if (isAuthenticated) {
         if (isAdmin && !pathname.startsWith('/admin')) {
           router.push('/admin/users');
@@ -134,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push('/dashboard');
         }
       } else {
-        const publicPaths = ['/login', '/register'];
         if (!publicPaths.includes(pathname)) {
             router.push('/login');
         }
