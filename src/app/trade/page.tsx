@@ -18,6 +18,7 @@ import { OrderForm } from "@/components/order-form";
 import { useMarket } from "@/context/market-data-context";
 import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
+import { TradeHistory } from '@/components/trade-history';
 
 
 function TradePage({ defaultTab }: { defaultTab: string }) {
@@ -77,9 +78,10 @@ function TradePage({ defaultTab }: { defaultTab: string }) {
                     <TabsTrigger value="contract">秒合约</TabsTrigger>
                 </TabsList>
                 <TabsContent value="spot">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
                             <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                            <TradeHistory trades={data.trades} />
                         </div>
                         <div className="flex flex-col gap-4">
                             <SpotOrderForm
@@ -94,9 +96,10 @@ function TradePage({ defaultTab }: { defaultTab: string }) {
                     </div>
                 </TabsContent>
                 <TabsContent value="contract">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 mt-4">
                         <div className="flex flex-col gap-4">
                             <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                             <TradeHistory trades={data.trades} />
                         </div>
                         <div className="flex flex-col gap-4">
                             <OrderForm

@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { Transaction } from "@/types";
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
@@ -29,7 +28,7 @@ type WithdrawDialogProps = {
 export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { balances, freezeBalance } = useBalance();
+    const { balances, requestWithdrawal } = useBalance();
     const [selectedAddress, setSelectedAddress] = useState("");
     const [amount, setAmount] = useState("");
     const [savedAddresses, setSavedAddresses] = useState<WithdrawalAddress[]>([]);
@@ -40,6 +39,8 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                 const storedAddresses = localStorage.getItem(`withdrawalAddresses_${user.username}`);
                 if (storedAddresses) {
                     setSavedAddresses(JSON.parse(storedAddresses));
+                } else {
+                    setSavedAddresses([]);
                 }
             } catch (error) {
                 console.error("Failed to load addresses from localStorage", error);
@@ -60,47 +61,22 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             return;
         }
 
-        if (numericAmount > (balances['USDT']?.available || 0)) {
-            toast({
-                variant: "destructive",
-                title: "提币失败",
-                description: "您的USDT可用余额不足。",
-            });
-            return;
-        }
+        const success = requestWithdrawal('USDT', numericAmount, selectedAddress);
 
-        if (!user) return;
-
-        const newTransaction: Transaction = {
-            id: `txn_${Date.now()}`,
-            userId: user.username,
-            type: 'withdrawal',
-            asset: 'USDT',
-            amount: numericAmount,
-            address: selectedAddress,
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-        };
-
-        try {
-            // First, freeze the balance
-            freezeBalance('USDT', numericAmount);
-            
-            // Then, add the transaction request
-            const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            existingTransactions.push(newTransaction);
-            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
-
-            toast({
+        if (success) {
+             toast({
                 title: "提币请求已提交",
                 description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
             });
             setSelectedAddress("");
             setAmount("");
             onOpenChange(false);
-        } catch (error) {
-             console.error("Failed to save transaction to localStorage", error);
-            toast({ variant: "destructive", title: "错误", description: "无法提交请求，请重试。" });
+        } else {
+             toast({
+                variant: "destructive",
+                title: "提币失败",
+                description: "您的USDT可用余额不足。",
+            });
         }
     };
     

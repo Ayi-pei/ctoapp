@@ -42,40 +42,49 @@ export function SpotOrderForm({
   const baseAssetBalance = balances[baseAsset]?.available || 0;
 
   const handleSliderChange = (value: number[]) => {
-    setSliderValue(value[0]);
+    const percentage = value[0];
+    setSliderValue(percentage);
+    
     if (orderType === 'buy') {
-        const newTotal = (quoteAssetBalance * value[0]) / 100;
-        setTotal(newTotal.toFixed(2));
+        const newTotal = (quoteAssetBalance * percentage) / 100;
+        setTotal(newTotal.toFixed(8));
         if (currentPrice > 0) {
-            setAmount((newTotal / currentPrice).toFixed(6));
+            setAmount((newTotal / currentPrice).toFixed(8));
         }
     } else { // sell
-        const newAmount = (baseAssetBalance * value[0]) / 100;
-        setAmount(newAmount.toFixed(6));
-        setTotal((newAmount * currentPrice).toFixed(2));
+        const newAmount = (baseAssetBalance * percentage) / 100;
+        setAmount(newAmount.toFixed(8));
+        setTotal((newAmount * currentPrice).toFixed(8));
     }
   };
 
   const handleTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newTotal = e.target.value;
-      setTotal(newTotal);
-      if (orderType === 'buy' && quoteAssetBalance > 0) {
-        const percentage = (parseFloat(newTotal) / quoteAssetBalance) * 100;
+      const newTotalStr = e.target.value;
+      setTotal(newTotalStr);
+      const newTotal = parseFloat(newTotalStr);
+      
+      if (!isNaN(newTotal) && currentPrice > 0) {
+          setAmount((newTotal / currentPrice).toFixed(8));
+      }
+
+      if (orderType === 'buy' && quoteAssetBalance > 0 && !isNaN(newTotal)) {
+        const percentage = (newTotal / quoteAssetBalance) * 100;
         setSliderValue(Math.min(100, Math.max(0, percentage)));
       }
-       if (currentPrice > 0) {
-        setAmount((parseFloat(newTotal) / currentPrice).toFixed(6));
-    }
   }
   
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newAmount = e.target.value;
-      setAmount(newAmount);
-      const newTotal = parseFloat(newAmount) * currentPrice;
-      setTotal(newTotal.toFixed(2));
-      if (orderType === 'sell' && baseAssetBalance > 0) {
-        const percentage = (parseFloat(newAmount) / baseAssetBalance) * 100;
-        setSliderValue(Math.min(100, Math.max(0, percentage)));
+      const newAmountStr = e.target.value;
+      setAmount(newAmountStr);
+      const newAmount = parseFloat(newAmountStr);
+
+      if (!isNaN(newAmount)) {
+          const newTotal = newAmount * currentPrice;
+          setTotal(newTotal.toFixed(8));
+          if (orderType === 'sell' && baseAssetBalance > 0) {
+            const percentage = (newAmount / baseAssetBalance) * 100;
+            setSliderValue(Math.min(100, Math.max(0, percentage)));
+          }
       }
   }
 
