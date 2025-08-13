@@ -3,8 +3,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs } from '@/types';
-import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
 
 export type SpecialTimeFrame = {
     id: string;
@@ -48,57 +46,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>(defaultSettings);
-    const { toast } = useToast();
     
-    const saveSettingsToDb = useCallback(async (newSettings: AllSettings) => {
-        try {
-            const { error } = await supabase
-                .from('market_settings')
-                .upsert({ id: 1, settings_data: newSettings, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-            
-            if (error) throw error;
-        } catch(e) {
-            console.error("Failed to save settings to Supabase", e);
-            toast({ variant: "destructive", title: "错误", description: "保存市场设置失败。" });
-        }
-    }, [toast]);
-
-
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('market_settings')
-                    .select('settings_data')
-                    .single();
-
-                // If there's an error OR if there's no data, it means we need to initialize.
-                if (error || !data) {
-                    console.warn("No settings found or error loading settings. Initializing with default settings.", error);
-                    await saveSettingsToDb(defaultSettings);
-                    setSettings(defaultSettings);
-                } else if (data && data.settings_data) {
-                    // If data is successfully fetched, merge it with defaults to ensure all pairs are covered.
-                    const parsedSettings = data.settings_data as AllSettings;
-                    const mergedSettings: AllSettings = {};
-                    for (const pair of availablePairs) {
-                        mergedSettings[pair] = { 
-                            ...getDefaultPairSettings(), 
-                            ...(parsedSettings[pair] || {}) 
-                        };
-                    }
-                    setSettings(mergedSettings);
-                }
-            } catch (e: any) {
-                console.error("Critical failure in fetchSettings:", e);
-                setSettings(defaultSettings);
-                toast({ variant: "destructive", title: "错误", description: "加载市场设置时发生严重错误。" });
-            }
-        };
-
-        fetchSettings();
-    }, [saveSettingsToDb, toast]);
-
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
             const updatedPairSettings = {
@@ -109,10 +57,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: updatedPairSettings,
             };
-            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, [saveSettingsToDb]);
+    }, []);
 
     const addSpecialTimeFrame = useCallback((pair: string) => {
         setSettings(prevSettings => {
@@ -128,10 +75,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, [saveSettingsToDb]);
+    }, []);
 
     const removeSpecialTimeFrame = useCallback((pair: string, frameId: string) => {
         setSettings(prevSettings => {
@@ -143,10 +89,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, [saveSettingsToDb]);
+    }, []);
 
     const updateSpecialTimeFrame = useCallback((pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => {
         setSettings(prevSettings => {
@@ -161,10 +106,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, [saveSettingsToDb]);
+    }, []);
 
 
     return (
