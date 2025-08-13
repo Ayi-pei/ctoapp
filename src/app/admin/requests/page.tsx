@@ -66,40 +66,27 @@ export default function AdminRequestsPage() {
 
     const handleRequest = (requestId: string, newStatus: 'approved' | 'rejected') => {
         try {
-            const allFinanceRequests = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            const allPasswordRequests = JSON.parse(localStorage.getItem('adminRequests') || '[]') as PasswordResetRequest[];
+            const allFinanceRequests: Transaction[] = JSON.parse(localStorage.getItem('transactions') || '[]')
+            const allPasswordRequests: PasswordResetRequest[] = JSON.parse(localStorage.getItem('adminRequests') || '[]')
 
-            let requestType: 'finance' | 'password' | null = null;
-            let requestIndex = -1;
-            let transaction: Transaction | null = null;
-            
-            requestIndex = allFinanceRequests.findIndex(r => r.id === requestId);
-            if (requestIndex !== -1) {
-                requestType = 'finance';
-                transaction = allFinanceRequests[requestIndex];
-            } else {
-                requestIndex = allPasswordRequests.findIndex(r => r.id === requestId);
-                if (requestIndex !== -1) {
-                    requestType = 'password';
-                }
-            }
+            let requestFound = false;
 
-            if (requestIndex === -1 || !requestType) {
-                 toast({ variant: "destructive", title: "错误", description: "找不到该请求" });
-                return;
-            }
-
-            if (requestType === 'finance' && transaction) {
-                allFinanceRequests[requestIndex].status = newStatus;
+            // Try to find and handle as a finance request
+            const financeIndex = allFinanceRequests.findIndex(r => r.id === requestId);
+            if (financeIndex !== -1) {
+                requestFound = true;
+                const transaction = allFinanceRequests[financeIndex];
+                transaction.status = newStatus;
                 localStorage.setItem('transactions', JSON.stringify(allFinanceRequests));
-
-                // Recalculate balance for the user after status change.
                 recalculateBalanceForUser(transaction.userId);
+            }
 
-            } else { // password
-                const request = allPasswordRequests[requestIndex];
-                request.status = newStatus;
-
+            // Try to find and handle as a password request
+            const passwordIndex = allPasswordRequests.findIndex(r => r.id === requestId);
+            if (passwordIndex !== -1) {
+                requestFound = true;
+                const request = allPasswordRequests[passwordIndex];
+                
                 if (newStatus === 'approved') {
                     const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
                     const userIndex = allUsers.findIndex((u: any) => u.username === request.userId);
@@ -108,9 +95,16 @@ export default function AdminRequestsPage() {
                         localStorage.setItem('users', JSON.stringify(allUsers));
                     }
                 }
-                localStorage.setItem('adminRequests', JSON.stringify(allPasswordRequests));
+                // Remove the request from the list regardless of approval/rejection
+                const updatedPasswordRequests = allPasswordRequests.filter(r => r.id !== requestId);
+                localStorage.setItem('adminRequests', JSON.stringify(updatedPasswordRequests));
             }
 
+
+            if (!requestFound) {
+                 toast({ variant: "destructive", title: "错误", description: "找不到该请求" });
+                return;
+            }
 
             loadData(); // Reload data to update the UI
 

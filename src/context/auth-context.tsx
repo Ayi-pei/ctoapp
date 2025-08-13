@@ -37,10 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         const usersRaw = localStorage.getItem('users');
         let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
-        const adminUser = users.find((u: any) => u.username === 'demo123');
+        const adminUserExists = users.some((u: any) => u.username === 'demo123');
         
         // Only create the admin user if it does not exist.
-        if (!adminUser) {
+        if (!adminUserExists) {
             users.push({
                 username: 'demo123',
                 password: '111222',
@@ -53,14 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 registeredAt: new Date().toISOString(),
             });
             localStorage.setItem('users', JSON.stringify(users));
-        } else {
-            // Optional: ensure admin password is correct if it was somehow changed, but avoid overwriting.
-            const adminIndex = users.findIndex((u: any) => u.username === 'demo123');
-            if (users[adminIndex].password !== '111222') {
-                // This block can be used for recovery but is commented out to prevent resets.
-                // users[adminIndex].password = '111222';
-                // localStorage.setItem('users', JSON.stringify(users));
-            }
         }
     } catch (e) {
         console.error("Failed to initialize admin user", e);

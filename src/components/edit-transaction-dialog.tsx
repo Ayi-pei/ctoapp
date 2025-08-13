@@ -134,7 +134,7 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                         </Select>
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="proof" className="text-right">
+                        <Label htmlFor={formData.type === 'deposit' ? 'transactionHash' : 'address'} className="text-right">
                             凭证/地址
                         </Label>
                         <Input
