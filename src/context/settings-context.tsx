@@ -72,11 +72,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     .select('settings_data')
                     .single();
 
-                if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
-                    throw error;
-                }
-
-                if (data && data.settings_data) {
+                if (error) {
+                    // This error code means the table is empty or doesn't exist.
+                    if (error.code === 'PGRST116') { 
+                        console.warn("market_settings table is empty or not found. Initializing with default settings.");
+                        await saveSettingsToDb(defaultSettings);
+                        setSettings(defaultSettings);
+                    } else {
+                        // For any other errors, re-throw to be caught by the outer catch block.
+                        throw error;
+                    }
+                } else if (data && data.settings_data) {
+                    // If data is successfully fetched, merge it with defaults to ensure all pairs are covered.
                     const parsedSettings = data.settings_data as AllSettings;
                     const mergedSettings: AllSettings = {};
                     for (const pair of availablePairs) {
@@ -87,22 +94,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     }
                     setSettings(mergedSettings);
                 } else {
-                    // This case happens if no settings are in the DB yet.
-                    // We should create the initial record.
+                    // This case handles if data is null for some reason, initialize settings.
                     await saveSettingsToDb(defaultSettings);
                     setSettings(defaultSettings);
                 }
+
             } catch (e: any) {
-                // If the table doesn't exist (e.g., code 42P01 in postgres), create it by saving default settings.
-                if(e.code === '42P01'){
-                    console.warn("market_settings table not found. Initializing with default settings.");
-                    await saveSettingsToDb(defaultSettings);
-                    setSettings(defaultSettings);
-                } else {
-                    console.error("Failed to load settings from Supabase", e);
-                    setSettings(defaultSettings);
-                    toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
-                }
+                console.error("Failed to load settings from Supabase", e);
+                setSettings(defaultSettings);
+                toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
             }
         };
 
