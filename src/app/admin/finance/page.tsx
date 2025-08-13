@@ -59,9 +59,9 @@ export default function AdminFinancePage() {
     }, [isAdmin]);
 
     useEffect(() => {
-        if (!isAdmin) {
+        if (isAdmin === false) { // Explicitly check for false after auth context resolves
             router.push('/login');
-        } else {
+        } else if (isAdmin === true) {
            loadTransactions();
         }
     }, [isAdmin, router, loadTransactions]);

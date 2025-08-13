@@ -235,7 +235,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       setHistoricalTrades([]);
       setIsLoading(false);
     }
-  }, [user, isTestUser]);
+  }, [user]);
 
 
   useEffect(() => {
@@ -314,7 +314,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         date: new Date().toLocaleDateString()
     }
     try {
-        const investments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]');
+        const investments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]') as Investment[];
         investments.push(newInvestment);
         localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(investments));
         setInvestments(investments);
@@ -389,7 +389,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             createdAt: new Date().toISOString(),
         }
 
-        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as [];
+        const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
         existingTrades.push(fullTrade);
         localStorage.setItem('contractTrades', JSON.stringify(existingTrades));
 
@@ -415,7 +415,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             status: 'filled',
             createdAt: new Date().toISOString(),
         }
-        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as [];
+        const existingTrades = JSON.parse(localStorage.getItem('spotTrades') || '[]') as SpotTrade[];
         existingTrades.push(fullTrade);
         localStorage.setItem('spotTrades', JSON.stringify(existingTrades));
 

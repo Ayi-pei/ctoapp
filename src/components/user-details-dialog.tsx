@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -49,7 +50,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
     const { updateUser: updateAuthUser, user: currentUser } = useAuth();
-    const { updateBalance: updateBalanceInContext, recalculateBalanceForUser } = useBalance();
+    const { recalculateBalanceForUser } = useBalance();
 
 
     useEffect(() => {
@@ -76,15 +77,29 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
             toast({ variant: "destructive", title: "错误", description: "请输入有效的数字。" });
             return;
         }
-        
-        // Instead of directly setting, we now just apply a delta transaction-like update
-        updateBalanceInContext(user.username, asset, amount, 'available');
 
-        toast({ title: "成功", description: `${user.username} 的 ${asset} 余额已调整。` });
-        
-        setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
-        recalculateBalanceForUser(user.username); // This will re-fetch the correct state
-        onUpdate(); // Trigger data reload in parent component
+        try {
+            const allTxs = JSON.parse(localStorage.getItem('transactions') || '[]') as any[];
+            allTxs.push({
+                id: `adj_${Date.now()}`,
+                userId: user.username,
+                type: 'adjustment',
+                asset: asset,
+                amount: amount,
+                status: 'approved',
+                createdAt: new Date().toISOString()
+            });
+            localStorage.setItem('transactions', JSON.stringify(allTxs));
+            
+            toast({ title: "成功", description: `${user.username} 的 ${asset} 余额已调整。` });
+            
+            setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
+            recalculateBalanceForUser(user.username); // This will re-fetch the correct state
+            onUpdate(); // Trigger data reload in parent component
+
+        } catch (error) {
+            toast({ variant: "destructive", title: "错误", description: "调整余额失败。" });
+        }
     };
 
 
