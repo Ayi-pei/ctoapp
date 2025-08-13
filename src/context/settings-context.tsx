@@ -50,6 +50,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>(defaultSettings);
     const { toast } = useToast();
     
+    const saveSettingsToDb = useCallback(async (newSettings: AllSettings) => {
+        try {
+            const { error } = await supabase
+                .from('market_settings')
+                .upsert({ id: 1, settings_data: newSettings, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            
+            if (error) throw error;
+        } catch(e) {
+            console.error("Failed to save settings to Supabase", e);
+            toast({ variant: "destructive", title: "错误", description: "保存市场设置失败。" });
+        }
+    }, [toast]);
+
+
     useEffect(() => {
         const fetchSettings = async () => {
             try {
@@ -73,30 +87,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     }
                     setSettings(mergedSettings);
                 } else {
+                    // This case happens if no settings are in the DB yet.
+                    // We should create the initial record.
+                    await saveSettingsToDb(defaultSettings);
                     setSettings(defaultSettings);
                 }
-            } catch (e) {
-                console.error("Failed to load settings from Supabase", e);
-                setSettings(defaultSettings);
-                toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
+            } catch (e: any) {
+                // If the table doesn't exist (e.g., code 42P01 in postgres), create it by saving default settings.
+                if(e.code === '42P01'){
+                    console.warn("market_settings table not found. Initializing with default settings.");
+                    await saveSettingsToDb(defaultSettings);
+                    setSettings(defaultSettings);
+                } else {
+                    console.error("Failed to load settings from Supabase", e);
+                    setSettings(defaultSettings);
+                    toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
+                }
             }
         };
 
         fetchSettings();
-    }, [toast]);
-
-    const saveSettingsToDb = useCallback(async (newSettings: AllSettings) => {
-        try {
-            const { error } = await supabase
-                .from('market_settings')
-                .upsert({ id: 1, settings_data: newSettings }, { onConflict: 'id' });
-            
-            if (error) throw error;
-        } catch(e) {
-            console.error("Failed to save settings to Supabase", e);
-            toast({ variant: "destructive", title: "错误", description: "保存市场设置失败。" });
-        }
-    }, [toast]);
+    }, [saveSettingsToDb, toast]);
 
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
