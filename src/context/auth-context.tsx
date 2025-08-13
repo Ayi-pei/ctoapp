@@ -94,11 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkUser();
 
     return () => {
-      authListener?.unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
+    const email = `${username}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       console.error('Login failed:', error.message);
@@ -128,9 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: {
-          // This ensures that Supabase doesn't send a confirmation email,
-          // allowing the user to log in immediately.
-          // It's crucial for our username-based login flow.
           data: {
             username: username
           },
@@ -162,8 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
       if (profileError) {
          console.error("Failed to create user profile:", profileError.message);
-         // If profile creation fails, we should ideally delete the auth user
-         // For now, we just show an error.
+         // If profile creation fails, we must delete the auth user to prevent orphans
          await supabase.auth.admin.deleteUser(authData.user.id);
          toast({ variant: 'destructive', title: '注册失败', description: '无法创建用户资料，请重试。' });
          return false;
