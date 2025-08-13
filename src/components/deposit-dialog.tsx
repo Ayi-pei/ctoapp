@@ -4,7 +4,6 @@
 import { useState } from "react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -15,9 +14,12 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Send } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { Transaction } from "@/types";
+import type { Transaction } from "@/types";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { supabase } from "@/lib/supabase";
+import { useBalance } from "@/context/balance-context";
+
 
 type DepositDialogProps = {
     isOpen: boolean;
@@ -27,6 +29,7 @@ type DepositDialogProps = {
 export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
+    const { recalculateBalanceForUser } = useBalance();
     const walletAddress = "TAsimulatedAddressForU12345XYZ";
     const [amount, setAmount] = useState("");
     const [transactionHash, setTransactionHash] = useState("");
@@ -39,7 +42,7 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
         });
     };
 
-    const handleDepositRequest = () => {
+    const handleDepositRequest = async () => {
         if (!user) return;
         
         const numericAmount = parseFloat(amount);
@@ -54,33 +57,35 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
             return;
         }
 
-        const newTransaction: Transaction = {
-            id: `txn_${Date.now()}`,
-            userId: user.username,
+        const newTransaction: Omit<Transaction, 'id' | 'created_at' | 'createdAt'> = {
+            user_id: user.id,
             type: 'deposit',
             asset: 'USDT',
             amount: numericAmount,
             status: 'pending',
-            createdAt: new Date().toISOString(),
-            transactionHash: transactionHash.trim(),
+            transaction_hash: transactionHash.trim(),
         };
 
         try {
-            const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            existingTransactions.push(newTransaction);
-            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
+            const { error } = await supabase.from('transactions').insert(newTransaction);
+            if (error) throw error;
             
             toast({
                 title: "充值请求已提交",
                 description: "您的充值请求已发送给管理员审核，请耐心等待。",
             });
+
+            if (user) {
+                recalculateBalanceForUser(user.id);
+            }
+            
             // Reset state and close dialog
             setAmount("");
             setTransactionHash("");
             onOpenChange(false);
 
         } catch (error) {
-            console.error("Failed to save transaction to localStorage", error);
+            console.error("Failed to save transaction to Supabase", error);
             toast({ variant: "destructive", title: "错误", description: "无法提交请求，请重试。" });
         }
     }

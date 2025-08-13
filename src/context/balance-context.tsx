@@ -9,15 +9,37 @@ import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
 
 const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: number } } = {
-    USDT: { available: 10000, frozen: 0 },
-    BTC: { available: 0.5, frozen: 0 },
-    ETH: { available: 10, frozen: 0 },
+    USDT: { available: 100000, frozen: 0 },
+    BTC: { available: 5, frozen: 0 },
+    ETH: { available: 100, frozen: 0 },
+    SOL: { available: 1000, frozen: 0},
+    XRP: { available: 50000, frozen: 0},
+    LTC: { available: 1000, frozen: 0},
+    BNB: { available: 500, frozen: 0},
+    MATIC: { available: 100000, frozen: 0},
+    DOGE: { available: 1000000, frozen: 0},
+    ADA: { available: 100000, frozen: 0},
+    SHIB: { available: 500000000, frozen: 0},
+    'XAU/USD': { available: 0, frozen: 0},
+    'EUR/USD': { available: 0, frozen: 0},
+    'GBP/USD': { available: 0, frozen: 0},
 };
 
 const INITIAL_BALANCES_REAL_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
     BTC: { available: 0, frozen: 0 },
     ETH: { available: 0, frozen: 0 },
+    SOL: { available: 0, frozen: 0},
+    XRP: { available: 0, frozen: 0},
+    LTC: { available: 0, frozen: 0},
+    BNB: { available: 0, frozen: 0},
+    MATIC: { available: 0, frozen: 0},
+    DOGE: { available: 0, frozen: 0},
+    ADA: { available: 0, frozen: 0},
+    SHIB: { available: 0, frozen: 0},
+    'XAU/USD': { available: 0, frozen: 0},
+    'EUR/USD': { available: 0, frozen: 0},
+    'GBP/USD': { available: 0, frozen: 0},
 };
 
 const ALL_ASSETS = [...new Set(availablePairs.flatMap(p => p.split('/')))].map(asset => ({ name: asset, icon: CircleDollarSign }));
@@ -454,4 +476,3 @@ export function useBalance() {
   return context;
 }
 
-    
