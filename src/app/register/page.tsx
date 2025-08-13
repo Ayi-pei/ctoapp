@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/auth-context';
 
 
 const registerSchema = z.object({
@@ -25,6 +26,7 @@ const registerSchema = z.object({
 export default function RegisterPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { register: registerUser } = useAuth();
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -36,75 +38,16 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof registerSchema>) => {
-    try {
-      // 1. Validate invitation code
-      const { data: inviterData, error: inviterError } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('invitation_code', values.invitationCode)
-        .single();
-      
-      if (inviterError || !inviterData) {
-        toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-        return;
-      }
-      
-      // 2. Sign up the new user in Supabase Auth
-      const email = `${values.username}@rsf.app`; // Create a dummy email
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password: values.password,
-        options: {
-          data: {
-            username: values.username,
-            // other metadata if needed
-          }
-        }
-      });
-      
-      if (authError) {
-        throw new Error(authError.message);
-      }
-      
-      if (!authData.user) {
-        throw new Error("User registration did not return a user.");
-      }
-      
-      // 3. Create a corresponding profile in the public.users table
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          username: values.username,
-          email: email,
-          is_admin: false,
-          is_test_user: false,
-          is_frozen: false,
-          inviter: inviterData.username,
-          registered_at: new Date().toISOString()
+    const success = await registerUser(values.username, values.password, values.invitationCode);
+
+    if (success) {
+        toast({
+            title: '注册成功',
+            description: '您现在可以登录了。',
         });
-        
-      if (profileError) {
-        // If profile creation fails, we should ideally delete the auth user
-        // This is complex, for now, we just log the error.
-         console.error("Failed to create user profile:", profileError.message);
-         throw new Error("Failed to save user profile.");
-      }
-
-
-      toast({
-        title: '注册成功',
-        description: '您现在可以登录了。',
-      });
-      router.push('/login');
-
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: '注册失败',
-        description: error.message || '发生未知错误，请重试。',
-      });
+        router.push('/login');
+    } else {
+        // The error toast is handled within the auth context's register function
     }
   };
 
