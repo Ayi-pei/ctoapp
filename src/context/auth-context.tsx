@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -29,12 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // This code now runs only on the client
     try {
       const usersRaw = localStorage.getItem('users');
       let users: User[] = usersRaw ? JSON.parse(usersRaw) : [];
@@ -64,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userState as User);
           setIsAdmin(currentUserData.isAdmin || false);
         } else {
-          // Clean up if user in localStorage doesn't exist in users list
           localStorage.removeItem('loggedInUser');
           setIsAuthenticated(false);
           setUser(null);
@@ -73,16 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("Failed to parse auth data from localStorage", e);
-      // Ensure clean state on error
       localStorage.removeItem('loggedInUser');
       setIsAuthenticated(false);
       setUser(null);
       setIsAdmin(false);
     } finally {
-        setIsLoading(false); // Set loading to false after checking auth
+        setIsLoading(false);
     }
   }, []);
-
+  
   const login = (username: string, password: string): boolean => {
     try {
       const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
@@ -138,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // This effect handles redirection if the user is not authenticated.
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
         const publicPaths = ['/login', '/register'];
@@ -148,8 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isLoading, isAuthenticated, router, pathname]);
   
-
-  // While loading, don't render children to avoid hydration errors
   if (isLoading) {
     return null; 
   }
