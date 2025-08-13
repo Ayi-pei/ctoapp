@@ -33,15 +33,15 @@ type ContractTradeParams = {
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
-  balance: number; // Keep this for now for finance page
   addInvestment: (productName: string, amount: number) => boolean;
   assets: { name: string, icon: React.ElementType }[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>, tradingPair: string) => void;
-  recalculateBalanceForUser: (username: string) => void;
+  requestWithdrawal: (asset: string, amount: number, address: string) => boolean;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
+  recalculateBalanceForUser: (username: string) => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -125,24 +125,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         userFinancialTxs.forEach(tx => {
             if (!calculatedBalances[tx.asset]) calculatedBalances[tx.asset] = { available: 0, frozen: 0 };
             
-            if (tx.type === 'deposit') {
-                if (tx.status === 'approved') {
-                    calculatedBalances[tx.asset].available += tx.amount;
-                }
+            if (tx.type === 'deposit' && tx.status === 'approved') {
+                calculatedBalances[tx.asset].available += tx.amount;
             } else if (tx.type === 'withdrawal') {
                  if (tx.status === 'pending') {
-                    // This is the key fix: correctly deduct from available and add to frozen for pending withdrawals
                     calculatedBalances[tx.asset].available -= tx.amount;
                     calculatedBalances[tx.asset].frozen += tx.amount;
                  } else if (tx.status === 'rejected') {
-                    // Money was never taken, it was just frozen. Now it is unfrozen.
-                    // This part seems complex, as we are recalculating from scratch.
-                    // Instead of adjusting, let's just make sure the final state is right.
-                    // The initial balance is already available, so we just remove the amount from frozen.
-                    calculatedBalances[tx.asset].frozen -= tx.amount;
+                    // If rejected, the frozen amount is released back to available.
+                    // But since we start from scratch, we just don't do anything, the initial balance is already there.
                  } else if (tx.status === 'approved') {
-                    // Money is gone from frozen.
-                    calculatedBalances[tx.asset].frozen -= tx.amount;
+                    // If approved, the money is gone permanently. We start from an initial balance
+                    // so we need to deduct it from the total. But we also need to account for the frozen part.
+                    // The easiest is to just remove it from frozen.
+                    calculatedBalances[tx.asset].frozen -= tx.amount; // This is a temp state, will be cleared by the end
                  }
             } else if (tx.type === 'adjustment') { // Admin adjustments
                 calculatedBalances[tx.asset].available += tx.amount;
@@ -173,7 +169,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              
              if (trade.status === 'active') {
-                calculatedBalances['USDT'].available -= trade.amount;
+                calculatedBalances['USDT'].available -= (trade.amount + (trade.fee ?? 0));
              }
              
              if (trade.status === 'settled' && trade.profit !== undefined) {
@@ -317,10 +313,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         date: new Date().toLocaleDateString()
     }
     try {
-        const investments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]') as Investment[];
-        investments.push(newInvestment);
-        localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(investments));
-        setInvestments(investments);
+        const userInvestments = JSON.parse(localStorage.getItem(`userInvestments_${user.username}`) || '[]') as Investment[];
+        userInvestments.push(newInvestment);
+        localStorage.setItem(`userInvestments_${user.username}`, JSON.stringify(userInvestments));
+        setInvestments(userInvestments);
         // Recalculate balance after saving the new state
         recalculateBalanceForUser(user.username);
         return true;
@@ -376,6 +372,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const placeContractTrade = (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
+    const fee = trade.amount * 0.001; // 0.1% fee
+    
+    if (balances['USDT']?.available < trade.amount + fee) {
+        // Optionally, show a toast notification for insufficient balance
+        return;
+    }
 
     // Persist first, then update state by re-reading source of truth
     try {
@@ -390,6 +392,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             entryPrice: marketData.summary.price,
             settlementTime: now + (trade.period * 1000),
             createdAt: new Date().toISOString(),
+            fee,
         }
 
         const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
@@ -430,6 +433,36 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   };
   
+  const requestWithdrawal = (asset: string, amount: number, address: string) => {
+      if (!user) return false;
+      if (amount > (balances[asset]?.available || 0)) {
+          return false;
+      }
+       try {
+           const newTransaction: Transaction = {
+                id: `txn_${Date.now()}`,
+                userId: user.username,
+                type: 'withdrawal',
+                asset: asset,
+                amount: amount,
+                address: address,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+            };
+
+            const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
+            existingTransactions.push(newTransaction);
+            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
+            
+            // After logging the request, recalculate balances which will handle the freezing
+            recalculateBalanceForUser(user.username);
+            return true;
+       } catch (error) {
+           console.error("Failed to save withdrawal request to localStorage", error);
+           return false;
+       }
+  };
+
 
   const value = { 
       balances, 
@@ -438,8 +471,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       placeSpotTrade, 
       isLoading,
       investments,
-      balance: balances.USDT?.available || 0, // for finance page
       addInvestment,
+      requestWithdrawal,
       recalculateBalanceForUser,
       activeContractTrades,
       historicalTrades,

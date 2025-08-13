@@ -130,7 +130,7 @@ const MyInvestmentsList = ({ investments }: { investments: Investment[] }) => (
 
 export default function FinancePage() {
     const { toast } = useToast();
-    const { balance, addInvestment, investments } = useBalance();
+    const { balances, addInvestment, investments } = useBalance();
     const [selectedProduct, setSelectedProduct] = useState<Omit<InvestmentProductProps, 'icon' | 'onInvest'> | null>(null);
     const [isInvestmentDialogOpen, setIsInvestmentDialogOpen] = useState(false);
 
@@ -240,7 +240,7 @@ export default function FinancePage() {
                     isOpen={isInvestmentDialogOpen}
                     onOpenChange={setIsInvestmentDialogOpen}
                     product={selectedProduct}
-                    balance={balance}
+                    balance={balances['USDT']?.available || 0}
                     onConfirm={handleConfirmInvestment}
                 />
             )}

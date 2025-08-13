@@ -29,7 +29,7 @@ type WithdrawDialogProps = {
 export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { balances, recalculateBalanceForUser } = useBalance();
+    const { balances, requestWithdrawal } = useBalance();
     const [selectedAddress, setSelectedAddress] = useState("");
     const [amount, setAmount] = useState("");
     const [savedAddresses, setSavedAddresses] = useState<WithdrawalAddress[]>([]);
@@ -52,7 +52,6 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
 
 
     const handleWithdraw = () => {
-        if (!user) return;
         const numericAmount = parseFloat(amount);
 
         if (!selectedAddress || !numericAmount || numericAmount <= 0) {
@@ -64,50 +63,23 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             return;
         }
         
-        if (numericAmount > (balances['USDT']?.available || 0)) {
+        const success = requestWithdrawal('USDT', numericAmount, selectedAddress);
+        
+        if (success) {
             toast({
-                variant: "destructive",
-                title: "提币失败",
-                description: "您的USDT可用余额不足。",
-            });
-            return;
-        }
-
-       try {
-           const newTransaction: Transaction = {
-                id: `txn_${Date.now()}`,
-                userId: user.username,
-                type: 'withdrawal',
-                asset: 'USDT',
-                amount: numericAmount,
-                address: selectedAddress,
-                status: 'pending',
-                createdAt: new Date().toISOString(),
-            };
-
-            const existingTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
-            existingTransactions.push(newTransaction);
-            localStorage.setItem('transactions', JSON.stringify(existingTransactions));
-            
-             toast({
                 title: "提币请求已提交",
                 description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
             });
-            
-            // After logging the request, recalculate balances which will handle the freezing
-            recalculateBalanceForUser(user.username);
-            
             setSelectedAddress("");
             setAmount("");
             onOpenChange(false);
-       } catch (error) {
-           console.error("Failed to save withdrawal request to localStorage", error);
+        } else {
             toast({
                 variant: "destructive",
-                title: "操作失败",
-                description: "提交提币请求失败，请重试。",
+                title: "提币失败",
+                description: "您的USDT可用余额不足或操作失败。",
             });
-       }
+        }
     };
     
     const handleOpenChange = (open: boolean) => {

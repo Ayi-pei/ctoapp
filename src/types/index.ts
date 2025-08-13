@@ -31,6 +31,7 @@ export type ContractTrade = {
   period: number; // in seconds
   profitRate: number; // e.g., 0.85 for 85%
   status: 'active' | 'settled';
+  fee?: number;
   // Fields below are added after settlement
   settlementPrice?: number;
   outcome?: 'win' | 'loss';

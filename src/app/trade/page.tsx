@@ -18,7 +18,7 @@ import { OrderForm } from "@/components/order-form";
 import { useMarket } from "@/context/market-data-context";
 import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
-import { TradeHistory } from '@/components/trade-history';
+import { TradeHistory } from "@/components/trade-history";
 
 
 function TradePage({ defaultTab }: { defaultTab: string }) {
