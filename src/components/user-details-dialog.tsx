@@ -19,6 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { Users } from "lucide-react";
+import { useBalance } from "@/context/balance-context";
+import { availablePairs } from "@/types";
+
 
 type UserBalance = {
     [key: string]: {
@@ -40,35 +43,24 @@ type UserDetailsDialogProps = {
     onUpdate: () => void;
 };
 
-type EditableBalances = {
-    [key: string]: {
-        available: string;
-        frozen: string;
-    }
+type BalanceAdjustments = {
+    [key: string]: string;
 };
+
+const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpdate }: UserDetailsDialogProps) {
     const [newPassword, setNewPassword] = useState("");
-    const [editableBalances, setEditableBalances] = useState<EditableBalances>({});
+    const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const [downlineTree, setDownlineTree] = useState<DownlineMember[]>([]);
     const { toast } = useToast();
+    const { updateUser, user: currentUser } = useAuth();
+    const balanceContext = useBalance();
+
 
     useEffect(() => {
         if (isOpen && user) {
-            // Populate editable balances when dialog opens
-            if (balances) {
-                const bal: EditableBalances = {};
-                for (const asset in balances) {
-                    bal[asset] = {
-                        available: balances[asset].available.toString(),
-                        frozen: balances[asset].frozen.toString(),
-                    };
-                }
-                setEditableBalances(bal);
-            } else {
-                setEditableBalances({});
-            }
-
+            setBalanceAdjustments({}); // Reset adjustments on open
             try {
                 const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
                 const userMap = new Map(allUsers.map(u => [u.username, u]));
@@ -98,39 +90,32 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                 setDownlineTree([]);
             }
         }
-    }, [isOpen, user, balances]);
+    }, [isOpen, user]);
 
 
     if (!user) {
         return null;
     }
 
-    const handleBalanceInputChange = (asset: string, type: 'available' | 'frozen', value: string) => {
-        setEditableBalances(prev => ({
-            ...prev,
-            [asset]: {
-                ...(prev[asset] || { available: '0', frozen: '0' }),
-                [type]: value,
-            }
-        }));
+    const handleAdjustmentChange = (asset: string, value: string) => {
+        setBalanceAdjustments(prev => ({ ...prev, [asset]: value }));
     };
-    
-    const handleSaveBalances = () => {
+
+    const handleAdjustBalance = (asset: string) => {
         if (!user) return;
-        try {
-            const newBalances: { [key: string]: { available: number, frozen: number } } = {};
-            for (const asset in editableBalances) {
-                newBalances[asset] = {
-                    available: parseFloat(editableBalances[asset].available) || 0,
-                    frozen: parseFloat(editableBalances[asset].frozen) || 0,
-                };
-            }
-            localStorage.setItem(`userBalances_${user.username}`, JSON.stringify(newBalances));
-            toast({ title: "成功", description: "用户余额已更新。" });
-            onUpdate();
-        } catch (error) {
-             toast({ variant: "destructive", title: "错误", description: "更新余额失败。" });
+        const amountStr = balanceAdjustments[asset] || '0';
+        const amount = parseFloat(amountStr);
+
+        if (isNaN(amount)) {
+            toast({ variant: "destructive", title: "错误", description: "请输入有效的数字。" });
+            return;
         }
+
+        balanceContext.updateBalance(user.username, asset, amount, 'available');
+        toast({ title: "成功", description: `${user.username} 的 ${asset} 余额已调整。` });
+        
+        setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
+        onUpdate(); // Trigger data reload in parent component
     };
 
 
@@ -145,6 +130,11 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
             if (userIndex !== -1) {
                 users[userIndex].password = newPassword.trim();
                 localStorage.setItem('users', JSON.stringify(users));
+                
+                if(currentUser?.username === user.username) {
+                    updateUser({ password: newPassword.trim() });
+                }
+
                 toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
                 setNewPassword("");
                 onUpdate(); 
@@ -165,6 +155,11 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
              if (userIndex !== -1) {
                 users[userIndex].isFrozen = freeze;
                 localStorage.setItem('users', JSON.stringify(users));
+
+                if (currentUser?.username === user.username) {
+                    updateUser({ isFrozen: freeze });
+                }
+                
                 toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
                 onUpdate();
             } else {
@@ -200,8 +195,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
             </Accordion>
         )
     }
-
-    const balanceEntries = balances ? Object.keys(balances) : [];
+    
     const registeredAtDate = user.registeredAt ? new Date(user.registeredAt).toLocaleDateString() : 'N/A';
 
     return (
@@ -227,38 +221,41 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                      <div>
                         <div className="flex justify-between items-center mb-2">
                            <h4 className="font-semibold">资产余额</h4>
-                           <Button size="sm" onClick={handleSaveBalances}>保存余额更改</Button>
                         </div>
-                        {balanceEntries.length > 0 ? (
-                             <div className="space-y-4">
-                                {balanceEntries.map(asset => (
-                                    <div key={asset} className="grid grid-cols-3 items-center gap-4 p-2 border rounded-md">
-                                        <Label className="font-semibold">{asset}</Label>
-                                        <div className="space-y-1">
-                                             <Label htmlFor={`bal-available-${asset}`} className="text-xs text-muted-foreground">可用</Label>
-                                            <Input 
-                                                id={`bal-available-${asset}`}
-                                                type="number"
-                                                value={editableBalances[asset]?.available || '0'}
-                                                onChange={(e) => handleBalanceInputChange(asset, 'available', e.target.value)}
-                                            />
-                                        </div>
-                                         <div className="space-y-1">
-                                             <Label htmlFor={`bal-frozen-${asset}`} className="text-xs text-muted-foreground">冻结</Label>
-                                            <Input
-                                                id={`bal-frozen-${asset}`}
-                                                type="number"
-                                                value={editableBalances[asset]?.frozen || '0'}
-                                                 onChange={(e) => handleBalanceInputChange(asset, 'frozen', e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">该用户暂无余额信息。</p>
-                        )}
-                       
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>资产</TableHead>
+                                    <TableHead>可用</TableHead>
+                                    <TableHead>冻结</TableHead>
+                                    <TableHead className="w-[250px]">调整可用余额</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                             <TableBody>
+                                {allAssets.map(asset => {
+                                    const balance = balances?.[asset] || { available: 0, frozen: 0 };
+                                    return (
+                                        <TableRow key={asset}>
+                                            <TableCell className="font-medium">{asset}</TableCell>
+                                            <TableCell>{balance.available.toFixed(4)}</TableCell>
+                                            <TableCell>{balance.frozen.toFixed(4)}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="输入调整值"
+                                                        value={balanceAdjustments[asset] || ''}
+                                                        onChange={(e) => handleAdjustmentChange(asset, e.target.value)}
+                                                        className="h-8"
+                                                    />
+                                                    <Button size="sm" onClick={() => handleAdjustBalance(asset)}>调整</Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
                     </div>
 
                      <div>

@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAdmin: true,
                 isTestUser: false,
                 isFrozen: false,
-                invitationCode: '111222', // This code is special for the admin
+                invitationCode: '111222', // Admin has a unique code
                 inviter: null,
                 downline: [],
                 registeredAt: new Date().toISOString(),
@@ -73,13 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { password, ...userState } = currentUserData;
             
             setIsAuthenticated(true);
-            // Make sure to set the full user object to the state
             setUser(userState as User); 
             setIsAdmin(currentUserData.isAdmin || false);
 
             if (!currentUserData.avatar) {
               const avatar = `https://placehold.co/100x100.png?text=${currentUserData.username.charAt(0).toUpperCase()}`;
-              // Update state correctly
               setUser(prev => prev ? {...prev, avatar} : { ...userState, avatar } as User);
             }
 
@@ -116,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setIsAuthenticated(true);
         setUser(userState as User);
-        setIsAdmin(foundUser.isAdmin); // This line is crucial
+        setIsAdmin(!!foundUser.isAdmin);
         
         return true;
       }
@@ -135,16 +133,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const updateUser = (userData: Partial<User>) => {
-    if (user && !isAdmin) {
-        const updatedUser = { ...user, ...userData };
-        setUser(updatedUser);
-
+    setUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
+    
+    // Also update the master list in localStorage
+    if (user) {
         try {
             const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
             const userIndex = users.findIndex((u: User) => u.username === user.username);
             if (userIndex !== -1) {
-                const storedPassword = users[userIndex].password;
-                users[userIndex] = { ...users[userIndex], ...userData, password: storedPassword };
+                // Ensure we don't overwrite password if it's not being changed
+                const newUserData = { ...users[userIndex], ...userData };
+                if (!userData.password) {
+                    newUserData.password = users[userIndex].password;
+                }
+                users[userIndex] = newUserData;
                 localStorage.setItem('users', JSON.stringify(users));
             }
         } catch(e) {
