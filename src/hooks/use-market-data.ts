@@ -210,12 +210,10 @@ export const useMarketData = () => {
                         low: Math.min(prevData.summary.low, newPrice),
                     };
                     
-                    if (pair === tradingPair) {
-                         newPriceData = [...prevData.priceData.slice(1), {
-                            time: formatTime(new Date()),
-                            price: newPrice,
-                        }];
-                    }
+                    newPriceData = [...prevData.priceData.slice(1), {
+                        time: formatTime(new Date()),
+                        price: newPrice,
+                    }];
 
                 } else {
                     // --- Use MOCK/SIMULATED Data (Admin Override or Fetch Failure) ---
@@ -234,12 +232,10 @@ export const useMarketData = () => {
                         low: Math.min(prevData.summary.low, newPrice),
                     };
                     
-                     if (pair === tradingPair) {
-                         newPriceData = [...prevData.priceData.slice(1), {
-                            time: formatTime(new Date()),
-                            price: newPrice,
-                        }];
-                    }
+                     newPriceData = [...prevData.priceData.slice(1), {
+                        time: formatTime(new Date()),
+                        price: newPrice,
+                    }];
                 }
 
                 let updatedData = { ...prevData, summary: newSummary, priceData: newPriceData };
@@ -287,3 +283,5 @@ export const useMarketData = () => {
       forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
     };
 };
+
+    
