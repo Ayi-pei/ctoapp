@@ -3,9 +3,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs } from '@/types';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 export type SpecialTimeFrame = {
-    id: string; // e.g., timestamp or a unique string
+    id: string;
     startTime: string;
     endTime: string;
     profitRate: number;
@@ -13,8 +15,8 @@ export type SpecialTimeFrame = {
 
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
-    tradingDisabled: boolean; // This now acts as a master switch for all special time frames
-    baseProfitRate: number; // The default profit rate outside of any special time frames
+    tradingDisabled: boolean;
+    baseProfitRate: number;
     specialTimeFrames: SpecialTimeFrame[];
 };
 
@@ -33,10 +35,9 @@ interface SettingsContextType {
 const getDefaultPairSettings = (): TradingPairSettings => ({
     trend: 'normal',
     tradingDisabled: false,
-    baseProfitRate: 0.85, // Default 85% profit rate
+    baseProfitRate: 0.85,
     specialTimeFrames: [],
 });
-
 
 const defaultSettings: AllSettings = availablePairs.reduce((acc, pair) => {
     acc[pair] = getDefaultPairSettings();
@@ -46,45 +47,56 @@ const defaultSettings: AllSettings = availablePairs.reduce((acc, pair) => {
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-    const [settings, setSettings] = useState<AllSettings>({});
+    const [settings, setSettings] = useState<AllSettings>(defaultSettings);
+    const { toast } = useToast();
     
     useEffect(() => {
-        // This effect runs only on the client
-        if (typeof window === 'undefined') {
-            return;
-        }
-        try {
-            const storedSettings = localStorage.getItem('marketSettings');
-            if (storedSettings) {
-                const parsedSettings = JSON.parse(storedSettings);
-                const mergedSettings = { ...defaultSettings };
-                for (const pair of availablePairs) {
-                    // Make sure each pair has the default structure, then override with stored data
-                    mergedSettings[pair] = { 
-                        ...getDefaultPairSettings(), 
-                        ...(parsedSettings[pair] || {}) 
-                    };
-                }
-                setSettings(mergedSettings);
-            } else {
-                setSettings(defaultSettings);
-            }
-        } catch (e) {
-            console.error("Failed to load settings from localStorage", e);
-            setSettings(defaultSettings);
-        }
-    }, []);
+        const fetchSettings = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('market_settings')
+                    .select('settings_data')
+                    .single();
 
-    const saveSettings = (newSettings: AllSettings) => {
-        if (typeof window === 'undefined') {
-            return;
-        }
+                if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+                    throw error;
+                }
+
+                if (data && data.settings_data) {
+                    const parsedSettings = data.settings_data as AllSettings;
+                    const mergedSettings: AllSettings = {};
+                    for (const pair of availablePairs) {
+                        mergedSettings[pair] = { 
+                            ...getDefaultPairSettings(), 
+                            ...(parsedSettings[pair] || {}) 
+                        };
+                    }
+                    setSettings(mergedSettings);
+                } else {
+                    setSettings(defaultSettings);
+                }
+            } catch (e) {
+                console.error("Failed to load settings from Supabase", e);
+                setSettings(defaultSettings);
+                toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
+            }
+        };
+
+        fetchSettings();
+    }, [toast]);
+
+    const saveSettingsToDb = useCallback(async (newSettings: AllSettings) => {
         try {
-            localStorage.setItem('marketSettings', JSON.stringify(newSettings));
+            const { error } = await supabase
+                .from('market_settings')
+                .upsert({ id: 1, settings_data: newSettings }, { onConflict: 'id' });
+            
+            if (error) throw error;
         } catch(e) {
-            console.error("Failed to save settings to localStorage", e);
+            console.error("Failed to save settings to Supabase", e);
+            toast({ variant: "destructive", title: "错误", description: "保存市场设置失败。" });
         }
-    }
+    }, [toast]);
 
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
@@ -96,10 +108,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: updatedPairSettings,
             };
-            saveSettings(allNewSettings);
+            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, []);
+    }, [saveSettingsToDb]);
 
     const addSpecialTimeFrame = useCallback((pair: string) => {
         setSettings(prevSettings => {
@@ -107,7 +119,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 id: `frame_${Date.now()}`,
                 startTime: "00:00",
                 endTime: "23:59",
-                profitRate: 0.90, // Default 90%
+                profitRate: 0.90,
             };
             const pairSettings = prevSettings[pair] || getDefaultPairSettings();
             const updatedFrames = [...pairSettings.specialTimeFrames, newFrame];
@@ -115,10 +127,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettings(allNewSettings);
+            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, []);
+    }, [saveSettingsToDb]);
 
     const removeSpecialTimeFrame = useCallback((pair: string, frameId: string) => {
         setSettings(prevSettings => {
@@ -130,10 +142,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettings(allNewSettings);
+            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, []);
+    }, [saveSettingsToDb]);
 
     const updateSpecialTimeFrame = useCallback((pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => {
         setSettings(prevSettings => {
@@ -148,10 +160,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 ...prevSettings,
                 [pair]: { ...pairSettings, specialTimeFrames: updatedFrames },
             };
-            saveSettings(allNewSettings);
+            saveSettingsToDb(allNewSettings);
             return allNewSettings;
         });
-    }, []);
+    }, [saveSettingsToDb]);
 
 
     return (

@@ -19,7 +19,7 @@ import { useAuth } from "@/context/auth-context";
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
-import { Transaction } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 type WithdrawDialogProps = {
     isOpen: boolean;
@@ -36,22 +36,26 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
 
     useEffect(() => {
         if (user && isOpen) {
-            try {
-                const storedAddresses = localStorage.getItem(`withdrawalAddresses_${user.username}`);
-                if (storedAddresses) {
-                    setSavedAddresses(JSON.parse(storedAddresses));
-                } else {
+            const fetchAddresses = async () => {
+                 try {
+                    const { data, error } = await supabase
+                        .from('withdrawal_addresses')
+                        .select('*')
+                        .eq('user_id', user.id);
+                    if (error) throw error;
+                    setSavedAddresses(data || []);
+                } catch (error) {
+                    console.error("Failed to load addresses from Supabase", error);
                     setSavedAddresses([]);
+                    toast({ variant: "destructive", title: "错误", description: "加载提现地址失败。" });
                 }
-            } catch (error) {
-                console.error("Failed to load addresses from localStorage", error);
-                setSavedAddresses([]);
-            }
+            };
+            fetchAddresses();
         }
-    }, [user, isOpen]);
+    }, [user, isOpen, toast]);
 
 
-    const handleWithdraw = () => {
+    const handleWithdraw = async () => {
         const numericAmount = parseFloat(amount);
 
         if (!selectedAddress || !numericAmount || numericAmount <= 0) {
@@ -63,7 +67,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             return;
         }
         
-        const success = requestWithdrawal('USDT', numericAmount, selectedAddress);
+        const success = await requestWithdrawal('USDT', numericAmount, selectedAddress);
         
         if (success) {
             toast({
