@@ -24,7 +24,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   updateUser: (userData: Partial<User>) => void;
@@ -42,53 +42,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
+  const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
+    if (!supabaseUser) return null;
+    
+    const { data: userProfile, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', supabaseUser.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user profile:', error.message);
+      // This might happen if the user exists in auth but not in the public table yet
+      // which can occur during registration before the profile is created.
+      // We sign out to prevent being in a broken state.
+      if (error.code === 'PGRST116') { // "Not found"
+          await supabase.auth.signOut();
+      }
+      return null;
+    }
+    return userProfile as User;
+  };
+
+
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        if (session?.user) {
-          const { data: userProfile, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching user profile:', error);
-            setUser(null);
-            setIsAdmin(false);
-          } else if (userProfile) {
-            setUser(userProfile);
-            setIsAdmin(userProfile.is_admin || false);
-          }
-        } else {
-          setUser(null);
-          setIsAdmin(false);
-        }
+        const userProfile = await fetchUserProfile(session?.user || null);
+        setUser(userProfile);
+        setIsAdmin(userProfile?.is_admin || false);
         setIsLoading(false);
       }
     );
 
     // Initial check
     const checkUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-       if (data.session?.user) {
-          const { data: userProfile, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', data.session.user.id)
-            .single();
-
-          if (error) {
-            console.error('Error fetching user profile on initial load:', error);
-            setUser(null);
-            setIsAdmin(false);
-          } else if (userProfile) {
-            setUser(userProfile);
-            setIsAdmin(userProfile.is_admin || false);
-          }
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      if (session?.user) {
+        const userProfile = await fetchUserProfile(session.user);
+        setUser(userProfile);
+        setIsAdmin(userProfile?.is_admin || false);
+      }
       setIsLoading(false);
     };
     checkUser();
@@ -98,8 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
-    const email = `${username}@rsf.app`;
+  const login = async (email: string, password: string): Promise<boolean> => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       console.error('Login failed:', error.message);
@@ -128,11 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            username: username
-          },
-        }
       });
       
       if (authError) {
@@ -140,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       
-      if (!authData.user) {
+      const registeredUser = authData.user;
+      if (!registeredUser) {
         throw new Error("User registration did not return a user.");
       }
       
@@ -148,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error: profileError } = await supabase
         .from('users')
         .insert({
-          id: authData.user.id,
+          id: registeredUser.id,
           username: username,
           email: email,
           is_admin: false,
@@ -161,7 +152,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileError) {
          console.error("Failed to create user profile:", profileError.message);
          // If profile creation fails, we must delete the auth user to prevent orphans
-         await supabase.auth.admin.deleteUser(authData.user.id);
+         const { error: deleteError } = await supabase.auth.admin.deleteUser(registeredUser.id);
+         if(deleteError) console.error("Failed to clean up orphaned auth user:", deleteError.message);
          toast({ variant: 'destructive', title: '注册失败', description: '无法创建用户资料，请重试。' });
          return false;
       }

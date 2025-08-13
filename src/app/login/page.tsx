@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 const loginSchema = z.object({
-  username: z.string().min(1, '请输入用户名'), // In Supabase, this will be treated as email
+  username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
 });
 
@@ -44,7 +44,6 @@ export default function LoginPage() {
   }, [isAuthenticated, isAdmin, router]);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    // Supabase uses email for login, so we'll construct a dummy email.
     const email = `${values.username}@rsf.app`;
     const success = await login(email, values.password);
 
