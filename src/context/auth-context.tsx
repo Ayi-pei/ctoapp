@@ -44,12 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAdmin: true,
                 isTestUser: false,
                 isFrozen: false,
-                invitationCode: '111222',
+                invitationCode: '111222', // This code is special for the admin
                 inviter: null,
                 downline: [],
                 registeredAt: new Date().toISOString(),
             });
-            localStorage.setItem('users', JSON.stringify(users));
+             localStorage.setItem('users', JSON.stringify(users));
+        } else {
+            // Ensure admin password is correct if user already exists
+            const adminIndex = users.findIndex((u: any) => u.username === 'demo123');
+            if (users[adminIndex].password !== '111222') {
+                users[adminIndex].password = '111222';
+                localStorage.setItem('users', JSON.stringify(users));
+            }
         }
     } catch (e) {
         console.error("Failed to initialize admin user", e);
@@ -109,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setIsAuthenticated(true);
         setUser(userState as User);
-        setIsAdmin(foundUser.isAdmin);
+        setIsAdmin(foundUser.isAdmin); // This line is crucial
         
         return true;
       }
