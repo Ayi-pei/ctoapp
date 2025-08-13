@@ -101,10 +101,15 @@ export default function AdminFinancePage() {
             const allTransactions = JSON.parse(localStorage.getItem('transactions') || '[]') as Transaction[];
             const index = allTransactions.findIndex(t => t.id === updatedTransaction.id);
             if (index !== -1) {
+                const originalTransaction = allTransactions[index];
                 allTransactions[index] = updatedTransaction;
                 localStorage.setItem('transactions', JSON.stringify(allTransactions));
                 
                 // After saving, recalculate the balance for the user
+                // If the user being modified is different, recalculate for both.
+                if (originalTransaction.userId !== updatedTransaction.userId) {
+                    recalculateBalanceForUser(originalTransaction.userId);
+                }
                 recalculateBalanceForUser(updatedTransaction.userId);
 
                 loadTransactions(); // Reload

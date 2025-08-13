@@ -102,3 +102,10 @@ export type CommissionLog = {
     commissionAmount: number;
     createdAt: string; // ISO date string
 }
+
+export type Investment = {
+    id: string;
+    productName: string;
+    amount: number;
+    date: string;
+}

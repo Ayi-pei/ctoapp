@@ -17,10 +17,10 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { availablePairs } from "@/types";
+import { DownlineTree } from "./downline-tree";
 
 
 type UserBalance = {
@@ -29,11 +29,6 @@ type UserBalance = {
         frozen: number;
     }
 } | null;
-
-type DownlineMember = AuthUser & {
-    level: number;
-    children?: DownlineMember[];
-};
 
 type UserDetailsDialogProps = {
     isOpen: boolean;
@@ -52,7 +47,6 @@ const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpdate }: UserDetailsDialogProps) {
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
-    const [downlineTree, setDownlineTree] = useState<DownlineMember[]>([]);
     const { toast } = useToast();
     const { updateUser, user: currentUser } = useAuth();
     const balanceContext = useBalance();
@@ -61,34 +55,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
     useEffect(() => {
         if (isOpen && user) {
             setBalanceAdjustments({}); // Reset adjustments on open
-            try {
-                const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
-                const userMap = new Map(allUsers.map(u => [u.username, u]));
-
-                const getDownlineRecursive = (username: string, level: number): DownlineMember[] => {
-                    if (level > 3) return []; // Limit to 3 levels
-
-                    const directUpline = userMap.get(username);
-                    if (!directUpline || !directUpline.downline) return [];
-
-                    return directUpline.downline.map(downlineName => {
-                        const downlineUser = userMap.get(downlineName);
-                        if (!downlineUser) return null;
-                        return {
-                            ...downlineUser,
-                            level,
-                            children: getDownlineRecursive(downlineName, level + 1),
-                        };
-                    }).filter((member): member is DownlineMember => member !== null);
-                };
-                
-                const tree = getDownlineRecursive(user.username, 1);
-                setDownlineTree(tree);
-
-            } catch (error) {
-                console.error("Failed to build downline tree:", error);
-                setDownlineTree([]);
-            }
         }
     }, [isOpen, user]);
 
@@ -170,31 +136,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
             toast({ variant: "destructive", title: "错误", description: "操作失败。" });
         }
     }
-
-    const renderDownline = (members: DownlineMember[]) => {
-        if (!members || members.length === 0) {
-            return <p className="text-sm text-muted-foreground pl-4">无下级成员。</p>;
-        }
-        return (
-             <Accordion type="multiple" className="w-full">
-                {members.map(member => (
-                    <AccordionItem value={member.username} key={member.username} className="border-b-0">
-                         <AccordionTrigger className="py-2 hover:no-underline">
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
-                                    LV {member.level}
-                                </span>
-                                <span>{member.username}</span>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pl-6 border-l border-dashed ml-3">
-                            {renderDownline(member.children || [])}
-                        </AccordionContent>
-                    </AccordionItem>
-                ))}
-            </Accordion>
-        )
-    }
     
     const registeredAtDate = user.registeredAt ? new Date(user.registeredAt).toLocaleDateString() : 'N/A';
 
@@ -260,7 +201,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
 
                      <div>
                         <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (三级代理)</h4>
-                        {renderDownline(downlineTree)}
+                        <DownlineTree username={user.username} />
                     </div>
 
                     <Separator />

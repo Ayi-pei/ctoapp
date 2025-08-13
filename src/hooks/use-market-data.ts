@@ -206,8 +206,8 @@ export const useMarketData = () => {
                         price: newPrice,
                         change: parseFloat(assetData.changePercent24Hr),
                         volume: parseFloat(assetData.volumeUsd24Hr),
-                        high: Math.max(prevData.summary.high, newPrice), // Simplification
-                        low: Math.min(prevData.summary.low, newPrice),   // Simplification
+                        high: Math.max(prevData.summary.high, newPrice),
+                        low: Math.min(prevData.summary.low, newPrice),
                     };
                     
                     if (pair === tradingPair) {
@@ -227,7 +227,12 @@ export const useMarketData = () => {
                     }
                     
                     const newPrice = prevData.summary.price * priceMultiplier;
-                    newSummary = { ...prevData.summary, price: newPrice };
+                    newSummary = { 
+                        ...prevData.summary, 
+                        price: newPrice,
+                        high: Math.max(prevData.summary.high, newPrice),
+                        low: Math.min(prevData.summary.low, newPrice),
+                    };
                     
                      if (pair === tradingPair) {
                          newPriceData = [...prevData.priceData.slice(1), {

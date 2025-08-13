@@ -7,21 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Copy, Users, BarChart2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, User } from "@/context/auth-context";
+import { useAuth } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CommissionLog } from "@/types";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { DownlineTree } from "@/components/downline-tree";
 
-
-type DownlineMember = User & {
-    level: number;
-    children?: DownlineMember[];
-};
 
 export default function PromotionPage() {
     const { toast } = useToast();
     const { user } = useAuth();
-    const [downline, setDownline] = useState<DownlineMember[]>([]);
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
 
     const copyToClipboard = () => {
@@ -47,63 +41,8 @@ export default function PromotionPage() {
                 console.error(e);
                 setCommissions([]);
             }
-
-            // Fetch full downline details
-            try {
-                const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as User[];
-                const userMap = new Map(allUsers.map(u => [u.username, u]));
-                
-                const getDownlineRecursive = (username: string, level: number): DownlineMember[] => {
-                    if (level > 3) return []; // Limit to 3 levels
-                    
-                    const directUpline = userMap.get(username);
-                    if (!directUpline || !directUpline.downline) return [];
-                    
-                    return directUpline.downline.map(downlineName => {
-                        const downlineUser = userMap.get(downlineName);
-                        if (!downlineUser) return null;
-                        return {
-                            ...downlineUser,
-                            level,
-                            children: getDownlineRecursive(downlineName, level + 1),
-                        };
-                    }).filter((member): member is DownlineMember => member !== null);
-                };
-
-                const userDownline = getDownlineRecursive(user.username, 1);
-                setDownline(userDownline);
-
-            } catch (error) {
-                 console.error("Failed to load user downline:", error);
-                 setDownline([]);
-            }
         }
     }, [user]);
-
-    const renderDownline = (members: DownlineMember[]) => {
-        if (!members || members.length === 0) {
-            return <p className="text-sm text-muted-foreground p-4 text-center">您还没有邀请任何成员。</p>;
-        }
-        return (
-             <Accordion type="multiple" className="w-full">
-                {members.map(member => (
-                    <AccordionItem value={member.username} key={member.username} className="border-b-0">
-                         <AccordionTrigger className="py-2 hover:no-underline px-4">
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
-                                    LV {member.level}
-                                </span>
-                                <span>{member.username}</span>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pl-6 border-l border-dashed ml-5">
-                            {renderDownline(member.children || [])}
-                        </AccordionContent>
-                    </AccordionItem>
-                ))}
-            </Accordion>
-        )
-    }
 
     return (
         <DashboardLayout>
@@ -134,8 +73,8 @@ export default function PromotionPage() {
                                 <span>我的团队</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="p-0">
-                             {renderDownline(downline)}
+                        <CardContent className="p-2">
+                             {user && <DownlineTree username={user.username} />}
                         </CardContent>
                     </Card>
 

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { ContractTrade, SpotTrade, CommissionLog, Transaction } from '@/types';
+import { ContractTrade, SpotTrade, CommissionLog, Transaction, Investment } from '@/types';
 import { CircleDollarSign } from 'lucide-react';
 import { useAuth, User } from './auth-context';
 import { useMarket } from './market-data-context';
@@ -25,12 +25,6 @@ const ALL_ASSETS = [
     { name: "ETH", icon: CircleDollarSign },
 ];
 
-export type Investment = {
-    id: string;
-    productName: string;
-    amount: number;
-    date: string;
-}
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -80,7 +74,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             return JSON.parse(storedBalances);
         }
         
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const users = JSON.parse(localStorage.getItem('users') || '[]') as User[];
         const currentUser = users.find((u: any) => u.username === username);
         return currentUser?.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER;
 
@@ -111,12 +105,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             if (tx.type === 'deposit' && tx.status === 'approved') {
                 calculatedBalances[tx.asset].available += tx.amount;
             }
-            if (tx.type === 'withdrawal' && tx.status === 'approved') {
-                calculatedBalances[tx.asset].available -= tx.amount;
-            }
-            if (tx.type === 'withdrawal' && tx.status === 'pending') {
-                calculatedBalances[tx.asset].available -= tx.amount;
-                calculatedBalances[tx.asset].frozen += tx.amount;
+            // For withdrawals, the amount is deducted/frozen upon request, not approval.
+            // If rejected, it should be returned, but that's handled by the request handler.
+            // Here, we just ensure approved ones are permanently deducted from `available`
+            // and pending ones are moved from `available` to `frozen`.
+             if (tx.type === 'withdrawal') {
+                 if (tx.status === 'approved') {
+                     calculatedBalances[tx.asset].frozen -= tx.amount; // Unfreeze and it's gone
+                 } else if (tx.status === 'rejected') {
+                     calculatedBalances[tx.asset].available += tx.amount;
+                     calculatedBalances[tx.asset].frozen -= tx.amount;
+                 }
             }
         });
 
@@ -141,9 +140,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const userContractTrades = allContractTrades.filter(t => t.userId === username);
         userContractTrades.forEach(trade => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             if (trade.status === 'active') {
-                 // The trade amount was already deducted upon placing the trade.
-             } else if (trade.status === 'settled' && trade.profit !== undefined) {
+             
+             // The trade amount is deducted from available upon placing the trade.
+             calculatedBalances['USDT'].available -= trade.amount;
+             
+             if (trade.status === 'settled' && trade.profit !== undefined) {
+                 // Return the original amount + profit/loss
                  calculatedBalances['USDT'].available += (trade.amount + trade.profit);
              }
         });
@@ -152,10 +154,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const userInvestments: Investment[] = JSON.parse(localStorage.getItem(`userInvestments_${username}`) || '[]');
         userInvestments.forEach(investment => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             // Investment amount is deducted, but not returned in this simple calc.
-             // For recalculation, we should just factor in the deduction.
+             // Investment amount is deducted.
              calculatedBalances['USDT'].available -= investment.amount;
         });
+
+        // 5. Commissions
+        const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
+        const userCommissions = allCommissions.filter(c => c.uplineUsername === username);
+        userCommissions.forEach(log => {
+             if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
+             calculatedBalances['USDT'].available += log.commissionAmount;
+        })
         
         // Save the recalculated balances
         localStorage.setItem(`userBalances_${username}`, JSON.stringify(calculatedBalances));
@@ -302,6 +311,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const freezeBalance = (asset: string, amount: number) => {
     if (!user) return;
     setBalances(prev => {
+        if (!prev[asset]) return prev;
         const newAvailable = prev[asset].available - amount;
         const newFrozen = prev[asset].frozen + amount;
         return {
