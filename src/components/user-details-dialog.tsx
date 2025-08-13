@@ -109,7 +109,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         setEditableBalances(prev => ({
             ...prev,
             [asset]: {
-                ...prev[asset],
+                ...(prev[asset] || { available: '0', frozen: '0' }),
                 [type]: value,
             }
         }));

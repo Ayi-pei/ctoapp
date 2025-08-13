@@ -10,17 +10,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, User } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CommissionLog } from "@/types";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
-type DownlineMember = {
-    username: string;
+type DownlineMember = User & {
     level: number;
-    registeredAt: string;
+    children?: DownlineMember[];
 };
 
 export default function PromotionPage() {
     const { toast } = useToast();
-    const { user } = useAuth(); // This user object should now be complete
+    const { user } = useAuth();
     const [downline, setDownline] = useState<DownlineMember[]>([]);
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
 
@@ -35,7 +35,7 @@ export default function PromotionPage() {
     };
     
     useEffect(() => {
-        if (user?.username && user.invitationCode) {
+        if (user?.username) {
             // Load commission logs
             try {
                 const allCommissions = JSON.parse(localStorage.getItem('commissionLogs') || '[]') as CommissionLog[];
@@ -53,29 +53,24 @@ export default function PromotionPage() {
                 const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as User[];
                 const userMap = new Map(allUsers.map(u => [u.username, u]));
                 
-                const getDownlineRecursive = (username: string, level: number, maxLevel: number): DownlineMember[] => {
-                    if (level > maxLevel) return [];
+                const getDownlineRecursive = (username: string, level: number): DownlineMember[] => {
+                    if (level > 3) return []; // Limit to 3 levels
                     
                     const directUpline = userMap.get(username);
                     if (!directUpline || !directUpline.downline) return [];
                     
-                    let members: DownlineMember[] = [];
-                    for (const downlineName of directUpline.downline) {
+                    return directUpline.downline.map(downlineName => {
                         const downlineUser = userMap.get(downlineName);
-                        if (downlineUser) {
-                            members.push({
-                                username: downlineUser.username,
-                                level: level,
-                                registeredAt: downlineUser.registeredAt || new Date().toISOString(),
-                            });
-                            // Recursively get the next level's downline
-                            members = members.concat(getDownlineRecursive(downlineName, level + 1, maxLevel));
-                        }
-                    }
-                    return members;
+                        if (!downlineUser) return null;
+                        return {
+                            ...downlineUser,
+                            level,
+                            children: getDownlineRecursive(downlineName, level + 1),
+                        };
+                    }).filter((member): member is DownlineMember => member !== null);
                 };
 
-                const userDownline = getDownlineRecursive(user.username, 1, 3);
+                const userDownline = getDownlineRecursive(user.username, 1);
                 setDownline(userDownline);
 
             } catch (error) {
@@ -84,6 +79,31 @@ export default function PromotionPage() {
             }
         }
     }, [user]);
+
+    const renderDownline = (members: DownlineMember[]) => {
+        if (!members || members.length === 0) {
+            return <p className="text-sm text-muted-foreground p-4 text-center">您还没有邀请任何成员。</p>;
+        }
+        return (
+             <Accordion type="multiple" className="w-full">
+                {members.map(member => (
+                    <AccordionItem value={member.username} key={member.username} className="border-b-0">
+                         <AccordionTrigger className="py-2 hover:no-underline px-4">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
+                                    LV {member.level}
+                                </span>
+                                <span>{member.username}</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pl-6 border-l border-dashed ml-5">
+                            {renderDownline(member.children || [])}
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+        )
+    }
 
     return (
         <DashboardLayout>
@@ -114,31 +134,8 @@ export default function PromotionPage() {
                                 <span>我的团队</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>用户名</TableHead>
-                                        <TableHead>代理级别</TableHead>
-                                        <TableHead className="text-right">注册时间</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {downline.length > 0 ? downline.map(member => (
-                                        <TableRow key={member.username}>
-                                            <TableCell>{member.username}</TableCell>
-                                            <TableCell>LV {member.level}</TableCell>
-                                            <TableCell className="text-right text-xs">{new Date(member.registeredAt || Date.now()).toLocaleDateString()}</TableCell>
-                                        </TableRow>
-                                    )) : (
-                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center text-muted-foreground">
-                                                您还没有邀请任何成员。
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                        <CardContent className="p-0">
+                             {renderDownline(downline)}
                         </CardContent>
                     </Card>
 
@@ -167,7 +164,7 @@ export default function PromotionPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center text-muted-foreground">
+                                            <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
                                                 暂无佣金记录。
                                             </TableCell>
                                         </TableRow>

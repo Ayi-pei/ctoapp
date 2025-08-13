@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 
-type WithdrawalAddress = {
+export type WithdrawalAddress = {
     id: string;
     name: string;
     address: string;

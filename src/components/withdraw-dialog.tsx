@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { Transaction } from "@/types";
 import { useBalance } from "@/context/balance-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { WithdrawalAddress } from "@/app/profile/payment/page";
 
 type WithdrawDialogProps = {
     isOpen: boolean;
@@ -28,16 +30,32 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     const { balances, freezeBalance } = useBalance();
-    const [address, setAddress] = useState("");
+    const [selectedAddress, setSelectedAddress] = useState("");
     const [amount, setAmount] = useState("");
+    const [savedAddresses, setSavedAddresses] = useState<WithdrawalAddress[]>([]);
+
+    useEffect(() => {
+        if (user && isOpen) {
+            try {
+                const storedAddresses = localStorage.getItem(`withdrawalAddresses_${user.username}`);
+                if (storedAddresses) {
+                    setSavedAddresses(JSON.parse(storedAddresses));
+                }
+            } catch (error) {
+                console.error("Failed to load addresses from localStorage", error);
+                setSavedAddresses([]);
+            }
+        }
+    }, [user, isOpen]);
+
 
     const handleWithdraw = () => {
         const numericAmount = parseFloat(amount);
-        if (!address || !numericAmount || numericAmount <= 0) {
+        if (!selectedAddress || !numericAmount || numericAmount <= 0) {
             toast({
                 variant: "destructive",
                 title: "提币失败",
-                description: "请输入有效的地址和金额。",
+                description: "请选择一个地址并输入有效的金额。",
             });
             return;
         }
@@ -59,7 +77,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             type: 'withdrawal',
             asset: 'USDT',
             amount: numericAmount,
-            address: address,
+            address: selectedAddress,
             status: 'pending',
             createdAt: new Date().toISOString(),
         };
@@ -77,7 +95,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                 title: "提币请求已提交",
                 description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
             });
-            setAddress("");
+            setSelectedAddress("");
             setAmount("");
             onOpenChange(false);
         } catch (error) {
@@ -85,14 +103,22 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             toast({ variant: "destructive", title: "错误", description: "无法提交请求，请重试。" });
         }
     };
+    
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            setSelectedAddress("");
+            setAmount("");
+        }
+        onOpenChange(open);
+    }
 
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>提币 (USDT)</DialogTitle>
                     <DialogDescription>
-                        输入您要提币到的地址和金额。您的请求将由管理员审核。可用余额: {(balances['USDT']?.available || 0).toFixed(2)} USDT
+                        选择您的提现地址并输入金额。您的请求将由管理员审核。可用余额: {(balances['USDT']?.available || 0).toFixed(2)} USDT
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -100,13 +126,23 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                         <Label htmlFor="address" className="text-right">
                             地址
                         </Label>
-                        <Input
-                            id="address"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            className="col-span-3"
-                            placeholder="请输入提币地址"
-                        />
+                        <div className="col-span-3">
+                             <Select value={selectedAddress} onValueChange={setSelectedAddress}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="选择一个已保存的地址" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {savedAddresses.map((addr) => (
+                                        <SelectItem key={addr.id} value={addr.address}>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">{addr.name}</span>
+                                                <span className="text-xs text-muted-foreground">{addr.address}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="amount" className="text-right">
