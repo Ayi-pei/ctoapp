@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 const loginSchema = z.object({
-  username: z.string().min(1, '请输入用户名'),
+  email: z.string().email('请输入有效的邮箱地址'),
   password: z.string().min(1, '请输入密码'),
 });
 
@@ -28,7 +28,7 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
+      email: '',
       password: '',
     },
   });
@@ -44,14 +44,13 @@ export default function LoginPage() {
   }, [isAuthenticated, isAdmin, router]);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const email = `${values.username}@rsf.app`;
-    const success = await login(email, values.password);
+    const success = await login(values.email, values.password);
 
     if (!success) {
       toast({
         variant: 'destructive',
         title: '登录失败',
-        description: '用户名或密码错误。',
+        description: '邮箱或密码错误。',
       });
     } else {
        toast({
@@ -71,12 +70,12 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>用户名</FormLabel>
+                    <FormLabel>邮箱地址</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入您的用户名" {...field} />
+                      <Input placeholder="请输入您的邮箱地址" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
