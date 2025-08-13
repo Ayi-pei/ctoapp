@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 
 
-function TradePage({ defaultTab }: { defaultTab: string }) {
+const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: string }) {
   const marketData = useMarket();
   const { tradingPair, data, summaryData } = marketData;
   const { 
@@ -207,7 +207,7 @@ function TradePage({ defaultTab }: { defaultTab: string }) {
         </main>
     </DashboardLayout>
   );
-}
+});
 
 
 function TradePageWrapper() {

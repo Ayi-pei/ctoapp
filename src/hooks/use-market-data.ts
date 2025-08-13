@@ -156,9 +156,10 @@ export const useMarketData = () => {
     if (!isInitialised || !Object.keys(settings).length) return;
 
     const interval = setInterval(async () => {
-        const assetsToFetch = availablePairs
-            .filter(pair => TATUM_MAP[pair] && settings[pair]?.trend === 'normal')
-            .map(pair => TATUM_MAP[pair]);
+        const assetsToFetch = CRYPTO_PAIRS
+            .filter(pair => settings[pair]?.trend === 'normal')
+            .map(pair => TATUM_MAP[pair])
+            .filter(Boolean); // Filter out any undefineds if a pair isn't in TATUM_MAP
 
         // --- REAL DATA FETCHING ---
         let realTimeData: GetMarketDataOutput['data'] = {};
@@ -166,7 +167,6 @@ export const useMarketData = () => {
         
         if (assetsToFetch.length > 0) {
             try {
-                // Pass only the asset symbols like 'BTC', 'ETH'
                 const result = await getMarketData({ assetIds: assetsToFetch });
                 if (result && Object.keys(result.data).length > 0) {
                     realTimeData = result.data;
@@ -179,25 +179,22 @@ export const useMarketData = () => {
             }
         }
        
-        // --- UPDATE ALL PAIRS ---
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
 
-            newAllData.forEach((prevData, pair) => {
+            availablePairs.forEach(pair => {
+                const prevData = newAllData.get(pair);
                 if (!prevData) return;
+
                 const pairSettings = settings[pair] || { trend: 'normal' };
-                
                 let newSummary;
                 let newPriceData = prevData.priceData;
 
                 const tatumSymbol = TATUM_MAP[pair];
-                // Tatum getMarketData flow returns ids in lowercase, e.g. 'btc'
                 const assetDataFromTatum = realTimeData[tatumSymbol?.toLowerCase()];
                 const shouldUseRealData = !fetchFailed && pairSettings.trend === 'normal' && tatumSymbol && assetDataFromTatum;
 
-
                 if (shouldUseRealData) {
-                    // --- Use REAL Data ---
                     const assetData = assetDataFromTatum;
                     const newPrice = parseFloat(assetData.priceUsd);
                     
@@ -214,10 +211,8 @@ export const useMarketData = () => {
                         time: formatTime(new Date()),
                         price: newPrice,
                     }];
-
                 } else {
-                    // --- Use MOCK/SIMULATED Data (Admin Override or Fetch Failure) ---
-                    let priceMultiplier = randomInRange(0.9995, 1.0005); // Default: normal fluctuation
+                    let priceMultiplier = randomInRange(0.9995, 1.0005);
                     if (pairSettings.trend === 'up') {
                         priceMultiplier = randomInRange(1.0001, 1.0008); 
                     } else if (pairSettings.trend === 'down') {
@@ -232,15 +227,20 @@ export const useMarketData = () => {
                         low: Math.min(prevData.summary.low, newPrice),
                     };
                     
-                     newPriceData = [...prevData.priceData.slice(1), {
+                    newPriceData = [...prevData.priceData.slice(1), {
                         time: formatTime(new Date()),
                         price: newPrice,
                     }];
                 }
 
-                let updatedData = { ...prevData, summary: newSummary, priceData: newPriceData };
+                let updatedData = { 
+                    ...prevData, 
+                    summary: newSummary, 
+                    // Only update priceData for all pairs, heavy data only for active pair
+                    priceData: newPriceData 
+                };
                 
-                // For active pair, also update order book and trades for visual effect
+                // For the currently active trading pair, also update the heavy order book and trades for visual effect
                 if (pair === tradingPair) {
                      const newAsks = prevData.orderBook.asks.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => a.price - b.price);
                      const newBids = prevData.orderBook.bids.map(order => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a,b) => b.price - a.price);
@@ -256,7 +256,8 @@ export const useMarketData = () => {
                         });
                         if (newTrades.length > 50) newTrades.pop();
                     }
-                    updatedData = { ...updatedData, orderBook: { asks: newAsks, bids: newBids }, trades: newTrades };
+                    updatedData.orderBook = { asks: newAsks, bids: newBids };
+                    updatedData.trades = newTrades;
                 }
                 
                 newAllData.set(pair, updatedData);
@@ -283,5 +284,3 @@ export const useMarketData = () => {
       forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
     };
 };
-
-    
