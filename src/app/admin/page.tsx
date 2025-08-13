@@ -7,14 +7,12 @@ import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminPage() {
-    const { user, isAuthenticated, isAdmin } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        // Wait until the auth state is fully resolved.
-        // `user` will be `undefined` on the initial render and `null` or an object after the context has checked localStorage.
-        if (user === undefined) {
-            return; // Do nothing until the auth context is initialized
+        if (isLoading) {
+            return; 
         }
 
         if (isAuthenticated && isAdmin) {
@@ -23,12 +21,10 @@ export default function AdminPage() {
              router.replace('/dashboard');
         }
         else {
-            // If not authenticated (user is null), redirect to login
             router.replace('/login');
         }
-    }, [user, isAuthenticated, isAdmin, router]);
+    }, [isAuthenticated, isAdmin, isLoading, router]);
 
-    // Render a loading skeleton while the redirection logic is processing
     return (
         <div className="p-8">
             <Skeleton className="h-24 w-full" />

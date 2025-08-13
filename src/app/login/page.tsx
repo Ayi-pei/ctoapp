@@ -14,6 +14,7 @@ import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const loginSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
@@ -21,7 +22,7 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -33,8 +34,10 @@ export default function LoginPage() {
     },
   });
 
-  // This effect handles redirection after login state is confirmed.
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     if (isAuthenticated) {
       if (isAdmin) {
         router.push('/admin');
@@ -42,7 +45,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     }
-  }, [isAuthenticated, isAdmin, router]);
+  }, [isAuthenticated, isAdmin, router, isLoading]);
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     const success = await login(values.username, values.password);
@@ -51,7 +54,6 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      // Redirection is now handled by the useEffect in AuthProvider and this component
     } else {
       toast({
         variant: 'destructive',
@@ -60,6 +62,29 @@ export default function LoginPage() {
       });
     }
   };
+
+  if (isLoading || isAuthenticated) {
+     return (
+        <AuthLayout>
+            <Card className="w-full max-w-md">
+                <CardHeader>
+                    <Skeleton className="h-8 w-24 mx-auto" />
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                     <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+            </Card>
+        </AuthLayout>
+     )
+  }
 
   return (
     <AuthLayout>
