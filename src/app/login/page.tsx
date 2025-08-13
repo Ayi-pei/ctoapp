@@ -63,7 +63,7 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading || isAuthenticated) {
+  if (isLoading) {
      return (
         <AuthLayout>
             <Card className="w-full max-w-md">
