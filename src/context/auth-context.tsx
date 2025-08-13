@@ -10,9 +10,7 @@ export type User = {
   isAdmin: boolean;
   avatar?: string;
   isFrozen?: boolean;
-  invitationCode: string;
   inviter: string | null;
-  downline: string[];
   registeredAt?: string;
   password?: string;
 }
@@ -29,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 
-function AuthProviderWrapper({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
@@ -48,30 +46,11 @@ function AuthProviderWrapper({ children }: { children: ReactNode }) {
           isAdmin: true,
           isTestUser: false,
           isFrozen: false,
-          invitationCode: 'ADMIN1',
           inviter: null,
-          downline: [],
           registeredAt: new Date().toISOString(),
         });
         localStorage.setItem('users', JSON.stringify(users));
       }
-
-      // Initialize the special "TESTER" user if it doesn't exist
-      const testerUserExists = users.some((u: any) => u.username === 'tester_inviter');
-       if (!testerUserExists) {
-           users.push({
-                username: 'tester_inviter', // This user is just a placeholder to own the code
-                password: Math.random().toString(36).slice(-8), // Random password, not meant for login
-                isAdmin: false,
-                isTestUser: true,
-                isFrozen: true, // Cannot be logged into
-                invitationCode: 'TESTER',
-                inviter: null,
-                downline: [],
-                registeredAt: new Date().toISOString(),
-            });
-            localStorage.setItem('users', JSON.stringify(users));
-       }
 
     } catch (e) {
       console.error("Failed to initialize system users", e);
@@ -96,6 +75,7 @@ function AuthProviderWrapper({ children }: { children: ReactNode }) {
           }
 
         } else {
+          // If user in session is not found in user list, log them out.
           logout();
         }
 
@@ -175,13 +155,6 @@ function AuthProviderWrapper({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter(); // router can be used here now
-  return <AuthProviderWrapper>{children}</AuthProviderWrapper>;
-}
-
 
 export function useAuth() {
   const context = useContext(AuthContext);

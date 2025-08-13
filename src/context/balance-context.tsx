@@ -48,8 +48,6 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 const COMMISSION_RATES = {
     1: 0.08, // Level 1: 8%
-    2: 0.04, // Level 2: 4%
-    3: 0.02, // Level 3: 2%
 };
 
 type CommissionRates = typeof COMMISSION_RATES;
@@ -65,7 +63,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
 
-  const isTestUser = user?.isTestUser ?? false;
   
   const loadUserBalances = (username: string) => {
     try {
@@ -129,16 +126,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 calculatedBalances[tx.asset].available += tx.amount;
             } else if (tx.type === 'withdrawal') {
                  if (tx.status === 'pending') {
+                    // This is the key logic: pending withdrawals are moved from available to frozen
                     calculatedBalances[tx.asset].available -= tx.amount;
                     calculatedBalances[tx.asset].frozen += tx.amount;
                  } else if (tx.status === 'rejected') {
-                    // If rejected, the frozen amount is released back to available.
-                    // But since we start from scratch, we just don't do anything, the initial balance is already there.
+                    // Money is returned to available from frozen
+                    calculatedBalances[tx.asset].available += tx.amount;
                  } else if (tx.status === 'approved') {
-                    // If approved, the money is gone permanently. We start from an initial balance
-                    // so we need to deduct it from the total. But we also need to account for the frozen part.
-                    // The easiest is to just remove it from frozen.
-                    calculatedBalances[tx.asset].frozen -= tx.amount; // This is a temp state, will be cleared by the end
+                    // Money is permanently gone from frozen.
+                    calculatedBalances[tx.asset].frozen -= tx.amount;
                  }
             } else if (tx.type === 'adjustment') { // Admin adjustments
                 calculatedBalances[tx.asset].available += tx.amount;
@@ -169,7 +165,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
              
              if (trade.status === 'active') {
-                calculatedBalances['USDT'].available -= (trade.amount + (trade.fee ?? 0));
+                calculatedBalances['USDT'].available -= trade.amount;
              }
              
              if (trade.status === 'settled' && trade.profit !== undefined) {
@@ -221,7 +217,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
         } catch (error) {
             console.error("Could not access localStorage or parse balances.", error);
-            setBalances(isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
+            setBalances(user.isTestUser ? INITIAL_BALANCES_TEST_USER : INITIAL_BALANCES_REAL_USER);
             setInvestments([]);
         } finally {
             setIsLoading(false);
@@ -250,7 +246,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
             let tradeSettled = false;
             const now = Date.now();
-            let settledTradeIds: string[] = [];
 
             userActiveTrades.forEach(trade => {
                 if (now >= trade.settlementTime) {
@@ -277,7 +272,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                         };
                         
                         tradeSettled = true;
-                        settledTradeIds.push(trade.id);
                     }
                 }
             });
@@ -297,7 +291,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     return () => clearInterval(interval);
 
-  }, [user]);
+  }, [user, recalculateBalanceForUser]);
   
 
   const addInvestment = (productName: string, amount: number) => {
@@ -331,38 +325,30 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             const allUsers: User[] = JSON.parse(localStorage.getItem('users') || '[]') as [];
             const allCommissions: CommissionLog[] = JSON.parse(localStorage.getItem('commissionLogs') || '[]');
 
-            let currentUplineUsername = sourceUser.inviter;
+            const uplineUsername = sourceUser.inviter;
+            if (!uplineUsername) return; // No inviter, no commission
             
-            for (let level = 1; level <= 3; level++) {
-                if (!currentUplineUsername) break;
+            const uplineUser = allUsers.find(u => u.username === uplineUsername);
+            if (!uplineUser || !uplineUser.isAdmin) return; // Only admin gets commission
 
-                const commissionRate = COMMISSION_RATES[level as keyof CommissionRates];
-                const commissionAmount = tradeAmount * commissionRate;
+            const commissionRate = COMMISSION_RATES[1];
+            const commissionAmount = tradeAmount * commissionRate;
 
-                // Create a commission transaction log instead of directly calling updateBalance
-                const newLog: CommissionLog = {
-                    id: `comm_${Date.now()}_${level}`,
-                    uplineUsername: currentUplineUsername,
-                    sourceUsername: sourceUser.username,
-                    sourceLevel: level,
-                    tradeAmount,
-                    commissionRate,
-                    commissionAmount,
-                    createdAt: new Date().toISOString(),
-                };
-                allCommissions.push(newLog);
-
-                const uplineUser = allUsers.find(u => u.username === currentUplineUsername);
-                if (uplineUser) {
-                    // Important: Instead of direct update, just mark for recalc
-                    recalculateBalanceForUser(uplineUser.username);
-                    currentUplineUsername = uplineUser.inviter;
-                } else {
-                    currentUplineUsername = null;
-                }
-            }
-            
+            const newLog: CommissionLog = {
+                id: `comm_${Date.now()}_1`,
+                uplineUsername: uplineUsername,
+                sourceUsername: sourceUser.username,
+                sourceLevel: 1,
+                tradeAmount,
+                commissionRate,
+                commissionAmount,
+                createdAt: new Date().toISOString(),
+            };
+            allCommissions.push(newLog);
             localStorage.setItem('commissionLogs', JSON.stringify(allCommissions));
+
+            // Trigger balance update for the admin
+            recalculateBalanceForUser(uplineUsername);
 
         } catch (error) {
             console.error("Failed to distribute commissions:", error);
@@ -372,13 +358,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const placeContractTrade = (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
-    const fee = trade.amount * 0.001; // 0.1% fee
     
-    if (balances['USDT']?.available < trade.amount + fee) {
-        // Optionally, show a toast notification for insufficient balance
-        return;
-    }
-
     // Persist first, then update state by re-reading source of truth
     try {
         const now = Date.now();
@@ -392,7 +372,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             entryPrice: marketData.summary.price,
             settlementTime: now + (trade.period * 1000),
             createdAt: new Date().toISOString(),
-            fee,
         }
 
         const existingTrades = JSON.parse(localStorage.getItem('contractTrades') || '[]') as ContractTrade[];
@@ -492,3 +471,5 @@ export function useBalance() {
   }
   return context;
 }
+
+    

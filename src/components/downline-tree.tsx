@@ -6,7 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import type { User as AuthUser } from "@/context/auth-context";
 import { Skeleton } from "./ui/skeleton";
 
-type DownlineMember = AuthUser & {
+type DownlineMember = Omit<AuthUser, 'downline'> & {
     level: number;
     children?: DownlineMember[];
 };
@@ -15,28 +15,22 @@ type DownlineTreeProps = {
     username: string;
 };
 
-const DownlineRecursive = ({ members }: { members: DownlineMember[] }) => {
+// This component is no longer recursive as we only show one level for admin.
+const DownlineList = ({ members }: { members: DownlineMember[] }) => {
     if (!members || members.length === 0) {
         return <p className="text-sm text-muted-foreground p-4 text-center">无下级成员。</p>;
     }
     return (
-        <Accordion type="multiple" className="w-full">
+        <ul className="space-y-2 p-2">
             {members.map(member => (
-                <AccordionItem value={member.username} key={member.username} className="border-b-0">
-                    <AccordionTrigger className="py-2 hover:no-underline [&[data-state=open]>svg]:rotate-90">
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
-                                LV {member.level}
-                            </span>
-                            <span>{member.username}</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pl-6 border-l border-dashed ml-[7px]">
-                        <DownlineRecursive members={member.children || []} />
-                    </AccordionContent>
-                </AccordionItem>
+                 <li key={member.username} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-md bg-muted text-muted-foreground`}>
+                        LV {member.level}
+                    </span>
+                    <span>{member.username}</span>
+                </li>
             ))}
-        </Accordion>
+        </ul>
     );
 };
 
@@ -50,25 +44,22 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
             const allUsers: AuthUser[] = JSON.parse(localStorage.getItem('users') || '[]');
             const userMap = new Map(allUsers.map(u => [u.username, u]));
             
-            const getDownlineRecursive = (currentUsername: string, level: number): DownlineMember[] => {
-                if (level > 3) return [];
-                
-                const upline = userMap.get(currentUsername);
-                if (!upline || !upline.downline) return [];
-                
-                return upline.downline.map(downlineName => {
-                    const downlineUser = userMap.get(downlineName);
-                    if (!downlineUser) return null;
-                    return {
-                        ...downlineUser,
-                        level,
-                        children: getDownlineRecursive(downlineName, level + 1),
-                    };
-                }).filter((member): member is DownlineMember => member !== null);
-            };
-
-            const userDownline = getDownlineRecursive(username, 1);
+            // Only the admin can have a downline now.
+            const currentUser = userMap.get(username);
+            let userDownline: DownlineMember[] = [];
+            
+            if (currentUser && currentUser.isAdmin) {
+                userDownline = allUsers
+                    .filter(u => u.inviter === currentUser.username)
+                    .map(u => ({
+                        ...u,
+                        level: 1, // All users invited by admin are level 1
+                        children: [],
+                    }));
+            }
+            
             setDownline(userDownline);
+
         } catch (error) {
             console.error("Failed to load user downline:", error);
             setDownline([]);
@@ -81,13 +72,12 @@ export const DownlineTree = ({ username }: DownlineTreeProps) => {
         return (
             <div className="space-y-2 p-4">
                 <Skeleton className="h-6 w-3/4" />
-                <div className="pl-6 space-y-2">
-                    <Skeleton className="h-5 w-1/2" />
-                    <Skeleton className="h-5 w-2/3" />
-                </div>
+                <Skeleton className="h-6 w-1/2" />
             </div>
         )
     }
 
-    return <DownlineRecursive members={downline} />;
+    return <DownlineList members={downline} />;
 };
+
+    

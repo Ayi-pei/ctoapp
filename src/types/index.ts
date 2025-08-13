@@ -31,7 +31,6 @@ export type ContractTrade = {
   period: number; // in seconds
   profitRate: number; // e.g., 0.85 for 85%
   status: 'active' | 'settled';
-  fee?: number;
   // Fields below are added after settlement
   settlementPrice?: number;
   outcome?: 'win' | 'loss';
@@ -97,7 +96,7 @@ export type CommissionLog = {
     id: string;
     uplineUsername: string; // User receiving the commission
     sourceUsername: string; // User who generated the commission
-    sourceLevel: number; // 1, 2, or 3
+    sourceLevel: number; // Will always be 1 now
     tradeAmount: number;
     commissionRate: number;
     commissionAmount: number;
@@ -110,3 +109,5 @@ export type Investment = {
     amount: number;
     date: string;
 }
+
+    

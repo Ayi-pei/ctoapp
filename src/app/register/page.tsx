@@ -14,23 +14,13 @@ import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 import type { User } from '@/context/auth-context';
 
+
 const registerSchema = z.object({
   username: z.string().min(6, '用户名必须至少6个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
   password: z.string().min(8, '密码必须至少8个字符').max(12, '密码不能超过12个字符'),
-  invitationCode: z.string().min(1, {
-    message: '请输入邀请码',
-  }),
+  invitationCode: z.string().min(1, '请输入邀请码'),
 });
 
-// Helper to generate a random 6-digit alphanumeric code
-const generateCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-}
 
 export default function RegisterPage() {
   const { toast } = useToast();
@@ -54,47 +44,25 @@ export default function RegisterPage() {
         toast({ variant: 'destructive', title: '注册失败', description: '用户名已存在。'});
         return;
       }
-
-      const inviterIndex = users.findIndex((user: any) => user.invitationCode === values.invitationCode);
-      if (inviterIndex === -1) {
+      
+      // The single source of truth for the invitation code is in localStorage
+      const validInvitationCode = localStorage.getItem('invitationCode');
+      if (!validInvitationCode || values.invitationCode !== validInvitationCode) {
          toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
         return;
-      }
-      
-      const isTestUser = values.invitationCode === 'TESTER';
-
-      // Generate a unique invitation code for the new user
-      let newInvitationCode = generateCode();
-      while (users.some((user: any) => user.invitationCode === newInvitationCode)) {
-          newInvitationCode = generateCode();
       }
 
       const newUser: User = { 
           username: values.username, 
           password: values.password,
           isAdmin: false,
-          isTestUser: isTestUser,
+          isTestUser: false, // All new users are regular users
           isFrozen: false,
-          invitationCode: newInvitationCode,
-          inviter: users[inviterIndex]?.username || null,
-          downline: [],
+          inviter: 'demo123', // Admin is the default inviter
           registeredAt: new Date().toISOString(),
       };
       
-      // Add the new user to the inviter's downline
-      const inviter = users[inviterIndex];
-      if (inviter) {
-          if (inviter.downline) {
-            inviter.downline.push(newUser.username);
-          } else {
-            inviter.downline = [newUser.username];
-          }
-           users[inviterIndex] = inviter;
-      }
-      
-      // Update the users array with the new user
       users.push(newUser);
-
       localStorage.setItem('users', JSON.stringify(users));
 
       toast({
@@ -154,7 +122,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>邀请码</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入邀请码" {...field} />
+                      <Input placeholder="请输入管理员提供的邀请码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -176,3 +144,5 @@ export default function RegisterPage() {
     </AuthLayout>
   );
 }
+
+    

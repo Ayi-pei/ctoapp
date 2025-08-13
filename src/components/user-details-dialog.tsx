@@ -55,6 +55,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
 
     useEffect(() => {
         if (isOpen && user) {
+            setNewPassword("");
             setBalanceAdjustments({}); // Reset adjustments on open
         }
     }, [isOpen, user]);
@@ -181,7 +182,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         <p className="text-sm"><strong>账户类型:</strong> {user.isTestUser ? '测试账户' : '真实账户'}</p>
                         <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
                         <p className="text-sm"><strong>邀请人:</strong> {user.inviter || '无'}</p>
-                        <p className="text-sm"><strong>邀请码:</strong> {user.invitationCode}</p>
                         <p className="text-sm"><strong>账户状态:</strong> {user.isFrozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
                     </div>
 
@@ -225,10 +225,13 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         </Table>
                     </div>
 
-                     <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (三级代理)</h4>
-                        <DownlineTree username={user.username} />
-                    </div>
+                    {user.isAdmin && (
+                        <div>
+                            <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (直属下级)</h4>
+                            <DownlineTree username={user.username} />
+                        </div>
+                    )}
+
 
                     <Separator />
                     
@@ -270,3 +273,5 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         </Dialog>
     );
 }
+
+    
