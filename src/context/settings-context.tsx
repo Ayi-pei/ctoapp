@@ -72,16 +72,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                     .select('settings_data')
                     .single();
 
-                if (error) {
-                    // This error code means the table is empty or doesn't exist.
-                    if (error.code === 'PGRST116') { 
-                        console.warn("market_settings table is empty or not found. Initializing with default settings.");
-                        await saveSettingsToDb(defaultSettings);
-                        setSettings(defaultSettings);
-                    } else {
-                        // For any other errors, re-throw to be caught by the outer catch block.
-                        throw error;
-                    }
+                // If there's an error OR if there's no data, it means we need to initialize.
+                if (error || !data) {
+                    console.warn("No settings found or error loading settings. Initializing with default settings.", error);
+                    await saveSettingsToDb(defaultSettings);
+                    setSettings(defaultSettings);
                 } else if (data && data.settings_data) {
                     // If data is successfully fetched, merge it with defaults to ensure all pairs are covered.
                     const parsedSettings = data.settings_data as AllSettings;
@@ -93,16 +88,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                         };
                     }
                     setSettings(mergedSettings);
-                } else {
-                    // This case handles if data is null for some reason, initialize settings.
-                    await saveSettingsToDb(defaultSettings);
-                    setSettings(defaultSettings);
                 }
-
             } catch (e: any) {
-                console.error("Failed to load settings from Supabase", e);
+                console.error("Critical failure in fetchSettings:", e);
                 setSettings(defaultSettings);
-                toast({ variant: "destructive", title: "错误", description: "加载市场设置失败。" });
+                toast({ variant: "destructive", title: "错误", description: "加载市场设置时发生严重错误。" });
             }
         };
 
