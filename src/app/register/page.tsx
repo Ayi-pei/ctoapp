@@ -17,8 +17,8 @@ import type { User } from '@/context/auth-context';
 const registerSchema = z.object({
   username: z.string().min(6, '用户名必须至少6个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
   password: z.string().min(8, '密码必须至少8个字符').max(12, '密码不能超过12个字符'),
-  invitationCode: z.string().regex(/^[a-zA-Z0-9]{6}$/, {
-    message: '邀请码必须是6位字母或数字',
+  invitationCode: z.string().min(1, {
+    message: '请输入邀请码',
   }),
 });
 
@@ -76,21 +76,23 @@ export default function RegisterPage() {
           isTestUser: isTestUser,
           isFrozen: false,
           invitationCode: newInvitationCode,
-          inviter: users[inviterIndex].username,
+          inviter: users[inviterIndex]?.username || null,
           downline: [],
           registeredAt: new Date().toISOString(),
       };
       
       // Add the new user to the inviter's downline
       const inviter = users[inviterIndex];
-      if (inviter.downline) {
-        inviter.downline.push(newUser.username);
-      } else {
-        inviter.downline = [newUser.username];
+      if (inviter) {
+          if (inviter.downline) {
+            inviter.downline.push(newUser.username);
+          } else {
+            inviter.downline = [newUser.username];
+          }
+           users[inviterIndex] = inviter;
       }
       
-      // Update the users array with the modified inviter and the new user
-      users[inviterIndex] = inviter;
+      // Update the users array with the new user
       users.push(newUser);
 
       localStorage.setItem('users', JSON.stringify(users));
@@ -152,7 +154,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>邀请码</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入6位邀请码" {...field} />
+                      <Input placeholder="请输入邀请码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
