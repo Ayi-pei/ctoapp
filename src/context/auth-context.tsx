@@ -113,10 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Check for the universal starter code
         if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
-             const { data: existingUsers, error: countError } = await supabase.from('users').select('id', { count: 'exact', head: true });
-             if(countError) throw countError;
+             const { count, error: countError } = await supabase.from('users').select('*', { count: 'exact', head: true });
+             if (countError) {
+                throw new Error(countError.message);
+             }
              
-             if (existingUsers.length > 0) {
+             if (count !== null && count > 0) {
                  toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
                  return false;
              }
@@ -130,9 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .eq('invitation_code', invitationCode)
                 .single();
             
-            if (inviterError || !inviterData) {
+            if (inviterError) {
                 toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-                console.error("Invalid invitation code:", invitationCode, inviterError);
+                console.error("Invalid invitation code:", invitationCode, inviterError.message);
                 return false;
             }
             inviterUsername = inviterData.username;
@@ -146,9 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (authError) {
-        toast({ variant: 'destructive', title: '注册失败', description: authError.message });
-        console.error("Supabase auth.signUp error:", authError);
-        return false;
+        throw new Error(authError.message);
       }
       
       const registeredUser = authData.user;
@@ -171,10 +171,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
       if (profileError) {
          console.error("Failed to create user profile:", profileError.message);
+         // Rollback auth user creation
          const { error: deleteError } = await supabase.auth.admin.deleteUser(registeredUser.id);
          if(deleteError) console.error("FATAL: Failed to clean up orphaned auth user:", deleteError.message);
-         toast({ variant: 'destructive', title: '注册失败', description: '无法创建用户资料，请重试。' });
-         return false;
+         throw new Error('无法创建用户资料，请重试。');
       }
 
       toast({ title: '注册成功', description: '请登录。' });
@@ -193,6 +193,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setIsAdmin(false);
+    setSession(null);
     router.push('/login');
   };
 
@@ -214,24 +217,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    useEffect(() => {
     if (!isLoading) {
       const isAuthenticated = !!session;
-      const publicPaths = ['/login', '/register'];
-      const isPublicPath = publicPaths.includes(pathname);
-
-      if (isAuthenticated) {
-        if (isPublicPath) {
-          if (isAdmin) {
-            router.push('/admin');
-          } else {
-            router.push('/dashboard');
-          }
-        }
-      } else {
-        if (!isPublicPath) {
-            router.push('/login');
-        }
+      const isAuthPage = pathname === '/login' || pathname === '/register';
+      
+      if (!isAuthenticated && !isAuthPage) {
+          router.push('/login');
+      } else if (isAuthenticated && isAuthPage) {
+          router.push(user?.is_admin ? '/admin' : '/dashboard');
       }
     }
-  }, [session, isAdmin, isLoading, pathname, router]);
+  }, [session, user, isLoading, pathname, router]);
 
   const value = {
     isAuthenticated: !!session,
