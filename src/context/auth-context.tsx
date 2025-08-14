@@ -34,8 +34,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const INITIAL_ADMIN_INVITATION_CODE = "STARTERCODE";
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "password";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -49,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
+    // The `get_user_profile_by_id` RPC can be called by any authenticated user
+    // to get their own profile, so it's safe.
     const { data, error } = await supabase
       .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id });
 
@@ -64,34 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (data?.[0] as User) || null;
   };
 
-  const handleHardcodedAdminLogin = () => {
-    const adminUser: User = {
-        id: 'admin-user',
-        username: ADMIN_USERNAME,
-        email: 'admin@rsf.app',
-        is_admin: true,
-        is_test_user: true,
-        is_frozen: false,
-        inviter: null,
-    };
-    setUser(adminUser);
-    setIsAdmin(true);
-    setSession({} as Session); // Mock session for isAuthenticated to be true
-    setIsLoading(false);
-  }
-
-
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
-
-        // Bypass everything if it's the hardcoded admin user
-        if (user?.id === 'admin-user' && isAdmin) {
-            setIsLoading(false);
-            return;
-        }
-
         setSession(session);
         if (session?.user) {
             const userProfile = await fetchUserProfile(session.user);
@@ -123,13 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Hardcoded admin check
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        handleHardcodedAdminLogin();
-        return true;
-    }
-
-    // Regular user login
+    // All users, including admin, now log in via the same database flow.
     const email = `${username.toLowerCase()}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
@@ -137,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login failed:', error.message);
       return false;
     }
-    // onAuthStateChange will handle setting the user state
+    // onAuthStateChange will handle setting the user state and isAdmin flag
     return true;
   };
   
@@ -223,21 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    // If logging out the hardcoded admin, just reset state
-    if (user?.id === 'admin-user' && isAdmin) {
-        setUser(null);
-        setIsAdmin(false);
-        setSession(null);
-        router.push('/login');
-        return;
-    }
-    // Otherwise, sign out from supabase
     await supabase.auth.signOut();
-    // onAuthStateChange will clear the state
+    // onAuthStateChange will clear the user state
   };
 
   const updateUser = async (userData: Partial<User>) => {
-     if (!user || user.id === 'admin-user') return; // Cannot update hardcoded admin
+     if (!user) return;
     const { data, error } = await supabase
         .from('users')
         .update(userData)
