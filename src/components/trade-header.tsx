@@ -91,7 +91,7 @@ export function TradeHeader() {
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                     <Avatar>
-                        <AvatarImage src={user?.avatar} alt={user?.username} />
+                        <AvatarImage src={undefined} alt={user?.username} />
                         <AvatarFallback>
                             {user?.username ? user.username.charAt(0).toUpperCase() : <User />}
                         </AvatarFallback>

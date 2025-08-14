@@ -31,7 +31,7 @@ const ProfileHeader = () => {
             </div>
             <div className="flex flex-col items-center">
                 <Avatar className="h-20 w-20 mb-3 border-2 border-white">
-                    <AvatarImage src={user?.avatar} alt={user?.username} />
+                    <AvatarImage src={undefined} alt={user?.username} />
                     <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <h2 className="font-semibold text-lg">{user?.username}</h2>
