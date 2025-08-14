@@ -59,7 +59,7 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset' | 'created_at'>, tradingPair: string) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -221,6 +221,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         recalculateBalanceForUser(user.id);
         loadUserTrades(user.id);
         const loadInvestments = async () => {
+          if (!user) return;
           const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
           if (error) {
               console.error("Could not fetch investments", error);
@@ -291,8 +292,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
             if (tradeSettled) {
                 // Reload trades for the UI, then recalculate balance from the source of truth
-                loadUserTrades(user.id);
-                recalculateBalanceForUser(user.id);
+                if (user) {
+                    loadUserTrades(user.id);
+                    recalculateBalanceForUser(user.id);
+                }
             }
 
         } catch (error) {
@@ -403,7 +406,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     
     try {
         const [baseAsset, quoteAsset] = tradingPair.split('/');
-        const fullTrade: Omit<SpotTrade, 'id'> = {
+        const fullTrade: Omit<SpotTrade, 'id' | 'orderType' | 'tradingPair' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
             ...trade,
             user_id: user.id,
             trading_pair: tradingPair,
