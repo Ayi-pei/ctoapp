@@ -70,15 +70,16 @@ export type SpotTrade = {
 export type Transaction = {
   id: string;
   user_id: string; // uuid
-  userId?: string; // username, optional for rendering
   type: 'deposit' | 'withdrawal' | 'adjustment';
   asset: string;
   amount: number;
-  address?: string; // for withdrawals
-  transaction_hash?: string; // for deposits as proof
   status: 'pending' | 'approved' | 'rejected';
   created_at: string; // ISO date string
-  // Frontend properties that might differ in casing
+  // Optional fields
+  address?: string; // for withdrawals
+  transaction_hash?: string; // for deposits as proof
+  // Properties for frontend rendering
+  userId?: string; 
   transactionHash?: string; 
   createdAt?: string; 
 };
@@ -100,8 +101,9 @@ export type PasswordResetRequest = {
 
 export type Investment = {
     id: string;
+    product_name: string;
     productName: string;
     amount: number;
     date: string;
+    created_at: string;
 }
-    

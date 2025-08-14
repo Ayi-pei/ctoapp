@@ -407,15 +407,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     
     try {
         const fullTrade = {
+            ...trade,
             user_id: user.id,
-            type: trade.type,
-            amount: trade.amount,
-            total: trade.total,
             trading_pair: tradingPair,
             order_type: 'spot',
             status: 'filled',
-            base_asset: trade.baseAsset,
-            quote_asset: trade.quoteAsset,
+            created_at: new Date().toISOString(),
         }
         
         const { error } = await supabase.from('spot_trades').insert(fullTrade);
@@ -437,7 +434,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction = {
+           const newTransaction: Omit<Transaction, 'id' | 'createdAt' | 'userId' | 'transactionHash'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
