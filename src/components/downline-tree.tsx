@@ -5,15 +5,8 @@ import { useState, useEffect } from "react";
 import { Skeleton } from "./ui/skeleton";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "./ui/badge";
+import type { DownlineMember } from "@/types";
 
-type DownlineMember = {
-    username: string;
-    level: number;
-};
-
-type DownlineTreeProps = {
-    userId: string;
-};
 
 const DownlineList = ({ members }: { members: DownlineMember[] }) => {
     if (!members || members.length === 0) {
@@ -22,7 +15,7 @@ const DownlineList = ({ members }: { members: DownlineMember[] }) => {
     return (
         <ul className="space-y-2 p-2">
             {members.map(member => (
-                 <li key={member.username} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                 <li key={member.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                     <Badge variant="outline">LV {member.level}</Badge>
                     <span>{member.username}</span>
                 </li>

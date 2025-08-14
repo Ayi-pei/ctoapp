@@ -1,5 +1,4 @@
 
-
 // Main set of available trading pairs
 export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 
@@ -81,7 +80,7 @@ export type Transaction = {
   transaction_hash?: string;
   // Properties for frontend rendering, optional
   user?: { username: string };
-  createdAt: string; // compatibility for edit dialog
+  createdAt?: string; // compatibility for edit dialog
 };
 
 // Represents a user's password reset request submitted to admin
@@ -104,8 +103,8 @@ export type Investment = {
     amount: number;
     created_at: string;
     // Properties for frontend rendering, optional
-    productName?: string;
-    date?: string;
+    productName: string;
+    date: string;
 }
 
 // Represents a commission log entry
