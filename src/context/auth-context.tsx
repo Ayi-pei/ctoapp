@@ -48,9 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     // Use the new RPC function to bypass RLS policies on the users table.
-    const { data: userProfile, error } = await supabase
-      .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id })
-      .single();
+    const { data, error } = await supabase
+      .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id });
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
@@ -61,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return null;
     }
-    return userProfile as User;
+    // RPC returns an array, even for a single user. Take the first element.
+    return (data?.[0] as User) || null;
   };
 
 
@@ -95,7 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const email = `${username.toLowerCase()}@rsf.app`; 
+    // First, find the user's email from the public users table
+     const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('username', username)
+      .single();
+
+    if (userError || !userData) {
+      console.error('Login failed: could not find user', userError?.message);
+      return false;
+    }
+
+    const { email } = userData;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
