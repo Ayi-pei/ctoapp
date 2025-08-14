@@ -50,7 +50,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
-    const { user: currentUser } = useAuth();
     const { recalculateBalanceForUser } = useBalance();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
 
@@ -89,12 +88,13 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id'|'createdAt'> = {
+            const newAdjustment: Omit<Transaction, 'id'> = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
                 amount: amount,
                 status: 'approved',
+                created_at: new Date().toISOString(),
             };
             
             const { error } = await supabase.from('transactions').insert(newAdjustment);

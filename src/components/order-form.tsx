@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContractOrderSheet } from "./contract-order-sheet";
-import { ContractTrade } from "@/types";
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';

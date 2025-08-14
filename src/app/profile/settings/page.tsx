@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,7 +11,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { PasswordResetRequest } from "@/types";
 import { supabase } from "@/lib/supabase";
 
 
@@ -56,11 +54,12 @@ export default function ProfileSettingsPage() {
             }
 
             // 2. Submit password change request to admin
-            const newRequest: Omit<PasswordResetRequest, 'id' | 'createdAt' | 'userId'> = {
+            const newRequest = {
                 user_id: user.id,
                 type: 'password_reset',
                 new_password: values.newPassword,
                 status: 'pending',
+                created_at: new Date().toISOString(),
             }
 
             const { error: requestError } = await supabase.from('admin_requests').insert(newRequest);

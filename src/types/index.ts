@@ -66,20 +66,6 @@ export type SpotTrade = {
 }
 
 
-export type PriceDataPoint = {
-  time: string;
-  price: number;
-};
-
-export type MarketSummary = {
-    pair: string;
-    price: number;
-    change: number;
-    volume: number;
-    high: number;
-    low: number;
-};
-
 // Represents a user's deposit or withdrawal request
 export type Transaction = {
   id: string;
@@ -90,10 +76,11 @@ export type Transaction = {
   amount: number;
   address?: string; // for withdrawals
   transaction_hash?: string; // for deposits as proof
-  transactionHash?: string; // for deposits as proof (frontend)
   status: 'pending' | 'approved' | 'rejected';
   created_at: string; // ISO date string
-  createdAt: string; // ISO date string (frontend)
+  // Frontend properties that might differ in casing
+  transactionHash?: string; 
+  createdAt?: string; 
 };
 
 // Represents a user's password reset request
@@ -117,5 +104,4 @@ export type Investment = {
     amount: number;
     date: string;
 }
-
     

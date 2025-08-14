@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { TatumSDK, Network, Bitcoin, Eth } from '@tatumio/tatum';
+import { TatumSDK, Network, Bitcoin } from '@tatumio/tatum';
 
 const GetMarketDataInputSchema = z.object({
   assetIds: z.array(z.string()).describe('A list of asset IDs to fetch data for (e.g., ["BTC", "ETH"]).'),
@@ -56,23 +56,23 @@ const getMarketDataFlow = ai.defineFlow(
     
     try {
         const tatum = await TatumSDK.init<Bitcoin>({ 
-            network: Network.BITCOIN,
+            network: Network.BITCOIN, // This is a placeholder; market data is chain-agnostic
             apiKey: {
                 v4: process.env.TATUM_API_KEY,
             }
         });
 
+        // The market data API is not chain-specific, so we can access it directly.
         const assetDataPromises = input.assetIds.map(async (assetId) => {
             try {
-                // Use the more comprehensive getAssetRate API
-                const rate = await tatum.assets.getAssetRate(assetId, 'USDT');
+                // Use the v4 market data API
+                const rate = await tatum.marketData.get(assetId);
 
-                if (rate && rate.value) {
+                if (rate && rate.price) {
                     return {
                         id: assetId.toLowerCase(),
                         symbol: assetId,
-                        priceUsd: rate.value.toString(),
-                        // Correctly map the change and volume from the API response
+                        priceUsd: rate.price.toString(),
                         changePercent24Hr: rate.change24h?.toString() || '0', 
                         volumeUsd24Hr: rate.volume24h?.toString() || '0',
                     };

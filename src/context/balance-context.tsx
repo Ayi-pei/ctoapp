@@ -8,6 +8,8 @@ import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
 
+export type { Investment };
+
 const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 100000, frozen: 0 },
     BTC: { available: 5, frozen: 0 },
@@ -186,7 +188,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         });
 
         // 4. Investments
-        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', user.id);
+        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', userId);
         if(invError) throw invError;
         userInvestments.forEach(investment => {
              if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
@@ -227,7 +229,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const loadInvestments = async () => {
           const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
           if (error) console.error("Could not fetch investments", error);
-          else setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+          else if (data) {
+            setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+          }
         }
         loadInvestments();
         setIsLoading(false);
@@ -324,7 +328,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         
         await recalculateBalanceForUser(user.id);
         const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
-        setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+        if (data) {
+          setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+        }
         return true;
     } catch (e) {
         console.error(e);
@@ -334,7 +340,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
     const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
         try {
-            const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter').eq('id', sourceUserId).single();
+            const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter, username').eq('id', sourceUserId).single();
             if (userError || !sourceUser || !sourceUser.inviter) return;
 
             const { data: uplineUser, error: uplineError } = await supabase.from('users').select('id, username, is_admin').eq('username', sourceUser.inviter).single();
@@ -347,7 +353,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             const newLog = {
                 upline_user_id: uplineUser.id,
                 source_user_id: sourceUserId,
-                source_username: user?.username,
+                source_username: sourceUser.username,
                 source_level: 1,
                 trade_amount: tradeAmount,
                 commission_rate: commissionRate,
@@ -400,16 +406,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     
     try {
         const fullTrade = {
-            ...trade,
             user_id: user.id,
+            type: trade.type,
+            amount: trade.amount,
+            total: trade.total,
             trading_pair: tradingPair,
             order_type: 'spot',
             status: 'filled',
             base_asset: trade.baseAsset,
             quote_asset: trade.quoteAsset,
         }
-        delete (fullTrade as any).baseAsset;
-        delete (fullTrade as any).quoteAsset;
         
         const { error } = await supabase.from('spot_trades').insert(fullTrade);
         if (error) throw error;
@@ -437,6 +443,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 amount: amount,
                 address: address,
                 status: 'pending',
+                created_at: new Date().toISOString(),
             };
 
             const { error } = await supabase.from('transactions').insert(newTransaction);
@@ -479,5 +486,3 @@ export function useBalance() {
   }
   return context;
 }
-
-    

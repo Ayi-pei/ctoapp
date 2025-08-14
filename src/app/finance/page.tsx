@@ -12,7 +12,6 @@ import { InvestmentDialog } from "@/components/investment-dialog";
 import { useBalance, Investment } from "@/context/balance-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 
 type InvestmentProductProps = {
     name: string;
@@ -248,5 +247,3 @@ export default function FinancePage() {
         </DashboardLayout>
     );
 }
-
-    

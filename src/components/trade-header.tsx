@@ -18,12 +18,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
-import { User, Menu, LogOut, Home } from "lucide-react";
+import { User, LogOut, Home } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { cn } from '@/lib/utils';
 
 // Simple SVG Logo component
 const Logo = () => (

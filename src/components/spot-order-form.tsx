@@ -16,7 +16,7 @@ import type { SpotTrade } from "@/types";
 type SpotOrderFormProps = {
   tradingPair: string;
   balances: { [key: string]: { available: number; frozen: number } };
-  onPlaceTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'userId' | 'orderType' | 'tradingPair' | 'createdAt'>) => void;
+  onPlaceTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'createdAt' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>) => void;
   baseAsset: string;
   quoteAsset: string;
   currentPrice: number;
