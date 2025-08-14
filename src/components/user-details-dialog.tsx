@@ -55,7 +55,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
             setIsLoading(true);
             try {
                 // Use the admin-specific function to get the team
-                const { data, error } = await supabase.rpc('admin_get_user_team', { p_user_id: userId });
+                const { data, error } = await supabase.rpc('get_user_downline', { p_user_id: userId });
                 if (error) throw error;
                 setDownline(data as DownlineMember[]);
             } catch (error) {
@@ -136,7 +136,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id' | 'user'> = {
+            const newAdjustment: Omit<Transaction, 'id' > = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
@@ -313,3 +313,4 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         </Dialog>
     );
 }
+
