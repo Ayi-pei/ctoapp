@@ -118,7 +118,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
 
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
-    if (!userId) return;
+    if (!userId || userId === 'admin-user') return;
     try {
         const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
         if (userError || !targetUser) return {};
@@ -218,6 +218,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
     if (user) {
+        if (user.is_admin) {
+            setIsLoading(false);
+            return;
+        }
         recalculateBalanceForUser(user.id);
         loadUserTrades(user.id);
         const loadInvestments = async () => {
