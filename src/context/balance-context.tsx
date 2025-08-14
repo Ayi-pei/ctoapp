@@ -3,7 +3,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, availablePairs } from '@/types';
-import { CircleDollarSign } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
@@ -44,8 +43,7 @@ const INITIAL_BALANCES_REAL_USER: { [key: string]: { available: number; frozen: 
     'GBP/USD': { available: 0, frozen: 0},
 };
 
-const ALL_ASSETS = [...new Set(availablePairs.flatMap(p => p.split('/')))].map(asset => ({ name: asset, icon: CircleDollarSign }));
-
+const ALL_ASSETS = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -59,9 +57,9 @@ interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
-  assets: { name: string, icon: React.ElementType }[];
+  assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'createdAt' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -106,7 +104,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             const formattedHistory = combinedHistory.map(t => {
                 const base = { userId: t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at };
                 if ('base_asset' in t) { // Spot Trade
-                    return { ...t, ...base, orderType: 'spot', baseAsset: t.base_asset, quoteAsset: t.quote_asset };
+                    return { ...t, ...base, orderType: 'spot' };
                 }
                 return { ...t, ...base, orderType: 'contract' }; // Contract Trade
             });
@@ -384,6 +382,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             entry_price: marketData.summary.price,
             settlement_time: new Date(now + (trade.period * 1000)).toISOString(),
             profit_rate: trade.profitRate,
+            created_at: new Date().toISOString(),
         }
 
         const { error } = await supabase.from('contract_trades').insert(fullTrade);
@@ -399,15 +398,18 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'orderType' | 'tradingPair' | 'createdAt' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => {
+  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => {
      if (!user) return;
     
     try {
-        const fullTrade = {
+        const [baseAsset, quoteAsset] = tradingPair.split('/');
+        const fullTrade: Omit<SpotTrade, 'id'> = {
             ...trade,
             user_id: user.id,
             trading_pair: tradingPair,
             order_type: 'spot',
+            base_asset: baseAsset,
+            quote_asset: quoteAsset,
             status: 'filled',
             created_at: new Date().toISOString(),
         }
@@ -427,11 +429,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const requestWithdrawal = async (asset: string, amount: number, address: string) => {
       if (!user) return false;
       const balance = balances[asset] as { available: number; frozen: number } | undefined;
-      if (amount > (balance?.available || 0)) {
+      if (!balance || amount > balance.available) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id' | 'createdAt' | 'userId' | 'transactionHash'> = {
+           const newTransaction: Omit<Transaction, 'id'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
@@ -481,5 +483,3 @@ export function useBalance() {
   }
   return context;
 }
-
-    
