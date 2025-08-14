@@ -54,7 +54,8 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
             if (!userId) return;
             setIsLoading(true);
             try {
-                const { data, error } = await supabase.rpc('get_user_downline', { p_user_id: userId });
+                // Use the admin-specific function to get the team
+                const { data, error } = await supabase.rpc('admin_get_user_team', { p_user_id: userId });
                 if (error) throw error;
                 setDownline(data as DownlineMember[]);
             } catch (error) {
@@ -266,7 +267,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
                     </div>
 
                     <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (3级内)</h4>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息</h4>
                         <DownlineTree userId={user.id} />
                     </div>
 

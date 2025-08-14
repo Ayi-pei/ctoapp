@@ -30,6 +30,7 @@ export default function AdminUsersPage() {
     const loadData = useCallback(async () => {
         if (!isAdmin) return;
         try {
+            // Use the new, correct RPC function name
             const { data, error } = await supabase.rpc('admin_get_all_users');
             if (error) throw error;
             
@@ -64,10 +65,14 @@ export default function AdminUsersPage() {
         loadData();
         
         if (selectedUser) {
+            // Also refresh the data for the selected user in the dialog
             const findUpdatedUser = async () => {
                 const { data, error } = await supabase.from('users').select('*').eq('id', selectedUser.id).single();
                 if (!error && data) {
                     setSelectedUser(data as User);
+                } else {
+                   // If user not found (e.g., deleted), close the dialog
+                   setIsDetailsOpen(false);
                 }
             }
             findUpdatedUser();

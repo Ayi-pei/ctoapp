@@ -7,7 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@/types';
+import type { User, RegisterUserResponse } from '@/types';
 
 export type { User };
 
@@ -112,12 +112,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       
         if (rpcError) throw rpcError;
+        
+        const result = data as RegisterUserResponse;
 
-        if (data.status === 'error') {
-           throw new Error(data.message);
+        if (result.status === 'error') {
+           throw new Error(result.message);
         }
       
-        toast({ title: '注册成功', description: '请登录。' });
+        toast({ title: '注册成功', description: result.message });
         return true;
 
     } catch (error: any) {

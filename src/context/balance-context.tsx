@@ -290,7 +290,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
 
   const addInvestment = async (productName: string, amount: number) => {
-    if (!user) return false;
+    if (!user || user.is_frozen) {
+        toast({ variant: 'destructive', title: '操作失败', description: '您的账户已被冻结。'});
+        return false;
+    }
     if (balances.USDT.available < amount) {
         return false;
     }

@@ -13,6 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // 1. Checks if the provided invitation code from an existing user is valid.
 // 2. Creates a new user in the `auth.users` table.
 // 3. Creates a corresponding profile in the `public.users` table, linking the inviter.
+// 4. Returns a JSON object with status and a message.
 //
 // Parameters:
 // p_email: The new user's email (e.g., 'newuser@rsf.app').
