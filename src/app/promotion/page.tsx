@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuth, User } from "@/context/auth-context";
+import { useAuth } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart2, Users, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabase";

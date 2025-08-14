@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/auth-context';
 
 
@@ -93,7 +92,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>邀请码</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入管理员提供的邀请码" {...field} />
+                      <Input placeholder="请输入邀请码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

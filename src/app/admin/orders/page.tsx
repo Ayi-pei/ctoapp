@@ -11,11 +11,14 @@ import { SpotTrade, ContractTrade } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
+type OrderWithUser = (SpotTrade | ContractTrade) & {
+  user: { username: string } | null;
+  userId: string;
+};
+
 type Order = (SpotTrade | ContractTrade) & {
-    id: string;
     userId: string;
     tradingPair: string;
-    orderType: 'spot' | 'contract';
     status: 'pending' | 'filled' | 'cancelled' | 'active' | 'settled';
     createdAt: string;
 };
@@ -42,8 +45,8 @@ export default function AdminOrdersPage() {
             if (spotError) throw spotError;
             if (contractError) throw contractError;
 
-            const formattedSpot = spotTrades.map((t: any) => ({ ...t, userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, orderType: 'spot', createdAt: t.created_at }));
-            const formattedContract = contractTrades.map((t: any) => ({ ...t, userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, orderType: 'contract', createdAt: t.created_at }));
+            const formattedSpot = spotTrades.map((t: OrderWithUser) => ({ ...t, orderType: 'spot', userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at }));
+            const formattedContract = contractTrades.map((t: OrderWithUser) => ({ ...t, orderType: 'contract', userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at }));
 
             const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

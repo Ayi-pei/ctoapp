@@ -87,7 +87,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id'> = {
+            const newAdjustment: Omit<Transaction, 'id' | 'userId' | 'transactionHash' | 'createdAt'> = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,

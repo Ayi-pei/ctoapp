@@ -15,7 +15,17 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type AdminRequest = (Transaction | PasswordResetRequest) & { userId?: string };
+type AdminRequest = (Omit<Transaction, 'userId' | 'transactionHash' | 'createdAt'> | Omit<PasswordResetRequest, 'userId' | 'newPassword' | 'createdAt'>) & { 
+    id: string;
+    type: 'deposit' | 'withdrawal' | 'password_reset';
+    created_at: string;
+    user_id: string;
+    userId: string;
+    amount?: number;
+    asset?: string;
+    new_password?: string;
+};
+
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -61,7 +71,7 @@ export default function AdminRequestsPage() {
             if (passwordError) throw passwordError;
 
             const formattedFinance = financeRequests.map((r: any) => ({ ...r, userId: r.user.username }));
-            const formattedPassword = passwordRequests.map((r: any) => ({ ...r, userId: r.user.username, newPassword: r.new_password }));
+            const formattedPassword = passwordRequests.map((r: any) => ({ ...r, userId: r.user.username }));
 
             const allRequests = [...formattedFinance, ...formattedPassword]
                 .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -85,7 +95,7 @@ export default function AdminRequestsPage() {
                     const { data: userToUpdate, error: findErr } = await supabase.from('users').select('id').eq('username', request.userId).single();
                     if(findErr || !userToUpdate) throw new Error("User not found");
 
-                    const { error: updateErr } = await supabase.auth.admin.updateUserById(userToUpdate.id, { password: (request as PasswordResetRequest).newPassword });
+                    const { error: updateErr } = await supabase.auth.admin.updateUserById(userToUpdate.id, { password: request.new_password! });
                     if(updateErr) throw updateErr;
                 }
                 const { error } = await supabase.from('admin_requests').delete().eq('id', request.id);
@@ -150,9 +160,9 @@ export default function AdminRequestsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs">
-                                            {'amount' in r ? `${r.amount.toFixed(2)} ${r.asset}` : '新密码: ***'}
+                                            {r.amount ? `${r.amount.toFixed(2)} ${r.asset}` : '新密码: ***'}
                                         </TableCell>
-                                        <TableCell>{new Date(r.createdAt).toLocaleString()}</TableCell>
+                                        <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
                                         <TableCell className="text-right space-x-2">
                                              <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequest(r, 'approved')}>
                                                 批准

@@ -55,7 +55,7 @@ export default function ProfileSettingsPage() {
             }
 
             // 2. Submit password change request to admin
-            const newRequest: Omit<PasswordResetRequest, 'id' | 'createdAt' | 'userId' | 'newPassword'> = {
+            const newRequest: Omit<PasswordResetRequest, 'id'> = {
                 user_id: user.id,
                 type: 'password_reset',
                 new_password: values.newPassword,

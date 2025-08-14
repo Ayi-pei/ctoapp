@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, availablePairs } from '@/types';
-import type { Investment } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
@@ -60,7 +59,7 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'tradingPair'>) => void;
+  placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -92,7 +91,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             if (spotError) throw spotError;
             
             const activeTrades = allContractTrades.filter(t => t.status === 'active');
-            setActiveContractTrades(activeTrades.map(t => ({...t, orderType: 'contract'} as ContractTrade)));
+            setActiveContractTrades(activeTrades.map(t => ({...t, orderType: 'contract'})));
 
             const settledContractTrades = allContractTrades.filter(t => t.status === 'settled');
             const combinedHistory = [...settledContractTrades, ...allSpotTrades]
@@ -366,7 +365,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     
     try {
         const now = Date.now();
-        const fullTrade = {
+        const fullTrade: Omit<ContractTrade, 'id' | 'orderType'> = {
             ...trade,
             user_id: user.id,
             trading_pair: tradingPair,
@@ -390,17 +389,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'tradingPair'>) => {
+  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
      if (!user) return;
     
     try {
-        const [baseAsset, quoteAsset] = trade.tradingPair.split('/');
-        const fullTrade: Omit<SpotTrade, 'id' | 'tradingPair' | 'orderType' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
+        const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
+        const fullTrade: Omit<SpotTrade, 'id' | 'orderType'> = {
             type: trade.type,
             amount: trade.amount,
             total: trade.total,
             user_id: user.id,
-            trading_pair: trade.tradingPair,
+            trading_pair: trade.trading_pair,
             base_asset: baseAsset,
             quote_asset: quoteAsset,
             status: 'filled',
@@ -426,7 +425,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id'> = {
+           const newTransaction: Omit<Transaction, 'id' | 'userId' | 'transactionHash' | 'createdAt'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,

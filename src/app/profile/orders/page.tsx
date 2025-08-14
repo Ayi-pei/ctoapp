@@ -12,9 +12,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useBalance } from '@/context/balance-context';
 
-type Order = (SpotTrade | ContractTrade) & {
-    orderType: 'spot' | 'contract';
-};
+type Order = SpotTrade | ContractTrade;
 
 
 export default function ProfileOrdersPage() {
@@ -85,7 +83,7 @@ export default function ProfileOrdersPage() {
                                                 {order.type === 'buy' ? '买入' : '卖出'}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{((order as any).amount || (order as any).total)?.toFixed(4)}</TableCell>
+                                        <TableCell>{(order.orderType === 'spot' ? (order as SpotTrade).total : (order as ContractTrade).amount)?.toFixed(4)}</TableCell>
                                         <TableCell>{getStatusBadge(order as Order)}</TableCell>
                                         <TableCell className="text-xs">{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>

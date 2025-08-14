@@ -37,6 +37,12 @@ const statusText: { [key: string]: string } = {
     'rejected': '已拒绝'
 }
 
+// Define a more specific type for transactions with user data
+type TransactionWithUser = Transaction & {
+  user: { username: string } | null;
+};
+
+
 export default function AdminFinancePage() {
     const { isAdmin, user } = useAuth();
     const router = useRouter();
@@ -58,7 +64,7 @@ export default function AdminFinancePage() {
 
             if (error) throw error;
             
-            const formattedData = data.map((tx: any) => ({
+            const formattedData = data.map((tx: TransactionWithUser) => ({
                 ...tx,
                 userId: tx.user?.username || tx.user_id,
             }));
@@ -116,8 +122,8 @@ export default function AdminFinancePage() {
                     amount: updatedTransaction.amount,
                     status: updatedTransaction.status,
                     address: updatedTransaction.address,
-                    transaction_hash: updatedTransaction.transactionHash,
-                    created_at: updatedTransaction.createdAt,
+                    transaction_hash: updatedTransaction.transaction_hash,
+                    created_at: updatedTransaction.created_at,
                 })
                 .eq('id', updatedTransaction.id);
                 
@@ -185,8 +191,8 @@ export default function AdminFinancePage() {
                                                {statusText[t.status]}
                                            </Badge>
                                        </TableCell>
-                                       <TableCell className="text-xs truncate max-w-[150px]">{t.transactionHash || t.address || 'N/A'}</TableCell>
-                                       <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</TableCell>
+                                       <TableCell className="text-xs truncate max-w-[150px]">{t.transaction_hash || t.address || 'N/A'}</TableCell>
+                                       <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()}</TableCell>
                                        <TableCell className="text-right space-x-2">
                                            <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(t)}>修改</Button>
                                            <Button variant="destructive" size="sm" onClick={() => handleOpenDeleteDialog(t)}>删除</Button>

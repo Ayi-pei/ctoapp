@@ -23,7 +23,6 @@ export type ContractTrade = {
   id: string;
   user_id: string;
   trading_pair: string;
-  order_type: 'contract';
   type: 'buy' | 'sell'; // buy for long, sell for short
   amount: number; // This is the amount in USDT for the contract
   entry_price: number;
@@ -37,10 +36,7 @@ export type ContractTrade = {
   profit?: number; // can be negative
   created_at: string;
   // Properties for frontend rendering
-  userId: string;
-  tradingPair: string;
   orderType: 'contract';
-  createdAt: string;
 };
 
 // Represents a user's spot trade action
@@ -48,7 +44,6 @@ export type SpotTrade = {
     id: string;
     user_id: string;
     trading_pair: string;
-    order_type: 'spot';
     type: 'buy' | 'sell';
     base_asset: string;
     quote_asset: string;
@@ -56,13 +51,8 @@ export type SpotTrade = {
     total: number; // total in quote asset
     status: 'filled' | 'cancelled';
     created_at: string;
-    // Properties for frontend rendering
-    userId?: string;
-    tradingPair: string;
+     // Properties for frontend rendering
     orderType: 'spot';
-    baseAsset: string;
-    quoteAsset: string;
-    createdAt: string;
 }
 
 
@@ -92,10 +82,6 @@ export type PasswordResetRequest = {
   new_password: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string; // ISO date string
-  // Properties for frontend rendering
-  userId?: string;
-  newPassword?: string;
-  createdAt?: string;
 };
 
 

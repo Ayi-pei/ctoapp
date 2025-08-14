@@ -16,7 +16,7 @@ import type { SpotTrade } from "@/types";
 type SpotOrderFormProps = {
   tradingPair: string;
   balances: { [key: string]: { available: number; frozen: number } };
-  onPlaceTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'tradingPair'>) => void;
+  onPlaceTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
   baseAsset: string;
   quoteAsset: string;
   currentPrice: number;
@@ -122,7 +122,7 @@ export function SpotOrderForm({
         type: orderType, 
         amount: numericAmount,
         total: numericTotal,
-        tradingPair,
+        trading_pair: tradingPair,
     });
 
     toast({
