@@ -1,4 +1,5 @@
 
+
 export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 
 export type Order = {
@@ -56,7 +57,7 @@ export type SpotTrade = {
     status: 'filled' | 'cancelled';
     created_at: string;
     // Properties for frontend rendering
-    userId: string;
+    userId?: string;
     tradingPair: string;
     orderType: 'spot';
     baseAsset: string;

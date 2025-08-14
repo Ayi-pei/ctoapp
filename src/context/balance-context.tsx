@@ -86,7 +86,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   
   const loadUserTrades = useCallback(async (userId: string) => {
-        if (!userId) return;
+        if (!userId || userId === 'admin-user') return;
         try {
             const { data: allContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
             const { data: allSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId);
@@ -244,7 +244,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Contract settlement simulation
-    if (!user || typeof window === 'undefined') return;
+    if (!user || typeof window === 'undefined' || user.is_admin) return;
 
     const interval = setInterval(async () => {
         try {

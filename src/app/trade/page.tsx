@@ -139,7 +139,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                                 <TableCell className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
                                                     {trade.type === 'buy' ? '买涨' : '买跌'}
                                                 </TableCell>
-                                                <TableCell>{trade.entryPrice.toFixed(4)}</TableCell>
+                                                <TableCell>{trade.entry_price.toFixed(4)}</TableCell>
                                                 <TableCell>{trade.amount.toFixed(2)} USDT</TableCell>
                                                 <TableCell className="text-xs">{new Date(trade.createdAt).toLocaleString()}</TableCell>
                                             </TableRow>
