@@ -10,7 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // The RPC function `register_new_user` handles new user creation.
 // It's a SECURITY DEFINER function, running with the service_role privileges.
 // It atomically:
-// 1. Checks if the provided invitation code is valid.
+// 1. Checks if the provided invitation code from any user is valid.
 // 2. Creates a new user in the `auth.users` table.
 // 3. Creates a corresponding profile in the `public.users` table, linking the inviter.
 //

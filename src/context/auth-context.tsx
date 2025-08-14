@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -115,8 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
         if (rpcError) throw rpcError;
 
-        // The RPC function returns a table, so we access the first row.
-        const result = data?.[0];
+        const result = data as { user_id: string; message: string; } | null;
 
         if (!result || !result.user_id) {
            throw new Error(result?.message || 'Registration failed.');
