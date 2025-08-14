@@ -2,7 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, availablePairs } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, availablePairs } from '@/types';
+import type { Investment } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
@@ -59,7 +60,7 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset' | 'created_at'>, tradingPair: string) => void;
+  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'created_at' | 'trading_pair' | 'order_type' | 'base_asset' | 'quote_asset'>) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -118,7 +119,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
 
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
-    if (!userId || userId === 'admin-user') return;
+    if (!userId || userId === 'admin-user') return {};
     try {
         const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
         if (userError || !targetUser) return {};
@@ -248,6 +249,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(async () => {
         try {
+            if(!user) return;
             const { data: userActiveTrades, error } = await supabase
                 .from('contract_trades')
                 .select('*')
@@ -325,9 +327,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         
         await recalculateBalanceForUser(user.id);
-        const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
-        if (data) {
-          setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+        if(user) {
+            const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
+            if (data) {
+                setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
+            }
         }
         return true;
     } catch (e) {
@@ -401,15 +405,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>, tradingPair: string) => {
+  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>) => {
      if (!user) return;
     
     try {
-        const [baseAsset, quoteAsset] = tradingPair.split('/');
-        const fullTrade: Omit<SpotTrade, 'id' | 'orderType' | 'tradingPair' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
-            ...trade,
+        const [baseAsset, quoteAsset] = trade.tradingPair.split('/');
+        const fullTrade: Omit<SpotTrade, 'id'| 'tradingPair' | 'orderType' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
+            type: trade.type,
+            amount: trade.amount,
+            total: trade.total,
             user_id: user.id,
-            trading_pair: tradingPair,
+            trading_pair: trade.tradingPair,
             order_type: 'spot',
             base_asset: baseAsset,
             quote_asset: quoteAsset,
@@ -436,7 +442,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id' | 'createdAt'> = {
+           const newTransaction: Omit<Transaction, 'id' | 'userId' | 'transactionHash' | 'createdAt'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
