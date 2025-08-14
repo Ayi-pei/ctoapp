@@ -11,7 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { TatumSDK, Network, Bitcoin } from '@tatumio/tatum';
+import { TatumSDK, Network } from '@tatumio/tatum';
 
 const GetMarketDataInputSchema = z.object({
   assetIds: z.array(z.string()).describe('A list of asset IDs to fetch data for (e.g., ["BTC", "ETH"]).'),
@@ -54,18 +54,18 @@ const getMarketDataFlow = ai.defineFlow(
         return { data: {} };
     }
     
+    let tatum;
     try {
-        const tatum = await TatumSDK.init<Bitcoin>({ 
-            network: Network.BITCOIN, // This is a placeholder; market data is chain-agnostic
-            apiKey: {
-                v4: process.env.TATUM_API_KEY,
-            }
+        // Initialize Tatum SDK - market data is chain-agnostic so network doesn't matter.
+        tatum = await TatumSDK.init({ 
+            network: Network.ETHEREUM, // Placeholder network
+            apiKey: process.env.TATUM_API_KEY,
         });
 
         // The market data API is not chain-specific, so we can access it directly.
         const assetDataPromises = input.assetIds.map(async (assetId) => {
             try {
-                // Use the v4 market data API
+                // Use the market data API to get the rate for a given asset.
                 const rate = await tatum.marketData.get(assetId);
 
                 if (rate && rate.price) {
@@ -104,6 +104,10 @@ const getMarketDataFlow = ai.defineFlow(
         console.error('Error fetching from Tatum API in getMarketDataFlow:', error);
         // On any fetch error, return empty data so the client falls back to the simulator.
         return { data: {} };
+    } finally {
+        // Always destroy the SDK instance after use
+        tatum?.destroy();
     }
   }
 );
+
