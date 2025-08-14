@@ -10,4 +10,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // p_email: the email for the new user (e.g., 'newuser@rsf.app')
 // p_password: the new user's password
 // p_username: the desired unique username for the new user
-// p_inviter_username: the username of the user who invited the new user. This is found by looking up the invitation code in the `users` table.
+// p_invitation_code: the invitation code from an existing user.
+    

@@ -40,6 +40,7 @@ const statusText: { [key: string]: string } = {
 // Define a more specific type for transactions with user data
 type TransactionWithUser = Transaction & {
   user: { username: string } | null;
+  userId: string;
 };
 
 
@@ -48,11 +49,11 @@ export default function AdminFinancePage() {
     const router = useRouter();
     const { toast } = useToast();
     const { recalculateBalanceForUser } = useBalance();
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
 
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithUser | null>(null);
 
     const loadTransactions = useCallback(async () => {
         if (!isAdmin) return;
@@ -64,12 +65,12 @@ export default function AdminFinancePage() {
 
             if (error) throw error;
             
-            const formattedData = data.map((tx: TransactionWithUser) => ({
+            const formattedData = data.map((tx: any) => ({
                 ...tx,
                 userId: tx.user?.username || tx.user_id,
             }));
             
-            setTransactions(formattedData as Transaction[]);
+            setTransactions(formattedData as TransactionWithUser[]);
         } catch (error) {
             console.error("Failed to fetch transactions from Supabase", error);
             toast({ variant: "destructive", title: "错误", description: "加载资金流水失败。" });
@@ -84,12 +85,12 @@ export default function AdminFinancePage() {
         }
     }, [isAdmin, router, loadTransactions]);
     
-    const handleOpenEditDialog = (transaction: Transaction) => {
+    const handleOpenEditDialog = (transaction: TransactionWithUser) => {
         setSelectedTransaction(transaction);
         setIsEditDialogOpen(true);
     };
 
-    const handleOpenDeleteDialog = (transaction: Transaction) => {
+    const handleOpenDeleteDialog = (transaction: TransactionWithUser) => {
         setSelectedTransaction(transaction);
         setIsDeleteDialogOpen(true);
     }
@@ -238,3 +239,4 @@ export default function AdminFinancePage() {
         </DashboardLayout>
     );
 }
+    

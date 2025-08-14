@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserDetailsDialog } from '@/components/user-details-dialog';
-import { useAuth } from '@/context/auth-context';
-import type { User as AuthUser } from '@/context/auth-context';
+import { useAuth, User } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -15,8 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 
-
-type UserData = AuthUser & {
+type UserData = User & {
     registeredAt: string; 
 };
 
@@ -35,20 +33,18 @@ export default function AdminUsersPage() {
     
     const [users, setUsers] = useState<UserData[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedUser, setSelectedUser] = useState<AuthUser | null>(null);
-    const [selectedUserBalances, setSelectedUserBalances] = useState<UserBalance | null>(null);
+    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
     const loadData = useCallback(async () => {
         if (!isAdmin || !user) return;
         try {
-            // Use the secure RPC call to get all users
-            const { data, error } = await supabase.rpc('get_all_users_for_admin');
+            const { data, error } = await supabase.rpc('admin_get_all_users');
             if (error) throw error;
             
-            const formattedUsers = data.map((u: any) => ({
+            const formattedUsers = (data as User[]).map((u) => ({
                 ...u,
-                registeredAt: u.registered_at ? new Date(u.registered_at).toLocaleDateString() : 'N/A'
+                registeredAt: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'
             }));
             setUsers(formattedUsers);
 
@@ -72,18 +68,8 @@ export default function AdminUsersPage() {
         return users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [users, searchQuery]);
 
-    const handleViewDetails = async (userToView: UserData) => {
-        try {
-            const { data, error } = await supabase.rpc('get_user_profile_by_id', { user_id_input: userToView.id });
-             if (error || !data || data.length === 0) throw error || new Error("User not found");
-             setSelectedUser(data[0] as AuthUser);
-            
-            setSelectedUserBalances({}); // This will be recalculated inside the dialog
-        } catch (error) {
-             console.error(`Failed to fetch data for user ${userToView.username}`, error);
-             setSelectedUser(userToView as AuthUser); // Fallback to existing data
-             setSelectedUserBalances(null);
-        }
+    const handleViewDetails = (userToView: UserData) => {
+        setSelectedUser(userToView);
         setIsDetailsOpen(true);
     };
 
@@ -168,12 +154,13 @@ export default function AdminUsersPage() {
                     isOpen={isDetailsOpen}
                     onOpenChange={setIsDetailsOpen}
                     user={selectedUser}
-                    balances={selectedUserBalances}
                     onUpdate={() => {
-                        loadData(); // Reload all users data
+                        loadData(); 
                         if (selectedUser) {
-                           // Re-fetch the single user's latest data to keep the dialog fresh
-                           handleViewDetails(selectedUser as UserData);
+                           const updatedUser = users.find(u => u.id === selectedUser.id);
+                           if (updatedUser) {
+                            setSelectedUser(updatedUser);
+                           }
                         }
                     }}
                 />
@@ -183,3 +170,4 @@ export default function AdminUsersPage() {
 
     
 }
+    

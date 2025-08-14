@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
@@ -10,6 +10,7 @@ import { BarChart2, Users, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 type CommissionLog = {
     id: string;
@@ -22,7 +23,7 @@ type CommissionLog = {
 type DownlineMember = {
     username: string;
     level: number;
-    registered_at: string;
+    created_at: string;
 };
 
 
@@ -32,35 +33,34 @@ export default function PromotionPage() {
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
     const [downline, setDownline] = useState<DownlineMember[]>([]);
 
-    useEffect(() => {
-        if (user) {
-            const loadData = async () => {
-                // Load commission logs for the current user
-                const { data: commissionData, error: commissionError } = await supabase
-                    .from('commission_logs')
-                    .select('*')
-                    .eq('upline_user_id', user.id)
-                    .order('created_at', { ascending: false });
+    const loadData = useCallback(async () => {
+        if (!user) return;
+        try {
+            // Load commission logs
+            const { data: commissionData, error: commissionError } = await supabase
+                .from('commission_logs')
+                .select('*')
+                .eq('upline_user_id', user.id)
+                .order('created_at', { ascending: false });
 
-                if (commissionError) {
-                    console.error("Error loading commission logs:", commissionError);
-                } else {
-                    setCommissions(commissionData as CommissionLog[]);
-                }
+            if (commissionError) throw commissionError;
+            setCommissions(commissionData as CommissionLog[]);
 
-                // Load team (downline) using the RPC function
-                const { data: downlineData, error: downlineError } = await supabase
-                    .rpc('get_user_downline', { p_user_id: user.id });
-                
-                if (downlineError) {
-                     console.error("Error loading downline:", downlineError);
-                } else {
-                    setDownline(downlineData as DownlineMember[]);
-                }
-            };
-            loadData();
+            // Load downline team
+            const { data: downlineData, error: downlineError } = await supabase
+                .rpc('get_user_downline', { p_user_id: user.id });
+            
+            if (downlineError) throw downlineError;
+            setDownline(downlineData as DownlineMember[]);
+        } catch (error) {
+            console.error("Error loading promotion data:", error);
+            toast({ variant: "destructive", title: "错误", description: "加载推广数据失败。" });
         }
-    }, [user]);
+    }, [user, toast]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const copyToClipboard = () => {
         if (user?.invitation_code) {
@@ -124,7 +124,7 @@ export default function PromotionPage() {
                                            <TableCell>
                                                 <Badge variant="outline">LV {member.level}</Badge>
                                            </TableCell>
-                                           <TableCell>{new Date(member.registered_at!).toLocaleDateString()}</TableCell>
+                                           <TableCell>{new Date(member.created_at!).toLocaleDateString()}</TableCell>
                                        </TableRow>
                                    )) : (
                                         <TableRow>
@@ -180,3 +180,4 @@ export default function PromotionPage() {
         </DashboardLayout>
     );
 }
+    

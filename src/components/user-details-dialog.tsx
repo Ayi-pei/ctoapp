@@ -35,7 +35,6 @@ type UserDetailsDialogProps = {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
     user: AuthUser | null;
-    balances: UserBalance;
     onUpdate: () => void;
 };
 
@@ -45,7 +44,7 @@ type BalanceAdjustments = {
 
 const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
-export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpdate }: UserDetailsDialogProps) {
+export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: UserDetailsDialogProps) {
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
@@ -87,7 +86,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id' | 'userId' | 'transactionHash' | 'createdAt'> = {
+            const newAdjustment: Omit<Transaction, 'id'> = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
@@ -154,7 +153,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
     }
     
-    const registeredAtDate = user.registered_at ? new Date(user.registered_at).toLocaleDateString() : 'N/A';
+    const registeredAtDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -172,7 +171,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         <p className="text-sm"><strong>邀请码:</strong> {user.invitation_code || 'N/A'}</p>
                         <p className="text-sm"><strong>账户类型:</strong> {user.is_test_user ? '测试账户' : '真实账户'}</p>
                         <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
-                        <p className="text-sm"><strong>邀请人:</strong> {user.inviter || '无'}</p>
+                        <p className="text-sm"><strong>邀请人ID:</strong> {user.inviter_id || '无'}</p>
                         <p className="text-sm"><strong>账户状态:</strong> {user.is_frozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
                     </div>
 
@@ -265,3 +264,4 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         </Dialog>
     );
 }
+    

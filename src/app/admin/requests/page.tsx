@@ -15,17 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type AdminRequest = (Omit<Transaction, 'userId' | 'transactionHash' | 'createdAt'> | Omit<PasswordResetRequest, 'userId' | 'newPassword' | 'createdAt'>) & { 
-    id: string;
-    type: 'deposit' | 'withdrawal' | 'password_reset';
-    created_at: string;
-    user_id: string;
-    userId: string;
-    amount?: number;
-    asset?: string;
-    new_password?: string;
+type CombinedRequest = (Transaction | PasswordResetRequest) & { 
+    userId: string; 
 };
-
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -46,7 +38,7 @@ export default function AdminRequestsPage() {
     const { recalculateBalanceForUser } = useBalance();
     const { toast } = useToast();
 
-    const [requests, setRequests] = useState<AdminRequest[]>([]);
+    const [requests, setRequests] = useState<CombinedRequest[]>([]);
     
     useEffect(() => {
         if (isAdmin === false) {
@@ -70,13 +62,13 @@ export default function AdminRequestsPage() {
             if (financeError) throw financeError;
             if (passwordError) throw passwordError;
 
-            const formattedFinance = financeRequests.map((r: any) => ({ ...r, userId: r.user.username }));
-            const formattedPassword = passwordRequests.map((r: any) => ({ ...r, userId: r.user.username }));
+            const formattedFinance = (financeRequests as any[]).map((r: any) => ({ ...r, userId: r.user.username }));
+            const formattedPassword = (passwordRequests as any[]).map((r: any) => ({ ...r, userId: r.user.username }));
 
             const allRequests = [...formattedFinance, ...formattedPassword]
                 .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-            setRequests(allRequests as AdminRequest[]);
+            setRequests(allRequests as CombinedRequest[]);
 
         } catch (error) {
             console.error("Failed to fetch data from Supabase", error);
@@ -88,14 +80,11 @@ export default function AdminRequestsPage() {
         loadData();
     }, [loadData]);
 
-    const handleRequest = async (request: AdminRequest, newStatus: 'approved' | 'rejected') => {
+    const handleRequest = async (request: CombinedRequest, newStatus: 'approved' | 'rejected') => {
         try {
             if (request.type === 'password_reset') {
-                 if (newStatus === 'approved') {
-                    const { data: userToUpdate, error: findErr } = await supabase.from('users').select('id').eq('username', request.userId).single();
-                    if(findErr || !userToUpdate) throw new Error("User not found");
-
-                    const { error: updateErr } = await supabase.auth.admin.updateUserById(userToUpdate.id, { password: request.new_password! });
+                 if (newStatus === 'approved' && 'new_password' in request) {
+                    const { error: updateErr } = await supabase.auth.admin.updateUserById(request.user_id, { password: request.new_password! });
                     if(updateErr) throw updateErr;
                 }
                 const { error } = await supabase.from('admin_requests').delete().eq('id', request.id);
@@ -160,7 +149,7 @@ export default function AdminRequestsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs">
-                                            {r.amount ? `${r.amount.toFixed(2)} ${r.asset}` : '新密码: ***'}
+                                            {'amount' in r && r.amount ? `${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}` : '新密码: ***'}
                                         </TableCell>
                                         <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
                                         <TableCell className="text-right space-x-2">
@@ -187,3 +176,4 @@ export default function AdminRequestsPage() {
         </DashboardLayout>
     );
 }
+    

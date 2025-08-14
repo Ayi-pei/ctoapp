@@ -1,30 +1,65 @@
 
--- Drop existing tables and types if they exist, in reverse order of dependency
+-- Drop existing objects in reverse order of dependency
+DROP FUNCTION IF EXISTS public.distribute_commissions(UUID, NUMERIC);
+DROP FUNCTION IF EXISTS public.register_new_user(TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.admin_get_all_users();
+DROP FUNCTION IF EXISTS public.admin_get_user_team(UUID);
+DROP FUNCTION IF EXISTS public.get_user_downline(UUID);
+DROP FUNCTION IF EXISTS public.generate_invitation_code();
+
+DROP POLICY IF EXISTS "用户可访问自己的资料" ON public.users;
+DROP POLICY IF EXISTS "用户可查看上下级资料" ON public.users;
+DROP POLICY IF EXISTS "管理员完全访问用户表" ON public.users;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.transactions;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.transactions;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.contract_trades;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.contract_trades;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.spot_trades;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.spot_trades;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.investments;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.investments;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.withdrawal_addresses;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.withdrawal_addresses;
+DROP POLICY IF EXISTS "用户访问自己的记录" ON public.admin_requests;
+DROP POLICY IF EXISTS "管理员完全访问" ON public.admin_requests;
+DROP POLICY IF EXISTS "用户查看自己的佣金" ON public.commission_logs;
+DROP POLICY IF EXISTS "管理员完全访问佣金" ON public.commission_logs;
+
+DROP TRIGGER IF EXISTS on_new_user_before_insert ON public.users;
+
 DROP TABLE IF EXISTS public.commission_logs;
 DROP TABLE IF EXISTS public.investments;
-DROP TABLE IF EXISTS public.spot_trades;
-DROP TABLE IF EXISTS public.contract_trades;
-DROP TABLE IF EXISTS public.transactions;
 DROP TABLE IF EXISTS public.withdrawal_addresses;
 DROP TABLE IF EXISTS public.admin_requests;
+DROP TABLE IF EXISTS public.contract_trades;
+DROP TABLE IF EXISTS public.spot_trades;
+DROP TABLE IF EXISTS public.transactions;
 DROP TABLE IF EXISTS public.users;
 
+-- Ensure required extensions are enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Create the users table to store public user data
+
+---------------------------
+-- 1. 创建核心用户表
+---------------------------
 CREATE TABLE public.users (
     id UUID PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    is_admin BOOLEAN DEFAULT FALSE,
-    is_test_user BOOLEAN DEFAULT FALSE,
-    is_frozen BOOLEAN DEFAULT FALSE,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
     inviter_id UUID REFERENCES public.users(id),
+    is_admin BOOLEAN DEFAULT false NOT NULL,
+    is_test_user BOOLEAN DEFAULT false NOT NULL,
+    is_frozen BOOLEAN DEFAULT false NOT NULL,
     invitation_code TEXT UNIQUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Create a trigger function to generate a unique invitation code for new users
+comment on table public.users is 'Stores user profile information.';
+comment on column public.users.id is 'References auth.users.id';
+
+-- 邀请码生成函数
 CREATE OR REPLACE FUNCTION public.generate_invitation_code()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -33,16 +68,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Attach the trigger to the users table
+-- 为新用户自动生成邀请码
 CREATE TRIGGER on_new_user_before_insert
 BEFORE INSERT ON public.users
 FOR EACH ROW
 EXECUTE FUNCTION public.generate_invitation_code();
 
-
--- Financial transactions table
+---------------------------
+-- 2. 创建交易相关表
+---------------------------
 CREATE TABLE public.transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     type TEXT NOT NULL CHECK (type IN ('deposit', 'withdrawal', 'adjustment')),
     asset TEXT NOT NULL,
@@ -50,13 +86,11 @@ CREATE TABLE public.transactions (
     status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
     address TEXT,
     transaction_hash TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-
--- Contract trades table
 CREATE TABLE public.contract_trades (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     trading_pair TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
@@ -69,12 +103,11 @@ CREATE TABLE public.contract_trades (
     settlement_price NUMERIC(20, 8),
     outcome TEXT CHECK (outcome IN ('win', 'loss')),
     profit NUMERIC(20, 8),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Spot trades table
 CREATE TABLE public.spot_trades (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     trading_pair TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('buy', 'sell')),
@@ -83,13 +116,14 @@ CREATE TABLE public.spot_trades (
     amount NUMERIC(20, 8) NOT NULL,
     total NUMERIC(20, 8) NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('filled', 'cancelled')),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-
--- Commission logs table
+---------------------------
+-- 3. 创建佣金和投资表
+---------------------------
 CREATE TABLE public.commission_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     upline_user_id UUID NOT NULL REFERENCES public.users(id),
     source_user_id UUID NOT NULL REFERENCES public.users(id),
     source_username TEXT NOT NULL,
@@ -97,43 +131,41 @@ CREATE TABLE public.commission_logs (
     trade_amount NUMERIC(20, 8) NOT NULL,
     commission_rate NUMERIC(5, 4) NOT NULL,
     commission_amount NUMERIC(20, 8) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Investment records table
 CREATE TABLE public.investments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     product_name TEXT NOT NULL,
     amount NUMERIC(20, 8) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-
--- Withdrawal addresses table
+---------------------------
+-- 4. 创建地址和管理请求表
+---------------------------
 CREATE TABLE public.withdrawal_addresses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     name TEXT NOT NULL,
     address TEXT NOT NULL,
     network TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Password reset and other admin requests table
 CREATE TABLE public.admin_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES public.users(id),
     type TEXT NOT NULL DEFAULT 'password_reset',
     new_password TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
-
--- ========== ROW LEVEL SECURITY (RLS) POLICIES ==========
-
--- Enable RLS for all tables
+---------------------------
+-- 5. 启用行级安全 (RLS)
+---------------------------
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contract_trades ENABLE ROW LEVEL SECURITY;
@@ -143,188 +175,210 @@ ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.withdrawal_addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_requests ENABLE ROW LEVEL SECURITY;
 
--- Policies for users table
-CREATE POLICY "Allow admins full access" ON public.users FOR ALL TO authenticated USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow users to view their own data" ON public.users FOR SELECT TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Allow users to view their inviter/downline basic info" ON public.users FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND (u.inviter_id = public.users.id OR public.users.inviter_id = u.id)));
+---------------------------
+-- 6. 行级安全策略
+---------------------------
+-- User table policies
+CREATE POLICY "Users can view their own profile" ON public.users
+FOR SELECT USING (auth.uid() = id);
 
--- Policies for other tables (general user access)
-CREATE POLICY "Allow users to access their own records" ON public.transactions FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow users to access their own records" ON public.contract_trades FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow users to access their own records" ON public.spot_trades FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow users to access their own records" ON public.investments FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow users to access their own records" ON public.withdrawal_addresses FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow users to access their own records" ON public.admin_requests FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own profile" ON public.users
+FOR UPDATE USING (auth.uid() = id);
 
--- Policy for commission_logs (Users can only see commissions they earned)
-CREATE POLICY "Allow users to access their own records" ON public.commission_logs FOR ALL USING (auth.uid() = upline_user_id);
-
--- Admins can bypass all RLS policies
-ALTER TABLE public.users BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.transactions BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.contract_trades BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.spot_trades BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.commission_logs BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.investments BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.withdrawal_addresses BYPASS ROW LEVEL SECURITY;
-ALTER TABLE public.admin_requests BYPASS ROW LEVEL SECURITY;
+-- Admin has full access to user profiles
+CREATE POLICY "Admins can manage all user profiles" ON public.users
+FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
 
 
--- ========== DATABASE FUNCTIONS (RPC) ==========
+-- General policies for user-specific tables
+DO $$
+DECLARE
+    tables TEXT[] := ARRAY[
+        'transactions', 'contract_trades', 'spot_trades', 'investments', 
+        'withdrawal_addresses', 'admin_requests'
+    ];
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY tables
+    LOOP
+        EXECUTE format(
+            'CREATE POLICY "Users can manage their own %I" ON public.%I ' ||
+            'FOR ALL USING (auth.uid() = user_id)',
+            tbl, tbl
+        );
+        
+        EXECUTE format(
+            'CREATE POLICY "Admins can manage all %I" ON public.%I ' ||
+            'FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true)',
+            tbl, tbl
+        );
+    END LOOP;
+END $$;
 
--- Function to get a user's full downline (recursive)
+-- Commission logs policies
+CREATE POLICY "Users can view their own commission logs" ON public.commission_logs
+FOR SELECT USING (auth.uid() = upline_user_id);
+
+CREATE POLICY "Admins can manage all commission logs" ON public.commission_logs
+FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
+
+
+---------------------------
+-- 7. 核心业务函数
+---------------------------
+-- Function to get a user's downline (up to 3 levels)
 CREATE OR REPLACE FUNCTION public.get_user_downline(p_user_id UUID)
-RETURNS TABLE(username TEXT, level INT, registered_at TIMESTAMPTZ) AS $$
+RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTAMPTZ) AS $$
 BEGIN
     RETURN QUERY
     WITH RECURSIVE downline_cte AS (
-        SELECT id, username, inviter_id, created_at, 1 AS level
-        FROM public.users
-        WHERE inviter_id = p_user_id
+        SELECT u.id, u.username, u.created_at, 1 AS level
+        FROM public.users u
+        WHERE u.inviter_id = p_user_id
 
         UNION ALL
 
-        SELECT u.id, u.username, u.inviter_id, u.created_at, d.level + 1
+        SELECT u.id, u.username, u.created_at, d.level + 1
         FROM public.users u
         JOIN downline_cte d ON u.inviter_id = d.id
-        WHERE d.level < 3 -- Limit to 3 levels
+        WHERE d.level < 3
     )
-    SELECT d.username, d.level, d.created_at
-    FROM downline_cte d;
+    SELECT d.id, d.username, d.level, d.created_at
+    FROM downline_cte;
 END;
 $$ LANGUAGE plpgsql;
 
-
--- Function to handle new user registration
-CREATE OR REPLACE FUNCTION public.register_new_user(p_email TEXT, p_password TEXT, p_username TEXT, p_inviter_username TEXT)
-RETURNS void AS $$
+-- User registration function (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.register_new_user(
+    p_email TEXT, 
+    p_password TEXT, 
+    p_username TEXT, 
+    p_invitation_code TEXT
+)
+RETURNS json AS $$
 DECLARE
     new_user_id UUID;
     v_inviter_id UUID;
 BEGIN
-    -- Find the inviter's ID
-    SELECT id INTO v_inviter_id FROM public.users WHERE username = p_inviter_username;
+    SELECT u.id INTO v_inviter_id 
+    FROM public.users u 
+    WHERE u.invitation_code = p_invitation_code;
+    
     IF v_inviter_id IS NULL THEN
-        RAISE EXCEPTION 'Invalid invitation code (inviter not found)';
+        RAISE EXCEPTION '无效的邀请码' USING ERRCODE = 'P0001';
     END IF;
 
-    -- Create the user in auth.users
-    new_user_id := (SELECT id FROM auth.users WHERE email = p_email);
-    IF new_user_id IS NULL THEN
-         INSERT INTO auth.users (id, email, encrypted_password, aud, role, created_at, updated_at, email_confirmed_at)
-         VALUES (uuid_generate_v4(), p_email, crypt(p_password, gen_salt('bf')), 'authenticated', 'authenticated', NOW(), NOW(), NOW())
-         RETURNING id INTO new_user_id;
-    ELSE
-         RAISE EXCEPTION 'User with this email already exists';
-    END IF;
+    -- Create Supabase auth user
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        extensions.uuid_generate_v4(), 'authenticated', 'authenticated', p_email, crypt(p_password, gen_salt('bf')),
+        NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}'
+    ) RETURNING id INTO new_user_id;
 
-    -- Create the profile in public.users
+    -- Create public profile
     INSERT INTO public.users (id, username, email, inviter_id)
     VALUES (new_user_id, p_username, p_email, v_inviter_id);
+
+    RETURN json_build_object('user_id', new_user_id, 'message', '用户注册成功');
+EXCEPTION
+    WHEN unique_violation THEN
+        RAISE EXCEPTION '邮箱或用户名已存在' USING ERRCODE = '23505';
+    WHEN others THEN
+        RAISE EXCEPTION '注册时发生未知错误: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
--- Function to distribute commissions up to 3 levels
-CREATE OR REPLACE FUNCTION public.distribute_commissions_recursively(p_source_user_id UUID, p_trade_amount NUMERIC)
+-- Commission distribution function (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.distribute_commissions(
+    p_source_user_id UUID, 
+    p_trade_amount NUMERIC
+)
 RETURNS void AS $$
 DECLARE
     commission_rates NUMERIC[] := ARRAY[0.08, 0.05, 0.02];
     current_user_id UUID := p_source_user_id;
     current_inviter_id UUID;
-    source_user_info RECORD;
+    source_username TEXT;
     level INT := 1;
 BEGIN
-    SELECT username INTO source_user_info FROM public.users WHERE id = p_source_user_id;
+    SELECT username INTO source_username 
+    FROM public.users 
+    WHERE id = p_source_user_id;
 
     WHILE level <= 3 LOOP
-        -- Find the inviter of the current user
-        SELECT inviter_id INTO current_inviter_id FROM public.users WHERE id = current_user_id;
+        SELECT inviter_id INTO current_inviter_id 
+        FROM public.users 
+        WHERE id = current_user_id;
 
-        -- If there is no inviter, or we've reached the top, stop.
-        IF current_inviter_id IS NULL THEN
-            EXIT;
-        END IF;
+        EXIT WHEN current_inviter_id IS NULL;
 
-        -- Calculate and insert commission for the inviter
         INSERT INTO public.commission_logs (
-            upline_user_id,
-            source_user_id,
-            source_username,
-            source_level,
-            trade_amount,
-            commission_rate,
-            commission_amount
-        )
-        VALUES (
-            current_inviter_id,
-            p_source_user_id,
-            source_user_info.username,
-            level,
-            p_trade_amount,
-            commission_rates[level],
-            p_trade_amount * commission_rates[level]
+            upline_user_id, source_user_id, source_username, source_level,
+            trade_amount, commission_rate, commission_amount
+        ) VALUES (
+            current_inviter_id, p_source_user_id, source_username, level,
+            p_trade_amount, commission_rates[level], p_trade_amount * commission_rates[level]
         );
 
-        -- Move up to the next level
         current_user_id := current_inviter_id;
         level := level + 1;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
--- Helper functions for admins to get user data bypassing RLS
-CREATE OR REPLACE FUNCTION public.get_all_users_for_admin()
+---------------------------
+-- 8. 管理员工具函数
+---------------------------
+CREATE OR REPLACE FUNCTION public.admin_get_all_users()
 RETURNS SETOF public.users AS $$
 BEGIN
     IF (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
-        RETURN QUERY SELECT * FROM public.users;
+        RETURN QUERY SELECT * FROM public.users ORDER BY created_at DESC;
     ELSE
-        RAISE EXCEPTION 'Only admins can perform this action';
-    END IF;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.get_user_profile_by_id(user_id_input UUID)
-RETURNS SETOF public.users AS $$
-BEGIN
-    -- Allow any authenticated user to fetch a profile by ID
-    -- RLS on the table itself will ultimately control what they can see,
-    -- but this function allows the query to proceed.
-    -- The SECURITY DEFINER context with the admin check provides the bypass.
-    IF (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
-      RETURN QUERY SELECT * FROM public.users WHERE id = user_id_input;
-    ELSE
-      -- A non-admin can only get their own profile this way
-      IF auth.uid() = user_id_input THEN
-        RETURN QUERY SELECT * FROM public.users WHERE id = user_id_input;
-      ELSE
-         RAISE EXCEPTION 'You are not authorized to view this profile.';
-      END IF;
+        RAISE EXCEPTION '权限不足' USING ERRCODE = 'insufficient_privilege';
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
-
--- ========== INITIAL DATA SEEDING ==========
-
--- Create a preset Admin user
-DO $$
-DECLARE
-    admin_user_id UUID;
+CREATE OR REPLACE FUNCTION public.admin_get_user_team(p_user_id UUID)
+RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTAMPTZ) AS $$
 BEGIN
-    -- Insert into auth.users and capture the ID
-    INSERT INTO auth.users (id, email, encrypted_password, aud, role, email_confirmed_at, created_at, updated_at)
-    VALUES (uuid_generate_v4(), 'admin@rsf.app', crypt('password', gen_salt('bf')), 'authenticated', 'authenticated', NOW(), NOW(), NOW())
-    ON CONFLICT (email) DO NOTHING
-    RETURNING id INTO admin_user_id;
-
-    -- Use the captured ID to insert into public.users
-    IF admin_user_id IS NOT NULL THEN
-        INSERT INTO public.users (id, username, email, is_admin, is_test_user)
-        VALUES (admin_user_id, 'admin', 'admin@rsf.app', true, true)
-        ON CONFLICT (id) DO NOTHING;
+    IF (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
+        RETURN QUERY SELECT * FROM public.get_user_downline(p_user_id);
+    ELSE
+        RAISE EXCEPTION '权限不足' USING ERRCODE = 'insufficient_privilege';
     END IF;
-END $$;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+---------------------------
+-- 9. 初始数据
+---------------------------
+-- Create admin user (idempotent)
+INSERT INTO auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data
+) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    '00000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'admin@rsf.app', crypt('password', gen_salt('bf')),
+    NOW(), NOW(), NOW(), '{"provider":"email","providers":["email"]}', '{}'
+) ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO public.users (id, username, email, is_admin, is_test_user)
+VALUES (
+    '00000000-0000-0000-0000-000000000001', 'admin', 'admin@rsf.app', true, true
+) ON CONFLICT (id) DO NOTHING;
+
+---------------------------
+-- 10. 索引优化
+---------------------------
+CREATE INDEX IF NOT EXISTS idx_users_inviter_id ON public.users(inviter_id);
+CREATE INDEX IF NOT EXISTS idx_users_invitation_code ON public.users(invitation_code);
+CREATE INDEX IF NOT EXISTS idx_commission_upline ON public.commission_logs(upline_user_id);
+CREATE INDEX IF NOT EXISTS idx_trades_user_contract ON public.contract_trades(user_id);
+CREATE INDEX IF NOT EXISTS idx_trades_user_spot ON public.spot_trades(user_id);
+    

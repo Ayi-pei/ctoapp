@@ -21,9 +21,10 @@ export default function ProfileOrdersPage() {
 
     const getStatusBadge = (order: Order) => {
         if (order.orderType === 'spot') {
+            const spotOrder = order as SpotTrade;
             return (
-                <Badge variant={order.status === 'filled' ? 'default' : 'destructive'} className={cn(order.status === 'filled' && 'bg-green-500/20 text-green-500')}>
-                    {order.status === 'filled' ? '已成交' : '已取消'}
+                <Badge variant={spotOrder.status === 'filled' ? 'default' : 'destructive'} className={cn(spotOrder.status === 'filled' && 'bg-green-500/20 text-green-500')}>
+                    {spotOrder.status === 'filled' ? '已成交' : '已取消'}
                 </Badge>
             )
         }
@@ -102,3 +103,4 @@ export default function ProfileOrdersPage() {
         </DashboardLayout>
     );
 }
+    

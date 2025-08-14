@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
@@ -23,7 +22,6 @@ const registerSchema = z.object({
 
 
 export default function RegisterPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const { register: registerUser } = useAuth();
 
@@ -40,13 +38,7 @@ export default function RegisterPage() {
     const success = await registerUser(values.username, values.password, values.invitationCode);
 
     if (success) {
-        toast({
-            title: '注册成功',
-            description: '您现在可以登录了。',
-        });
         router.push('/login');
-    } else {
-        // The error toast is handled within the auth context's register function
     }
   };
 
@@ -114,3 +106,4 @@ export default function RegisterPage() {
     </AuthLayout>
   );
 }
+    

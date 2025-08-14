@@ -1,14 +1,16 @@
 
 
+// Main set of available trading pairs
 export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 
+// Represents an order in the order book
 export type Order = {
   price: number;
   size: number;
   total: number;
 };
 
-// Represents a market-wide trade event for the history
+// Represents a market-wide trade event for the history view
 export type MarketTrade = {
   id: string;
   type: 'buy' | 'sell';
@@ -18,28 +20,26 @@ export type MarketTrade = {
 };
 
 
-// Represents a user's contract trade action
+// Represents a user's contract trade
 export type ContractTrade = {
   id: string;
   user_id: string;
   trading_pair: string;
-  type: 'buy' | 'sell'; // buy for long, sell for short
-  amount: number; // This is the amount in USDT for the contract
+  type: 'buy' | 'sell'; 
+  amount: number; 
   entry_price: number;
-  settlement_time: string; // ISO date string
-  period: number; // in seconds
-  profit_rate: number; // e.g., 0.85 for 85%
+  settlement_time: string;
+  period: number; 
+  profit_rate: number;
   status: 'active' | 'settled';
-  // Fields below are added after settlement
   settlement_price?: number;
   outcome?: 'win' | 'loss';
-  profit?: number; // can be negative
+  profit?: number; 
   created_at: string;
-  // Properties for frontend rendering
-  orderType: 'contract';
+  orderType: 'contract'; // Frontend property
 };
 
-// Represents a user's spot trade action
+// Represents a user's spot trade
 export type SpotTrade = {
     id: string;
     user_id: string;
@@ -47,49 +47,48 @@ export type SpotTrade = {
     type: 'buy' | 'sell';
     base_asset: string;
     quote_asset: string;
-    amount: number; // amount of base asset
-    total: number; // total in quote asset
+    amount: number; 
+    total: number; 
     status: 'filled' | 'cancelled';
     created_at: string;
-     // Properties for frontend rendering
-    orderType: 'spot';
+    orderType: 'spot'; // Frontend property
 }
 
 
-// Represents a user's deposit or withdrawal request
+// Represents a user's deposit, withdrawal, or admin adjustment
 export type Transaction = {
   id: string;
-  user_id: string; // uuid
+  user_id: string; 
   type: 'deposit' | 'withdrawal' | 'adjustment';
   asset: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string; // ISO date string
-  // Optional fields
-  address?: string; // for withdrawals
-  transaction_hash?: string; // for deposits as proof
-  // Properties for frontend rendering
+  created_at: string; 
+  address?: string; 
+  transaction_hash?: string;
+  // Properties for frontend rendering, optional
   userId?: string; 
-  transactionHash?: string; 
-  createdAt?: string; 
 };
 
-// Represents a user's password reset request
+// Represents a user's password reset request submitted to admin
 export type PasswordResetRequest = {
   id: string;
   user_id: string;
   type: 'password_reset';
   new_password: string;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string; // ISO date string
+  created_at: string;
 };
 
 
+// Represents a user's investment in a product
 export type Investment = {
     id: string;
     product_name: string;
-    productName: string;
     amount: number;
-    date: string;
     created_at: string;
+    // Properties for frontend rendering, optional
+    productName?: string;
+    date?: string;
 }
+    
