@@ -113,8 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
         if (rpcError) throw rpcError;
 
-        if (data.error) {
-           throw new Error(data.error);
+        if (data.status === 'error') {
+           throw new Error(data.message);
         }
       
         toast({ title: '注册成功', description: '请登录。' });
