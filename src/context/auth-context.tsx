@@ -95,19 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // First, find the user's email from the public users table
-     const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('username', username)
-      .single();
+    // Construct the email from the username to avoid querying the `users` table and triggering RLS policies.
+    const email = `${username.toLowerCase()}@rsf.app`;
 
-    if (userError || !userData) {
-      console.error('Login failed: could not find user', userError?.message);
-      return false;
-    }
-
-    const { email } = userData;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
