@@ -29,18 +29,14 @@ export default function LoginPage() {
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: '',
+      username: 'admin',
+      password: 'password',
     },
   });
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      if (isAdmin) {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+        router.push(isAdmin ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, isAdmin, router, isLoading]);
 

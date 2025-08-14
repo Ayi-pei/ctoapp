@@ -15,7 +15,7 @@ export type User = {
   is_frozen?: boolean;
   inviter: string | null;
   registered_at?: string;
-  username: string; // Add username to the type
+  username: string;
   invitation_code?: string;
 };
 
@@ -34,6 +34,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const INITIAL_ADMIN_INVITATION_CODE = "STARTERCODE";
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "password";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,13 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
-    // Use the new RPC function to bypass RLS policies on the users table.
     const { data, error } = await supabase
       .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id });
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
-      // PGRST116 means "No rows returned"
       if (error.code === 'PGRST116') { 
           console.warn(`Profile not found for user ${supabaseUser.id}, signing out.`);
           await supabase.auth.signOut();
@@ -61,19 +61,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
     
-    // RPC returns an array, even for a single user. Take the first element.
     return (data?.[0] as User) || null;
   };
+
+  const handleHardcodedAdminLogin = () => {
+    const adminUser: User = {
+        id: 'admin-user',
+        username: ADMIN_USERNAME,
+        email: 'admin@rsf.app',
+        is_admin: true,
+        is_test_user: true,
+        is_frozen: false,
+        inviter: null,
+    };
+    setUser(adminUser);
+    setIsAdmin(true);
+    setSession({} as Session); // Mock session for isAuthenticated to be true
+    setIsLoading(false);
+  }
 
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
+
+        // Bypass everything if it's the hardcoded admin user
+        if (user?.id === 'admin-user' && isAdmin) {
+            setIsLoading(false);
+            return;
+        }
+
         setSession(session);
-        const userProfile = await fetchUserProfile(session?.user || null);
-        setUser(userProfile);
-        setIsAdmin(userProfile?.is_admin || false);
+        if (session?.user) {
+            const userProfile = await fetchUserProfile(session.user);
+            setUser(userProfile);
+            setIsAdmin(userProfile?.is_admin || false);
+        } else {
+            setUser(null);
+            setIsAdmin(false);
+        }
         setIsLoading(false);
       }
     );
@@ -96,38 +123,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Construct the email from the username to avoid querying the `users` table and triggering RLS policies.
-    const email = `${username.toLowerCase()}@rsf.app`;
+    // Hardcoded admin check
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        handleHardcodedAdminLogin();
+        return true;
+    }
 
+    // Regular user login
+    const email = `${username.toLowerCase()}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
       console.error('Login failed:', error.message);
       return false;
     }
+    // onAuthStateChange will handle setting the user state
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
         let inviterUsername: string | null = null;
-        let isAdminUser = false;
+        
+        // The first user registering with the special code becomes an admin.
+        const { data: count, error: countError } = await supabase.rpc('get_total_users_count');
+        if (countError) throw new Error(countError.message);
+        
+        const isFirstUser = count === 0;
 
-        // Check for the universal starter code
-        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
-             const { data: count, error: countError } = await supabase.rpc('get_total_users_count');
-             
-             if (countError) {
-                throw new Error(countError.message);
-             }
-             
-             if (count !== null && count > 0) {
-                 toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
-                 return false;
-             }
-             // This is the first user, make them an admin
-             isAdminUser = true;
+        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE && isFirstUser) {
              inviterUsername = null; // No inviter for the first admin
+        } else if (invitationCode === INITIAL_ADMIN_INVITATION_CODE && !isFirstUser) {
+            toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
+            return false;
         } else {
              const { data: inviterData, error: inviterError } = await supabase
                 .from('users')
@@ -165,8 +193,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: registeredUser.id,
           username: username,
           email: email,
-          is_admin: isAdminUser,
-          is_test_user: isAdminUser, // Make admin a test user to have initial funds for testing
+          is_admin: isFirstUser, // The very first user is an admin
+          is_test_user: isFirstUser, // Make admin a test user to have initial funds for testing
           is_frozen: false,
           inviter: inviterUsername,
           registered_at: new Date().toISOString()
@@ -195,15 +223,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    // If logging out the hardcoded admin, just reset state
+    if (user?.id === 'admin-user' && isAdmin) {
+        setUser(null);
+        setIsAdmin(false);
+        setSession(null);
+        router.push('/login');
+        return;
+    }
+    // Otherwise, sign out from supabase
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setSession(null);
-    router.push('/login');
+    // onAuthStateChange will clear the state
   };
 
   const updateUser = async (userData: Partial<User>) => {
-     if (!user) return;
+     if (!user || user.id === 'admin-user') return; // Cannot update hardcoded admin
     const { data, error } = await supabase
         .from('users')
         .update(userData)
@@ -222,10 +256,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isAuthenticated = !!session;
       const isAuthPage = pathname === '/login' || pathname === '/register';
       
-      if (isAuthenticated && isAuthPage) {
-          router.push(isAdmin ? '/admin' : '/dashboard');
-      } else if (!isAuthenticated && !isAuthPage) {
+      if (!isAuthenticated && !isAuthPage) {
           router.push('/login');
+      } else if (isAuthenticated && isAuthPage) {
+          router.push(isAdmin ? '/admin' : '/dashboard');
       }
     }
   }, [session, isAdmin, isLoading, pathname, router]);
