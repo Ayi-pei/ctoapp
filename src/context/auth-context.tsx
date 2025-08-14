@@ -33,8 +33,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const INITIAL_ADMIN_INVITATION_CODE = "STARTERCODE";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -47,18 +45,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
+    // Using an RPC call that is security-definer to get profile
     const { data, error } = await supabase
       .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id });
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
-      if (error.code === 'PGRST116') { 
+      // If the profile doesn't exist for a logged-in user, it's a data integrity issue.
+      // Log them out to prevent a broken app state.
+      if (error.code === 'PGRST116') { // "relation does not exist" or similar if RLS fails to find row
           console.warn(`Profile not found for user ${supabaseUser.id}, signing out.`);
           await supabase.auth.signOut();
       }
       return null;
     }
     
+    // The RPC function returns an array, we expect a single user object.
     return (data?.[0] as User) || null;
   };
 
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Also check user on initial load
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -97,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
+    // Standardize email format for login
     const email = `${username.toLowerCase()}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
@@ -104,90 +108,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login failed:', error.message);
       return false;
     }
+    // Auth state change listener will handle setting user and isAdmin
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-        let inviterUsername: string | null = null;
+        // Find the user who owns the invitation code.
+        const { data: inviterData, error: inviterError } = await supabase
+            .from('users')
+            .select('username')
+            .eq('invitation_code', invitationCode)
+            .single();
         
-        const { data: countData, error: countError } = await supabase.rpc('get_total_users_count');
-        if (countError) throw new Error(countError.message);
-        const count = countData as number;
-        
-        const isFirstUser = count === 0;
-
-        // The very first user to ever register can use the initial code to become admin
-        // After that, the code is invalid for registration.
-        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
-             if (isFirstUser) {
-                inviterUsername = null; // No inviter for the first admin
-             } else {
-                toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
-                return false;
-             }
-        } else {
-             const { data: inviterData, error: inviterError } = await supabase
-                .from('users')
-                .select('id, username')
-                .eq('invitation_code', invitationCode)
-                .single();
-            
-            if (inviterError || !inviterData) {
-                toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-                console.error("Invalid invitation code:", invitationCode, inviterError?.message);
-                return false;
-            }
-            inviterUsername = inviterData.username;
+        if (inviterError || !inviterData) {
+            toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
+            console.error("Invalid invitation code:", invitationCode, inviterError?.message);
+            return false;
         }
 
-      
       const email = `${username.toLowerCase()}@rsf.app`;
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      
-      if (authError) {
-        throw new Error(authError.message);
-      }
-      
-      const registeredUser = authData.user;
-      if (!registeredUser) {
-        throw new Error("User registration did not return a user object.");
-      }
-      
-      // Note: is_admin is only true if it's the very first user and they used the starter code
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: registeredUser.id,
-          username: username,
-          email: email,
-          is_admin: isFirstUser && invitationCode === INITIAL_ADMIN_INVITATION_CODE,
-          is_test_user: isFirstUser && invitationCode === INITIAL_ADMIN_INVITATION_CODE,
-          is_frozen: false,
-          inviter: inviterUsername,
-          registered_at: new Date().toISOString()
+      // Call the new registration RPC function
+       const { error: rpcError } = await supabase.rpc('register_new_user', {
+            p_email: email,
+            p_password: password,
+            p_username: username,
+            p_inviter_username: inviterData.username
         });
-        
-      if (profileError) {
-         console.error("Failed to create user profile:", profileError.message);
-         // Rollback auth user creation
-         const { error: deleteError } = await supabase.auth.admin.deleteUser(registeredUser.id);
-         if(deleteError) console.error("FATAL: Failed to clean up orphaned auth user:", deleteError.message);
-         throw new Error('无法创建用户资料，请重试。');
+      
+      if (rpcError) {
+        throw new Error(rpcError.message);
       }
-
+      
       toast({ title: '注册成功', description: '请登录。' });
       return true;
 
     } catch (error: any) {
       console.error("An unexpected error occurred during registration:", error);
+      let errorMessage = '发生未知错误，请重试。';
+      if (error.message?.includes('duplicate key value violates unique constraint "users_username_key"')) {
+        errorMessage = "该用户名已被占用，请使用其他用户名。";
+      } else if (error.message?.includes('User already registered')) {
+        errorMessage = "该邮箱/用户名已被注册。";
+      }
+
       toast({
         variant: 'destructive',
         title: '注册失败',
-        description: error.message || '发生未知错误，请重试。',
+        description: errorMessage,
       });
       return false;
     }
@@ -213,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
    useEffect(() => {
+    // This effect handles redirection based on auth state.
     if (!isLoading) {
       const isAuthenticated = !!session;
       const isAuthPage = pathname === '/login' || pathname === '/register';

@@ -83,7 +83,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                              <SpotOrderForm
                                 tradingPair={tradingPair}
                                 balances={balances}
-                                onPlaceTrade={(trade) => placeSpotTrade(trade, tradingPair)}
+                                onPlaceTrade={(trade) => placeSpotTrade(trade)}
                                 baseAsset={baseAsset}
                                 quoteAsset={quoteAsset}
                                 currentPrice={data.summary.price}
@@ -135,13 +135,13 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                     <TableBody>
                                         {activeContractTrades.map(trade => (
                                             <TableRow key={trade.id}>
-                                                <TableCell>{trade.tradingPair}</TableCell>
+                                                <TableCell>{trade.trading_pair}</TableCell>
                                                 <TableCell className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
                                                     {trade.type === 'buy' ? '买涨' : '买跌'}
                                                 </TableCell>
                                                 <TableCell>{trade.entry_price.toFixed(4)}</TableCell>
                                                 <TableCell>{trade.amount.toFixed(2)} USDT</TableCell>
-                                                <TableCell className="text-xs">{new Date(trade.createdAt).toLocaleString()}</TableCell>
+                                                <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -167,7 +167,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                     <TableBody>
                                         {historicalTrades.map(trade => (
                                             <TableRow key={trade.id}>
-                                                <TableCell>{trade.tradingPair}</TableCell>
+                                                <TableCell>{trade.trading_pair}</TableCell>
                                                 <TableCell>
                                                     {trade.orderType === 'spot' ? '币币' : '合约'}
                                                 </TableCell>
@@ -193,7 +193,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-xs">{new Date(trade.createdAt).toLocaleString()}</TableCell>
+                                                <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

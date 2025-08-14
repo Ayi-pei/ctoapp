@@ -6,8 +6,10 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth, User } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart2, Users } from "lucide-react";
+import { BarChart2, Users, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 type CommissionLog = {
     id: string;
@@ -17,10 +19,18 @@ type CommissionLog = {
     created_at: string;
 };
 
+type DownlineMember = {
+    username: string;
+    level: number;
+    registered_at: string;
+};
+
+
 export default function PromotionPage() {
     const { user } = useAuth();
+    const { toast } = useToast();
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
-    const [downline, setDownline] = useState<User[]>([]);
+    const [downline, setDownline] = useState<DownlineMember[]>([]);
 
     useEffect(() => {
         if (user) {
@@ -38,21 +48,29 @@ export default function PromotionPage() {
                     setCommissions(commissionData as CommissionLog[]);
                 }
 
-                // Load direct downline for the current user
+                // Load team (downline) using the RPC function
                 const { data: downlineData, error: downlineError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('inviter', user.username);
+                    .rpc('get_user_downline', { p_user_id: user.id });
                 
                 if (downlineError) {
                      console.error("Error loading downline:", downlineError);
                 } else {
-                    setDownline(downlineData as User[]);
+                    setDownline(downlineData as DownlineMember[]);
                 }
             };
             loadData();
         }
     }, [user]);
+
+    const copyToClipboard = () => {
+        if (user?.invitation_code) {
+            navigator.clipboard.writeText(user.invitation_code);
+            toast({
+                title: "已复制",
+                description: "您的邀请码已成功复制到剪贴板。",
+            });
+        }
+    };
 
     const totalCommission = commissions.reduce((acc, curr) => acc + curr.commission_amount, 0);
 
@@ -61,15 +79,33 @@ export default function PromotionPage() {
             <div className="p-4 md:p-8 space-y-6">
                 <h1 className="text-2xl font-bold">推广中心</h1>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>我的邀请码</CardTitle>
+                        <CardDescription>使用您的专属邀请码邀请新用户加入，并从他们的交易中赚取佣金。</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col md:flex-row items-center gap-4">
+                        <div className="flex-1 w-full p-4 text-center border-2 border-dashed rounded-lg bg-muted">
+                            <span className="text-3xl font-bold tracking-widest">{user?.invitation_code || '...'}</span>
+                        </div>
+                        <div className="flex gap-2">
+                             <Button onClick={copyToClipboard} size="lg" variant="outline">
+                                <Copy className="mr-2 h-5 w-5" />
+                                复制
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card>
                          <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Users className="h-6 w-6 text-primary" />
-                                <span>我的团队</span>
+                                <span>我的团队 (3级内)</span>
                             </CardTitle>
                             <CardDescription>
-                                您邀请的直属用户列表。
+                                您邀请的直属与间接用户列表。
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="p-2">
@@ -77,18 +113,22 @@ export default function PromotionPage() {
                                <TableHeader>
                                    <TableRow>
                                        <TableHead>用户名</TableHead>
+                                       <TableHead>级别</TableHead>
                                        <TableHead>注册时间</TableHead>
                                    </TableRow>
                                </TableHeader>
                                <TableBody>
                                    {downline.length > 0 ? downline.map(member => (
-                                       <TableRow key={member.id}>
+                                       <TableRow key={member.username}>
                                            <TableCell className="font-medium">{member.username}</TableCell>
+                                           <TableCell>
+                                                <Badge variant="outline">LV {member.level}</Badge>
+                                           </TableCell>
                                            <TableCell>{new Date(member.registered_at!).toLocaleDateString()}</TableCell>
                                        </TableRow>
                                    )) : (
                                         <TableRow>
-                                           <TableCell colSpan={2} className="text-center text-muted-foreground h-24">
+                                           <TableCell colSpan={3} className="text-center text-muted-foreground h-24">
                                                您还没有邀请任何用户。
                                            </TableCell>
                                        </TableRow>

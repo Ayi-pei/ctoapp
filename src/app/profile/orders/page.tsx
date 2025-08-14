@@ -1,11 +1,9 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/context/auth-context';
 import { SpotTrade, ContractTrade } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -15,16 +13,11 @@ import { useRouter } from 'next/navigation';
 import { useBalance } from '@/context/balance-context';
 
 type Order = (SpotTrade | ContractTrade) & {
-    id: string;
-    userId: string;
-    tradingPair: string;
     orderType: 'spot' | 'contract';
-    createdAt: string;
 };
 
 
 export default function ProfileOrdersPage() {
-    const { user } = useAuth();
     const router = useRouter();
     const { historicalTrades } = useBalance();
 
@@ -81,7 +74,7 @@ export default function ProfileOrdersPage() {
                             <TableBody>
                                 {historicalTrades.length > 0 ? historicalTrades.map((order) => (
                                     <TableRow key={order.id}>
-                                        <TableCell>{order.tradingPair}</TableCell>
+                                        <TableCell>{order.trading_pair}</TableCell>
                                         <TableCell>
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${order.orderType === 'spot' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'}`}>
                                                 {order.orderType === 'spot' ? '币币' : '秒合约'}
@@ -94,7 +87,7 @@ export default function ProfileOrdersPage() {
                                         </TableCell>
                                         <TableCell>{((order as any).amount || (order as any).total)?.toFixed(4)}</TableCell>
                                         <TableCell>{getStatusBadge(order as Order)}</TableCell>
-                                        <TableCell className="text-xs">{new Date(order.createdAt).toLocaleString()}</TableCell>
+                                        <TableCell className="text-xs">{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>

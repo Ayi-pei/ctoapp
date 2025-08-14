@@ -60,7 +60,7 @@ interface BalanceContextType {
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
-  placeSpotTrade: (trade: Omit<SpotTrade, 'id' | 'status' | 'user_id' | 'created_at' | 'trading_pair' | 'order_type' | 'base_asset' | 'quote_asset'>) => void;
+  placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'tradingPair'>) => void;
   requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -69,10 +69,6 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
-
-const COMMISSION_RATES: { [key: number]: number } = {
-    1: 0.08, // Level 1: 8%
-};
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -87,7 +83,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   
   const loadUserTrades = useCallback(async (userId: string) => {
-        if (!userId || userId === 'admin-user') return;
+        if (!userId) return;
         try {
             const { data: allContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
             const { data: allSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId);
@@ -96,18 +92,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             if (spotError) throw spotError;
             
             const activeTrades = allContractTrades.filter(t => t.status === 'active');
-            setActiveContractTrades(activeTrades.map(t => ({...t, userId: t.user_id, tradingPair: t.trading_pair, orderType: 'contract', createdAt: t.created_at} as ContractTrade)));
+            setActiveContractTrades(activeTrades.map(t => ({...t, orderType: 'contract'} as ContractTrade)));
 
             const settledContractTrades = allContractTrades.filter(t => t.status === 'settled');
             const combinedHistory = [...settledContractTrades, ...allSpotTrades]
                 .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             
             const formattedHistory = combinedHistory.map(t => {
-                const base = { userId: t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at };
                 if ('base_asset' in t) { // Spot Trade
-                    return { ...t, ...base, orderType: 'spot' };
+                    return { ...t, orderType: 'spot' };
                 }
-                return { ...t, ...base, orderType: 'contract' }; // Contract Trade
+                return { ...t, orderType: 'contract' }; // Contract Trade
             });
 
             setHistoricalTrades(formattedHistory as (SpotTrade | ContractTrade)[]);
@@ -119,12 +114,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
 
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
-    if (!userId || userId === 'admin-user') return {};
+    if (!userId) return {};
     try {
-        const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
-        if (userError || !targetUser) return {};
+        const { data: targetUser, error: userError } = await supabase.rpc('get_user_profile_by_id', { user_id_input: userId });
+        if (userError || !targetUser || !targetUser.length) return {};
 
-        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.is_test_user ? 
+        const currentUser = targetUser[0];
+
+        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = currentUser.is_test_user ? 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
             JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
 
@@ -343,31 +340,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
         if (!user) return;
         try {
-            const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter, username').eq('id', sourceUserId).single();
-            if (userError || !sourceUser || !sourceUser.inviter) return;
+            // We now call the recursive RPC function in the database to handle everything
+            const { error } = await supabase.rpc('distribute_commissions_recursively', {
+                p_source_user_id: sourceUserId,
+                p_trade_amount: tradeAmount
+            });
 
-            const { data: uplineUser, error: uplineError } = await supabase.from('users').select('id, username, is_admin').eq('username', sourceUser.inviter).single();
-            if(uplineError || !uplineUser || !uplineUser.is_admin) return;
+            if (error) {
+                throw new Error(`Commission distribution failed: ${error.message}`);
+            }
 
-
-            const commissionRate = COMMISSION_RATES[1];
-            const commissionAmount = tradeAmount * commissionRate;
-
-            const newLog = {
-                upline_user_id: uplineUser.id,
-                source_user_id: sourceUserId,
-                source_username: sourceUser.username,
-                source_level: 1,
-                trade_amount: tradeAmount,
-                commission_rate: commissionRate,
-                commission_amount: commissionAmount,
-            };
-            
-            const { error: insertError } = await supabase.from('commission_logs').insert(newLog);
-            if (insertError) throw insertError;
-
-            // Trigger balance update for the admin
-            recalculateBalanceForUser(uplineUser.id);
+            // After distribution, we need to recalculate the balance for the current user
+            // if they might have received a commission. Since the logic is complex,
+            // we'll just optimistically recalculate for the current user.
+            recalculateBalanceForUser(user.id);
 
         } catch (error) {
             console.error("Failed to distribute commissions:", error);
@@ -384,7 +370,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             ...trade,
             user_id: user.id,
             trading_pair: tradingPair,
-            order_type: 'contract',
             status: 'active',
             entry_price: marketData.summary.price,
             settlement_time: new Date(now + (trade.period * 1000)).toISOString(),
@@ -395,7 +380,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('contract_trades').insert(fullTrade);
         if (error) throw error;
 
-
+        // The new commission system is triggered by the trade.
         await handleCommissionDistribution(user.id, trade.amount);
         await recalculateBalanceForUser(user.id);
         await loadUserTrades(user.id);
@@ -405,18 +390,17 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const placeSpotTrade = async (trade: Omit<SpotTrade, 'id' | 'status' | 'created_at' | 'user_id' | 'order_type' | 'trading_pair' | 'base_asset' | 'quote_asset'>) => {
+  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'tradingPair'>) => {
      if (!user) return;
     
     try {
         const [baseAsset, quoteAsset] = trade.tradingPair.split('/');
-        const fullTrade: Omit<SpotTrade, 'id'| 'tradingPair' | 'orderType' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
+        const fullTrade: Omit<SpotTrade, 'id' | 'tradingPair' | 'orderType' | 'baseAsset' | 'quoteAsset' | 'createdAt'> = {
             type: trade.type,
             amount: trade.amount,
             total: trade.total,
             user_id: user.id,
             trading_pair: trade.tradingPair,
-            order_type: 'spot',
             base_asset: baseAsset,
             quote_asset: quoteAsset,
             status: 'filled',
@@ -442,7 +426,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id' | 'userId' | 'transactionHash' | 'createdAt'> = {
+           const newTransaction: Omit<Transaction, 'id'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,

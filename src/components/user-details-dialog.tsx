@@ -11,7 +11,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useAuth } from '@/context/auth-context';
 import type { User as AuthUser } from '@/context/auth-context';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
@@ -88,7 +87,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id' | 'createdAt' | 'userId' | 'transactionHash'> = {
+            const newAdjustment: Omit<Transaction, 'id'> = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
@@ -170,6 +169,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                     <div>
                         <h4 className="font-semibold mb-2">基本信息</h4>
                         <p className="text-sm"><strong>用户名:</strong> {user.username}</p>
+                        <p className="text-sm"><strong>邀请码:</strong> {user.invitation_code || 'N/A'}</p>
                         <p className="text-sm"><strong>账户类型:</strong> {user.is_test_user ? '测试账户' : '真实账户'}</p>
                         <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
                         <p className="text-sm"><strong>邀请人:</strong> {user.inviter || '无'}</p>
@@ -218,12 +218,10 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                         </Table>
                     </div>
 
-                    {user.is_admin && (
-                        <div>
-                            <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (直属下级)</h4>
-                            <DownlineTree username={user.username} />
-                        </div>
-                    )}
+                    <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息 (3级内)</h4>
+                        <DownlineTree userId={user.id} />
+                    </div>
 
 
                     <Separator />
