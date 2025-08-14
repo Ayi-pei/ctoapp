@@ -228,8 +228,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         loadUserTrades(user.id);
         const loadInvestments = async () => {
           const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
-          if (error) console.error("Could not fetch investments", error);
-          else if (data) {
+          if (error) {
+              console.error("Could not fetch investments", error);
+          } else if (data) {
             setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
           }
         }

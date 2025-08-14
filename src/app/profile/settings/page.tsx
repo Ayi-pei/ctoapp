@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
+import { PasswordResetRequest } from "@/types";
 
 
 const changePasswordSchema = z.object({
@@ -54,7 +55,7 @@ export default function ProfileSettingsPage() {
             }
 
             // 2. Submit password change request to admin
-            const newRequest = {
+            const newRequest: Omit<PasswordResetRequest, 'id' | 'createdAt' | 'userId' | 'newPassword'> = {
                 user_id: user.id,
                 type: 'password_reset',
                 new_password: values.newPassword,

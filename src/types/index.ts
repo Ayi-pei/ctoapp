@@ -92,9 +92,9 @@ export type PasswordResetRequest = {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string; // ISO date string
   // Properties for frontend rendering
-  userId: string;
-  newPassword: string;
-  createdAt: string;
+  userId?: string;
+  newPassword?: string;
+  createdAt?: string;
 };
 
 
