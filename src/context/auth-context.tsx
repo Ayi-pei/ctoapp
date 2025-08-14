@@ -47,8 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
-    // The `get_user_profile_by_id` RPC can be called by any authenticated user
-    // to get their own profile, so it's safe.
     const { data, error } = await supabase
       .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id });
 
@@ -99,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // All users, including admin, now log in via the same database flow.
     const email = `${username.toLowerCase()}@rsf.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
@@ -107,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login failed:', error.message);
       return false;
     }
-    // onAuthStateChange will handle setting the user state and isAdmin flag
     return true;
   };
   
@@ -115,17 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      try {
         let inviterUsername: string | null = null;
         
-        // The first user registering with the special code becomes an admin.
-        const { data: count, error: countError } = await supabase.rpc('get_total_users_count');
+        const { data: countData, error: countError } = await supabase.rpc('get_total_users_count');
         if (countError) throw new Error(countError.message);
+        const count = countData as number;
         
         const isFirstUser = count === 0;
 
-        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE && isFirstUser) {
-             inviterUsername = null; // No inviter for the first admin
-        } else if (invitationCode === INITIAL_ADMIN_INVITATION_CODE && !isFirstUser) {
-            toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
-            return false;
+        // The very first user to ever register can use the initial code to become admin
+        // After that, the code is invalid for registration.
+        if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
+             if (isFirstUser) {
+                inviterUsername = null; // No inviter for the first admin
+             } else {
+                toast({ variant: 'destructive', title: '注册失败', description: '初始邀请码已失效。' });
+                return false;
+             }
         } else {
              const { data: inviterData, error: inviterError } = await supabase
                 .from('users')
@@ -157,14 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("User registration did not return a user object.");
       }
       
+      // Note: is_admin is only true if it's the very first user and they used the starter code
       const { error: profileError } = await supabase
         .from('users')
         .insert({
           id: registeredUser.id,
           username: username,
           email: email,
-          is_admin: isFirstUser, // The very first user is an admin
-          is_test_user: isFirstUser, // Make admin a test user to have initial funds for testing
+          is_admin: isFirstUser && invitationCode === INITIAL_ADMIN_INVITATION_CODE,
+          is_test_user: isFirstUser && invitationCode === INITIAL_ADMIN_INVITATION_CODE,
           is_frozen: false,
           inviter: inviterUsername,
           registered_at: new Date().toISOString()
@@ -194,7 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    // onAuthStateChange will clear the user state
   };
 
   const updateUser = async (userData: Partial<User>) => {

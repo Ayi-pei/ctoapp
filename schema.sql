@@ -1,172 +1,299 @@
--- Enable UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+--
+-- This script contains the full schema and initial data for the TradeFlow application.
+-- Execute this script in your Supabase SQL Editor to set up the database.
+--
 
--- Custom Types for Enums
-CREATE TYPE transaction_type AS ENUM ('deposit', 'withdrawal', 'adjustment');
-CREATE TYPE transaction_status AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE trade_type AS ENUM ('buy', 'sell');
-CREATE TYPE spot_trade_status AS ENUM ('filled', 'cancelled');
-CREATE TYPE contract_trade_status AS ENUM ('active', 'settled');
-CREATE TYPE contract_outcome AS ENUM ('win', 'loss');
-CREATE TYPE request_type AS ENUM ('password_reset');
-CREATE TYPE request_status AS ENUM ('pending', 'approved', 'rejected');
+-- 1. Enable UUID extension
+create extension if not exists "uuid-ossp" with schema "extensions";
 
+-- 2. Create Tables
 
--- 1. Users Table
--- This table stores public user data and is linked to the private auth.users table.
-CREATE TABLE users (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username text UNIQUE NOT NULL,
-  email text UNIQUE,
-  is_admin boolean DEFAULT false,
-  is_test_user boolean DEFAULT false,
-  is_frozen boolean DEFAULT false,
-  inviter text,
-  registered_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
-  invitation_code text UNIQUE
+-- public.users table
+create table if not exists public.users (
+    id uuid not null primary key,
+    username text not null,
+    email text,
+    is_admin boolean not null default false,
+    is_test_user boolean not null default false,
+    is_frozen boolean not null default false,
+    inviter text,
+    registered_at timestamp with time zone,
+    invitation_code text,
+    constraint users_username_key unique (username),
+    constraint users_email_key unique (email),
+    constraint users_invitation_code_key unique (invitation_code),
+    constraint users_id_fkey foreign key (id) references auth.users (id) on delete cascade
 );
+comment on table public.users is 'User profile and application-specific data.';
 
--- Policy: Allow users to read their own profile.
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user read access" ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Allow admins full access" ON users FOR ALL USING (
-  (SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
+-- public.transactions table
+create table if not exists public.transactions (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    type text not null,
+    asset text not null,
+    amount numeric not null,
+    status text not null,
+    created_at timestamp with time zone not null default now(),
+    address text,
+    transaction_hash text,
+    constraint transactions_user_id_fkey foreign key (user_id) references public.users (id)
 );
+comment on table public.transactions is 'Records deposits, withdrawals, and admin adjustments.';
 
-
--- 2. Transactions Table
--- For deposits, withdrawals, and admin balance adjustments.
-CREATE TABLE transactions (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type transaction_type NOT NULL,
-  asset text NOT NULL,
-  amount numeric NOT NULL,
-  address text, -- For withdrawals
-  transaction_hash text, -- For deposits
-  status transaction_status NOT NULL,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+-- public.contract_trades table
+create table if not exists public.contract_trades (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    trading_pair text not null,
+    order_type text not null,
+    type text not null,
+    amount numeric not null,
+    entry_price numeric not null,
+    settlement_time timestamp with time zone not null,
+    period integer not null,
+    profit_rate numeric not null,
+    status text not null,
+    settlement_price numeric,
+    outcome text,
+    profit numeric,
+    created_at timestamp with time zone not null default now(),
+    constraint contract_trades_user_id_fkey foreign key (user_id) references public.users (id)
 );
+comment on table public.contract_trades is 'Stores records of user contract trades.';
 
--- Policy: Allow users to see their own transactions, and admins to see all.
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user read access" ON transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Allow user to create their own transaction requests" ON transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow admins full access" ON transactions FOR ALL USING (
-  (SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
+-- public.spot_trades table
+create table if not exists public.spot_trades (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    trading_pair text not null,
+    order_type text not null,
+    type text not null,
+    base_asset text not null,
+    quote_asset text not null,
+    amount numeric not null,
+    total numeric not null,
+    status text not null,
+    created_at timestamp with time zone not null default now(),
+    constraint spot_trades_user_id_fkey foreign key (user_id) references public.users (id)
 );
+comment on table public.spot_trades is 'Stores records of user spot trades.';
 
-
--- 3. Spot Trades Table
-CREATE TABLE spot_trades (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  trading_pair text NOT NULL,
-  order_type text DEFAULT 'spot'::text NOT NULL,
-  type trade_type NOT NULL,
-  base_asset text NOT NULL,
-  quote_asset text NOT NULL,
-  amount numeric NOT NULL,
-  total numeric NOT NULL,
-  status spot_trade_status NOT NULL,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+-- public.investments table
+create table if not exists public.investments (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    product_name text not null,
+    amount numeric not null,
+    created_at timestamp with time zone not null default now(),
+    constraint investments_user_id_fkey foreign key (user_id) references public.users (id)
 );
+comment on table public.investments is 'Stores user investments in financial products.';
 
--- Policy: Allow users to manage their own spot trades, and admins to see all.
-ALTER TABLE spot_trades ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user access" ON spot_trades FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow admins full access" ON spot_trades FOR ALL USING (
-  (SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
+-- public.withdrawal_addresses table
+create table if not exists public.withdrawal_addresses (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    name text not null,
+    address text not null,
+    network text not null,
+    constraint withdrawal_addresses_user_id_fkey foreign key (user_id) references public.users (id)
 );
+comment on table public.withdrawal_addresses is 'Stores user saved withdrawal addresses.';
 
-
--- 4. Contract Trades Table
-CREATE TABLE contract_trades (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  trading_pair text NOT NULL,
-  order_type text DEFAULT 'contract'::text NOT NULL,
-  type trade_type NOT NULL,
-  amount numeric NOT NULL,
-  entry_price numeric NOT NULL,
-  settlement_time timestamp with time zone NOT NULL,
-  period integer NOT NULL,
-  profit_rate numeric NOT NULL,
-  status contract_trade_status NOT NULL,
-  settlement_price numeric,
-  outcome contract_outcome,
-  profit numeric,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Policy: Allow users to manage their own contract trades, and admins to see all.
-ALTER TABLE contract_trades ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user access" ON contract_trades FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow admins full access" ON contract_trades FOR ALL USING (
-  (SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
-);
-
-
--- 5. Withdrawal Addresses Table
-CREATE TABLE withdrawal_addresses (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  address text NOT NULL UNIQUE,
-  network text NOT NULL,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Policy: Allow users to manage their own addresses.
-ALTER TABLE withdrawal_addresses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user access" ON withdrawal_addresses FOR ALL USING (auth.uid() = user_id);
-
-
--- 6. Investments Table
-CREATE TABLE investments (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  product_name text NOT NULL,
-  amount numeric NOT NULL,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Policy: Allow users to manage their own investments.
-ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user access" ON investments FOR ALL USING (auth.uid() = user_id);
-
-
--- 7. Commission Logs Table
-CREATE TABLE commission_logs (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    upline_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    source_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    source_username text,
-    source_level integer NOT NULL,
-    trade_amount numeric NOT NULL,
-    commission_rate numeric NOT NULL,
-    commission_amount numeric NOT NULL,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Policy: Allow users to see their own commission logs.
-ALTER TABLE commission_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow individual user read access" ON commission_logs FOR SELECT USING (auth.uid() = upline_user_id);
-
-
--- 8. Admin Requests (e.g., password resets)
-CREATE TABLE admin_requests (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type request_type NOT NULL,
+-- public.admin_requests table
+create table if not exists public.admin_requests (
+    id uuid not null default uuid_generate_v4() primary key,
+    user_id uuid not null,
+    type text not null,
     new_password text,
-    status request_status DEFAULT 'pending'::request_status NOT NULL,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+    status text not null,
+    created_at timestamp with time zone not null default now(),
+    constraint admin_requests_user_id_fkey foreign key (user_id) references public.users (id)
+);
+comment on table public.admin_requests is 'Stores user requests for admin approval, like password resets.';
+
+-- public.commission_logs table
+create table if not exists public.commission_logs (
+    id uuid not null default uuid_generate_v4() primary key,
+    upline_user_id uuid not null,
+    source_user_id uuid not null,
+    source_username text not null,
+    source_level integer not null,
+    trade_amount numeric not null,
+    commission_rate numeric not null,
+    commission_amount numeric not null,
+    created_at timestamp with time zone not null default now(),
+    constraint commission_logs_upline_user_id_fkey foreign key (upline_user_id) references public.users (id),
+    constraint commission_logs_source_user_id_fkey foreign key (source_user_id) references public.users (id)
+);
+comment on table public.commission_logs is 'Logs referral commissions earned by admins/users.';
+
+
+-- 3. Row Level Security (RLS) Policies
+-- Enable RLS for all tables
+alter table public.users enable row level security;
+alter table public.transactions enable row level security;
+alter table public.contract_trades enable row level security;
+alter table public.spot_trades enable row level security;
+alter table public.investments enable row level security;
+alter table public.withdrawal_addresses enable row level security;
+alter table public.admin_requests enable row level security;
+alter table public.commission_logs enable row level security;
+
+-- Drop existing policies to ensure a clean slate
+drop policy if exists "Users can only see their own profile." on public.users;
+drop policy if exists "Admins can see all profiles." on public.users;
+drop policy if exists "Users can manage their own data." on public.transactions;
+drop policy if exists "Users can manage their own data." on public.contract_trades;
+drop policy if exists "Users can manage their own data." on public.spot_trades;
+drop policy if exists "Users can manage their own data." on public.investments;
+drop policy if exists "Users can manage their own data." on public.withdrawal_addresses;
+drop policy if exists "Users can manage their own data." on public.admin_requests;
+drop policy if exists "Admins can view all commission logs." on public.commission_logs;
+drop policy if exists "Users can see their own commissions." on public.commission_logs;
+
+
+-- RLS Policies for public.users
+create policy "Users can only see their own profile." on public.users for select using (auth.uid() = id);
+create policy "Admins can see all profiles." on public.users for select using (
+    (select is_admin from public.users where id = auth.uid()) = true
 );
 
--- Policy: Allow users to create requests, and admins to see all.
-ALTER TABLE admin_requests ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow user to create their own requests" ON admin_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Allow admins full access" ON admin_requests FOR ALL USING (
-  (SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
+-- RLS Policies for user-specific tables
+create policy "Users can manage their own data." on public.transactions for all using (auth.uid() = user_id);
+create policy "Users can manage their own data." on public.contract_trades for all using (auth.uid() = user_id);
+create policy "Users can manage their own data." on public.spot_trades for all using (auth.uid() = user_id);
+create policy "Users can manage their own data." on public.investments for all using (auth.uid() = user_id);
+create policy "Users can manage their own data." on public.withdrawal_addresses for all using (auth.uid() = user_id);
+create policy "Users can manage their own data." on public.admin_requests for all using (auth.uid() = user_id);
+
+-- RLS Policies for commission_logs
+create policy "Admins can view all commission logs." on public.commission_logs for select using (
+    (select is_admin from public.users where id = auth.uid()) = true
 );
+create policy "Users can see their own commissions." on public.commission_logs for select using (auth.uid() = upline_user_id);
+
+
+-- 4. Database Functions (RPC)
+
+-- Function to get a user's profile by ID
+create or replace function public.get_user_profile_by_id(user_id_input uuid)
+returns table (
+    id uuid,
+    email text,
+    is_test_user boolean,
+    is_admin boolean,
+    is_frozen boolean,
+    inviter text,
+    registered_at timestamp with time zone,
+    username text,
+    invitation_code text
+)
+language sql security definer
+as $$
+    select
+        users.id,
+        users.email,
+        users.is_test_user,
+        users.is_admin,
+        users.is_frozen,
+        users.inviter,
+        users.registered_at,
+        users.username,
+        users.invitation_code
+    from public.users
+    where users.id = user_id_input;
+$$;
+
+-- Function for an admin to get all users
+create or replace function public.get_all_users_for_admin()
+returns table (
+    id uuid,
+    email text,
+    is_test_user boolean,
+    is_admin boolean,
+    is_frozen boolean,
+    inviter text,
+    registered_at timestamp with time zone,
+    username text,
+    invitation_code text
+)
+language plpgsql security definer
+as $$
+begin
+    if (select is_admin from public.users where id = auth.uid()) then
+        return query
+        select
+            u.id,
+            u.email,
+            u.is_test_user,
+            u.is_admin,
+            u.is_frozen,
+            u.inviter,
+            u.registered_at,
+            u.username,
+            u.invitation_code
+        from public.users u;
+    end if;
+end;
+$$;
+
+-- Function to get total number of users
+create or replace function public.get_total_users_count()
+returns integer
+language sql security definer
+as $$
+    select count(*)::integer from public.users;
+$$;
+
+
+-- 5. Initial Data Seeding (Admin User)
+-- This section will create the initial admin user.
+-- IMPORTANT: This should only be run once on a new database.
+-- If an admin already exists, this might cause an error, which is safe to ignore.
+
+DO $$
+DECLARE
+    admin_email TEXT := 'admin@rsf.app';
+    admin_pass TEXT := 'password';
+    admin_user_id UUID;
+BEGIN
+    -- Check if the admin user already exists in auth.users
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = admin_email) THEN
+        -- Create the authentication user for 'admin'
+        admin_user_id := uuid_generate_v4();
+
+        INSERT INTO auth.users (id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, instance_id)
+        VALUES (
+            admin_user_id,
+            'authenticated',
+            'authenticated',
+            admin_email,
+            crypt(admin_pass, gen_salt('bf')),
+            NOW(),
+            '{"provider":"email","providers":["email"]}',
+            '{}',
+            NOW(),
+            NOW(),
+            '00000000-0000-0000-0000-000000000000'
+        );
+
+        -- Create the corresponding profile in the public 'users' table
+        INSERT INTO public.users (id, username, email, is_admin, is_test_user, is_frozen, inviter, registered_at, invitation_code)
+        VALUES (
+            admin_user_id,
+            'admin',
+            admin_email,
+            true, -- Set the is_admin flag to true
+            true, -- Set as a test user to have initial funds for demonstration
+            false,
+            null,
+            NOW(),
+            'STARTERCODE' -- Initial invitation code for the admin
+        );
+        RAISE NOTICE 'Admin user created successfully.';
+    ELSE
+        RAISE NOTICE 'Admin user already exists. Skipping creation.';
+    END IF;
+END $$;
