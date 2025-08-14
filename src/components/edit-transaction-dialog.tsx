@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -46,7 +47,11 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
 
     const handleDateTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { value } = e.target;
-        setFormData(prev => prev ? { ...prev, createdAt: new Date(value).toISOString() } : null);
+        // The form gives us a datetime-local string, we need to convert it to ISO for Supabase
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+            setFormData(prev => prev ? { ...prev, created_at: date.toISOString() } : null);
+        }
     }
     
     const handleSubmit = () => {
@@ -56,13 +61,16 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
         onOpenChange(false);
     }
 
+    // This function formats an ISO string (from Supabase) into a `datetime-local` input-compatible string.
     const formatDateTimeLocal = (isoString: string) => {
+        if (!isoString) return '';
         const date = new Date(isoString);
         if (isNaN(date.getTime())) {
             return '';
         }
-        const tzoffset = (new Date()).getTimezoneOffset() * 60000;
-        const localISOTime = (new Date(date.getTime() - tzoffset)).toISOString().slice(0, 16);
+        // Adjust for timezone offset to display the correct local time in the input
+        const tzoffset = date.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
         return localISOTime;
     };
 
@@ -73,7 +81,7 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                 <DialogHeader>
                     <DialogTitle>修改交易记录</DialogTitle>
                     <DialogDescription>
-                        为用户 <span className="font-semibold">{transaction?.userId}</span> 修改交易详情。
+                        为用户 <span className="font-semibold">{transaction?.user?.username || transaction?.user_id}</span> 修改交易详情。
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -88,6 +96,7 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                             <SelectContent>
                                 <SelectItem value="deposit">充值</SelectItem>
                                 <SelectItem value="withdrawal">提现</SelectItem>
+                                <SelectItem value="adjustment">管理员调整</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -134,24 +143,24 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                         </Select>
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor={formData.type === 'deposit' ? 'transactionHash' : 'address'} className="text-right">
+                        <Label htmlFor={formData.type === 'deposit' ? 'transaction_hash' : 'address'} className="text-right">
                             凭证/地址
                         </Label>
                         <Input
-                            id={formData.type === 'deposit' ? 'transactionHash' : 'address'}
-                            value={formData.type === 'deposit' ? formData.transactionHash : formData.address}
+                            id={formData.type === 'deposit' ? 'transaction_hash' : 'address'}
+                            value={formData.type === 'deposit' ? formData.transaction_hash : formData.address}
                             onChange={handleInputChange}
                             className="col-span-3"
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="createdAt" className="text-right">
+                        <Label htmlFor="created_at" className="text-right">
                             时间
                         </Label>
                          <Input
-                            id="createdAt"
+                            id="created_at"
                             type="datetime-local"
-                            value={formatDateTimeLocal(formData.createdAt)}
+                            value={formatDateTimeLocal(formData.created_at)}
                             onChange={handleDateTimeChange}
                             className="col-span-3"
                         />

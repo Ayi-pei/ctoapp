@@ -136,7 +136,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id' > = {
+            const newAdjustment: Omit<Transaction, 'id' | 'createdAt' | 'user' > = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
@@ -313,4 +313,3 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         </Dialog>
     );
 }
-
