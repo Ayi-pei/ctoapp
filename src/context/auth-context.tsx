@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Check for the universal starter code
         if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
-             const { count, error: countError } = await supabase.from('users').select('*', { count: 'exact', head: true });
+             const { count, error: countError } = await supabase.from('users').select('*', { count: 'exact' });
              if (countError) {
                 throw new Error(countError.message);
              }
