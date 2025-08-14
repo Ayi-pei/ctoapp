@@ -47,7 +47,6 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      // The useEffect above will handle redirection.
     } else {
       toast({
         variant: 'destructive',
@@ -96,7 +95,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入您的用户名" {...field} />
+                      <Input placeholder="请输入您的用户名" {...field} name="username" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -109,7 +108,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="请输入您的密码" {...field} />
+                      <Input type="password" placeholder="请输入您的密码" {...field} name="password" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

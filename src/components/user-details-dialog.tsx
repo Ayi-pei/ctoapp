@@ -205,6 +205,8 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                                                         value={balanceAdjustments[asset] || ''}
                                                         onChange={(e) => handleAdjustmentChange(asset, e.target.value)}
                                                         className="h-8"
+                                                        id={`balance-adjustment-${asset}`}
+                                                        name={`balance-adjustment-${asset}`}
                                                     />
                                                     <Button size="sm" onClick={() => handleAdjustBalance(asset)}>调整</Button>
                                                 </div>
@@ -234,6 +236,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                             </Label>
                             <Input 
                                 id="new-password"
+                                name="new-password"
                                 type="text"
                                 placeholder="输入新密码"
                                 value={newPassword}
@@ -242,15 +245,15 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, balances, onUpda
                             <Button onClick={handlePasswordChange}>确认修改</Button>
                         </div>
                         <div className="flex items-center space-x-2">
-                             <Label className="flex-shrink-0">
+                             <Label htmlFor="freeze-account-btn" className="flex-shrink-0">
                                 账户状态:
                             </Label>
                              {user.is_frozen ? (
-                                <Button onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
+                                <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
                                     解冻账户
                                 </Button>
                             ) : (
-                                <Button onClick={() => handleToggleFreeze(true)} variant="destructive">
+                                <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(true)} variant="destructive">
                                     冻结账户
                                 </Button>
                             )}
