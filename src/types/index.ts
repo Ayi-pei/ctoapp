@@ -80,7 +80,6 @@ export type Transaction = {
   address?: string; 
   transaction_hash?: string;
   // Properties for frontend rendering, optional
-  userId?: string; 
   user?: { username: string };
 };
 

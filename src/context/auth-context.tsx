@@ -116,10 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
         if (rpcError) throw rpcError;
 
-        const result = data as { user_id: string; message: string; } | null;
-
-        if (!result || !result.user_id) {
-           throw new Error(result?.message || 'Registration failed.');
+        if (data.error) {
+           throw new Error(data.error);
         }
       
         toast({ title: '注册成功', description: '请登录。' });

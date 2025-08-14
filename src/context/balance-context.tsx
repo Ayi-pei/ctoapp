@@ -419,7 +419,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id'> = {
+           const newTransaction: Omit<Transaction, 'id' | 'user_id'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
