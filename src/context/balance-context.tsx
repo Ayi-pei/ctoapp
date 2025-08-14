@@ -219,11 +219,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // This effect runs when auth state changes (login/logout)
     setIsLoading(true);
-    if (user) {
-        if (user.is_admin) {
-            setIsLoading(false);
-            return;
-        }
+    if (user && !user.is_admin) {
         recalculateBalanceForUser(user.id);
         loadUserTrades(user.id);
         const loadInvestments = async () => {
@@ -237,7 +233,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         loadInvestments();
         setIsLoading(false);
     } else {
-      // Not authenticated, clear balances
+      // Not authenticated, or is an admin. Clear user-specific balances.
       setBalances(INITIAL_BALANCES_REAL_USER);
       setInvestments([]);
       setActiveContractTrades([]);
@@ -340,6 +336,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }
   
     const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
+        if (!user) return;
         try {
             const { data: sourceUser, error: userError } = await supabase.from('users').select('inviter, username').eq('id', sourceUserId).single();
             if (userError || !sourceUser || !sourceUser.inviter) return;
@@ -484,3 +481,5 @@ export function useBalance() {
   }
   return context;
 }
+
+    

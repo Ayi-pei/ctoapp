@@ -9,8 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Gem, Star, User } from "lucide-react";
 import Image from "next/image";
 import { InvestmentDialog } from "@/components/investment-dialog";
-import { useBalance } from "@/context/balance-context";
-import type { Investment } from "@/context/balance-context";
+import { useBalance, Investment } from "@/context/balance-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
@@ -248,3 +247,5 @@ export default function FinancePage() {
         </DashboardLayout>
     );
 }
+
+    
