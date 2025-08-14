@@ -53,28 +53,24 @@ export default function AdminUsersPage() {
     const loadData = useCallback(async () => {
         if (!isAdmin || !user) return;
         try {
-            const { data, error } = await supabase.from('users').select('*');
+            // Use the secure RPC call to get all users
+            const { data, error } = await supabase.rpc('get_all_users_for_admin');
             if (error) throw error;
             
             const formattedUsers = data.map((u: any) => ({
                 ...u,
-                is_test_user: u.is_test_user,
-                is_frozen: u.is_frozen,
                 registeredAt: u.registered_at ? new Date(u.registered_at).toLocaleDateString() : 'N/A'
             }));
             setUsers(formattedUsers);
 
-            const { data: adminData, error: adminError } = await supabase
-                .from('users')
-                .select('invitation_code')
-                .eq('id', user.id)
-                .single();
+            // The RPC call above already returns all user data, including the admin's.
+            // We can find the admin's invitation code from the fetched user list.
+            const adminUser = data.find((u: any) => u.id === user.id);
 
-            if (adminError) throw adminError;
-            
-            if (adminData && adminData.invitation_code) {
-                setInvitationCode(adminData.invitation_code);
+            if (adminUser && adminUser.invitation_code) {
+                setInvitationCode(adminUser.invitation_code);
             } else {
+                // If admin has no code (e.g., first login), generate and set one.
                 const newCode = generateCode();
                 const { error: updateError } = await supabase
                     .from('users')
@@ -102,6 +98,7 @@ export default function AdminUsersPage() {
     const handleGenerateNewCode = async () => {
         if (!user) return;
         const newCode = generateCode();
+        // This direct update is fine as it's an admin action on their own user record.
         const { error } = await supabase.from('users').update({ invitation_code: newCode }).eq('id', user.id);
 
         if (error) {
@@ -132,14 +129,18 @@ export default function AdminUsersPage() {
 
     const handleViewDetails = async (userToView: UserData) => {
         try {
-            const { data: latestUserData, error: userError } = await supabase.from('users').select('*').eq('id', userToView.id).single();
-            if (userError) throw userError;
+            // Instead of another network call, just use the data we already have.
+            const fullUserData = users.find(u => u.id === userToView.id);
             
-            setSelectedUser(latestUserData as AuthUser);
+            if (fullUserData) {
+                setSelectedUser(fullUserData as AuthUser);
+            } else {
+                // Fallback if user not found in the list for some reason
+                const { data, error } = await supabase.rpc('get_user_profile_by_id', { user_id_input: userToView.id });
+                 if (error || !data || data.length === 0) throw error || new Error("User not found");
+                 setSelectedUser(data[0] as AuthUser);
+            }
             
-            // Note: Balances are calculated dynamically in the context,
-            // we'll pass null here and let the dialog fetch it if needed or rely on context.
-            // For simplicity, we can just pass an empty object.
             setSelectedUserBalances({}); 
         } catch (error) {
              console.error(`Failed to fetch data for user ${userToView.username}`, error);
@@ -195,6 +196,7 @@ export default function AdminUsersPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full md:max-w-sm"
+                            name="search-users"
                         />
                     </CardHeader>
                     <CardContent>
@@ -251,11 +253,18 @@ export default function AdminUsersPage() {
                     onUpdate={() => {
                         loadData(); 
                         if (selectedUser) {
-                           handleViewDetails(selectedUser as UserData); 
+                           // Re-fetch the single user's latest data for the dialog after an update
+                           const updatedUserInList = users.find(u => u.id === selectedUser.id);
+                           if (updatedUserInList) {
+                                handleViewDetails(updatedUserInList);
+                           } else {
+                               setIsDetailsOpen(false); // Close if user was deleted
+                           }
                         }
                     }}
                 />
             )}
         </DashboardLayout>
     );
-}
+
+    
