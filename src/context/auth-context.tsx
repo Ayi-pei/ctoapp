@@ -113,7 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Check for the universal starter code
         if (invitationCode === INITIAL_ADMIN_INVITATION_CODE) {
-             const { count, error: countError } = await supabase.from('users').select('*', { count: 'exact' });
+             const { data: count, error: countError } = await supabase.rpc('get_total_users_count');
+             
              if (countError) {
                 throw new Error(countError.message);
              }
@@ -132,9 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .eq('invitation_code', invitationCode)
                 .single();
             
-            if (inviterError) {
+            if (inviterError || !inviterData) {
                 toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-                console.error("Invalid invitation code:", invitationCode, inviterError.message);
+                console.error("Invalid invitation code:", invitationCode, inviterError?.message);
                 return false;
             }
             inviterUsername = inviterData.username;
