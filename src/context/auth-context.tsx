@@ -48,14 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
+    // Use the new RPC function to bypass RLS policies on the users table.
     const { data: userProfile, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', supabaseUser.id)
+      .rpc('get_user_profile_by_id', { user_id_input: supabaseUser.id })
       .single();
 
     if (error) {
       console.error('Error fetching user profile:', error.message);
+      // PGRST116 means "No rows returned"
       if (error.code === 'PGRST116') { 
           console.warn(`Profile not found for user ${supabaseUser.id}, signing out.`);
           await supabase.auth.signOut();
