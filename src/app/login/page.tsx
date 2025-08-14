@@ -35,10 +35,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-    if (isAuthenticated) {
+    if (!isLoading && isAuthenticated) {
       if (isAdmin) {
         router.push('/admin');
       } else {
@@ -54,6 +51,7 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
+      // The useEffect above will handle redirection.
     } else {
       toast({
         variant: 'destructive',
@@ -63,7 +61,7 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
             <Card className="w-full max-w-md">

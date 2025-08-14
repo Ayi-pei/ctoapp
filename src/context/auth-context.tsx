@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return null;
     }
+    
     // RPC returns an array, even for a single user. Take the first element.
     return (data?.[0] as User) || null;
   };
@@ -221,13 +222,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isAuthenticated = !!session;
       const isAuthPage = pathname === '/login' || pathname === '/register';
       
-      if (!isAuthenticated && !isAuthPage) {
+      if (isAuthenticated && isAuthPage) {
+          router.push(isAdmin ? '/admin' : '/dashboard');
+      } else if (!isAuthenticated && !isAuthPage) {
           router.push('/login');
-      } else if (isAuthenticated && isAuthPage) {
-          router.push(user?.is_admin ? '/admin' : '/dashboard');
       }
     }
-  }, [session, user, isLoading, pathname, router]);
+  }, [session, isAdmin, isLoading, pathname, router]);
+
 
   const value = {
     isAuthenticated: !!session,
