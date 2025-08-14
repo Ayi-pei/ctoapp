@@ -1,4 +1,5 @@
 
+
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -37,23 +38,16 @@ const statusText: { [key: string]: string } = {
     'rejected': '已拒绝'
 }
 
-// Define a more specific type for transactions with user data
-type TransactionWithUser = Transaction & {
-  user: { username: string } | null;
-  userId: string;
-};
-
-
 export default function AdminFinancePage() {
-    const { isAdmin, user } = useAuth();
+    const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const { recalculateBalanceForUser } = useBalance();
-    const [transactions, setTransactions] = useState<TransactionWithUser[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [selectedTransaction, setSelectedTransaction] = useState<TransactionWithUser | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
     const loadTransactions = useCallback(async () => {
         if (!isAdmin) return;
@@ -64,13 +58,7 @@ export default function AdminFinancePage() {
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            
-            const formattedData = data.map((tx: any) => ({
-                ...tx,
-                userId: tx.user?.username || tx.user_id,
-            }));
-            
-            setTransactions(formattedData as TransactionWithUser[]);
+            setTransactions(data as Transaction[]);
         } catch (error) {
             console.error("Failed to fetch transactions from Supabase", error);
             toast({ variant: "destructive", title: "错误", description: "加载资金流水失败。" });
@@ -85,12 +73,12 @@ export default function AdminFinancePage() {
         }
     }, [isAdmin, router, loadTransactions]);
     
-    const handleOpenEditDialog = (transaction: TransactionWithUser) => {
+    const handleOpenEditDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsEditDialogOpen(true);
     };
 
-    const handleOpenDeleteDialog = (transaction: TransactionWithUser) => {
+    const handleOpenDeleteDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsDeleteDialogOpen(true);
     }
@@ -175,7 +163,7 @@ export default function AdminFinancePage() {
                            <TableBody>
                                {transactions.length > 0 ? transactions.map(t => (
                                    <TableRow key={t.id}>
-                                       <TableCell className="font-medium">{t.userId}</TableCell>
+                                       <TableCell className="font-medium">{t.user?.username || t.user_id}</TableCell>
                                        <TableCell>
                                            <span className={cn("font-semibold", t.type === 'deposit' ? 'text-green-500' : 'text-orange-500')}>
                                                {t.type === 'deposit' ? '充值' : '提现'}

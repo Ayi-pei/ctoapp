@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -11,20 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-
-type CommissionLog = {
-    id: string;
-    source_username: string;
-    source_level: number;
-    commission_amount: number;
-    created_at: string;
-};
-
-type DownlineMember = {
-    username: string;
-    level: number;
-    created_at: string;
-};
+import type { CommissionLog, DownlineMember } from "@/types";
 
 
 export default function PromotionPage() {
@@ -36,7 +24,7 @@ export default function PromotionPage() {
     const loadData = useCallback(async () => {
         if (!user) return;
         try {
-            // Load commission logs
+            // Load commission logs for the current user
             const { data: commissionData, error: commissionError } = await supabase
                 .from('commission_logs')
                 .select('*')
@@ -46,7 +34,7 @@ export default function PromotionPage() {
             if (commissionError) throw commissionError;
             setCommissions(commissionData as CommissionLog[]);
 
-            // Load downline team
+            // Load downline team using the dedicated RPC function
             const { data: downlineData, error: downlineError } = await supabase
                 .rpc('get_user_downline', { p_user_id: user.id });
             
@@ -119,12 +107,12 @@ export default function PromotionPage() {
                                </TableHeader>
                                <TableBody>
                                    {downline.length > 0 ? downline.map(member => (
-                                       <TableRow key={member.username}>
+                                       <TableRow key={member.id}>
                                            <TableCell className="font-medium">{member.username}</TableCell>
                                            <TableCell>
                                                 <Badge variant="outline">LV {member.level}</Badge>
                                            </TableCell>
-                                           <TableCell>{new Date(member.created_at!).toLocaleDateString()}</TableCell>
+                                           <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                                        </TableRow>
                                    )) : (
                                         <TableRow>

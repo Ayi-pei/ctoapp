@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { User as AuthUser } from '@/context/auth-context';
+import type { User, Transaction, DownlineMember } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -19,10 +20,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
 import { Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
-import { availablePairs, Transaction } from "@/types";
-import { DownlineTree } from "./downline-tree";
+import { availablePairs } from "@/types";
 import { supabase } from "@/lib/supabase";
-
+import { Skeleton } from "./ui/skeleton";
+import { Badge } from "./ui/badge";
 
 type UserBalance = {
     [key: string]: {
@@ -34,7 +35,7 @@ type UserBalance = {
 type UserDetailsDialogProps = {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    user: AuthUser | null;
+    user: User | null;
     onUpdate: () => void;
 };
 
@@ -43,6 +44,54 @@ type BalanceAdjustments = {
 };
 
 const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
+
+const DownlineTree = ({ userId }: { userId: string; }) => {
+    const [downline, setDownline] = useState<DownlineMember[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDownline = async () => {
+            if (!userId) return;
+            setIsLoading(true);
+            try {
+                const { data, error } = await supabase.rpc('admin_get_user_team', { p_user_id: userId });
+                if (error) throw error;
+                setDownline(data as DownlineMember[]);
+            } catch (error) {
+                console.error("Failed to load user downline:", error);
+                setDownline([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchDownline();
+    }, [userId]);
+    
+    if (isLoading) {
+        return (
+            <div className="space-y-2 p-4">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-6 w-1/2" />
+            </div>
+        )
+    }
+
+    if (!downline || downline.length === 0) {
+        return <p className="text-sm text-muted-foreground p-4 text-center">无下级成员。</p>;
+    }
+
+    return (
+        <ul className="space-y-2 p-2 max-h-48 overflow-y-auto">
+            {downline.map(member => (
+                 <li key={member.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                    <Badge variant="outline">LV {member.level}</Badge>
+                    <span>{member.username}</span>
+                </li>
+            ))}
+        </ul>
+    );
+};
+
 
 export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: UserDetailsDialogProps) {
     const [newPassword, setNewPassword] = useState("");
@@ -86,7 +135,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         }
 
         try {
-            const newAdjustment: Omit<Transaction, 'id'> = {
+            const newAdjustment: Omit<Transaction, 'id' | 'user'> = {
                 user_id: user.id,
                 type: 'adjustment',
                 asset: asset,
@@ -126,11 +175,11 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             
             toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
             setNewPassword("");
-            onUpdate();
+            // No need to call onUpdate() here as password change doesn't affect displayed user data
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update password:", error);
-            toast({ variant: "destructive", title: "错误", description: `更新密码失败: ${(error as Error).message}` });
+            toast({ variant: "destructive", title: "错误", description: `更新密码失败: ${error.message}` });
         }
     };
     
@@ -147,9 +196,9 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
             onUpdate();
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to update user freeze state:", error);
-            toast({ variant: "destructive", title: "错误", description: "操作失败。" });
+            toast({ variant: "destructive", title: "错误", description: `操作失败: ${error.message}` });
         }
     }
     

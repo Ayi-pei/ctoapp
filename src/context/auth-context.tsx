@@ -6,21 +6,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
+import type { User } from '@/types';
 
-export type User = {
-  id: string;
-  email?: string;
-  is_test_user: boolean;
-  is_admin: boolean;
-  is_frozen: boolean;
-  inviter_id: string | null;
-  username: string;
-  invitation_code: string;
-  created_at: string;
-  // Compatibility properties, can be removed later if not needed elsewhere
-  registered_at?: string;
-  inviter?: string | null;
-};
+export type { User };
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -29,7 +17,6 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
-  updateUser: (userData: Partial<User>) => void;
   session: Session | null;
   isLoading: boolean;
 }
@@ -48,22 +35,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (supabaseUser: SupabaseUser | null): Promise<User | null> => {
     if (!supabaseUser) return null;
     
-    // Public users table is readable for the user's own record.
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
 
-    if (error) {
+      if (error) throw error;
+      return data as User;
+
+    } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      if (error.code === 'PGRST116') { 
-          console.warn(`Profile not found for user ${supabaseUser.id}, signing out.`);
-          await supabase.auth.signOut();
-      }
+      // This can happen if the user exists in auth.users but not in public.users
+      // (e.g., during a failed registration). Signing them out is the safest recovery.
+      await supabase.auth.signOut();
       return null;
     }
-    return data as User;
   };
 
   useEffect(() => {
@@ -85,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Initial check
     const checkUser = async () => {
+      setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       if (session?.user) {
@@ -109,22 +98,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login failed:', error.message);
       return false;
     }
-    // Auth listener handles the rest
+    // Auth listener handles setting user state and redirecting
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
         const email = `${username.toLowerCase()}@rsf.app`;
-        const { error: rpcError } = await supabase.rpc('register_new_user', {
+        // Use the new, robust RPC function for registration
+        const { data, error: rpcError } = await supabase.rpc('register_new_user', {
             p_email: email,
             p_password: password,
             p_username: username,
             p_invitation_code: invitationCode
         });
       
-        if (rpcError) {
-          throw new Error((rpcError.details as any)?.message || rpcError.message);
+        if (rpcError) throw rpcError;
+
+        // The RPC function returns a table, so we access the first row.
+        const result = data?.[0];
+
+        if (!result || !result.user_id) {
+           throw new Error(result?.message || 'Registration failed.');
         }
       
         toast({ title: '注册成功', description: '请登录。' });
@@ -143,23 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    // Auth listener will handle state cleanup and redirect
     router.push('/login');
-  };
-
-  const updateUser = async (userData: Partial<User>) => {
-     if (!user) return;
-     try {
-        const { data, error } = await supabase
-            .from('users')
-            .update(userData)
-            .eq('id', user.id)
-            .select()
-            .single();
-        if (error) throw error;
-        setUser(data as User);
-     } catch (error) {
-        console.error("Failed to update user in Supabase", error);
-     }
   };
   
    useEffect(() => {
@@ -170,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isAuthenticated && !isAuthPage) {
           router.push('/login');
       } else if (isAuthenticated && isAuthPage) {
-          router.push(isAdmin ? '/admin' : '/dashboard');
+          router.push(isAdmin ? '/admin/users' : '/dashboard');
       }
     }
   }, [session, isAdmin, isLoading, pathname, router]);
@@ -183,7 +163,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     register,
-    updateUser,
     session,
     isLoading,
   };

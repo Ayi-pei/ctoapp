@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,13 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 
 type OrderWithUser = (SpotTrade | ContractTrade) & {
   user: { username: string } | null;
-  userId: string;
 };
 
-type Order = (SpotTrade | ContractTrade) & {
+type FormattedOrder = (SpotTrade | ContractTrade) & {
     userId: string;
     tradingPair: string;
-    status: 'pending' | 'filled' | 'cancelled' | 'active' | 'settled';
+    statusText: string;
     createdAt: string;
 };
 
@@ -28,7 +28,7 @@ export default function AdminOrdersPage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<FormattedOrder[]>([]);
 
     const loadOrders = useCallback(async () => {
         if (!isAdmin) return;
@@ -45,14 +45,28 @@ export default function AdminOrdersPage() {
             if (spotError) throw spotError;
             if (contractError) throw contractError;
 
-            const formattedSpot = spotTrades.map((t: OrderWithUser) => ({ ...t, orderType: 'spot', userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at }));
-            const formattedContract = contractTrades.map((t: OrderWithUser) => ({ ...t, orderType: 'contract', userId: t.user?.username || t.user_id, tradingPair: t.trading_pair, createdAt: t.created_at }));
+            const formattedSpot = (spotTrades as OrderWithUser[]).map(t => ({ 
+                ...t, 
+                orderType: 'spot' as const, 
+                userId: t.user?.username || t.user_id, 
+                tradingPair: t.trading_pair, 
+                statusText: t.status, 
+                createdAt: t.created_at 
+            }));
+            const formattedContract = (contractTrades as OrderWithUser[]).map(t => ({ 
+                ...t, 
+                orderType: 'contract' as const, 
+                userId: t.user?.username || t.user_id, 
+                tradingPair: t.trading_pair, 
+                statusText: t.status, 
+                createdAt: t.created_at 
+            }));
 
             const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
 
-            setOrders(allOrders as Order[]);
+            setOrders(allOrders as FormattedOrder[]);
         } catch (error) {
             console.error("Failed to fetch orders from Supabase", error);
             toast({ variant: "destructive", title: "错误", description: "加载订单记录失败。" });
@@ -78,7 +92,7 @@ export default function AdminOrdersPage() {
         )
     }
 
-    const getOrderAmount = (order: Order) => {
+    const getOrderAmount = (order: FormattedOrder) => {
         if (order.orderType === 'spot') {
             return (order as SpotTrade).total.toFixed(4);
         }
@@ -126,7 +140,7 @@ export default function AdminOrdersPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>{getOrderAmount(order)}</TableCell>
-                                        <TableCell>{order.status}</TableCell>
+                                        <TableCell>{order.statusText}</TableCell>
                                         <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
@@ -144,3 +158,4 @@ export default function AdminOrdersPage() {
         </DashboardLayout>
     );
 }
+

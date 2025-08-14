@@ -3,6 +3,19 @@
 // Main set of available trading pairs
 export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 
+// Represents a user's profile, mirroring the public.users table
+export type User = {
+    id: string;
+    username: string;
+    email: string;
+    inviter_id: string | null;
+    is_admin: boolean;
+    is_test_user: boolean;
+    is_frozen: boolean;
+    invitation_code: string;
+    created_at: string;
+};
+
 // Represents an order in the order book
 export type Order = {
   price: number;
@@ -68,6 +81,7 @@ export type Transaction = {
   transaction_hash?: string;
   // Properties for frontend rendering, optional
   userId?: string; 
+  user?: { username: string };
 };
 
 // Represents a user's password reset request submitted to admin
@@ -78,12 +92,14 @@ export type PasswordResetRequest = {
   new_password: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+  user?: { username: string };
 };
 
 
 // Represents a user's investment in a product
 export type Investment = {
     id: string;
+    user_id: string;
     product_name: string;
     amount: number;
     created_at: string;
@@ -91,4 +107,25 @@ export type Investment = {
     productName?: string;
     date?: string;
 }
+
+// Represents a commission log entry
+export type CommissionLog = {
+    id: string;
+    upline_user_id: string;
+    source_user_id: string;
+    source_username: string;
+    source_level: number;
+    trade_amount: number;
+    commission_rate: number;
+    commission_amount: number;
+    created_at: string;
+};
+
+// Represents a member in the downline/team
+export type DownlineMember = {
+    id: string;
+    username: string;
+    level: number;
+    created_at: string;
+};
     

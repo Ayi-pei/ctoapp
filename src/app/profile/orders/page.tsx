@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import DashboardLayout from "@/components/dashboard-layout";
@@ -12,14 +13,14 @@ import { ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useBalance } from '@/context/balance-context';
 
-type Order = SpotTrade | ContractTrade;
+type OrderHistoryItem = SpotTrade | ContractTrade;
 
 
 export default function ProfileOrdersPage() {
     const router = useRouter();
     const { historicalTrades } = useBalance();
 
-    const getStatusBadge = (order: Order) => {
+    const getStatusBadge = (order: OrderHistoryItem) => {
         if (order.orderType === 'spot') {
             const spotOrder = order as SpotTrade;
             return (
@@ -85,7 +86,7 @@ export default function ProfileOrdersPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell>{(order.orderType === 'spot' ? (order as SpotTrade).total : (order as ContractTrade).amount)?.toFixed(4)}</TableCell>
-                                        <TableCell>{getStatusBadge(order as Order)}</TableCell>
+                                        <TableCell>{getStatusBadge(order)}</TableCell>
                                         <TableCell className="text-xs">{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (

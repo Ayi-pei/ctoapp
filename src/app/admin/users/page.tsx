@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserDetailsDialog } from '@/components/user-details-dialog';
-import { useAuth, User } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
+import type { User } from '@/types';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -14,45 +15,31 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 
-type UserData = User & {
-    registeredAt: string; 
-};
-
-type UserBalance = {
-    [key: string]: {
-        available: number;
-        frozen: number;
-    }
-}
-
 
 export default function AdminUsersPage() {
     const { user, isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     
-    const [users, setUsers] = useState<UserData[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
     const loadData = useCallback(async () => {
-        if (!isAdmin || !user) return;
+        if (!isAdmin) return;
         try {
+            // Use the new, more secure RPC function for fetching all users.
             const { data, error } = await supabase.rpc('admin_get_all_users');
             if (error) throw error;
             
-            const formattedUsers = (data as User[]).map((u) => ({
-                ...u,
-                registeredAt: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'
-            }));
-            setUsers(formattedUsers);
+            setUsers(data as User[]);
 
         } catch (error) {
             console.error("Failed to fetch data from Supabase", error);
             toast({ variant: "destructive", title: "错误", description: "加载用户数据失败。" });
         }
-    }, [isAdmin, user, toast]);
+    }, [isAdmin, toast]);
 
     useEffect(() => {
         if (isAdmin === false) {
@@ -68,10 +55,26 @@ export default function AdminUsersPage() {
         return users.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [users, searchQuery]);
 
-    const handleViewDetails = (userToView: UserData) => {
+    const handleViewDetails = (userToView: User) => {
         setSelectedUser(userToView);
         setIsDetailsOpen(true);
     };
+
+    const handleSuccessfulUpdate = useCallback(() => {
+        // Reload all user data to reflect changes
+        loadData();
+        
+        // If a user was selected, find their updated data to refresh the dialog
+        if (selectedUser) {
+            const findUpdatedUser = async () => {
+                const { data, error } = await supabase.from('users').select('*').eq('id', selectedUser.id).single();
+                if (!error && data) {
+                    setSelectedUser(data as User);
+                }
+            }
+            findUpdatedUser();
+        }
+    }, [loadData, selectedUser]);
 
 
     if (!user || !isAdmin) {
@@ -129,7 +132,7 @@ export default function AdminUsersPage() {
                                                 {u.is_frozen ? '冻结' : '正常'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="hidden md:table-cell">{u.registeredAt}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleViewDetails(u)}>
                                                 详情
@@ -154,15 +157,7 @@ export default function AdminUsersPage() {
                     isOpen={isDetailsOpen}
                     onOpenChange={setIsDetailsOpen}
                     user={selectedUser}
-                    onUpdate={() => {
-                        loadData(); 
-                        if (selectedUser) {
-                           const updatedUser = users.find(u => u.id === selectedUser.id);
-                           if (updatedUser) {
-                            setSelectedUser(updatedUser);
-                           }
-                        }
-                    }}
+                    onUpdate={handleSuccessfulUpdate}
                 />
             )}
         </DashboardLayout>

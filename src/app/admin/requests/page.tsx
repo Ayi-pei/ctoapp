@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -15,9 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
-type CombinedRequest = (Transaction | PasswordResetRequest) & { 
-    userId: string; 
-};
+// The data from Supabase will have the nested user object now
+type RequestWithUser = (Transaction | PasswordResetRequest);
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -38,7 +38,7 @@ export default function AdminRequestsPage() {
     const { recalculateBalanceForUser } = useBalance();
     const { toast } = useToast();
 
-    const [requests, setRequests] = useState<CombinedRequest[]>([]);
+    const [requests, setRequests] = useState<RequestWithUser[]>([]);
     
     useEffect(() => {
         if (isAdmin === false) {
@@ -52,23 +52,22 @@ export default function AdminRequestsPage() {
             const { data: financeRequests, error: financeError } = await supabase
                 .from('transactions')
                 .select('*, user:users(username)')
+                .in('type', ['deposit', 'withdrawal'])
                 .eq('status', 'pending');
 
             const { data: passwordRequests, error: passwordError } = await supabase
                 .from('admin_requests')
                 .select('*, user:users(username)')
+                .eq('type', 'password_reset')
                 .eq('status', 'pending');
                 
             if (financeError) throw financeError;
             if (passwordError) throw passwordError;
 
-            const formattedFinance = (financeRequests as any[]).map((r: any) => ({ ...r, userId: r.user.username }));
-            const formattedPassword = (passwordRequests as any[]).map((r: any) => ({ ...r, userId: r.user.username }));
-
-            const allRequests = [...formattedFinance, ...formattedPassword]
+            const allRequests = [...(financeRequests || []), ...(passwordRequests || [])]
                 .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-            setRequests(allRequests as CombinedRequest[]);
+            setRequests(allRequests as RequestWithUser[]);
 
         } catch (error) {
             console.error("Failed to fetch data from Supabase", error);
@@ -80,14 +79,14 @@ export default function AdminRequestsPage() {
         loadData();
     }, [loadData]);
 
-    const handleRequest = async (request: CombinedRequest, newStatus: 'approved' | 'rejected') => {
+    const handleRequest = async (request: RequestWithUser, newStatus: 'approved' | 'rejected') => {
         try {
             if (request.type === 'password_reset') {
                  if (newStatus === 'approved' && 'new_password' in request) {
                     const { error: updateErr } = await supabase.auth.admin.updateUserById(request.user_id, { password: request.new_password! });
                     if(updateErr) throw updateErr;
                 }
-                const { error } = await supabase.from('admin_requests').delete().eq('id', request.id);
+                const { error } = await supabase.from('admin_requests').update({ status: newStatus }).eq('id', request.id);
                 if(error) throw error;
             } else {
                 const { error } = await supabase.from('transactions').update({ status: newStatus }).eq('id', request.id);
@@ -142,7 +141,7 @@ export default function AdminRequestsPage() {
                             <TableBody>
                                 {requests.length > 0 ? requests.map((r) => (
                                     <TableRow key={r.id}>
-                                        <TableCell>{r.userId}</TableCell>
+                                        <TableCell>{r.user?.username || r.user_id}</TableCell>
                                         <TableCell>
                                             <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', requestTypeColor[r.type])}>
                                                 {requestTypeText[r.type]}
