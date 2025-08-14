@@ -1,328 +1,311 @@
--- Drop existing tables and functions to ensure a clean slate, handling dependencies.
-DROP FUNCTION IF EXISTS public.register_new_user(text,text,text,text);
-DROP FUNCTION IF EXISTS public.get_user_downline(uuid);
-DROP FUNCTION IF EXISTS public.distribute_commissions_recursively(uuid,numeric);
-DROP FUNCTION IF EXISTS public.get_all_users_for_admin();
-DROP FUNCTION IF EXISTS public.get_user_profile_by_id(uuid);
-DROP TABLE IF EXISTS public.commission_logs;
-DROP TABLE IF EXISTS public.investments;
-DROP TABLE IF EXISTS public.spot_trades;
-DROP TABLE IF EXISTS public.contract_trades;
-DROP TABLE IF EXISTS public.withdrawal_addresses;
-DROP TABLE IF EXISTS public.admin_requests;
-DROP TABLE IF EXISTS public.transactions;
-DROP TABLE IF EXISTS public.users;
 
+-- Enable UUID generation
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
---
--- Create the `users` table
---
-CREATE TABLE public.users (
+-- USERS TABLE
+-- This table stores public user data, extending Supabase's auth.users table.
+CREATE TABLE IF NOT EXISTS public.users (
     id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    username text NOT NULL UNIQUE,
-    email text,
+    username text UNIQUE,
+    email text UNIQUE,
     is_admin boolean DEFAULT false,
     is_test_user boolean DEFAULT false,
     is_frozen boolean DEFAULT false,
-    inviter text, -- username of the inviter
     invitation_code text UNIQUE,
-    registered_at timestamptz DEFAULT timezone('utc'::text, now())
+    inviter text REFERENCES public.users(username) ON DELETE SET NULL,
+    registered_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+-- Add comments for clarity
+COMMENT ON TABLE public.users IS 'Public user profiles, extending Supabase auth.';
+COMMENT ON COLUMN public.users.id IS 'Links to Supabase auth.users.id';
 
---
--- Create other tables
---
-CREATE TABLE public.transactions (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
+-- TRANSACTIONS TABLE
+-- This table tracks all financial movements like deposits, withdrawals, and admin adjustments.
+CREATE TABLE IF NOT EXISTS public.transactions (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     type text NOT NULL, -- 'deposit', 'withdrawal', 'adjustment'
     asset text NOT NULL,
-    amount numeric NOT NULL,
+    amount double precision NOT NULL,
     status text NOT NULL, -- 'pending', 'approved', 'rejected'
     address text,
     transaction_hash text,
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.transactions IS 'Tracks user deposits, withdrawals, and administrative balance adjustments.';
 
 
-CREATE TABLE public.admin_requests (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
-    type text NOT NULL, -- 'password_reset'
-    new_password text,
-    status text NOT NULL, -- 'pending'
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
+-- SPOT TRADES TABLE
+-- This table logs all spot market trades made by users.
+CREATE TABLE IF NOT EXISTS public.spot_trades (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    trading_pair text NOT NULL,
+    base_asset text NOT NULL,
+    quote_asset text NOT NULL,
+    type text NOT NULL, -- 'buy' or 'sell'
+    amount double precision NOT NULL,
+    total double precision NOT NULL,
+    status text NOT NULL, -- 'filled', 'cancelled'
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.admin_requests ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.spot_trades IS 'Logs all user spot market trades.';
 
 
-CREATE TABLE public.withdrawal_addresses (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
+-- CONTRACT TRADES TABLE
+-- This table logs all contract (options) trades made by users.
+CREATE TABLE IF NOT EXISTS public.contract_trades (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    trading_pair text NOT NULL,
+    type text NOT NULL, -- 'buy' or 'sell'
+    amount double precision NOT NULL,
+    entry_price double precision NOT NULL,
+    settlement_time timestamp with time zone NOT NULL,
+    period integer NOT NULL,
+    profit_rate double precision NOT NULL,
+    status text NOT NULL, -- 'active' or 'settled'
+    settlement_price double precision,
+    outcome text, -- 'win' or 'loss'
+    profit double precision,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+COMMENT ON TABLE public.contract_trades IS 'Logs all user contract (options) trades.';
+
+
+-- WITHDRAWAL ADDRESSES TABLE
+-- This table stores user-saved addresses for withdrawals.
+CREATE TABLE IF NOT EXISTS public.withdrawal_addresses (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     name text NOT NULL,
     address text NOT NULL,
     network text NOT NULL
 );
-ALTER TABLE public.withdrawal_addresses ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.withdrawal_addresses IS 'Stores user-saved cryptocurrency withdrawal addresses.';
 
 
-CREATE TABLE public.contract_trades (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
-    trading_pair text NOT NULL,
-    type text NOT NULL, -- 'buy' or 'sell'
-    amount numeric NOT NULL,
-    entry_price numeric NOT NULL,
-    settlement_time timestamptz NOT NULL,
-    period integer NOT NULL,
-    profit_rate numeric NOT NULL,
-    status text NOT NULL, -- 'active' or 'settled'
-    settlement_price numeric,
-    outcome text, -- 'win' or 'loss'
-    profit numeric,
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
+-- ADMIN REQUESTS TABLE
+-- This table is for admin-reviewable actions, like password changes.
+CREATE TABLE IF NOT EXISTS public.admin_requests (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type text NOT NULL, -- e.g., 'password_reset'
+    new_password text,
+    status text NOT NULL, -- 'pending', 'approved', 'rejected'
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.contract_trades ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.admin_requests IS 'Queue for requests needing admin approval, like password changes.';
 
 
-CREATE TABLE public.spot_trades (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
-    trading_pair text NOT NULL,
-    type text NOT NULL, -- 'buy' or 'sell'
-    base_asset text NOT NULL,
-    quote_asset text NOT NULL,
-    amount numeric NOT NULL,
-    total numeric NOT NULL,
-    status text NOT NULL, -- 'filled' or 'cancelled'
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
-);
-ALTER TABLE public.spot_trades ENABLE ROW LEVEL SECURITY;
-
-
-CREATE TABLE public.investments (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.users(id),
+-- INVESTMENTS TABLE
+-- This table logs user investments in financial products.
+CREATE TABLE IF NOT EXISTS public.investments (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     product_name text NOT NULL,
-    amount numeric NOT NULL,
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
+    amount double precision NOT NULL,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.investments IS 'Logs user investments in various financial products.';
 
 
-CREATE TABLE public.commission_logs (
-    id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-    upline_user_id uuid NOT NULL,
-    source_user_id uuid NOT NULL,
+-- COMMISSION LOGS TABLE
+-- This table records all commissions earned by users from their downline.
+CREATE TABLE IF NOT EXISTS public.commission_logs (
+    id uuid DEFAULT uuid_generate_v4() NOT NULL PRIMARY KEY,
+    upline_user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    source_user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     source_username text NOT NULL,
     source_level integer NOT NULL,
-    trade_amount numeric NOT NULL,
-    commission_rate numeric NOT NULL,
-    commission_amount numeric NOT NULL,
-    created_at timestamptz DEFAULT timezone('utc'::text, now())
+    commission_amount double precision NOT NULL,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-ALTER TABLE public.commission_logs ENABLE ROW LEVEL SECURITY;
+COMMENT ON TABLE public.commission_logs IS 'Records commissions paid out to users from their referrals.';
 
 
---
--- RLS Policies
---
-CREATE POLICY "Allow users to see their own profile" ON public.users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Allow users to update their own profile" ON public.users FOR UPDATE USING (auth.uid() = id);
+-- =============================================
+-- RLS (Row Level Security) POLICIES
+-- =============================================
 
-CREATE POLICY "Allow user to see their own transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Allow user to create their own transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Allow user to see their own requests" ON public.admin_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Allow user to create their own requests" ON public.admin_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Allow user to manage their own withdrawal addresses" ON public.withdrawal_addresses FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Allow user to manage their own trades" ON public.contract_trades FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Allow user to manage their own trades" ON public.spot_trades FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Allow user to manage their own investments" ON public.investments FOR ALL USING (auth.uid() = user_id);
-
-CREATE POLICY "Allow user to see their own commission logs" ON public.commission_logs FOR SELECT USING (auth.uid() = upline_user_id);
-
--- Admin can bypass RLS on all tables
-CREATE POLICY "Allow admin full access" ON public.users FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.transactions FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.admin_requests FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.withdrawal_addresses FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.contract_trades FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.spot_trades FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.investments FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
-CREATE POLICY "Allow admin full access" ON public.commission_logs FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
+-- USERS Table RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow users to view their own data" ON public.users;
+CREATE POLICY "Allow users to view their own data" ON public.users FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow users to update their own data" ON public.users;
+CREATE POLICY "Allow users to update their own data" ON public.users FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow admins to access all user data" ON public.users;
+CREATE POLICY "Allow admins to access all user data" ON public.users FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);
 
 
---
--- Database Functions (RPC)
---
-
--- Function to get a user's own profile
-CREATE OR REPLACE FUNCTION public.get_user_profile_by_id(user_id_input uuid)
-RETURNS SETOF public.users
-LANGUAGE sql
-SECURITY DEFINER
-AS $$
-  SELECT * FROM public.users WHERE id = user_id_input;
-$$;
-
-
--- Function for an admin to get all users
-CREATE OR REPLACE FUNCTION public.get_all_users_for_admin()
-RETURNS TABLE(id uuid, username text, email text, is_test_user boolean, is_admin boolean, is_frozen boolean, inviter text, invitation_code text, registered_at timestamptz)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- First, check if the caller is an admin
-    IF (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
-        RETURN QUERY SELECT u.id, u.username, u.email, u.is_test_user, u.is_admin, u.is_frozen, u.inviter, u.invitation_code, u.registered_at FROM public.users u;
-    END IF;
-END;
-$$;
-
-
--- Function to generate a unique 8-character invitation code
-CREATE OR REPLACE FUNCTION public.generate_invitation_code()
-RETURNS text
-LANGUAGE plpgsql
-AS $$
+-- OTHER Tables RLS (User-specific access)
+DO $$
 DECLARE
-    new_code text;
-    is_unique boolean := false;
+    t_name TEXT;
 BEGIN
-    WHILE NOT is_unique LOOP
-        new_code := upper(substring(md5(random()::text) for 8));
-        is_unique := NOT EXISTS (SELECT 1 FROM public.users WHERE invitation_code = new_code);
+    FOR t_name IN
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name IN (
+            'transactions', 'spot_trades', 'contract_trades', 'withdrawal_addresses',
+            'admin_requests', 'investments', 'commission_logs'
+        )
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t_name);
+        EXECUTE format('DROP POLICY IF EXISTS "Allow users to access their own records" ON public.%I;', t_name);
+        EXECUTE format('CREATE POLICY "Allow users to access their own records" ON public.%I FOR ALL USING (auth.uid() = user_id);', t_name);
+        EXECUTE format('DROP POLICY IF EXISTS "Allow admins to access all records" ON public.%I;', t_name);
+        EXECUTE format('CREATE POLICY "Allow admins to access all records" ON public.%I FOR ALL USING ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true) WITH CHECK ((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true);', t_name);
     END LOOP;
-    RETURN new_code;
 END;
 $$;
+
+
+-- =============================================
+-- DATABASE FUNCTIONS (RPC)
+-- =============================================
+
+-- Function to generate a unique 6-digit invitation code
+CREATE OR REPLACE FUNCTION generate_invitation_code()
+RETURNS text AS $$
+DECLARE
+  new_code text;
+  is_duplicate boolean;
+BEGIN
+  LOOP
+    new_code := (LPAD(floor(random()*1000000)::text, 6, '0'));
+    SELECT EXISTS (SELECT 1 FROM public.users WHERE invitation_code = new_code) INTO is_duplicate;
+    EXIT WHEN NOT is_duplicate;
+  END LOOP;
+  RETURN new_code;
+END;
+$$ LANGUAGE plpgsql;
+
 
 -- Function to register a new user
-CREATE OR REPLACE FUNCTION public.register_new_user(
-    p_email text,
-    p_password text,
-    p_username text,
-    p_inviter_username text
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+CREATE OR REPLACE FUNCTION register_new_user(p_email text, p_password text, p_username text, p_inviter_username text)
+RETURNS void AS $$
 DECLARE
-    new_user_id uuid;
-    inviter_user_id uuid;
+  new_user_id uuid;
+  inviter_user_id uuid;
 BEGIN
-    -- 1. Find the inviter by their username
-    SELECT id INTO inviter_user_id FROM public.users WHERE username = p_inviter_username;
-    IF inviter_user_id IS NULL THEN
-        RAISE EXCEPTION 'Invalid invitation: Inviter not found';
-    END IF;
+  -- Find the inviter's ID from their username
+  SELECT id INTO inviter_user_id FROM public.users WHERE username = p_inviter_username;
+  IF inviter_user_id IS NULL THEN
+    RAISE EXCEPTION 'Invalid inviter username';
+  END IF;
 
-    -- 2. Create the user in auth.users
-    new_user_id := (SELECT id FROM auth.users WHERE email = p_email);
-    IF new_user_id IS NULL THEN
-        INSERT INTO auth.users (id, email, encrypted_password, aud, role, created_at, updated_at, email_confirmed_at)
-        VALUES (uuid_generate_v4(), p_email, crypt(p_password, gen_salt('bf')), 'authenticated', 'authenticated', NOW(), NOW(), NOW())
-        RETURNING id INTO new_user_id;
-    ELSE
-        RAISE EXCEPTION 'User with this email already exists.';
-    END IF;
+  -- Create the user in Supabase Auth
+  INSERT INTO auth.users (id, email, encrypted_password, aud, role, created_at, updated_at)
+  VALUES (uuid_generate_v4(), p_email, crypt(p_password, gen_salt('bf')), 'authenticated', 'authenticated', NOW(), NOW())
+  RETURNING id INTO new_user_id;
 
-    -- 3. Create the profile in public.users
-    INSERT INTO public.users (id, username, email, inviter, invitation_code)
-    VALUES (new_user_id, p_username, p_email, p_inviter_username, generate_invitation_code());
-EXCEPTION
-    WHEN unique_violation THEN
-        -- If user creation failed because the user already exists in auth.users but not public.users, or username is taken
-        -- we should clean up the auth user to allow retrying with a different username
-        DELETE FROM auth.users WHERE id = new_user_id;
-        RAISE EXCEPTION 'Username or email is already taken. Please try another one.';
+  -- Create the public profile for the new user
+  INSERT INTO public.users (id, username, email, inviter, invitation_code)
+  VALUES (new_user_id, p_username, p_email, p_inviter_username, generate_invitation_code());
 END;
-$$;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
--- Function to get a user's multi-level downline (up to 3 levels)
-CREATE OR REPLACE FUNCTION public.get_user_downline(p_user_id uuid)
-RETURNS TABLE(username text, level integer, registered_at timestamptz)
-LANGUAGE sql
-AS $$
+-- Function for admin to get all user data
+CREATE OR REPLACE FUNCTION get_all_users_for_admin()
+RETURNS TABLE(
+    id uuid,
+    username text,
+    is_test_user boolean,
+    is_frozen boolean,
+    registered_at timestamptz
+) AS $$
+BEGIN
+  IF (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
+    RETURN QUERY SELECT u.id, u.username, u.is_test_user, u.is_frozen, u.registered_at FROM public.users u;
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- Function to get a single user's profile
+CREATE OR REPLACE FUNCTION get_user_profile_by_id(user_id_input uuid)
+RETURNS TABLE(
+    id uuid,
+    username text,
+    email text,
+    is_test_user boolean,
+    is_admin boolean,
+    is_frozen boolean,
+    inviter text,
+    registered_at timestamptz,
+    invitation_code text
+) AS $$
+BEGIN
+    RETURN QUERY SELECT u.id, u.username, u.email, u.is_test_user, u.is_admin, u.is_frozen, u.inviter, u.registered_at, u.invitation_code
+                 FROM public.users u
+                 WHERE u.id = user_id_input;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- Function to get a user's downline (recursive)
+CREATE OR REPLACE FUNCTION get_user_downline(p_user_id uuid)
+RETURNS TABLE(username text, level integer, registered_at timestamptz) AS $$
+BEGIN
+    RETURN QUERY
     WITH RECURSIVE downline_cte AS (
-        -- Anchor member: direct invitees (Level 1)
-        SELECT id, username, inviter, 1 AS level, registered_at
-        FROM public.users
-        WHERE inviter = (SELECT u.username FROM public.users u WHERE u.id = p_user_id)
+        SELECT u.id, u.username as member_username, u.registered_at as member_registered_at, 1 AS level
+        FROM public.users u
+        WHERE u.inviter = (SELECT username FROM public.users WHERE id = p_user_id)
 
         UNION ALL
 
-        -- Recursive member: invitees of the previous level
-        SELECT u.id, u.username, u.inviter, d.level + 1, u.registered_at
+        SELECT u.id, u.username, u.registered_at, d.level + 1
         FROM public.users u
-        JOIN downline_cte d ON u.inviter = d.username
-        WHERE d.level < 3 -- Limit recursion to 3 levels
+        JOIN downline_cte d ON u.inviter = d.member_username
+        WHERE d.level < 3 -- Limit to 3 levels deep
     )
-    SELECT d.username, d.level, d.registered_at FROM downline_cte d ORDER BY d.level, d.registered_at DESC;
-$$;
+    SELECT member_username, level, member_registered_at FROM downline_cte;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
--- Function to distribute commissions up to 3 levels
-CREATE OR REPLACE FUNCTION public.distribute_commissions_recursively(
-    p_source_user_id uuid,
-    p_trade_amount numeric
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+-- Function to distribute commissions recursively up to 3 levels
+CREATE OR REPLACE FUNCTION distribute_commissions_recursively(p_source_user_id uuid, p_trade_amount numeric)
+RETURNS void AS $$
 DECLARE
-    v_upline_username text;
-    v_upline_user_id uuid;
-    v_source_username text;
-    v_level integer := 1;
-    v_commission_rate numeric;
-    v_commission_amount numeric;
-    COMMISSION_RATES numeric[] := ARRAY[0.08, 0.05, 0.02]; -- LV1, LV2, LV3
+    commission_rates numeric[] := ARRAY[0.08, 0.05, 0.02];
+    current_inviter_username text;
+    current_upline_id uuid;
+    source_user_username text;
+    i integer := 1;
 BEGIN
-    SELECT username INTO v_source_username FROM public.users WHERE id = p_source_user_id;
-    SELECT inviter INTO v_upline_username FROM public.users WHERE id = p_source_user_id;
+    -- Get the username of the user who made the trade
+    SELECT username INTO source_user_username FROM public.users WHERE id = p_source_user_id;
 
-    WHILE v_upline_username IS NOT NULL AND v_level <= 3 LOOP
-        -- Get the upline user's ID
-        SELECT id INTO v_upline_user_id FROM public.users WHERE username = v_upline_username;
+    -- Get the direct inviter's username
+    SELECT inviter INTO current_inviter_username FROM public.users WHERE id = p_source_user_id;
 
-        -- If upline user exists, process commission
-        IF v_upline_user_id IS NOT NULL THEN
-            -- Get commission rate for the current level
-            v_commission_rate := COMMISSION_RATES[v_level];
-            v_commission_amount := p_trade_amount * v_commission_rate;
+    -- Loop up to 3 levels
+    WHILE i <= 3 AND current_inviter_username IS NOT NULL LOOP
+        -- Find the upline user's ID
+        SELECT id INTO current_upline_id FROM public.users WHERE username = current_inviter_username;
 
-            -- Log the commission
-            INSERT INTO public.commission_logs (upline_user_id, source_user_id, source_username, source_level, trade_amount, commission_rate, commission_amount)
-            VALUES (v_upline_user_id, p_source_user_id, v_source_username, v_level, p_trade_amount, v_commission_rate, v_commission_amount);
-            
-            -- Move to the next level up
-            SELECT inviter INTO v_upline_username FROM public.users WHERE id = v_upline_user_id;
-            v_level := v_level + 1;
-        ELSE
-            -- Stop if the chain is broken
-            v_upline_username := NULL;
+        -- If the upline user exists, insert the commission log
+        IF current_upline_id IS NOT NULL THEN
+            INSERT INTO public.commission_logs (upline_user_id, source_user_id, source_username, source_level, commission_amount)
+            VALUES (current_upline_id, p_source_user_id, source_user_username, i, p_trade_amount * commission_rates[i]);
         END IF;
+
+        -- Move to the next level up
+        SELECT inviter INTO current_inviter_username FROM public.users WHERE id = current_upline_id;
+        i := i + 1;
     END LOOP;
 END;
-$$;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
---
--- Initial Data Seeding
---
+-- =============================================
+-- INITIAL DATA SEEDING
+-- =============================================
 
 -- Step 1: Create the authentication user for 'admin'
--- Removed 'confirmed_at' as it's a generated column in newer Supabase versions.
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, recovery_token, recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_sent_at)
 VALUES (
     '00000000-0000-0000-0000-000000000000',
@@ -342,9 +325,11 @@ VALUES (
     '',
     '',
     NULL
-);
+)
+ON CONFLICT (email) DO NOTHING;
 
--- Step 2: Create the corresponding profile in the public 'users' table
+
+-- Step 2: Create the corresponding profile in the public 'users' table for the admin
 INSERT INTO public.users (id, username, email, is_admin, is_test_user, invitation_code)
 VALUES (
     (SELECT id FROM auth.users WHERE email = 'admin@rsf.app'),
@@ -352,5 +337,7 @@ VALUES (
     'admin@rsf.app',
     true, -- Set the is_admin flag to true
     true, -- Set as test user to have initial funds for demonstration
-    public.generate_invitation_code() -- Generate an invitation code for the admin
-);
+    generate_invitation_code()
+)
+ON CONFLICT (id) DO NOTHING;
+
