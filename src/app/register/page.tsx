@@ -17,7 +17,7 @@ import { useAuth } from '@/context/auth-context';
 
 
 const registerSchema = z.object({
-  username: z.string().min(6, '用户名必须至少6个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
+  username: z.string().min(5, '用户名必须至少5个字符').max(10, '用户名不能超过10个字符').regex(/^[a-zA-Z0-9]+$/, '用户名只能包含字母和数字'),
   password: z.string().min(8, '密码必须至少8个字符').max(12, '密码不能超过12个字符'),
   invitationCode: z.string().min(1, '请输入邀请码'),
 });
@@ -67,7 +67,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <Input placeholder="6-10位字母或数字" {...field} />
+                      <Input placeholder="5-10位字母或数字" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
