@@ -12,7 +12,6 @@ export type User = {
   email?: string;
   is_test_user: boolean;
   is_admin: boolean;
-  avatar?: string;
   is_frozen?: boolean;
   inviter: string | null;
   registered_at?: string;
