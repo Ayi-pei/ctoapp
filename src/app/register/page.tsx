@@ -85,7 +85,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>邀请码</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入邀请码" {...field} />
+                      <Input placeholder="请输入您的邀请码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -107,4 +107,3 @@ export default function RegisterPage() {
     </AuthLayout>
   );
 }
-    

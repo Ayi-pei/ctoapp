@@ -54,7 +54,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
             if (!userId) return;
             setIsLoading(true);
             try {
-                const { data, error } = await supabase.rpc('admin_get_user_team', { p_user_id: userId });
+                const { data, error } = await supabase.rpc('get_user_downline', { p_user_id: userId });
                 if (error) throw error;
                 setDownline(data as DownlineMember[]);
             } catch (error) {
@@ -175,7 +175,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             
             toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
             setNewPassword("");
-            // No need to call onUpdate() here as password change doesn't affect displayed user data
 
         } catch (error: any) {
             console.error("Failed to update password:", error);
@@ -313,4 +312,3 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
         </Dialog>
     );
 }
-    

@@ -30,7 +30,6 @@ export default function AdminUsersPage() {
     const loadData = useCallback(async () => {
         if (!isAdmin) return;
         try {
-            // Use the new, more secure RPC function for fetching all users.
             const { data, error } = await supabase.rpc('admin_get_all_users');
             if (error) throw error;
             
@@ -62,10 +61,8 @@ export default function AdminUsersPage() {
     };
 
     const handleSuccessfulUpdate = useCallback(() => {
-        // Reload all user data to reflect changes
         loadData();
         
-        // If a user was selected, find their updated data to refresh the dialog
         if (selectedUser) {
             const findUpdatedUser = async () => {
                 const { data, error } = await supabase.from('users').select('*').eq('id', selectedUser.id).single();
@@ -166,4 +163,3 @@ export default function AdminUsersPage() {
 
     
 }
-    

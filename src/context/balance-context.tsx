@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment, CommissionLog, DownlineMember } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { supabase } from '@/lib/supabase';
@@ -320,14 +320,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
     const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
         try {
-            // Call the robust backend function for commission distribution
             const { error } = await supabase.rpc('distribute_commissions', {
                 p_source_user_id: sourceUserId,
                 p_trade_amount: tradeAmount
             });
 
             if (error) {
-                // Log the error but don't block the main transaction flow
                 console.error(`Commission distribution failed: ${error.message}`);
             }
 
@@ -361,7 +359,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('contract_trades').insert(fullTrade);
         if (error) throw error;
 
-        // Asynchronously distribute commissions, no need to await
         handleCommissionDistribution(user.id, trade.amount);
         
         await recalculateBalanceForUser(user.id);
@@ -419,7 +416,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           return false;
       }
        try {
-           const newTransaction: Omit<Transaction, 'id' | 'user_id'> = {
+           const newTransaction: Omit<Transaction, 'id' | 'user_id' | 'user'> = {
                 user_id: user.id,
                 type: 'withdrawal',
                 asset: asset,
@@ -469,4 +466,3 @@ export function useBalance() {
   }
   return context;
 }
-    

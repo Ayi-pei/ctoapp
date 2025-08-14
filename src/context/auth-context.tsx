@@ -48,8 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      // This can happen if the user exists in auth.users but not in public.users
-      // (e.g., during a failed registration). Signing them out is the safest recovery.
       await supabase.auth.signOut();
       return null;
     }
@@ -99,14 +97,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login failed:', error.message);
       return false;
     }
-    // Auth listener handles setting user state and redirecting
+    // Auth listener handles setting user state
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
         const email = `${username.toLowerCase()}@rsf.app`;
-        // Use the new, robust RPC function for registration
         const { data, error: rpcError } = await supabase.rpc('register_new_user', {
             p_email: email,
             p_password: password,
@@ -136,7 +133,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    // Auth listener will handle state cleanup and redirect
     router.push('/login');
   };
   
@@ -155,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const value = {
-    isAuthenticated: !!session,
+    isAuthenticated: !!user,
     user,
     isAdmin,
     login,
@@ -179,4 +175,3 @@ export function useAuth() {
   }
   return context;
 }
-    

@@ -8,7 +8,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // The RPC function `register_new_user` handles new user creation.
-// It's a SECURITY DEFINER function, running with the service_role privileges.
+// It is a SECURITY DEFINER function, running with elevated privileges.
 // It atomically:
 // 1. Checks if the provided invitation code from an existing user is valid.
 // 2. Creates a new user in the `auth.users` table.

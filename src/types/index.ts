@@ -88,7 +88,7 @@ export type PasswordResetRequest = {
   id: string;
   user_id: string;
   type: 'password_reset';
-  new_password: string;
+  new_password?: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   user?: { username: string };
