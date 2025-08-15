@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Admin Login
+    // Admin Login Check (using environment variables)
     if (
         username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
         password === process.env.NEXT_PUBLIC_ADMIN_KEY
@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let allUsers = getMockUsers();
         let adminUser = Object.values(allUsers).find(u => u.is_admin);
 
+        // If admin user doesn't exist in our mock DB, create it on first login.
         if (!adminUser) {
             adminUser = {
                 id: adminId,
@@ -90,7 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 is_admin: true,
                 is_test_user: false,
                 is_frozen: false,
-                invitation_code: 'ADMIN888', // Genesis invitation code
+                // Use the ADMIN_AUTH env var as the "genesis" invitation code
+                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || 'ADMIN123', 
                 inviter_id: null,
                 created_at: new Date().toISOString(),
             };
@@ -121,16 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
-      // Special admin registration check
-      if (
-          username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
-          password === process.env.NEXT_PUBLIC_ADMIN_KEY &&
-          invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH
-      ) {
-          return login(username, password);
-      }
-      
-      // Normal user registration
       let allUsers = getMockUsers();
       if (Object.values(allUsers).some(u => u.username === username)) {
           console.error("Username already exists");
