@@ -41,6 +41,8 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
+      // Redirect to home page after successful login, which will then redirect to the correct dashboard.
+      router.push('/');
     } else {
       toast({
         variant: 'destructive',
@@ -49,6 +51,13 @@ export default function LoginPage() {
       });
     }
   };
+
+  // This will handle cases where the user is already logged in and navigates to /login
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(isAdmin ? '/admin' : '/dashboard');
+    }
+  }, [isAuthenticated, isAdmin, router]);
 
   if (isLoading || isAuthenticated) {
      return (
