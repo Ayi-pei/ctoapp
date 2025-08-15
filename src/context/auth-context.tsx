@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -110,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
+    const adminCodes = ['admin666', 'admin789', 'admin8888'];
      try {
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     invitation_code: invitationCode,
-                    is_admin: invitationCode === 'admin8888'
+                    is_admin: adminCodes.includes(invitationCode)
                 }
             }
         });
