@@ -54,30 +54,32 @@ export default function AdminSettingsPage() {
                     <Button onClick={handleSave}>保存全部更改</Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                     <Card className="lg:col-span-1">
-                        <CardHeader>
-                            <CardTitle>通用设置</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {supportedAssets.map((asset) => (
-                                <div className="space-y-2" key={asset}>
-                                    <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
-                                    <Input
-                                        id={`deposit-address-${asset}`}
-                                        type="text"
-                                        value={systemSettings.depositAddresses[asset] || ''}
-                                        onChange={(e) => updateDepositAddress(asset, e.target.value)}
-                                        placeholder={`请输入您的 ${asset} 钱包或账户地址`}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        此地址将显示给用户用于充值 {asset}。
-                                    </p>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>通用设置</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                        {supportedAssets.map((asset) => (
+                            <div className="space-y-2" key={asset}>
+                                <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
+                                <Input
+                                    id={`deposit-address-${asset}`}
+                                    type="text"
+                                    value={systemSettings.depositAddresses[asset] || ''}
+                                    onChange={(e) => updateDepositAddress(asset, e.target.value)}
+                                    placeholder={`请输入您的 ${asset} 钱包或账户地址`}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    此地址将显示给用户用于充值 {asset}。
+                                </p>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
 
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {availablePairs.map((pair) => {
                         const pairSettings = settings[pair] || { 
                             trend: 'normal', 
@@ -97,7 +99,7 @@ export default function AdminSettingsPage() {
                                         <p className="text-xs text-muted-foreground">
                                            关闭所有开关则默认使用真实市场数据。
                                         </p>
-                                        <div className="flex items-center space-x-4">
+                                        <div className="flex items-center space-x-4 pt-2">
                                              <div className="flex items-center space-x-2">
                                                 <Label htmlFor={`trend-up-${pair}`}>拉升</Label>
                                                 <Switch
@@ -136,7 +138,7 @@ export default function AdminSettingsPage() {
                                     {/* Special Time Frames */}
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <Label htmlFor={`limit-buy-${pair}`}>限定时段交易</Label>
+                                            <Label htmlFor={`limit-buy-${pair}`} className="font-semibold">限定时段交易</Label>
                                             <Switch
                                                 id={`limit-buy-${pair}`}
                                                 checked={pairSettings.tradingDisabled}
@@ -150,7 +152,7 @@ export default function AdminSettingsPage() {
 
                                         <div className="space-y-4">
                                             {pairSettings.specialTimeFrames.map((frame, index) => (
-                                                <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative">
+                                                <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
                                                     <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <div>
@@ -206,5 +208,3 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
-
-    
