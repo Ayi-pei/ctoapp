@@ -221,14 +221,19 @@ export const useMarketData = () => {
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
 
+  const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
+  const goldSummaryData = summaryData.filter(s => GOLD_PAIRS.includes(s.pair));
+  const forexSummaryData = summaryData.filter(s => FOREX_PAIRS.includes(s.pair));
+
+
   return { 
       tradingPair, 
       changeTradingPair, 
       data, 
       availablePairs: availablePairs, 
       summaryData,
-      cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
-      goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
-      forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
+      cryptoSummaryData,
+      goldSummaryData,
+      forexSummaryData,
     };
 };
