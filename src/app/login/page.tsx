@@ -90,7 +90,7 @@ export default function LoginPage() {
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input placeholder="请输入您的用户名" {...field} name="username" className="pr-28"/>
+                        <Input placeholder="请输入您的用户名" {...field} className="pr-28"/>
                         <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
                             @noemail.app
                         </span>
@@ -107,7 +107,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="请输入您的密码" {...field} name="password" />
+                      <Input type="password" placeholder="请输入您的密码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
