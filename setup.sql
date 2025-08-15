@@ -2,49 +2,55 @@
 ---------------------------
 -- 0. 清理和准备
 ---------------------------
--- 首先撤销默认权限，解除角色依赖
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM admin_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM admin_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM admin_role;
+-- 撤销默认权限，以安全地删除角色
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON TABLES FROM admin_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON FUNCTIONS FROM admin_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON SEQUENCES FROM admin_role;
+        
+        -- 撤销对现有对象的权限
+        REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM admin_role;
+        REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM admin_role;
+        REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM admin_role;
+    END IF;
+END $$;
 
--- 其次，删除依赖于函数的对象（表和触发器）
--- 使用 CASCADE 会自动删除依赖于这些表的触发器、外键等
+
+-- 删除旧角色
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
+        DROP ROLE admin_role;
+    END IF;
+END $$;
+
+-- 删除旧表（如果存在），这会级联删除依赖的触发器
 DROP TABLE IF EXISTS public.commission_logs, public.investments, public.spot_trades, 
              public.contract_trades, public.transactions, public.withdrawal_addresses, 
              public.admin_requests, public.users CASCADE;
 
--- 然后，删除不再被依赖的函数
+-- 删除旧函数（如果存在），并指定完整的参数列表
 DROP FUNCTION IF EXISTS public.generate_invitation_code();
 DROP FUNCTION IF EXISTS public.get_user_downline(UUID);
-DROP FUNCTION IF EXISTS public.register_new_user(TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.register_new_user(TEXT, TEXT, TEXT); -- 修正：当前版本
+DROP FUNCTION IF EXISTS public.register_new_user(TEXT, TEXT, TEXT, TEXT); -- 兼容旧版本
 DROP FUNCTION IF EXISTS public.distribute_commissions(UUID, NUMERIC);
 DROP FUNCTION IF EXISTS public.admin_get_all_users();
 DROP FUNCTION IF EXISTS public.admin_get_user_team(UUID);
 DROP FUNCTION IF EXISTS public.check_account_active(UUID);
 DROP FUNCTION IF EXISTS public.check_password_complexity(TEXT);
-DROP FUNCTION IF EXISTS public.admin_freeze_user(UUID, BOOLEAN, TEXT);
 DROP FUNCTION IF EXISTS public.after_contract_trade();
-
-
--- 最后，安全地删除角色
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
-        -- 在删除角色之前，撤销其在数据库中的所有剩余权限
-        REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM admin_role;
-        REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM admin_role;
-        REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM admin_role;
-        DROP ROLE admin_role;
-    END IF;
-END $$;
+DROP FUNCTION IF EXISTS public.admin_freeze_user(UUID, BOOLEAN, TEXT);
 
 
 ---------------------------
 -- 1. 创建核心用户表
 ---------------------------
 CREATE TABLE public.users (
-    id UUID PRIMARY KEY,
-    username TEXT NOT NULL UNIQUE,
+    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+    username TEXT NOT NULL UNIQUE, 
     inviter_id UUID REFERENCES public.users(id),
     is_admin BOOLEAN NOT NULL DEFAULT false,
     is_test_user BOOLEAN NOT NULL DEFAULT false,
@@ -52,24 +58,21 @@ CREATE TABLE public.users (
     invitation_code TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-COMMENT ON TABLE public.users IS 'Stores user profile information, linking to auth.users via ID.';
+COMMENT ON TABLE public.users IS 'Stores user profile information.';
 
--- 创建邀请码生成函数
+-- 创建邀请码生成触发器
 CREATE OR REPLACE FUNCTION public.generate_invitation_code()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- 生成一个8位的、不太可能重复的邀请码
     NEW.invitation_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 8));
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- 为新用户自动生成邀请码的触发器
 CREATE TRIGGER on_new_user_before_insert
 BEFORE INSERT ON public.users
 FOR EACH ROW
 EXECUTE FUNCTION public.generate_invitation_code();
-
 
 ---------------------------
 -- 2. 账户状态检查函数
@@ -98,7 +101,6 @@ COMMENT ON FUNCTION public.check_account_active IS 'Checks if user account is ac
 CREATE OR REPLACE FUNCTION public.check_password_complexity(p_password TEXT)
 RETURNS BOOLEAN AS $$
 BEGIN
-    -- 至少8个字符
     IF char_length(p_password) >= 8 THEN
         RETURN TRUE;
     END IF;
@@ -107,7 +109,7 @@ BEGIN
         DETAIL = 'Password must be at least 8 characters';
 END;
 $$ LANGUAGE plpgsql;
-COMMENT ON FUNCTION public.check_password_complexity IS 'Ensures passwords meet security requirements (at least 8 characters).';
+COMMENT ON FUNCTION public.check_password_complexity IS 'Ensures passwords meet security requirements';
 
 ---------------------------
 -- 4. 创建交易相关表
@@ -297,7 +299,6 @@ END $$;
 -- 10. 核心业务函数
 ---------------------------
 CREATE OR REPLACE FUNCTION public.register_new_user(
-    p_email TEXT,
     p_password TEXT, 
     p_username TEXT, 
     p_invitation_code TEXT
@@ -308,18 +309,18 @@ SECURITY DEFINER
 AS $$
 DECLARE
     v_inviter_id UUID;
-    v_is_admin BOOLEAN := false;
     new_user_id UUID;
+    v_is_admin BOOLEAN := false;
+    v_is_test_user BOOLEAN := false;
+    v_virtual_email TEXT := p_username || '@noemail.app';
 BEGIN
-    -- 检查密码复杂度
     PERFORM public.check_password_complexity(p_password);
-
-    -- 判断是否为管理员注册
+    
     IF p_invitation_code = 'admin8888' THEN
         v_is_admin := true;
-        v_inviter_id := NULL; -- 管理员没有邀请人
+        v_is_test_user := true; -- Admin is also a test user
+        v_inviter_id := NULL;
     ELSE
-        -- 查找普通邀请人
         SELECT id INTO v_inviter_id 
         FROM public.users 
         WHERE invitation_code = p_invitation_code;
@@ -333,14 +334,21 @@ BEGIN
         END IF;
     END IF;
 
-    -- 创建认证用户
-    new_user_id := auth.uid();
-    INSERT INTO auth.users (id, email, password)
-    VALUES (new_user_id, p_email, p_password);
+    INSERT INTO auth.users(
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, recovery_token, recovery_sent_at,
+        last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+        created_at, updated_at, phone, phone_confirmed_at,
+        email_change, email_change_sent_at, confirmed_at
+    ) values (
+        '00000000-0000-0000-0000-000000000000', extensions.uuid_generate_v4(), 'authenticated', 'authenticated', v_virtual_email,
+        crypt(p_password, gen_salt('bf')),
+        now(), '', null, null, '{"provider": "email", "providers": ["email"]}', '{}',
+        now(), now(), null, null, '', null, now()
+    ) RETURNING id INTO new_user_id;
 
-    -- 创建业务用户
-    INSERT INTO public.users(id, username, inviter_id, is_admin)
-    VALUES (new_user_id, p_username, v_inviter_id, v_is_admin);
+    INSERT INTO public.users(id, username, inviter_id, is_admin, is_test_user)
+    VALUES (new_user_id, p_username, v_inviter_id, v_is_admin, v_is_test_user);
 
     RETURN json_build_object(
         'status', 'success',
@@ -352,7 +360,7 @@ EXCEPTION
         RETURN json_build_object(
             'status', 'error',
             'code', 'USER_EXISTS',
-            'message', '用户名或邮箱已存在'
+            'message', '用户名已存在'
         );
     WHEN others THEN
         RETURN json_build_object(
@@ -362,8 +370,7 @@ EXCEPTION
         );
 END;
 $$;
-COMMENT ON FUNCTION public.register_new_user IS '注册新用户。使用特殊邀请码"admin8888"可创建管理员。否则，根据普通邀请码建立邀请关系。';
-
+COMMENT ON FUNCTION public.register_new_user IS '注册新用户并建立邀请关系，支持管理员邀请码，返回JSON格式结果';
 
 CREATE OR REPLACE FUNCTION public.distribute_commissions(
     p_source_user_id UUID, 
@@ -381,27 +388,21 @@ DECLARE
     level INT := 1;
     max_level INT := LEAST(array_length(commission_rates, 1), 3);
 BEGIN
-    -- 获取来源用户信息
     SELECT username INTO source_username 
     FROM public.users 
     WHERE id = p_source_user_id;
     
-    -- 检查来源用户状态
     PERFORM public.check_account_active(p_source_user_id);
 
     WHILE level <= max_level LOOP
-        -- 获取上级
         SELECT inviter_id INTO current_inviter_id 
         FROM public.users 
         WHERE id = current_user_id;
         
-        -- 没有上级时退出
         EXIT WHEN current_inviter_id IS NULL;
         
-        -- 检查上级账户状态
         PERFORM public.check_account_active(current_inviter_id);
         
-        -- 记录佣金
         INSERT INTO public.commission_logs(
             upline_user_id, 
             source_user_id, 
@@ -433,19 +434,16 @@ COMMENT ON FUNCTION public.distribute_commissions IS '计算并分配三级佣�
 CREATE OR REPLACE FUNCTION public.after_contract_trade()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- 仅处理已完成的交易
-    IF NEW.status = 'settled' THEN
-        -- 分配佣金
-        PERFORM public.distribute_commissions(NEW.user_id, NEW.amount);
-    END IF;
+    -- For contract trades, commission is on the trade amount
+    PERFORM public.distribute_commissions(NEW.user_id, NEW.amount);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- 触发器适用于合约交易
 CREATE TRIGGER trigger_after_contract_trade
-AFTER INSERT OR UPDATE ON public.contract_trades
+AFTER INSERT ON public.contract_trades
 FOR EACH ROW
-WHEN (NEW.status = 'settled')
 EXECUTE FUNCTION public.after_contract_trade();
 
 ---------------------------
@@ -483,13 +481,13 @@ BEGIN
         WHERE d.level < 3
     )
     SELECT d.id, d.username, d.level, d.created_at
-    FROM downline_cte d;
+    FROM downline_cte;
 END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION public.get_user_downline IS '获取用户的三级下线关系';
 
 CREATE OR REPLACE FUNCTION public.admin_get_user_team(p_user_id UUID)
-RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTAMPTZ)
+RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTamptz)
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
@@ -516,7 +514,6 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    -- 检查管理员权限
     IF NOT (SELECT is_admin FROM public.users WHERE id = auth.uid()) THEN
         RAISE EXCEPTION '权限不足' USING ERRCODE = 'insufficient_privilege';
     END IF;
@@ -532,45 +529,67 @@ COMMENT ON FUNCTION public.admin_freeze_user IS '管理员冻结或解冻用户�
 ---------------------------
 -- 14. 初始数据
 ---------------------------
--- 创建一个初始的超级管理员用户，其邀请码为 admin8888，用于后续创建其他管理员
+-- 创建管理员用户
 DO $$
 DECLARE
-    super_admin_id UUID;
+    admin_user_id UUID;
+    admin_password TEXT;
 BEGIN
-    -- 使用一个固定的 UUID，以便多次运行脚本时不会重复创建
-    super_admin_id := '00000000-0000-0000-0000-000000000001';
+    admin_password := 'admin_password_placeholder'; -- Replace with a secure password
     
-    -- 插入 auth.users
-    INSERT INTO auth.users (id, email, password)
-    VALUES (super_admin_id, 'superadmin@noemail.app', 'super_secret_password_placeholder')
-    ON CONFLICT (id) DO NOTHING;
-
-    -- 插入 public.users
+    IF LENGTH(admin_password) < 8 THEN
+        RAISE EXCEPTION '管理员密码必须至少8个字符';
+    END IF;
+    
+    INSERT INTO auth.users(
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, recovery_token, recovery_sent_at,
+        last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+        created_at, updated_at, phone, phone_confirmed_at,
+        email_change, email_change_sent_at, confirmed_at
+    ) values (
+        '00000000-0000-0000-0000-000000000000', extensions.uuid_generate_v4(), 'authenticated', 'authenticated', 'admin@noemail.app',
+        crypt(admin_password, gen_salt('bf')),
+        now(), '', null, null, '{"provider": "email", "providers": ["email"]}', '{"username": "admin"}',
+        now(), now(), null, null, '', null, now()
+    ) RETURNING id INTO admin_user_id;
+    
     INSERT INTO public.users(id, username, is_admin, is_test_user, invitation_code)
-    VALUES (super_admin_id, 'superadmin', true, true, 'admin8888')
+    VALUES (admin_user_id, 'admin', true, true, 'admin8888')
     ON CONFLICT (username) DO NOTHING;
 END $$;
 
-
--- 创建一个初始的测试用户，其邀请人为超级管理员
+-- 创建测试用户
 DO $$
 DECLARE
     test_user_id UUID;
-    super_admin_id UUID := '00000000-0000-0000-0000-000000000001';
+    admin_id UUID;
+    testuser_password TEXT;
 BEGIN
-    test_user_id := '00000000-0000-0000-0000-000000000002';
+    SELECT id INTO admin_id FROM public.users WHERE username = 'admin';
+    testuser_password := 'testuser_password_placeholder'; -- Replace with a secure password
     
-    -- 插入 auth.users
-    INSERT INTO auth.users (id, email, password)
-    VALUES (test_user_id, 'testuser@noemail.app', 'test_password_placeholder')
-    ON CONFLICT (id) DO NOTHING;
+    IF LENGTH(testuser_password) < 8 THEN
+        RAISE EXCEPTION '测试用户密码必须至少8个字符';
+    END IF;
     
-    -- 插入 public.users
+    INSERT INTO auth.users(
+         instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, recovery_token, recovery_sent_at,
+        last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+        created_at, updated_at, phone, phone_confirmed_at,
+        email_change, email_change_sent_at, confirmed_at
+    ) values (
+        '00000000-0000-0000-0000-000000000000', extensions.uuid_generate_v4(), 'authenticated', 'authenticated', 'testuser@noemail.app',
+        crypt(testuser_password, gen_salt('bf')),
+        now(), '', null, null, '{"provider": "email", "providers": ["email"]}', '{"username": "testuser"}',
+        now(), now(), null, null, '', null, now()
+    ) RETURNING id INTO test_user_id;
+
     INSERT INTO public.users (id, username, inviter_id, is_test_user)
-    VALUES (test_user_id, 'testuser', super_admin_id, true)
+    VALUES (test_user_id, 'testuser', admin_id, true)
     ON CONFLICT (username) DO NOTHING;
 END $$;
-
 
 ---------------------------
 -- 15. 索引优化
@@ -586,6 +605,5 @@ CREATE INDEX IF NOT EXISTS idx_users_is_frozen ON public.users(is_frozen);
 ---------------------------
 -- 16. 扩展启用确认
 ---------------------------
--- 确保所有必要扩展已启用
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
