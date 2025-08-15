@@ -7,24 +7,23 @@ import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminPage() {
-    const { isAuthenticated, isAdmin, isLoading } = useAuth();
+    const { isAdmin, isLoading } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        if (isLoading) {
-            return; 
+        if (!isLoading) {
+            // Once loading is complete, always redirect from /admin to /admin/users
+            // This simplifies the logic and makes /admin/users the default admin page.
+            if (isAdmin) {
+                router.replace('/admin/users');
+            } else {
+                // If a non-admin somehow lands here, send them away.
+                router.replace('/login');
+            }
         }
+    }, [isAdmin, isLoading, router]);
 
-        if (isAuthenticated && isAdmin) {
-            router.replace('/admin/users');
-        } else if (isAuthenticated && !isAdmin) {
-             router.replace('/dashboard');
-        }
-        else {
-            router.replace('/login');
-        }
-    }, [isAuthenticated, isAdmin, isLoading, router]);
-
+    // Show a skeleton loader while the auth state is being determined.
     return (
         <div className="p-8">
             <Skeleton className="h-24 w-full" />

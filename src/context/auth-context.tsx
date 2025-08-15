@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isAuthenticated && !isAuthPage) {
           router.push('/login');
       } else if (isAuthenticated && isAuthPage) {
-          router.push(isAdmin ? '/admin/users' : '/dashboard');
+          router.push(isAdmin ? '/admin' : '/dashboard');
       }
     }
   }, [user, isAdmin, isLoading, pathname, router]);
