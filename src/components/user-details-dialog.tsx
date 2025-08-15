@@ -96,7 +96,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
     const { addDepositRequest } = useRequests();
     const { addAnnouncement } = useAnnouncements();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
-    const [creditScore, setCreditScore] = useState(initialUser?.credit_score.toString() || "100");
+    const [creditScore, setCreditScore] = useState((initialUser?.credit_score ?? 100).toString());
     const [messageTitle, setMessageTitle] = useState("");
     const [messageContent, setMessageContent] = useState("");
 
@@ -106,7 +106,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         if (isOpen && initialUser) {
             setNewPassword("");
             setBalanceAdjustments({});
-            setCreditScore(initialUser.credit_score.toString());
+            setCreditScore((initialUser.credit_score ?? 100).toString());
             setMessageTitle("");
             setMessageContent("");
             
