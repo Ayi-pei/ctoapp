@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Copy, Ticket } from 'lucide-react';
 
 export default function AdminUsersPage() {
     const { user, isAdmin } = useAuth();
@@ -23,6 +24,7 @@ export default function AdminUsersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     
     const loadData = useCallback(async () => {
         if (!isAdmin) return;
@@ -61,6 +63,23 @@ export default function AdminUsersPage() {
         loadData();
     }, [loadData, toast]);
 
+    const generateInvitationCode = () => {
+        const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        setGeneratedCode(result);
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({
+            title: "已复制",
+            description: "邀请码已成功复制到剪贴板。",
+        });
+    };
+
 
     if (!user || !isAdmin) {
         return (
@@ -79,18 +98,34 @@ export default function AdminUsersPage() {
                 <h1 className="text-2xl font-bold">用户管理</h1>
                 
                 <Card>
-                    <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div>
+                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className='flex-grow'>
                             <CardTitle>用户列表</CardTitle>
                              <CardDescription>查看和管理系统中的所有用户。</CardDescription>
                         </div>
-                         <Input 
-                            placeholder="搜索用户名..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full md:max-w-sm"
-                            name="search-users"
-                        />
+                        <div className='flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto'>
+                            <div className="flex items-center gap-2">
+                                <Button onClick={generateInvitationCode}>
+                                    <Ticket className="mr-2 h-4 w-4" />
+                                    获取邀请码
+                                </Button>
+                                {generatedCode && (
+                                    <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                                        <span className="font-mono font-semibold text-primary">{generatedCode}</span>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(generatedCode)}>
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                            <Input 
+                                placeholder="搜索用户名..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full md:max-w-xs"
+                                name="search-users"
+                            />
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
