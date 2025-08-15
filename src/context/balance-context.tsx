@@ -63,7 +63,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
@@ -126,8 +126,110 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       });
   }, [user]);
 
+  // Load user data from localStorage on login
   useEffect(() => {
+    setIsLoading(true);
+    if (user) {
+        const userStorageKey = `tradeflow_user_${user.id}`;
+        const storedData = localStorage.getItem(userStorageKey);
+        if (storedData) {
+            const data = JSON.parse(storedData);
+            setBalances(data.balances || INITIAL_BALANCES_USER);
+            setInvestments(data.investments || []);
+            setActiveContractTrades(data.activeContractTrades || []);
+            setHistoricalTrades(data.historicalTrades || []);
+        } else {
+            // New user, set initial state
+            setBalances(INITIAL_BALANCES_USER);
+            setInvestments([]);
+            setActiveContractTrades([]);
+            setHistoricalTrades([]);
+        }
+    } else {
+        // Logged out, clear all data
+        setBalances(INITIAL_BALANCES_USER);
+        setInvestments([]);
+        setActiveContractTrades([]);
+        setHistoricalTrades([]);
+    }
+    setIsLoading(false);
   }, [user]);
+
+  // Save user data to localStorage whenever it changes
+  useEffect(() => {
+      if (user && !isLoading) {
+          const userStorageKey = `tradeflow_user_${user.id}`;
+          const dataToStore = {
+              balances,
+              investments,
+              activeContractTrades,
+              historicalTrades,
+          };
+          localStorage.setItem(userStorageKey, JSON.stringify(dataToStore));
+      }
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades]);
+
+  // Effect to handle contract trade settlement
+  useEffect(() => {
+    if (activeContractTrades.length === 0) return;
+
+    const interval = setInterval(() => {
+        const now = new Date();
+        const tradesToSettle = activeContractTrades.filter(
+            trade => new Date(trade.settlement_time) <= now
+        );
+
+        if (tradesToSettle.length > 0) {
+            tradesToSettle.forEach(trade => settleContractTrade(trade.id));
+        }
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeContractTrades]);
+  
+  const settleContractTrade = (tradeId: string) => {
+    const trade = activeContractTrades.find(t => t.id === tradeId);
+    if (!trade || !marketData) return;
+
+    const settlementPrice = marketData.summary.price;
+    let outcome: 'win' | 'loss';
+    
+    if (trade.type === 'buy') { // Predicted price would go up
+        outcome = settlementPrice > trade.entry_price ? 'win' : 'loss';
+    } else { // Predicted price would go down
+        outcome = settlementPrice < trade.entry_price ? 'win' : 'loss';
+    }
+    
+    const profit = outcome === 'win' ? trade.amount * trade.profit_rate : -trade.amount;
+    
+    const settledTrade: ContractTrade = {
+        ...trade,
+        status: 'settled',
+        settlement_price: settlementPrice,
+        outcome: outcome,
+        profit: profit
+    };
+
+    // Update balances
+    setBalances(prev => {
+        const newBalances = { ...prev };
+        const newAvailable = newBalances.USDT.available + (outcome === 'win' ? trade.amount + profit : 0);
+        const newFrozen = newBalances.USDT.frozen - trade.amount;
+        newBalances.USDT = { available: newAvailable, frozen: newFrozen };
+        return newBalances;
+    });
+
+    // Move trade from active to historical
+    setActiveContractTrades(prev => prev.filter(t => t.id !== tradeId));
+    setHistoricalTrades(prev => [settledTrade, ...prev]);
+
+    toast({
+        title: `合约结算: ${outcome === 'win' ? '盈利' : '亏损'}`,
+        description: `${trade.trading_pair} 合约已结算，盈亏: ${profit.toFixed(2)} USDT`
+    });
+  }
+
 
   const addInvestment = async (productName: string, amount: number) => {
     if (!user) return false;
@@ -161,6 +263,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     if (user.is_frozen) {
         toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
+        return;
+    }
+
+     if (balances.USDT.available < trade.amount) {
+        toast({ variant: 'destructive', title: '下单失败', description: '可用余额不足。' });
         return;
     }
     

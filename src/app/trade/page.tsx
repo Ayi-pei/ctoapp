@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -188,8 +189,8 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                                      {trade.orderType === 'spot' ? (
                                                         <span>{(trade as SpotTrade).total.toFixed(2)} USDT</span>
                                                     ) : (
-                                                        <span className={cn((trade as ContractTrade).profit ?? 0 > 0 ? 'text-green-500' : 'text-red-500')}>
-                                                            {((trade as ContractTrade).profit ?? 0).toFixed(2)} USDT
+                                                        <span className={cn((trade as ContractTrade).profit ?? 0 >= 0 ? 'text-green-500' : 'text-red-500')}>
+                                                            {((trade as ContractTrade).profit ?? 0) >= 0 ? '+' : ''}{((trade as ContractTrade).profit ?? 0).toFixed(2)} USDT
                                                         </span>
                                                     )}
                                                 </TableCell>
@@ -226,3 +227,4 @@ export default function SuspenseWrapper() {
         </React.Suspense>
     )
 }
+
