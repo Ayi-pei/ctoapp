@@ -44,8 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.warn(`User profile for ${supabaseUser.id} not found. This might be a new user or an admin that needs their profile created.`);
-          return null;
+          return null; // User profile not found, this is handled in onAuthStateChange
         }
         throw error;
       }
@@ -53,47 +52,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      if (error.code !== 'PGRST116') {
-        toast({
-            variant: 'destructive',
-            title: '获取用户资料失败',
-            description: error.message,
-        });
-      }
       await supabase.auth.signOut();
       return null;
     }
   };
-
+  
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
         setSession(session);
+        
         if (session?.user) {
             let userProfile = await fetchUserProfile(session.user);
-            
-            // If admin logs in and has no profile, create it.
+
+            // If admin logs in and has no profile, create it on-the-fly.
             if (!userProfile && session.user.email?.startsWith('admin666')) {
-                console.log("Admin user has no profile, attempting to create one...");
+                console.log("Admin user profile not found, attempting to create...");
                  try {
                     const { data: adminUserData, error: adminUserError } = await supabaseAdmin
                         .from('users')
                         .insert({
                             id: session.user.id,
                             username: 'admin666',
+                            is_admin: true,
                             email: session.user.email,
-                            is_admin: true
+                            // invitation_code and inviter_id can be defaults or specific values
+                            invitation_code: `ADMIN${session.user.id.substring(0, 4)}`, 
+                            is_test_user: true, // Or false depending on desired default
                         })
                         .select()
                         .single();
 
-                    if(adminUserError) throw adminUserError;
+                    if (adminUserError) throw adminUserError;
                     userProfile = adminUserData as User;
-                    console.log("Admin user profile created successfully.");
-
+                    console.log("Admin user profile created successfully on login.");
                 } catch (e: any) {
-                    console.error("Failed to create admin profile on-the-fly:", e.message);
+                    console.error("Failed to create admin profile on-the-fly during login:", e.message);
                 }
             }
             
@@ -107,23 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    const checkUser = async () => {
-      setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session?.user) {
-        const userProfile = await fetchUserProfile(session.user);
-        setUser(userProfile);
-        setIsAdmin(userProfile?.is_admin || false);
-      }
-      setIsLoading(false);
-    };
-    checkUser();
-
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
@@ -142,30 +123,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
   
-  const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
+ const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
     const isAdminRegistration = invitationCode === 'admin8888';
 
      try {
-        const { data, error } = await supabase.auth.signUp({
+        // Step 1: Create the auth user first. This will fail if the user already exists.
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
-            options: {
-                data: {
-                    username: username,
-                    email: email,
-                    raw_invitation_code: invitationCode,
-                    is_admin: isAdminRegistration
-                }
-            }
         });
       
-        if (error) {
-            throw error;
+        if (authError) {
+             if (authError.message.includes("User already registered")) {
+                toast({ variant: 'destructive', title: '注册失败', description: '该用户名已被使用，请更换一个。'});
+                return false;
+            }
+            throw authError; // For other auth errors
         }
         
-        if (!data.user) {
+        if (!authData.user) {
              throw new Error("Registration succeeded but no user object was returned.");
+        }
+
+        // Step 2: Create the public user profile with admin client to bypass RLS.
+        const newUserProfileData: Partial<User> = {
+            id: authData.user.id,
+            username: username,
+            email: email,
+            is_admin: isAdminRegistration,
+        };
+
+        if (!isAdminRegistration) {
+             const { data: inviterData, error: inviterError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('invitation_code', invitationCode)
+                .single();
+
+            if (inviterError || !inviterData) {
+                // If inviter not found, we should clean up the created auth user.
+                await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+                toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
+                return false;
+            }
+            newUserProfileData.inviter_id = inviterData.id;
+        }
+
+        const { error: profileError } = await supabaseAdmin
+            .from('users')
+            .insert(newUserProfileData as User);
+
+        if (profileError) {
+            // If profile creation fails, clean up the created auth user to allow retries.
+            await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+            throw profileError;
         }
       
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
@@ -173,22 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
         console.error("An unexpected error occurred during registration:", error);
-        
-        let errorMessage = '发生未知错误，请重试。';
-        if (error?.message) {
-            if (error.message.includes('User already registered')) {
-                errorMessage = '该用户名已被使用，请更换一个。';
-            } else if (error.message.includes('Database error saving new user')) {
-                errorMessage = '创建用户资料时发生数据库错误，请联系管理员或检查邀请码是否有效。';
-            } else {
-                errorMessage = error.message;
-            }
-        }
-
         toast({
             variant: 'destructive',
             title: '注册失败',
-            description: errorMessage,
+            description: error.message || '发生未知错误，请重试。',
         });
         return false;
     }
@@ -196,9 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setSession(null);
+    router.push('/login');
   };
   
    useEffect(() => {

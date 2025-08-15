@@ -52,7 +52,7 @@ export default function LoginPage() {
     }
   };
 
-  // This will handle cases where the user is already logged in and navigates to /login
+  // This hook is now managed by the AuthProvider, but we can keep a fallback here.
   useEffect(() => {
     if (isAuthenticated) {
       router.replace(isAdmin ? '/admin' : '/dashboard');
