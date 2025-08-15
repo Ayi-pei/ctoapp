@@ -34,12 +34,6 @@ export default function LoginPage() {
     },
   });
 
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-        router.push(isAdmin ? '/admin' : '/dashboard');
-    }
-  }, [isAuthenticated, isAdmin, router, isLoading]);
-
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     const success = await login(values.username, values.password);
 
