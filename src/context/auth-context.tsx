@@ -136,13 +136,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           inviterId = ADMIN_USER_ID;
       } else {
           // Check for a standard user invitation code OR the dynamically generated admin code.
-          // The dynamic admin code isn't stored, but we accept it if it looks like one
-          // and credit the admin. This is a simplification. A real system would store generated codes.
           const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
           if (inviter) {
               inviterId = inviter.id;
           } else if (invitationCode.length > 6 && /^\d+$/.test(invitationCode)) {
               // Heuristic: If the code is long and all digits, assume it's a dynamically generated admin code.
+              // In this case, the inviter is the admin.
               inviterId = ADMIN_USER_ID;
           }
       }
