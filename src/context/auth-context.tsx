@@ -110,9 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-        const email = `${username.toLowerCase()}@noemail.app`;
         const { data, error: rpcError } = await supabase.rpc('register_new_user', {
-            p_email: email,
             p_password: password,
             p_username: username,
             p_invitation_code: invitationCode
