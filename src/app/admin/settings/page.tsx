@@ -13,6 +13,9 @@ import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
+const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
+
+
 export default function AdminSettingsPage() {
     const { 
         settings, 
@@ -22,14 +25,12 @@ export default function AdminSettingsPage() {
         updateSpecialTimeFrame
     } = useSettings();
 
-    const { systemSettings, updateSystemSetting } = useSystemSettings();
+    const { systemSettings, updateDepositAddress } = useSystemSettings();
 
     const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
         const currentTrend = settings[pair]?.trend;
-        // If the user is trying to set a trend that's already active, toggle it off to 'normal'
-        // Otherwise, set the new trend.
         const finalTrend = currentTrend === newTrend ? 'normal' : newTrend;
         updateSettings(pair, { trend: finalTrend });
     };
@@ -39,7 +40,6 @@ export default function AdminSettingsPage() {
     };
     
     const handleSave = () => {
-        // The context now saves on every change, but we can keep the button for user feedback.
         toast({
             title: "设置已保存",
             description: "所有设置已更新。",
@@ -58,20 +58,22 @@ export default function AdminSettingsPage() {
                     <CardHeader>
                         <CardTitle>通用设置</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="deposit-address">在线充币地址 (USDT-TRC20)</Label>
-                            <Input
-                                id="deposit-address"
-                                type="text"
-                                value={systemSettings.depositAddress}
-                                onChange={(e) => updateSystemSetting('depositAddress', e.target.value)}
-                                placeholder="请输入TRC20钱包地址"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                这个地址将显示给所有用户用于充值。请确保地址正确无误。
-                            </p>
-                        </div>
+                    <CardContent className="space-y-6">
+                        {supportedAssets.map((asset) => (
+                             <div className="space-y-2" key={asset}>
+                                <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
+                                <Input
+                                    id={`deposit-address-${asset}`}
+                                    type="text"
+                                    value={systemSettings.depositAddresses[asset] || ''}
+                                    onChange={(e) => updateDepositAddress(asset, e.target.value)}
+                                    placeholder={`请输入您的 ${asset} 钱包或账户地址`}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    此地址将显示给用户用于充值 {asset}。
+                                </p>
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
 

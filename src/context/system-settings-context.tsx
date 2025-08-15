@@ -6,16 +6,26 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 const SETTINGS_STORAGE_KEY = 'tradeflow_system_settings';
 
 export type SystemSettings = {
-    depositAddress: string;
+    depositAddresses: {
+        USDT: string;
+        ETH: string;
+        BTC: string;
+        USD: string;
+    };
 };
 
 interface SystemSettingsContextType {
     systemSettings: SystemSettings;
-    updateSystemSetting: (key: keyof SystemSettings, value: string) => void;
+    updateDepositAddress: (asset: keyof SystemSettings['depositAddresses'], value: string) => void;
 }
 
 const defaultSystemSettings: SystemSettings = {
-    depositAddress: "",
+    depositAddresses: {
+        USDT: "",
+        ETH: "",
+        BTC: "",
+        USD: "",
+    },
 };
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined);
@@ -29,7 +39,16 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
         try {
             const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
             if (storedSettings) {
-                setSystemSettings(JSON.parse(storedSettings));
+                // Merge stored settings with defaults to ensure all keys are present
+                const parsedSettings = JSON.parse(storedSettings);
+                setSystemSettings(prev => ({
+                    ...prev,
+                    ...parsedSettings,
+                    depositAddresses: {
+                        ...prev.depositAddresses,
+                        ...(parsedSettings.depositAddresses || {})
+                    }
+                }));
             }
         } catch (error) {
             console.error("Failed to load system settings from localStorage", error);
@@ -39,7 +58,6 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
 
     // Save settings to localStorage whenever they change
     useEffect(() => {
-        // Only save after initial load to prevent overwriting with defaults
         if (isLoaded) {
             try {
                 localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(systemSettings));
@@ -49,15 +67,18 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
         }
     }, [systemSettings, isLoaded]);
 
-    const updateSystemSetting = useCallback((key: keyof SystemSettings, value: string) => {
+    const updateDepositAddress = useCallback((asset: keyof SystemSettings['depositAddresses'], value: string) => {
         setSystemSettings(prevSettings => ({
             ...prevSettings,
-            [key]: value,
+            depositAddresses: {
+                ...prevSettings.depositAddresses,
+                [asset]: value,
+            }
         }));
     }, []);
 
     return (
-        <SystemSettingsContext.Provider value={{ systemSettings, updateSystemSetting }}>
+        <SystemSettingsContext.Provider value={{ systemSettings, updateDepositAddress }}>
             {children}
         </SystemSettingsContext.Provider>
     );
