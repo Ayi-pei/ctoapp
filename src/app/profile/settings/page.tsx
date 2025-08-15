@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { PasswordResetRequest } from "@/types";
+import { useRequests } from "@/context/requests-context";
 
 
 const changePasswordSchema = z.object({
@@ -27,6 +27,7 @@ const changePasswordSchema = z.object({
 export default function ProfileSettingsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
+    const { addPasswordResetRequest } = useRequests();
 
 
     const form = useForm<z.infer<typeof changePasswordSchema>>({
@@ -41,13 +42,30 @@ export default function ProfileSettingsPage() {
     const onSubmit = async (values: z.infer<typeof changePasswordSchema>) => {
         if (!user) return;
         
-        // Mocked logic since Supabase is removed
-        toast({
-            title: "请求已提交 (Mock)",
-            description: "您的密码修改请求已提交给管理员审核。",
-        });
+        // This is a mocked check. In a real app, you'd verify the currentPassword against the backend.
+        if (values.currentPassword !== user.password) {
+            toast({
+                variant: "destructive",
+                title: "错误",
+                description: "当前密码不正确。",
+            });
+            return;
+        }
 
-        form.reset();
+        try {
+            await addPasswordResetRequest(values.newPassword);
+            toast({
+                title: "请求已提交",
+                description: "您的密码修改请求已提交给管理员审核。",
+            });
+            form.reset();
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "提交失败",
+                description: error.message || "提交请求时出错。",
+            });
+        }
     }
 
 

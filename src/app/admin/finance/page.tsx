@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useRequests } from "@/context/requests-context";
+import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -39,16 +40,16 @@ export default function AdminFinancePage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
-    const { requests } = useRequests(); // Use real data
+    const { requests, deleteRequest, updateRequest } = useRequests(); 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
     useEffect(() => {
-        // Load transactions from requests context
         const financialTransactions = requests.filter(
-            r => r.type === 'deposit' || r.type === 'withdrawal'
+            r => r.type === 'deposit' || r.type === 'withdrawal' || r.type === 'adjustment'
         ) as Transaction[];
         setTransactions(financialTransactions);
     }, [requests]);
@@ -60,20 +61,30 @@ export default function AdminFinancePage() {
         }
     }, [isAdmin, router]);
     
-    const handleOpenDeleteDialog = (transaction: Transaction) => {
+    const openDeleteDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsDeleteDialogOpen(true);
     }
     
+    const openEditDialog = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsEditDialogOpen(true);
+    }
+
     const handleDeleteTransaction = async () => {
         if (!selectedTransaction) return;
-        // This is a mock delete as we don't have a real backend DB
-        // It will just remove it from the local state
-        setTransactions(prev => prev.filter(t => t.id !== selectedTransaction.id));
-        toast({ title: "成功 (Mock)", description: "交易记录已删除。" });
+        await deleteRequest(selectedTransaction.id);
+        toast({ title: "成功", description: "交易记录已删除。" });
         setIsDeleteDialogOpen(false);
         setSelectedTransaction(null);
     };
+    
+    const handleSaveTransaction = async (updatedTransaction: Transaction) => {
+        await updateRequest(updatedTransaction.id, updatedTransaction);
+        toast({ title: "成功", description: "交易记录已更新。" });
+        setIsEditDialogOpen(false);
+        setSelectedTransaction(null);
+    }
     
     if (!isAdmin) {
         return (
@@ -112,8 +123,8 @@ export default function AdminFinancePage() {
                                    <TableRow key={t.id}>
                                        <TableCell className="font-medium">{t.user?.username || t.user_id}</TableCell>
                                        <TableCell>
-                                           <span className={cn("font-semibold", t.type === 'deposit' ? 'text-green-500' : 'text-orange-500')}>
-                                               {t.type === 'deposit' ? '充值' : '提现'}
+                                           <span className={cn("font-semibold", t.type === 'deposit' ? 'text-green-500' : t.type === 'adjustment' ? 'text-blue-500' : 'text-orange-500')}>
+                                               {t.type === 'deposit' ? '充值' : t.type === 'withdrawal' ? '提现' : '调整'}
                                             </span>
                                         </TableCell>
                                        <TableCell>{t.asset}</TableCell>
@@ -130,7 +141,8 @@ export default function AdminFinancePage() {
                                        <TableCell className="text-xs truncate max-w-[150px]">{t.transaction_hash || t.address || 'N/A'}</TableCell>
                                        <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()}</TableCell>
                                        <TableCell className="text-right space-x-2">
-                                           <Button variant="destructive" size="sm" onClick={() => handleOpenDeleteDialog(t)}>删除</Button>
+                                           <Button variant="outline" size="sm" onClick={() => openEditDialog(t)}>编辑</Button>
+                                           <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(t)}>删除</Button>
                                        </TableCell>
                                    </TableRow>
                                )) : (
@@ -156,10 +168,19 @@ export default function AdminFinancePage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setSelectedTransaction(null)}>取消</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteTransaction}>确认删除</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDeleteTransaction} className="bg-destructive hover:bg-destructive/90">确认删除</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {selectedTransaction && (
+                <EditTransactionDialog
+                    isOpen={isEditDialogOpen}
+                    onOpenChange={setIsEditDialogOpen}
+                    transaction={selectedTransaction}
+                    onSave={handleSaveTransaction}
+                />
+            )}
 
         </DashboardLayout>
     );

@@ -25,7 +25,7 @@ type EditTransactionDialogProps = {
     onSave: (updatedTransaction: Transaction) => void;
 };
 
-const availableAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
+const availableAssets = [...new Set(availablePairs.flatMap(p => p.split('/'))), 'USD'];
 
 export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSave }: EditTransactionDialogProps) {
     const [formData, setFormData] = useState<Transaction | null>(transaction);
@@ -38,7 +38,13 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
-        setFormData(prev => prev ? { ...prev, [id]: id === 'amount' ? parseFloat(value) : value } : null);
+        const key = id.includes('transaction_hash') ? 'transaction_hash' : 'address';
+        
+        if (id === 'amount') {
+            setFormData(prev => prev ? { ...prev, amount: parseFloat(value) || 0 } : null);
+        } else {
+             setFormData(prev => prev ? { ...prev, [key]: value } : null);
+        }
     };
     
     const handleSelectChange = (name: string, value: string) => {
@@ -47,7 +53,6 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
 
     const handleDateTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { value } = e.target;
-        // The form gives us a datetime-local string, we need to convert it to ISO for Supabase
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
             setFormData(prev => prev ? { ...prev, created_at: date.toISOString() } : null);
@@ -61,14 +66,12 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
         onOpenChange(false);
     }
 
-    // This function formats an ISO string (from Supabase) into a `datetime-local` input-compatible string.
     const formatDateTimeLocal = (isoString: string) => {
         if (!isoString) return '';
         const date = new Date(isoString);
         if (isNaN(date.getTime())) {
             return '';
         }
-        // Adjust for timezone offset to display the correct local time in the input
         const tzoffset = date.getTimezoneOffset() * 60000;
         const localISOTime = new Date(date.getTime() - tzoffset).toISOString().slice(0, 16);
         return localISOTime;
@@ -147,8 +150,8 @@ export function EditTransactionDialog({ isOpen, onOpenChange, transaction, onSav
                             凭证/地址
                         </Label>
                         <Input
-                            id={formData.type === 'deposit' ? 'transaction_hash' : 'address'}
-                            value={formData.type === 'deposit' ? formData.transaction_hash : formData.address}
+                            id={formData.type === 'deposit' ? `transaction_hash_${formData.id}` : `address_${formData.id}`}
+                            value={formData.type === 'deposit' ? formData.transaction_hash || '' : formData.address || ''}
                             onChange={handleInputChange}
                             className="col-span-3"
                         />

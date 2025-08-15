@@ -40,16 +40,24 @@ export default function AdminRequestsPage() {
     }, [isAdmin, router]);
 
     const handleRequest = async (request: AnyRequest, newStatus: 'approved' | 'rejected') => {
-        if (newStatus === 'approved') {
-            await approveRequest(request.id);
-        } else {
-            await rejectRequest(request.id);
-        }
+        try {
+            if (newStatus === 'approved') {
+                await approveRequest(request.id);
+            } else {
+                await rejectRequest(request.id);
+            }
 
-        toast({
-            title: "操作成功",
-            description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
-        });
+            toast({
+                title: "操作成功",
+                description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
+            });
+        } catch (error: any) {
+             toast({
+                variant: "destructive",
+                title: "操作失败",
+                description: error.message || "处理请求时发生未知错误。",
+            });
+        }
     };
 
 

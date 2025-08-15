@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { AnyRequest } from '@/types';
+import type { AnyRequest, PasswordResetRequest } from '@/types';
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 
@@ -25,14 +25,17 @@ interface RequestsContextType {
     requests: AnyRequest[];
     addDepositRequest: (params: DepositRequestParams) => void;
     addWithdrawalRequest: (params: WithdrawalRequestParams) => void;
+    addPasswordResetRequest: (newPassword: string) => Promise<void>;
     approveRequest: (requestId: string) => Promise<void>;
     rejectRequest: (requestId: string) => Promise<void>;
+    deleteRequest: (requestId: string) => Promise<void>;
+    updateRequest: (requestId: string, updates: Partial<AnyRequest>) => Promise<void>;
 }
 
 const RequestsContext = createContext<RequestsContextType | undefined>(undefined);
 
 export function RequestsProvider({ children }: { children: ReactNode }) {
-    const { user, getUserById } = useAuth();
+    const { user, getUserById, updateUser } = useAuth();
     const { adjustBalance, adjustFrozenBalance, confirmWithdrawal, revertWithdrawal } = useBalance();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -69,7 +72,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         }
     }, [requests, isLoaded]);
 
-    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at'>) => {
+    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user_id'>) => {
         if (!user) return;
         
         const fullRequest: AnyRequest = {
@@ -98,6 +101,22 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         adjustFrozenBalance(params.asset, params.amount);
     }, [addRequest, adjustFrozenBalance]);
 
+    const addPasswordResetRequest = useCallback(async (newPassword: string) => {
+        return new Promise<void>((resolve, reject) => {
+            if (!user) {
+                reject(new Error("User not logged in."));
+                return;
+            }
+            const request: Omit<PasswordResetRequest, 'id' | 'status' | 'created_at' | 'user_id'> = {
+                type: 'password_reset',
+                new_password: newPassword,
+            };
+            addRequest(request);
+            resolve();
+        });
+    }, [user, addRequest]);
+
+
     const updateRequestStatus = (requestId: string, status: 'approved' | 'rejected') => {
         setRequests(prev => prev.map(req => 
             req.id === requestId ? { ...req, status } : req
@@ -112,6 +131,8 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             adjustBalance(request.user_id, request.asset, request.amount);
         } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
             confirmWithdrawal(request.asset, request.amount, request.user_id);
+        } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
+            await updateUser(request.user_id, { password: request.new_password });
         }
         
         updateRequestStatus(requestId, 'approved');
@@ -128,8 +149,18 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         updateRequestStatus(requestId, 'rejected');
     };
 
+    const deleteRequest = async (requestId: string) => {
+        setRequests(prev => prev.filter(r => r.id !== requestId));
+    }
+    
+    const updateRequest = async (requestId: string, updates: Partial<AnyRequest>) => {
+        setRequests(prev => prev.map(r => 
+            r.id === requestId ? { ...r, ...updates } : r
+        ));
+    }
 
-    const value = { requests, addDepositRequest, addWithdrawalRequest, approveRequest, rejectRequest };
+
+    const value = { requests, addDepositRequest, addWithdrawalRequest, approveRequest, rejectRequest, addPasswordResetRequest, deleteRequest, updateRequest };
 
     return (
         <RequestsContext.Provider value={value}>
