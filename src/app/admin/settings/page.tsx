@@ -51,7 +51,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
             <div className="space-y-2">
                 <Label>价格趋势模拟</Label>
                 <p className="text-xs text-muted-foreground">
-                关闭所有开关则默认使用随机市场数据。
+                此设置控制价格的长期走向。关闭所有开关则为随机游走。
                 </p>
                 <div className="flex items-center space-x-4 pt-2">
                     <div className="flex items-center space-x-2">
@@ -79,6 +79,9 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     <Label>价格波动率</Label>
                     <span className="text-sm font-medium text-primary">{(volatilityValue * 100).toFixed(0)}%</span>
                 </div>
+                 <p className="text-xs text-muted-foreground">
+                    此设置控制价格上下跳动的幅度，不影响总体趋势。
+                </p>
                 <Slider
                     defaultValue={[settings.volatility]}
                     max={0.2}
@@ -309,3 +312,4 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
+
