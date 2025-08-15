@@ -96,6 +96,8 @@ export type PasswordResetRequest = {
   user?: { username: string };
 };
 
+export type AnyRequest = Transaction | PasswordResetRequest;
+
 
 // Represents a user's investment in a product
 export type Investment = {

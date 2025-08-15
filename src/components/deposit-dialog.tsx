@@ -18,6 +18,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRequests } from "@/context/requests-context";
 
 type DepositDialogProps = {
     isOpen: boolean;
@@ -29,6 +30,7 @@ const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettin
 export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
+    const { addDepositRequest } = useRequests();
     const { systemSettings } = useSystemSettings();
     const [selectedAsset, setSelectedAsset] = useState<keyof typeof systemSettings.depositAddresses>("USDT");
     const [amount, setAmount] = useState("");
@@ -66,9 +68,15 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
             toast({ variant: "destructive", title: "无效操作", description: "请输入交易哈希/ID作为凭证。" });
             return;
         }
+
+        addDepositRequest({
+            asset: selectedAsset,
+            amount: numericAmount,
+            transaction_hash: transactionHash
+        });
         
         toast({
-            title: "充值请求已提交 (Mock)",
+            title: "充值请求已提交",
             description: `您的 ${amount} ${selectedAsset} 充值请求已发送给管理员审核，请耐心等待。`,
         });
         

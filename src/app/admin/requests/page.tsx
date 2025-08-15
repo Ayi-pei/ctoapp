@@ -1,18 +1,17 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import type { Transaction, PasswordResetRequest } from '@/types';
+import type { AnyRequest } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-type RequestWithUser = (Transaction | PasswordResetRequest);
+import { useRequests } from '@/context/requests-context';
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -32,7 +31,7 @@ export default function AdminRequestsPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const [requests, setRequests] = useState<RequestWithUser[]>([]);
+    const { requests, approveRequest, rejectRequest } = useRequests();
     
     useEffect(() => {
         if (isAdmin === false) {
@@ -40,25 +39,13 @@ export default function AdminRequestsPage() {
         }
     }, [isAdmin, router]);
 
-    const loadData = useCallback(async () => {
-        if (!isAdmin) return;
-        
-        // Mock data since Supabase is removed
-        const mockRequests: RequestWithUser[] = [
-            { id: 'req1', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 5000, status: 'pending', created_at: new Date().toISOString(), transaction_hash: '0xabc...def', user: { username: 'testuser1' } },
-            { id: 'req2', user_id: 'user456', type: 'withdrawal', asset: 'BTC', amount: 0.1, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), address: 'bc1q...', user: { username: 'testuser2' } },
-            { id: 'req3', user_id: 'user789', type: 'password_reset', new_password: 'newpassword123', status: 'pending', created_at: new Date(Date.now() - 7200000).toISOString(), user: { username: 'testuser3' } },
-        ];
-        setRequests(mockRequests);
+    const handleRequest = async (request: AnyRequest, newStatus: 'approved' | 'rejected') => {
+        if (newStatus === 'approved') {
+            await approveRequest(request.id);
+        } else {
+            await rejectRequest(request.id);
+        }
 
-    }, [isAdmin]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
-
-    const handleRequest = async (request: RequestWithUser, newStatus: 'approved' | 'rejected') => {
-        setRequests(prev => prev.filter(r => r.id !== request.id));
         toast({
             title: "操作成功",
             description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
@@ -76,6 +63,8 @@ export default function AdminRequestsPage() {
         )
     }
 
+    const pendingRequests = requests.filter(r => r.status === 'pending');
+
 
     return (
         <DashboardLayout>
@@ -84,7 +73,7 @@ export default function AdminRequestsPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>待处理队列</CardTitle>
+                        <CardTitle>待处理队列 ({pendingRequests.length})</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -98,7 +87,7 @@ export default function AdminRequestsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {requests.length > 0 ? requests.map((r) => (
+                                {pendingRequests.length > 0 ? pendingRequests.map((r) => (
                                     <TableRow key={r.id}>
                                         <TableCell>{r.user?.username || r.user_id}</TableCell>
                                         <TableCell>
@@ -107,7 +96,11 @@ export default function AdminRequestsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="text-xs">
-                                            {'amount' in r && r.amount ? `${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}` : '新密码: ***'}
+                                            {'amount' in r && r.amount ? (
+                                                `金额: ${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}`
+                                            ) : ('new_password' in r ? '新密码: ***' : '')}
+                                            {'address' in r && r.address && <p className='truncate max-w-[150px]'>地址: {r.address}</p>}
+                                            {'transaction_hash' in r && r.transaction_hash && <p className='truncate max-w-[150px]'>凭证: {r.transaction_hash}</p>}
                                         </TableCell>
                                         <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
                                         <TableCell className="text-right space-x-2">

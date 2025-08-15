@@ -19,6 +19,7 @@ import { useAuth } from "@/context/auth-context";
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
+import { useRequests } from "@/context/requests-context";
 
 type WithdrawDialogProps = {
     isOpen: boolean;
@@ -28,7 +29,8 @@ type WithdrawDialogProps = {
 export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const { balances, requestWithdrawal } = useBalance();
+    const { balances } = useBalance();
+    const { addWithdrawalRequest } = useRequests();
     const [selectedAddress, setSelectedAddress] = useState("");
     const [amount, setAmount] = useState("");
     const [savedAddresses, setSavedAddresses] = useState<WithdrawalAddress[]>([]);
@@ -56,23 +58,32 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             return;
         }
         
-        const success = await requestWithdrawal('USDT', numericAmount, selectedAddress);
-        
-        if (success) {
-            toast({
-                title: "提币请求已提交",
-                description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
-            });
-            setSelectedAddress("");
-            setAmount("");
-            onOpenChange(false);
-        } else {
-            toast({
+        if (numericAmount > (balances['USDT']?.available || 0)) {
+             toast({
                 variant: "destructive",
                 title: "提币失败",
-                description: "您的USDT可用余额不足或操作失败。",
+                description: "您的USDT可用余额不足。",
             });
+            return;
         }
+        
+        addWithdrawalRequest({
+            asset: 'USDT',
+            amount: numericAmount,
+            address: selectedAddress
+        });
+        
+        toast({
+            title: "提币请求已提交",
+            description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
+        });
+        
+        // This will be handled by the admin approval now
+        // requestWithdrawal('USDT', numericAmount, selectedAddress);
+        
+        setSelectedAddress("");
+        setAmount("");
+        onOpenChange(false);
     };
     
     const handleOpenChange = (open: boolean) => {

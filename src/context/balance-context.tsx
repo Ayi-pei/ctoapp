@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export type { Investment };
 
-const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: number } } = {
+const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
     BTC: { available: 0, frozen: 0 },
     ETH: { available: 0, frozen: 0 },
@@ -25,6 +25,7 @@ const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: 
     'EUR/USD': { available: 0, frozen: 0},
     'GBP/USD': { available: 0, frozen: 0},
 };
+
 
 const ALL_ASSETS = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
@@ -43,11 +44,12 @@ interface BalanceContextType {
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
-  requestWithdrawal: (asset: string, amount: number, address: string) => Promise<boolean>;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
   recalculateBalanceForUser: (userId: string) => Promise<any>;
+  adjustBalance: (userId: string, asset: string, amount: number) => void;
+  adjustFrozenBalance: (asset: string, amount: number, userId?: string) => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -56,7 +58,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: marketData } = useMarket();
   const { toast } = useToast();
-  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_TEST_USER);
+  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,10 +66,47 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
   
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
+    // This is a mock. In a real app, this would fetch all transactions for the user
+    // and recalculate the balance from scratch.
     console.log("Recalculating balance for (mock)", userId);
-    // In a real scenario, this would fetch and calculate. Now it does nothing.
+    // For now, we just return the current state as we don't have a transaction log to rebuild from.
     return balances;
   }, [balances]);
+
+  // This should only be called by an admin or a trusted context (like RequestsContext)
+  const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
+      // In a real app, you'd find the user's balance state and adjust it.
+      // Since this is a single-user-view app, we adjust the current user's balance
+      // if the ID matches. This is a simplification for the mock environment.
+      if (user?.id === userId) {
+          setBalances(prev => {
+              const newBalances = { ...prev };
+              newBalances[asset] = {
+                  ...newBalances[asset],
+                  available: (newBalances[asset]?.available || 0) + amount,
+              };
+              return newBalances;
+          });
+      }
+  }, [user]);
+  
+  const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
+      // If userId is provided, check if it's the current user. If not, this is for the current user.
+      if (userId && user?.id !== userId) {
+          // This adjustment is for another user, so we do nothing in this client's state.
+          // In a real app with a central DB, this would just work.
+          return;
+      }
+      setBalances(prev => {
+        const newBalances = { ...prev };
+        newBalances[asset] = {
+            available: (newBalances[asset]?.available || 0) - amount,
+            frozen: (newBalances[asset]?.frozen || 0) + amount,
+        };
+        return newBalances;
+      })
+
+  }, [user]);
 
   useEffect(() => {
     // Since we are using mock data, we don't need to reload anything when the user changes.
@@ -171,29 +210,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     })
   };
   
-  const requestWithdrawal = async (asset: string, amount: number, address: string) => {
-      if (!user) return false;
-      if (user.is_frozen) {
-        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
-        return false;
-      }
-      const balance = balances[asset];
-      if (!balance || amount > balance.available) {
-          toast({ variant: 'destructive', title: 'Withdrawal Failed', description: 'Insufficient balance.' });
-          return false;
-      }
-
-      toast({ title: 'Withdrawal Requested', description: 'Your request has been submitted for review.' });
-      setBalances(prev => ({
-        ...prev,
-        [asset]: {
-          available: prev[asset].available - amount,
-          frozen: prev[asset].frozen + amount,
-        }
-      }))
-      return true;
-  };
-
   const value = { 
       balances, 
       assets: ALL_ASSETS, 
@@ -202,10 +218,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       isLoading,
       investments,
       addInvestment,
-      requestWithdrawal,
       recalculateBalanceForUser,
       activeContractTrades,
       historicalTrades,
+      adjustBalance,
+      adjustFrozenBalance,
     };
 
   return (
