@@ -111,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
      try {
+        // Use the standard signUp method which is the correct approach.
+        // The database trigger 'create_user_profile' will handle inserting into the public.users table.
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -118,15 +120,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     invitation_code: invitationCode,
-                    // The `create_user_profile` trigger in Supabase will handle the rest
                 }
             }
         });
       
         if (error) throw error;
         
+        // The new user is created but requires email confirmation by default.
+        // For this app, we can assume direct success.
         if (!data.user) {
-             throw new Error("Registration succeeded but no user object was returned.");
+             throw new Error("Registration succeeded but no user object was returned. This might be expected if email confirmation is on.");
         }
       
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
