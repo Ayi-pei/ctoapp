@@ -109,22 +109,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
+    const email = `${username.toLowerCase()}@noemail.app`;
      try {
-        const { data, error: rpcError } = await supabase.rpc('register_new_user', {
-            p_password: password,
-            p_username: username,
-            p_invitation_code: "admin8888" // Hardcode to always register as admin
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    username: username,
+                    invitation_code: invitationCode,
+                    // The `create_user_profile` trigger in Supabase will handle the rest
+                }
+            }
         });
       
-        if (rpcError) throw rpcError;
+        if (error) throw error;
         
-        const result = data as RegisterUserResponse;
-
-        if (result.status === 'error') {
-           throw new Error(result.message);
+        if (!data.user) {
+             throw new Error("Registration succeeded but no user object was returned.");
         }
       
-        toast({ title: '注册成功', description: '新的管理员账户已创建，请登录。' });
+        toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
         return true;
 
     } catch (error: any) {
