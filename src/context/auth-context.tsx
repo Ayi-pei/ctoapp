@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 is_admin: true,
                 is_test_user: false,
                 is_frozen: false,
-                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '147258', 
+                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '', // Hardcoded secret removed
                 inviter_id: null,
                 created_at: new Date().toISOString(),
             };
