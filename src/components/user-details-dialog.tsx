@@ -338,7 +338,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                             </div>
 
                              <div className="space-y-4">
-                                <h5 className="text-sm font-medium flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 发送消息给用户</h5>
+                                <h5 className="text-sm font-medium flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 为用户发送专属公告内容</h5>
                                  <div className="space-y-2">
                                     <Label htmlFor="message-title">标题</Label>
                                     <Input 
