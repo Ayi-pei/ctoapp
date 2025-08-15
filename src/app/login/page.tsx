@@ -95,7 +95,12 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <Input placeholder="请输入您的用户名" {...field} name="username" />
+                      <div className="relative">
+                        <Input placeholder="请输入您的用户名" {...field} name="username" className="pr-28"/>
+                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                            @noemail.app
+                        </span>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

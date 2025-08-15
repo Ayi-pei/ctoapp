@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const email = `${username.toLowerCase()}@rsf.app`;
+    const email = `${username.toLowerCase()}@noemail.app`;
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-        const email = `${username.toLowerCase()}@rsf.app`;
+        const email = `${username.toLowerCase()}@noemail.app`;
         const { data, error: rpcError } = await supabase.rpc('register_new_user', {
             p_email: email,
             p_password: password,

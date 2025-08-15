@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useForm } from 'react-hook-form';
@@ -59,7 +58,12 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <Input placeholder="5-10位字母或数字" {...field} />
+                       <div className="relative">
+                        <Input placeholder="5-10位字母或数字" {...field} className="pr-28" />
+                         <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                            @noemail.app
+                        </span>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
