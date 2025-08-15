@@ -111,8 +111,17 @@ API 密钥： 提供了 Tatum API 密钥（Mainnet 和 Testnet），以及 Supab
 **这是解决注册问题的核心步骤，请务必执行。**
 
 ```sql
--- Function to generate a random invitation code
-CREATE OR REPLACE FUNCTION generate_invitation_code()
+-- Step 1: Drop the old, conflicting trigger if it exists.
+-- This ensures a clean slate by removing outdated logic.
+DROP TRIGGER IF EXISTS on_new_user_before_insert ON public.users CASCADE;
+
+-- Step 2: Drop the old functions to ensure a clean slate.
+-- Using "IF EXISTS" makes the script safe to run even if the functions are already gone.
+DROP FUNCTION IF EXISTS public.register_new_user(text, text, text, text);
+DROP FUNCTION IF EXISTS public.generate_invitation_code();
+
+-- Step 3: Create the function to generate a random invitation code.
+CREATE OR REPLACE FUNCTION public.generate_invitation_code()
 RETURNS TEXT AS $$
 DECLARE
     new_code TEXT;
@@ -136,7 +145,7 @@ END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 
--- The main registration function, called via RPC from the client.
+-- Step 4: Create the main registration function, called via RPC from the client.
 -- This function handles all registration logic securely on the server side.
 CREATE OR REPLACE FUNCTION public.register_new_user(
     p_username text,
@@ -146,6 +155,8 @@ CREATE OR REPLACE FUNCTION public.register_new_user(
 )
 RETURNS json
 LANGUAGE plpgsql
+-- SECURITY DEFINER allows the function to run with the privileges of the user who defined it (the owner),
+-- which is necessary to insert into auth.users and bypass RLS for the initial public.users insert.
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -174,11 +185,12 @@ BEGIN
     END IF;
 
     -- 3. Create the user in auth.users
+    -- This uses an internal Supabase function to create the auth user and get their ID.
     new_user_id := auth.uid_provider(
         'email',
         jsonb_build_object('email', p_email, 'password', p_password)
     );
-    
+
     -- 4. Create the corresponding profile in public.users
     INSERT INTO public.users (id, username, email, is_admin, inviter_id, invitation_code)
     VALUES (new_user_id, p_username, p_email, is_admin_user, inviter_user_id, generate_invitation_code());
@@ -186,12 +198,14 @@ BEGIN
     RETURN json_build_object('status', 'success', 'user_id', new_user_id, 'message', '用户注册成功！');
 EXCEPTION
     WHEN OTHERS THEN
+        -- A generic error handler to catch any other issues during the process.
         RETURN json_build_object('status', 'error', 'message', '注册过程中发生未知错误: ' || SQLERRM);
 END;
 $$;
 
--- Grant execution rights to the anon and authenticated roles so the client can call it
-grant execute on function public.register_new_user(text, text, text, text) to anon_key, authenticated;
+-- Step 5: Grant execution rights to the 'anon' and 'authenticated' roles so the client can call it.
+-- This is the crucial step that allows your frontend to use this function.
+grant execute on function public.register_new_user(text, text, text, text) to anon, authenticated;
 
 ```
 
@@ -204,3 +218,5 @@ src/app/profile/payment/page.tsx 涉及提现地址管理。
 总结：
 
 这是一个基于 Next.js 和 Supabase 构建的加密货币交易平台，具有完善的用户认证、多种交易类型（合约和现货）、投资功能以及一个多级佣金推荐系统。项目注重安全性，通过 Supabase 的 RLS 和自定义 PostgreSQL 函数实现了精细的权限控制。它还集成了 Tatum API 来获取实时的区块链数据，并可能利用 Genkit AI 提供智能辅助。部署流程也清晰，通过 GitHub/Netlify 实现自动化部署，并使用了 Cloudflare 进行域名管理和SSL配置。
+
+    
