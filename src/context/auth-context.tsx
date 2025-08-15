@@ -33,6 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- Mock Database using localStorage ---
 const USERS_STORAGE_KEY = 'tradeflow_users';
+const ADMIN_USER_ID = 'admin_user_001';
 
 const generateInvitationCode = () => {
     const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -77,26 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
         password === process.env.NEXT_PUBLIC_ADMIN_KEY
     ) {
-        const adminId = 'admin_user_001';
         let allUsers = getMockUsers();
-        let adminUser = Object.values(allUsers).find(u => u.is_admin);
+        let adminUser = allUsers[ADMIN_USER_ID];
 
         // If admin user doesn't exist in our mock DB, create it on first login.
         if (!adminUser) {
             adminUser = {
-                id: adminId,
+                id: ADMIN_USER_ID,
                 username: username,
                 password: password, // Save password for mock login
                 email: `${username}@noemail.app`,
                 is_admin: true,
                 is_test_user: false,
                 is_frozen: false,
-                // Use the ADMIN_AUTH env var as the "genesis" invitation code
-                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || 'ADMIN123', 
+                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '147258', 
                 inviter_id: null,
                 created_at: new Date().toISOString(),
             };
-            allUsers[adminId] = adminUser;
+            allUsers[ADMIN_USER_ID] = adminUser;
             saveMockUsers(allUsers);
         }
         
@@ -129,8 +128,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
       }
       
-      const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
-      if (!inviter) {
+      let inviterId: string | null = null;
+      
+      // Special check for Admin's "genesis" invitation code
+      if (invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH) {
+          inviterId = ADMIN_USER_ID;
+      } else {
+          const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
+          if (inviter) {
+            inviterId = inviter.id;
+          }
+      }
+
+      if (!inviterId) {
           console.error("Invalid invitation code");
           return false;
       }
@@ -144,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           is_test_user: true,
           is_frozen: false,
           invitation_code: generateInvitationCode(),
-          inviter_id: inviter.id,
+          inviter_id: inviterId,
           created_at: new Date().toISOString(),
       };
       
