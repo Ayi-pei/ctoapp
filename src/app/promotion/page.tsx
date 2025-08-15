@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
@@ -10,44 +11,22 @@ import { BarChart2, Users, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import type { CommissionLog, User as DownlineMember } from "@/types";
+import type { User as DownlineMember } from "@/types";
+import { useBalance } from "@/context/balance-context";
 
 
 export default function PromotionPage() {
     const { user, getDownline, getUserById } = useAuth();
+    const { commissionLogs } = useBalance();
     const { toast } = useToast();
-    const [commissions, setCommissions] = useState<CommissionLog[]>([]);
     const [downline, setDownline] = useState<DownlineMember[]>([]);
 
-    const getLevel = useCallback((targetUser: DownlineMember, uplineId: string, allUsers: { [key: string]: DownlineMember }) => {
-        let currentUser = targetUser;
-        let level = 1;
-        while(currentUser.inviter_id && currentUser.inviter_id !== uplineId && level < 4) {
-            currentUser = allUsers[currentUser.inviter_id];
-            if (!currentUser) return -1; // Should not happen
-            level++;
-        }
-        return currentUser.inviter_id === uplineId ? level : -1;
-    }, []);
-
-    const loadData = useCallback(async () => {
-        if (!user) return;
-        
-        // Mock data since we have no real trades
-        const mockCommissions: CommissionLog[] = [
-            { id: 'cl1', upline_user_id: user.id, source_user_id: 'user2', source_username: 'testuser2', source_level: 1, trade_amount: 1000, commission_rate: 0.08, commission_amount: 80, created_at: new Date().toISOString() },
-            { id: 'cl2', upline_user_id: user.id, source_user_id: 'user3', source_username: 'testuser3', source_level: 2, trade_amount: 500, commission_rate: 0.05, commission_amount: 25, created_at: new Date().toISOString() },
-        ];
-        
-        const allDownline = getDownline(user.id);
-        setDownline(allDownline);
-        setCommissions(mockCommissions);
-
-    }, [user, getDownline]);
-
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (user) {
+            const allDownline = getDownline(user.id);
+            setDownline(allDownline);
+        }
+    }, [user, getDownline]);
 
     const copyToClipboard = () => {
         if (user?.invitation_code) {
@@ -59,23 +38,23 @@ export default function PromotionPage() {
         }
     };
 
-    const totalCommission = commissions.reduce((acc, curr) => acc + curr.commission_amount, 0);
+    const totalCommission = commissionLogs.reduce((acc, curr) => acc + curr.commission_amount, 0);
 
     const getMemberLevel = (member: DownlineMember) => {
         if (!user || !user.id) return 0;
-        if (member.inviter_id === user.id) return 1;
         
-        const inviter = getUserById(member.inviter_id!);
-        if (!inviter) return 0;
-
-        if (inviter.inviter_id === user.id) return 2;
-
-        const grandInviter = getUserById(inviter.inviter_id!);
-        if (!grandInviter) return 0;
-        
-        if(grandInviter.inviter_id === user.id) return 3;
-
-        return 0;
+        let current = member;
+        let level = 1;
+        while (current.inviter_id) {
+            if (current.inviter_id === user.id) {
+                return level;
+            }
+            current = getUserById(current.inviter_id)!;
+            if (!current) return 0; // Should not happen in a consistent dataset
+            level++;
+             if (level > 3) return 0; // Stop searching beyond 3 levels
+        }
+        return 0; // Not in the downline
     }
 
     return (
@@ -126,7 +105,7 @@ export default function PromotionPage() {
                                        <TableRow key={member.id}>
                                            <TableCell className="font-medium">{member.username}</TableCell>
                                            <TableCell>
-                                                <Badge variant="outline">LV {getMemberLevel(member)}</Badge>
+                                                <Badge variant="outline">LV {(member as any).level}</Badge>
                                            </TableCell>
                                            <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                                        </TableRow>
@@ -162,7 +141,7 @@ export default function PromotionPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                   {commissions.length > 0 ? commissions.map(log => (
+                                   {commissionLogs.length > 0 ? commissionLogs.map(log => (
                                         <TableRow key={log.id}>
                                             <TableCell>{log.source_username}</TableCell>
                                             <TableCell>LV {log.source_level}</TableCell>

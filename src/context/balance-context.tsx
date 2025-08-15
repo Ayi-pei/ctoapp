@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment, CommissionLog, User } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
 
 
 const ALL_ASSETS = [...new Set(availablePairs.flatMap(p => p.split('/')))];
+const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -41,6 +42,7 @@ type ContractTradeParams = {
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
+  commissionLogs: CommissionLog[];
   addInvestment: (productName: string, amount: number) => Promise<boolean>;
   assets: string[];
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
@@ -58,12 +60,13 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, getUserById } = useAuth();
   const { data: marketData } = useMarket();
   const { toast } = useToast();
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [commissionLogs, setCommissionLogs] = useState<CommissionLog[]>([]);
 
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
@@ -73,24 +76,38 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // and recalculate the balance from scratch.
     console.log("Recalculating balance for (mock)", userId);
     // For now, we just return the current state as we don't have a transaction log to rebuild from.
-    return balances;
-  }, [balances]);
+    const userStorageKey = `tradeflow_user_${userId}`;
+    const storedData = localStorage.getItem(userStorageKey);
+    if (storedData) {
+        const data = JSON.parse(storedData);
+        return data.balances || INITIAL_BALANCES_USER;
+    }
+    return INITIAL_BALANCES_USER;
+  }, []);
 
   const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
+      // This is a generic utility now, so it needs to fetch, update, and save.
+      const userStorageKey = `tradeflow_user_${userId}`;
+      const storedData = localStorage.getItem(userStorageKey);
+      const userData = storedData ? JSON.parse(storedData) : { balances: INITIAL_BALANCES_USER, investments: [], activeContractTrades: [], historicalTrades: [] };
+      
+      const userBalances = userData.balances;
+      userBalances[asset] = {
+          ...userBalances[asset],
+          available: (userBalances[asset]?.available || 0) + amount,
+      };
+
+      userData.balances = userBalances;
+      localStorage.setItem(userStorageKey, JSON.stringify(userData));
+
+      // If the adjusted user is the current user, update state too.
       if (user?.id === userId) {
-          setBalances(prev => {
-              const newBalances = { ...prev };
-              newBalances[asset] = {
-                  ...newBalances[asset],
-                  available: (newBalances[asset]?.available || 0) + amount,
-              };
-              return newBalances;
-          });
+          setBalances(userBalances);
       }
-  }, [user]);
+  }, [user?.id]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
-      if (userId && user?.id !== userId) return;
+      if (userId && user?.id !== userId) return; // Should not happen if called correctly
       setBalances(prev => {
         const newBalances = { ...prev };
         newBalances[asset] = {
@@ -138,12 +155,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             setInvestments(data.investments || []);
             setActiveContractTrades(data.activeContractTrades || []);
             setHistoricalTrades(data.historicalTrades || []);
+            setCommissionLogs(data.commissionLogs || []);
         } else {
             // New user, set initial state
             setBalances(INITIAL_BALANCES_USER);
             setInvestments([]);
             setActiveContractTrades([]);
             setHistoricalTrades([]);
+            setCommissionLogs([]);
         }
     } else {
         // Logged out, clear all data
@@ -151,6 +170,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setInvestments([]);
         setActiveContractTrades([]);
         setHistoricalTrades([]);
+        setCommissionLogs([]);
     }
     setIsLoading(false);
   }, [user]);
@@ -164,10 +184,63 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
               investments,
               activeContractTrades,
               historicalTrades,
+              commissionLogs,
           };
           localStorage.setItem(userStorageKey, JSON.stringify(dataToStore));
       }
-  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades]);
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs]);
+
+
+  const distributeCommissions = useCallback((sourceUser: User, tradeAmount: number) => {
+    if (!sourceUser.inviter_id) return;
+
+    let currentUplineId: string | null = sourceUser.inviter_id;
+    
+    for (let level = 1; level <= 3; level++) {
+        if (!currentUplineId) break;
+
+        const uplineUser = getUserById(currentUplineId);
+        if (!uplineUser || uplineUser.is_frozen) {
+            // Stop distributing if upline doesn't exist or is frozen
+            break;
+        }
+        
+        const commissionRate = COMMISSION_RATES[level - 1];
+        const commissionAmount = tradeAmount * commissionRate;
+
+        // Give commission to the upline user
+        adjustBalance(uplineUser.id, 'USDT', commissionAmount);
+        
+        // Log the commission for the upline user
+        const commissionLog: CommissionLog = {
+            id: `clog-${Date.now()}-${level}`,
+            upline_user_id: uplineUser.id,
+            source_user_id: sourceUser.id,
+            source_username: sourceUser.username,
+            source_level: level,
+            trade_amount: tradeAmount,
+            commission_rate: commissionRate,
+            commission_amount: commissionAmount,
+            created_at: new Date().toISOString(),
+        };
+
+        // We need to fetch the upline user's data, add the log, and save it back
+        const uplineStorageKey = `tradeflow_user_${uplineUser.id}`;
+        const storedUplineData = localStorage.getItem(uplineStorageKey);
+        const uplineData = storedUplineData ? JSON.parse(storedUplineData) : { commissionLogs: [] };
+        const updatedLogs = [...(uplineData.commissionLogs || []), commissionLog];
+        uplineData.commissionLogs = updatedLogs;
+        localStorage.setItem(uplineStorageKey, JSON.stringify(uplineData));
+
+        // If the current user is this upline, update their state too
+        if (user?.id === uplineUser.id) {
+            setCommissionLogs(updatedLogs);
+        }
+
+        currentUplineId = uplineUser.inviter_id; // Move to the next level up
+    }
+  }, [getUserById, adjustBalance, user?.id]);
+
 
   const settleContractTrade = useCallback((tradeId: string) => {
     const trade = activeContractTrades.find(t => t.id === tradeId);
@@ -218,13 +291,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     const interval = setInterval(() => {
         const now = new Date();
-        const tradesToSettle = activeContractTrades.filter(
-            trade => new Date(trade.settlement_time) <= now
-        );
-
-        if (tradesToSettle.length > 0) {
-            tradesToSettle.forEach(trade => settleContractTrade(trade.id));
-        }
+        activeContractTrades.forEach(trade => {
+            if (new Date(trade.settlement_time) <= now) {
+                settleContractTrade(trade.id);
+            }
+        });
     }, 1000); // Check every second
 
     return () => clearInterval(interval);
@@ -293,6 +364,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         frozen: prev.USDT.frozen + trade.amount
       }
     }));
+
+    // Distribute commissions after placing trade
+    distributeCommissions(user, trade.amount);
   };
   
   const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
@@ -330,7 +404,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         newBalances[quoteAsset].available += trade.total;
       }
       return newBalances;
-    })
+    });
+
+     // Distribute commissions after placing trade
+    distributeCommissions(user, trade.total);
   };
   
   const value = { 
@@ -340,6 +417,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       placeSpotTrade, 
       isLoading,
       investments,
+      commissionLogs,
       addInvestment,
       recalculateBalanceForUser,
       activeContractTrades,
