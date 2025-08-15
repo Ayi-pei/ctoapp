@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@genkit-ai/googleai": "^1.14.1",
-    "@genkit-ai/next": "^1.14.1",
+    "@genkit-ai/googleai": "0.5.0",
+    "@genkit-ai/next": "0.6.0",
     "@hookform/resolvers": "^3.3.4",
     "@nestjs/passport": "^11.0.5",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -46,7 +46,7 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
-    "genkit": "^1.14.1",
+    "genkit": "0.6.1",
     "lucide-react": "^0.475.0",
     "nestjs-supabase-auth": "^1.0.9",
     "next": "14.2.31",
@@ -67,7 +67,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "genkit-cli": "^1.14.1",
+    "genkit-cli": "0.6.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
