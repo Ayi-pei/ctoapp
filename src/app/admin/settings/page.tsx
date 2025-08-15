@@ -54,31 +54,30 @@ export default function AdminSettingsPage() {
                     <Button onClick={handleSave}>保存全部更改</Button>
                 </div>
                 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>通用设置</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {supportedAssets.map((asset) => (
-                             <div className="space-y-2" key={asset}>
-                                <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
-                                <Input
-                                    id={`deposit-address-${asset}`}
-                                    type="text"
-                                    value={systemSettings.depositAddresses[asset] || ''}
-                                    onChange={(e) => updateDepositAddress(asset, e.target.value)}
-                                    placeholder={`请输入您的 ${asset} 钱包或账户地址`}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    此地址将显示给用户用于充值 {asset}。
-                                </p>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     <Card className="lg:col-span-1">
+                        <CardHeader>
+                            <CardTitle>通用设置</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {supportedAssets.map((asset) => (
+                                <div className="space-y-2" key={asset}>
+                                    <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
+                                    <Input
+                                        id={`deposit-address-${asset}`}
+                                        type="text"
+                                        value={systemSettings.depositAddresses[asset] || ''}
+                                        onChange={(e) => updateDepositAddress(asset, e.target.value)}
+                                        placeholder={`请输入您的 ${asset} 钱包或账户地址`}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        此地址将显示给用户用于充值 {asset}。
+                                    </p>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+
                     {availablePairs.map((pair) => {
                         const pairSettings = settings[pair] || { 
                             trend: 'normal', 
@@ -207,3 +206,5 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
+
+    

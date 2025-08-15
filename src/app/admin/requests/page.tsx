@@ -115,7 +115,7 @@ export default function AdminRequestsPage() {
                                              <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequest(r, 'approved')}>
                                                 批准
                                             </Button>
-                                             <Button variant="outline" size="sm" className="text-red-500 border-red-500 hover:bg-red-500/10 hover:text-red-600" onClick={() => handleRequest(r, 'rejected')}>
+                                             <Button variant="destructive" size="sm" onClick={() => handleRequest(r, 'rejected')}>
                                                 拒绝
                                             </Button>
                                         </TableCell>
@@ -135,3 +135,5 @@ export default function AdminRequestsPage() {
         </DashboardLayout>
     );
 }
+
+    

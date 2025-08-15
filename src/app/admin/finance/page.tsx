@@ -24,10 +24,10 @@ import {
 import { useRequests } from "@/context/requests-context";
 import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
 
-const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
-    'pending': 'secondary',
-    'approved': 'default',
-    'rejected': 'destructive'
+const statusVariant: { [key: string]: string } = {
+    'pending': 'bg-yellow-500/20 text-yellow-500',
+    'approved': 'bg-green-500/20 text-green-500',
+    'rejected': 'bg-red-500/20 text-red-500'
 }
 
 const statusText: { [key: string]: string } = {
@@ -130,11 +130,7 @@ export default function AdminFinancePage() {
                                        <TableCell>{t.asset}</TableCell>
                                        <TableCell>{t.amount.toFixed(2)}</TableCell>
                                        <TableCell>
-                                           <Badge variant={statusVariant[t.status]} className={cn(
-                                               t.status === 'approved' && 'bg-green-500/20 text-green-500',
-                                               t.status === 'pending' && 'bg-yellow-500/20 text-yellow-500',
-                                               t.status === 'rejected' && 'bg-red-500/20 text-red-500',
-                                           )}>
+                                           <Badge variant="outline" className={statusVariant[t.status]}>
                                                {statusText[t.status]}
                                            </Badge>
                                        </TableCell>
@@ -185,3 +181,5 @@ export default function AdminFinancePage() {
         </DashboardLayout>
     );
 }
+
+    

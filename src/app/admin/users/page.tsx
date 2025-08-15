@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
 
     const handleSuccessfulUpdate = useCallback(() => {
         // Mock update - just show a toast and reload data
-        toast({ title: 'Success', description: 'User data has been updated (mock).' });
+        toast({ title: '成功', description: '用户数据已更新。' });
         loadData();
     }, [loadData, toast]);
 
@@ -115,19 +115,19 @@ export default function AdminUsersPage() {
                 <h1 className="text-2xl font-bold">用户管理</h1>
                 
                 <Card>
-                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div className='flex-grow'>
+                    <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div>
                             <CardTitle>用户列表</CardTitle>
                              <CardDescription>查看和管理系统中的所有用户。</CardDescription>
                         </div>
-                        <div className='flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto'>
-                            <div className="flex items-center gap-2">
-                                <Button onClick={generateInvitationCode}>
+                        <div className='flex items-center gap-4 w-full md:w-auto'>
+                             <div className="flex items-center gap-2">
+                                <Button onClick={generateInvitationCode} variant="outline">
                                     <Ticket className="mr-2 h-4 w-4" />
                                     获取邀请码
                                 </Button>
                                 {generatedCode && (
-                                    <div className="flex items-center gap-2 p-2 border rounded-md bg-muted">
+                                    <div className="flex items-center gap-2 p-2 border rounded-md bg-muted h-10">
                                         <span className="font-mono font-semibold text-primary">{generatedCode}</span>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(generatedCode)}>
                                             <Copy className="h-4 w-4" />
@@ -201,3 +201,5 @@ export default function AdminUsersPage() {
 
     
 }
+
+    
