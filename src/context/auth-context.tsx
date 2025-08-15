@@ -110,15 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
-        // --- MODIFICATION START ---
-        // Always register as an admin for easy access during setup.
-        // The original logic would use the invitation code to determine admin status.
         const { data, error: rpcError } = await supabase.rpc('register_new_user', {
             p_password: password,
             p_username: username,
-            p_invitation_code: "admin8888" // Hardcode the admin invitation code
+            p_invitation_code: "admin8888" // Hardcode to always register as admin
         });
-        // --- MODIFICATION END ---
       
         if (rpcError) throw rpcError;
         
