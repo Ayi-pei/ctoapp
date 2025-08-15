@@ -102,34 +102,97 @@ API 密钥： 提供了 Tatum API 密钥（Mainnet 和 Testnet），以及 Supab
 邀请码：admin8888
 
 ---
-## 数据库修复脚本
+## 数据库修复/设置脚本（必须执行）
 
-如果您遇到管理员 (`admin666`) 无法登录，或看到 `Cannot coerce the result to a single JSON object` 的错误，请在您的 Supabase 项目的 **SQL Editor** 中执行以下脚本一次。
+为了确保注册功能能够正常工作，请在您的 Supabase 项目的 **SQL Editor** 中**完整地执行一次**以下脚本。
 
-这个脚本会创建一个函数，该函数的作用是：在管理员登录时，自动检查并创建其在 `public.users` 表中缺失的个人资料，从而修复登录问题。
+这个脚本会创建一个名为 `register_new_user` 的数据库函数。此函数将安全地处理新用户的创建，包括验证邀请码、创建认证用户以及在 `public.users` 表中创建对应的公开资料。您的前端应用将直接调用此函数来完成所有注册逻辑。
 
-**注：最新代码已将此修复逻辑内置到登录函数中，一般不再需要手动执行此脚本。**
+**这是解决注册问题的核心步骤，请务必执行。**
 
 ```sql
--- Creates or replaces the function to ensure the admin user profile exists.
-CREATE OR REPLACE FUNCTION create_admin_user_profile_if_not_exists()
-RETURNS void AS $$
+-- Function to generate a random invitation code
+CREATE OR REPLACE FUNCTION generate_invitation_code()
+RETURNS TEXT AS $$
 DECLARE
-    admin_auth_user RECORD;
+    new_code TEXT;
+    is_duplicate BOOLEAN;
 BEGIN
-    -- Find the admin user in the auth.users table
-    SELECT * INTO admin_auth_user FROM auth.users WHERE email = 'admin666@noemail.app' LIMIT 1;
-
-    -- If the admin exists in auth but not in public.users, create the profile
-    IF admin_auth_user IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.users WHERE id = admin_auth_user.id) THEN
-        INSERT INTO public.users (id, username, email, is_admin)
-        VALUES (admin_auth_user.id, 'admin666', 'admin666@noemail.app', TRUE);
-    END IF;
+    LOOP
+        new_code := (
+            SELECT string_agg(c, '')
+            FROM (
+                SELECT unnest(array['1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U','V','W','X','Y','Z']) AS c
+                ORDER BY random()
+                LIMIT 6
+            ) AS t
+        );
+        SELECT EXISTS(SELECT 1 FROM public.users WHERE invitation_code = new_code) INTO is_duplicate;
+        IF NOT is_duplicate THEN
+            RETURN new_code;
+        END IF;
+    END LOOP;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql VOLATILE;
 
--- Grant execute permission to the authenticated role
-GRANT EXECUTE ON FUNCTION create_admin_user_profile_if_not_exists() TO authenticated;
+
+-- The main registration function, called via RPC from the client.
+-- This function handles all registration logic securely on the server side.
+CREATE OR REPLACE FUNCTION public.register_new_user(
+    p_username text,
+    p_email text,
+    p_password text,
+    p_invitation_code text
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    new_user_id uuid;
+    inviter_user_id uuid;
+    is_admin_user boolean := false;
+BEGIN
+    -- 1. Check for existing username or email
+    IF EXISTS (SELECT 1 FROM public.users WHERE username = p_username) THEN
+        RETURN json_build_object('status', 'error', 'message', '该用户名已被使用，请更换一个。');
+    END IF;
+    IF EXISTS (SELECT 1 FROM auth.users WHERE email = p_email) THEN
+        RETURN json_build_object('status', 'error', 'message', '该用户名已被使用，请更换一个。');
+    END IF;
+
+    -- 2. Validate invitation code
+    IF p_invitation_code = 'admin8888' THEN
+        is_admin_user := true;
+        inviter_user_id := NULL;
+    ELSE
+        SELECT id INTO inviter_user_id FROM public.users WHERE invitation_code = p_invitation_code;
+        IF inviter_user_id IS NULL THEN
+            RETURN json_build_object('status', 'error', 'message', '无效的邀请码。');
+        END IF;
+    END IF;
+
+    -- 3. Create the user in auth.users
+    new_user_id := auth.uid_provider(
+        'email',
+        jsonb_build_object('email', p_email, 'password', p_password)
+    );
+    
+    -- 4. Create the corresponding profile in public.users
+    INSERT INTO public.users (id, username, email, is_admin, inviter_id, invitation_code)
+    VALUES (new_user_id, p_username, p_email, is_admin_user, inviter_user_id, generate_invitation_code());
+
+    RETURN json_build_object('status', 'success', 'user_id', new_user_id, 'message', '用户注册成功！');
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object('status', 'error', 'message', '注册过程中发生未知错误: ' || SQLERRM);
+END;
+$$;
+
+-- Grant execution rights to the anon and authenticated roles so the client can call it
+grant execute on function public.register_new_user(text, text, text, text) to anon_key, authenticated;
+
 ```
 
 ---

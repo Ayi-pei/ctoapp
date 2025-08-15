@@ -36,15 +36,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          return null; // User profile not found, this is handled in onAuthStateChange
+         if (error.code === 'PGRST116') { // "Not a single row" error, means profile doesn't exist
+            console.warn(`User profile for ${supabaseUser.id} not found.`);
+            return null; 
         }
         throw error;
       }
@@ -61,36 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
-        setSession(session);
+        const currentSession = session;
+        setSession(currentSession);
         
-        if (session?.user) {
-            let userProfile = await fetchUserProfile(session.user);
-
-            // If admin logs in and has no profile, create it on-the-fly.
-            if (!userProfile && session.user.email?.startsWith('admin666')) {
-                console.log("Admin user profile not found, attempting to create...");
-                 try {
-                    const { data: adminUserData, error: adminUserError } = await supabaseAdmin
-                        .from('users')
-                        .insert({
-                            id: session.user.id,
-                            username: 'admin666',
-                            is_admin: true,
-                            email: session.user.email,
-                            // invitation_code and inviter_id can be defaults or specific values
-                            invitation_code: `ADMIN${session.user.id.substring(0, 4)}`, 
-                            is_test_user: true, // Or false depending on desired default
-                        })
-                        .select()
-                        .single();
-
-                    if (adminUserError) throw adminUserError;
-                    userProfile = adminUserData as User;
-                    console.log("Admin user profile created successfully on login.");
-                } catch (e: any) {
-                    console.error("Failed to create admin profile on-the-fly during login:", e.message);
-                }
-            }
+        if (currentSession?.user) {
+            let userProfile = await fetchUserProfile(currentSession.user);
             
             setUser(userProfile);
             setIsAdmin(userProfile?.is_admin || false);
@@ -123,65 +99,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
   
- const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
+  const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-    const isAdminRegistration = invitationCode === 'admin8888';
 
-     try {
-        // Step 1: Create the auth user first. This will fail if the user already exists.
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-            email,
-            password,
+    try {
+        const { data, error } = await supabase.rpc('register_new_user', {
+            p_username: username,
+            p_email: email,
+            p_password: password,
+            p_invitation_code: invitationCode
         });
-      
-        if (authError) {
-             if (authError.message.includes("User already registered")) {
-                toast({ variant: 'destructive', title: '注册失败', description: '该用户名已被使用，请更换一个。'});
-                return false;
-            }
-            throw authError; // For other auth errors
-        }
-        
-        if (!authData.user) {
-             throw new Error("Registration succeeded but no user object was returned.");
+
+        if (error) {
+            throw error;
         }
 
-        // Step 2: Create the public user profile with admin client to bypass RLS.
-        const newUserProfileData: Partial<User> = {
-            id: authData.user.id,
-            username: username,
-            email: email,
-            is_admin: isAdminRegistration,
-        };
+        const result = data as { status: string; message: string };
 
-        if (!isAdminRegistration) {
-             const { data: inviterData, error: inviterError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('invitation_code', invitationCode)
-                .single();
-
-            if (inviterError || !inviterData) {
-                // If inviter not found, we should clean up the created auth user.
-                await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-                toast({ variant: 'destructive', title: '注册失败', description: '无效的邀请码。'});
-                return false;
-            }
-            newUserProfileData.inviter_id = inviterData.id;
+        if (result.status === 'success') {
+            toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
+            return true;
+        } else {
+            toast({ variant: 'destructive', title: '注册失败', description: result.message });
+            return false;
         }
-
-        const { error: profileError } = await supabaseAdmin
-            .from('users')
-            .insert(newUserProfileData as User);
-
-        if (profileError) {
-            // If profile creation fails, clean up the created auth user to allow retries.
-            await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-            throw profileError;
-        }
-      
-        toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
-        return true;
 
     } catch (error: any) {
         console.error("An unexpected error occurred during registration:", error);
@@ -193,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
     }
   }
+
 
   const logout = async () => {
     await supabase.auth.signOut();
