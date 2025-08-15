@@ -1,43 +1,36 @@
-
 'use server';
-
-/**
- * @fileOverview A server-side flow to fetch real-time market data from an external API.
- *
- * - getMarketData - A function that fetches data for a list of trading assets.
- * - GetMarketDataInput - The input type for the getMarketData function.
- * - GetMarketDataOutput - The return type for the getMarketData function.
- */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { TatumSDK, Network } from '@tatumio/tatum';
+import axios from 'axios';
 
 const GetMarketDataInputSchema = z.object({
-  assetIds: z.array(z.string()).describe('A list of asset IDs to fetch data for (e.g., ["BTC", "ETH"]).'),
+  assetIds: z
+    .array(z.string())
+    .describe('A list of asset IDs to fetch data for (e.g., ["BTC", "ETH"]).'),
 });
 export type GetMarketDataInput = z.infer<typeof GetMarketDataInputSchema>;
 
 const AssetDataSchema = z.object({
-    id: z.string(),
-    symbol: z.string(),
-    priceUsd: z.string(),
-    changePercent24Hr: z.string(),
-    volumeUsd24Hr: z.string(),
+  id: z.string(),
+  symbol: z.string(),
+  priceUsd: z.string(),
+  changePercent24Hr: z.string(),
+  volumeUsd24Hr: z.string(),
 });
 
 const GetMarketDataOutputSchema = z.object({
-    data: z.record(AssetDataSchema).describe('A map of asset ID to its market data.'),
+  data: z
+    .record(AssetDataSchema)
+    .describe('A map of asset ID to its market data.'),
 });
 export type GetMarketDataOutput = z.infer<typeof GetMarketDataOutputSchema>;
-
 
 export async function getMarketData(
   input: GetMarketDataInput
 ): Promise<GetMarketDataOutput> {
   return getMarketDataFlow(input);
 }
-
 
 const getMarketDataFlow = ai.defineFlow(
   {
@@ -47,67 +40,55 @@ const getMarketDataFlow = ai.defineFlow(
   },
   async (input) => {
     if (!process.env.TATUM_API_KEY) {
-        console.warn('TATUM_API_KEY is not set. Falling back to simulator.');
-        return { data: {} };
+      console.warn('TATUM_API_KEY is not set. Falling back to simulator.');
+      return { data: {} };
     }
     if (!input.assetIds || input.assetIds.length === 0) {
-        return { data: {} };
+      return { data: {} };
     }
-    
-    let tatum;
-    try {
-        // Initialize Tatum SDK - market data is chain-agnostic so network doesn't matter.
-        tatum = await TatumSDK.init({ 
-            network: Network.ETHEREUM, // Placeholder network
-            apiKey: process.env.TATUM_API_KEY,
-        });
 
-        // The market data API is not chain-specific, so we can access it directly.
-        const assetDataPromises = input.assetIds.map(async (assetId) => {
-            try {
-                // Use the market data API to get the rate for a given asset.
-                const rate = await tatum.marketData.get(assetId);
+    const assetDataPromises = input.assetIds.map(async (assetId) => {
+      try {
+        const response = await axios.get(
+          `https://api.tatum.io/v3/market-data/${assetId}`,
+          {
+            headers: {
+              'x-api-key': process.env.TATUM_API_KEY,
+            },
+          }
+        );
+        const rate = response.data;
 
-                if (rate && rate.price) {
-                    return {
-                        id: assetId.toLowerCase(),
-                        symbol: assetId,
-                        priceUsd: rate.price.toString(),
-                        changePercent24Hr: rate.change24h?.toString() || '0', 
-                        volumeUsd24Hr: rate.volume24h?.toString() || '0',
-                    };
-                }
-                return null;
-            } catch (error) {
-                console.error(`Error fetching data for asset ${assetId} from Tatum:`, error);
-                return null;
-            }
-        });
-        
-        const results = await Promise.all(assetDataPromises);
-        
-        const realTimeData = results.reduce((acc: any, asset: any) => {
-            if (asset) {
-                acc[asset.id] = asset;
-            }
-            return acc;
-        }, {} as { [key: string]: z.infer<typeof AssetDataSchema> });
-
-        if (Object.keys(realTimeData).length === 0) {
-             console.warn('Tatum API returned no data for the requested assets.');
-             return { data: {} };
+        if (rate && rate.price) {
+          return {
+            id: assetId.toLowerCase(),
+            symbol: assetId,
+            priceUsd: rate.price.toString(),
+            changePercent24Hr: rate.change24h?.toString() || '0',
+            volumeUsd24Hr: rate.volume24h?.toString() || '0',
+          };
         }
-        
-        return { data: realTimeData };
+        return null;
+      } catch (error) {
+        console.error(`Error fetching data for asset ${assetId}:`, error);
+        return null;
+      }
+    });
 
-    } catch (error) {
-        console.error('Error fetching from Tatum API in getMarketDataFlow:', error);
-        // On any fetch error, return empty data so the client falls back to the simulator.
-        return { data: {} };
-    } finally {
-        // Always destroy the SDK instance after use
-        tatum?.destroy();
+    const results = await Promise.all(assetDataPromises);
+
+    const realTimeData = results.reduce((acc, asset) => {
+      if (asset) {
+        acc[asset.id] = asset;
+      }
+      return acc;
+    }, {} as Record<string, z.infer<typeof AssetDataSchema>>);
+
+    if (Object.keys(realTimeData).length === 0) {
+      console.warn('No data found for the requested assets.');
+      return { data: {} };
     }
+
+    return { data: realTimeData };
   }
 );
-
