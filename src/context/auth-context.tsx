@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        setIsLoading(true);
         setSession(session);
         if (session?.user) {
             const userProfile = await fetchUserProfile(session.user);
@@ -98,17 +99,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // When admin logs in, ensure their profile exists to prevent "Cannot coerce..." error.
     if (username === 'admin666') {
-      try {
-        const { error: rpcError } = await supabase.rpc('create_admin_user_profile_if_not_exists');
-        if (rpcError) {
-          // Log the error but proceed with login attempt. 
-          // The login might fail gracefully if the profile is missing, which is the problem we're solving.
-          console.error("Error calling create_admin_user_profile_if_not_exists:", rpcError.message);
+        try {
+            // Find the admin user in the auth table to get their ID
+            const { data: { users }, error: adminAuthError } = await supabaseAdmin.auth.admin.listUsers({ email });
+            if (adminAuthError) throw adminAuthError;
+
+            const adminAuthUser = users[0];
+            if (!adminAuthUser) throw new Error("Admin user not found in auth table.");
+
+            // Check if the profile exists in public.users
+            const { data: adminProfile, error: profileError } = await supabaseAdmin
+                .from('users')
+                .select('id')
+                .eq('id', adminAuthUser.id)
+                .maybeSingle();
+
+            if (profileError) throw profileError;
+            
+            // If profile does not exist, create it.
+            if (!adminProfile) {
+                const { error: insertError } = await supabaseAdmin.from('users').insert({
+                    id: adminAuthUser.id,
+                    username: 'admin666',
+                    email: 'admin666@noemail.app',
+                    is_admin: true,
+                });
+                if (insertError) throw insertError;
+            }
+        } catch (e: any) {
+            console.error("Error during admin profile check/creation:", e.message);
+            // Do not block login attempt if this fails, let the login process handle it.
         }
-      } catch (e) {
-        // Catch any exceptions from the RPC call itself
-        console.error("Exception during RPC call for admin profile check:", e);
-      }
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -181,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsAdmin(false);
     setSession(null);
-    router.push('/login');
+    // No need to manually push, the useEffect below will handle it
   };
   
    useEffect(() => {

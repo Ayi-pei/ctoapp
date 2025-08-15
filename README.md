@@ -108,6 +108,8 @@ API 密钥： 提供了 Tatum API 密钥（Mainnet 和 Testnet），以及 Supab
 
 这个脚本会创建一个函数，该函数的作用是：在管理员登录时，自动检查并创建其在 `public.users` 表中缺失的个人资料，从而修复登录问题。
 
+**注：最新代码已将此修复逻辑内置到登录函数中，一般不再需要手动执行此脚本。**
+
 ```sql
 -- Creates or replaces the function to ensure the admin user profile exists.
 CREATE OR REPLACE FUNCTION create_admin_user_profile_if_not_exists()
