@@ -101,8 +101,9 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                         <div className="flex flex-col gap-4">
                              <OrderForm
                                 tradingPair={tradingPair}
-                                balance={balances['USDT']?.available || 0}
+                                balance={balances[quoteAsset]?.available || 0}
                                 onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+                                quoteAsset={quoteAsset}
                             />
                         </div>
                         <div className="flex flex-col gap-4">
@@ -141,7 +142,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                                     {trade.type === 'buy' ? '买涨' : '买跌'}
                                                 </TableCell>
                                                 <TableCell>{trade.entry_price.toFixed(4)}</TableCell>
-                                                <TableCell>{trade.amount.toFixed(2)} USDT</TableCell>
+                                                <TableCell>{trade.amount.toFixed(2)} {trade.trading_pair.split('/')[1]}</TableCell>
                                                 <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))}
@@ -187,10 +188,10 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                                 </TableCell>
                                                 <TableCell>
                                                      {trade.orderType === 'spot' ? (
-                                                        <span>{(trade as SpotTrade).total.toFixed(2)} USDT</span>
+                                                        <span>{(trade as SpotTrade).total.toFixed(2)} {trade.trading_pair.split('/')[1]}</span>
                                                     ) : (
                                                         <span className={cn((trade as ContractTrade).profit ?? 0 >= 0 ? 'text-green-500' : 'text-red-500')}>
-                                                            {((trade as ContractTrade).profit ?? 0) >= 0 ? '+' : ''}{((trade as ContractTrade).profit ?? 0).toFixed(2)} USDT
+                                                            {((trade as ContractTrade).profit ?? 0) >= 0 ? '+' : ''}{((trade as ContractTrade).profit ?? 0).toFixed(2)} {trade.trading_pair.split('/')[1]}
                                                         </span>
                                                     )}
                                                 </TableCell>

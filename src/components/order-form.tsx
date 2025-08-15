@@ -17,9 +17,10 @@ type OrderFormProps = {
   tradingPair: string;
   balance: number;
   onPlaceTrade: (trade: ContractTradeParams) => void;
+  quoteAsset: string;
 }
 
-export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps) {
+export function OrderForm({ tradingPair, balance, onPlaceTrade, quoteAsset }: OrderFormProps) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy');
 
@@ -57,6 +58,7 @@ export function OrderForm({ tradingPair, balance, onPlaceTrade }: OrderFormProps
                     tradingPair={tradingPair}
                     balance={balance}
                     onPlaceTrade={onPlaceTrade}
+                    quoteAsset={quoteAsset}
                 />
             </CardContent>
         </Card>

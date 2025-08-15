@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,6 +34,7 @@ type ContractOrderSheetProps = {
   tradingPair: string;
   balance: number;
   onPlaceTrade: (trade: ContractTradeParams) => void;
+  quoteAsset: string;
 };
 
 const periods = [
@@ -51,6 +53,7 @@ export function ContractOrderSheet({
   tradingPair,
   balance,
   onPlaceTrade,
+  quoteAsset
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
   const { settings } = useSettings();
@@ -178,7 +181,7 @@ export function ContractOrderSheet({
 
     toast({
         title: "下单成功",
-        description: `您已成功下单 ${numericAmount} USDT 进行 ${orderTypeText}。`
+        description: `您已成功下单 ${numericAmount} ${quoteAsset} 进行 ${orderTypeText}。`
     });
     
     resetState();
@@ -216,7 +219,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">买入量</span>
-                <span className="font-semibold">{amount} USDT</span>
+                <span className="font-semibold">{amount} {quoteAsset}</span>
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">周期</span>
@@ -224,7 +227,7 @@ export function ContractOrderSheet({
             </div>
             <div className="flex justify-between">
                 <span className="text-muted-foreground">预估收益</span>
-                <span className="font-semibold text-green-500">{(parseFloat(amount) * currentProfitRate).toFixed(2)} USDT ({(currentProfitRate * 100).toFixed(0)}%)</span>
+                <span className="font-semibold text-green-500">{(parseFloat(amount) * currentProfitRate).toFixed(2)} {quoteAsset} ({(currentProfitRate * 100).toFixed(0)}%)</span>
             </div>
         </div>
         <SheetFooter className="flex-col space-y-4">
@@ -265,7 +268,7 @@ export function ContractOrderSheet({
               <h4 className="text-sm font-medium mb-2">买入量</h4>
               <Input 
                   type="number"
-                  placeholder="最少 1 USDT"
+                  placeholder={`最少 1 ${quoteAsset}`}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="mb-2"
@@ -286,7 +289,7 @@ export function ContractOrderSheet({
 
       <SheetFooter className="flex-col space-y-4">
           <p className="text-sm text-muted-foreground text-center">
-              可用余额: {balance.toFixed(2)} USDT
+              可用余额: {balance.toFixed(2)} {quoteAsset}
           </p>
         <Button onClick={handleInitialConfirm} size="lg" className="w-full">确定</Button>
       </SheetFooter>

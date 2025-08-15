@@ -26,9 +26,6 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
     USD: { available: 0, frozen: 0},
     EUR: { available: 0, frozen: 0},
     GBP: { available: 0, frozen: 0},
-    'XAU/USD': { available: 0, frozen: 0},
-    'EUR/USD': { available: 0, frozen: 0},
-    'GBP/USD': { available: 0, frozen: 0},
 };
 
 
@@ -269,13 +266,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         profit: profit
     };
 
+    const quoteAsset = trade.trading_pair.split('/')[1];
+
     // Update balances
     setBalances(prev => {
         const newBalances = { ...prev };
-        const newFrozen = newBalances.USDT.frozen - trade.amount;
+        const newFrozen = newBalances[quoteAsset].frozen - trade.amount;
         // If win, add back principal + profit. If loss, principal is lost, so only adjust frozen.
-        const newAvailable = newBalances.USDT.available + (outcome === 'win' ? trade.amount + profit : 0);
-        newBalances.USDT = { available: newAvailable, frozen: newFrozen };
+        const newAvailable = newBalances[quoteAsset].available + (outcome === 'win' ? trade.amount + profit : 0);
+        newBalances[quoteAsset] = { available: newAvailable, frozen: newFrozen };
         return newBalances;
     });
 
@@ -285,7 +284,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     toast({
         title: `合约结算: ${outcome === 'win' ? '盈利' : '亏损'}`,
-        description: `${trade.trading_pair} 合约已结算，盈亏: ${profit.toFixed(2)} USDT`
+        description: `${trade.trading_pair} 合约已结算，盈亏: ${profit.toFixed(2)} ${quoteAsset}`
     });
   }, [activeContractTrades, marketData, toast]);
 
@@ -339,9 +338,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
         return;
     }
+    
+    const quoteAsset = tradingPair.split('/')[1];
 
-     if (balances.USDT.available < trade.amount) {
-        toast({ variant: 'destructive', title: '下单失败', description: '可用余额不足。' });
+     if (balances[quoteAsset].available < trade.amount) {
+        toast({ variant: 'destructive', title: '下单失败', description: `可用 ${quoteAsset} 余额不足。` });
         return;
     }
     
@@ -363,14 +364,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     setActiveContractTrades(prev => [...prev, newTrade]);
     setBalances(prev => ({
       ...prev,
-      USDT: { 
-        available: prev.USDT.available - trade.amount,
-        frozen: prev.USDT.frozen + trade.amount
+      [quoteAsset]: { 
+        available: prev[quoteAsset].available - trade.amount,
+        frozen: prev[quoteAsset].frozen + trade.amount
       }
     }));
 
-    // Distribute commissions after placing trade
-    distributeCommissions(user, trade.amount);
+    // Distribute commissions only for USDT-based trades
+    if(quoteAsset === 'USDT') {
+      distributeCommissions(user, trade.amount);
+    }
   };
   
   const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
@@ -410,8 +413,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return newBalances;
     });
 
-     // Distribute commissions after placing trade
-    distributeCommissions(user, trade.total);
+     // Distribute commissions only for USDT-based trades
+     if(quoteAsset === 'USDT') {
+        distributeCommissions(user, trade.total);
+     }
   };
   
   const value = { 
