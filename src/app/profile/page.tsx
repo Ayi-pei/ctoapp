@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
 
 
 const ProfileHeader = () => {
@@ -98,7 +97,7 @@ const ProfileHeader = () => {
                     </h2>
                 )}
                 <p className="text-sm">余额: {totalBalance.toFixed(2)} USDT</p>
-                 <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">信誉分: 100</div></div>
+                 <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">信誉分: {user?.credit_score || 100}</div></div>
 
                  <div className="flex gap-4 mt-4">
                     <Button onClick={() => setIsDepositOpen(true)} className="bg-white/20 hover:bg-white/30 text-white">充值</Button>

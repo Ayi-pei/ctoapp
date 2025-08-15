@@ -17,13 +17,15 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
-import { Users } from "lucide-react";
+import { MessageSquare, Send, Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { useAuth } from "@/context/auth-context";
 import { availablePairs } from "@/types";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
 import { useRequests } from "@/context/requests-context";
+import { useAnnouncements } from "@/context/announcements-context";
+import { Textarea } from "./ui/textarea";
 
 type UserBalance = {
     [key: string]: {
@@ -92,7 +94,11 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
     const { recalculateBalanceForUser } = useBalance();
     const { updateUser } = useAuth();
     const { addDepositRequest } = useRequests();
+    const { addAnnouncement } = useAnnouncements();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
+    const [creditScore, setCreditScore] = useState(initialUser?.credit_score.toString() || "100");
+    const [messageTitle, setMessageTitle] = useState("");
+    const [messageContent, setMessageContent] = useState("");
 
 
     useEffect(() => {
@@ -100,6 +106,9 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         if (isOpen && initialUser) {
             setNewPassword("");
             setBalanceAdjustments({});
+            setCreditScore(initialUser.credit_score.toString());
+            setMessageTitle("");
+            setMessageContent("");
             
             const getBalances = async () => {
                 const bal = await recalculateBalanceForUser(initialUser.id);
@@ -135,7 +144,6 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
             return;
         }
         
-        // Use the request system for adjustments
         addDepositRequest({
             asset: asset,
             amount: amount,
@@ -176,6 +184,38 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         }
     }
     
+    const handleCreditScoreSave = async () => {
+        if (!user) return;
+        const score = parseInt(creditScore, 10);
+        if (isNaN(score)) {
+            toast({ variant: "destructive", title: "错误", description: "请输入有效的信誉分数值。" });
+            return;
+        }
+        const success = await updateUser(user.id, { credit_score: score });
+         if (success) {
+            toast({ title: "成功", description: `用户 ${user.username} 的信誉分已更新。` });
+        } else {
+            toast({ variant: "destructive", title: "失败", description: "操作失败。" });
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!user || !messageTitle.trim() || !messageContent.trim()) {
+            toast({ variant: "destructive", title: "错误", description: "标题和内容不能为空。" });
+            return;
+        }
+        
+        addAnnouncement({
+            title: messageTitle,
+            content: messageContent,
+            user_id: user.id,
+        });
+
+        toast({ title: "成功", description: `消息已发送给用户 ${user.username}。` });
+        setMessageTitle("");
+        setMessageContent("");
+    };
+
     const registeredAtDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
 
     return (
@@ -191,7 +231,9 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                     <div>
                         <h4 className="font-semibold mb-2">基本信息</h4>
                         <p className="text-sm"><strong>用户名:</strong> {user.username}</p>
+                        <p className="text-sm"><strong>昵称:</strong> {user.nickname}</p>
                         <p className="text-sm"><strong>邀请码:</strong> {user.invitation_code || 'N/A'}</p>
+                        <p className="text-sm"><strong>信誉分:</strong> {user.credit_score}</p>
                         <p className="text-sm"><strong>账户类型:</strong> {user.is_test_user ? '测试账户' : '真实账户'}</p>
                         <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
                         <p className="text-sm"><strong>邀请人ID:</strong> {user.inviter_id || '无'}</p>
@@ -245,38 +287,81 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                         <DownlineTree userId={user.id} />
                     </div>
 
-
                     <Separator />
                     
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         <h4 className="font-semibold">管理操作</h4>
-                        <div className="flex items-center space-x-2">
-                             <Label htmlFor="new-password" className="flex-shrink-0">
-                                重置密码:
-                            </Label>
-                            <Input 
-                                id="new-password"
-                                name="new-password"
-                                type="text"
-                                placeholder="输入新密码"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                            />
-                            <Button onClick={handlePasswordChange}>确认修改</Button>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                             <Label htmlFor="freeze-account-btn" className="flex-shrink-0">
-                                账户状态:
-                            </Label>
-                             {user.is_frozen ? (
-                                <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
-                                    解冻账户
-                                </Button>
-                            ) : (
-                                <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(true)} variant="destructive">
-                                    冻结账户
-                                </Button>
-                            )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                               <h5 className="text-sm font-medium">账户操作</h5>
+                                <div className="flex items-center space-x-2">
+                                     <Label htmlFor="new-password" className="flex-shrink-0">
+                                        重置密码:
+                                    </Label>
+                                    <Input 
+                                        id="new-password"
+                                        name="new-password"
+                                        type="text"
+                                        placeholder="输入新密码"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                    />
+                                    <Button onClick={handlePasswordChange}>确认</Button>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Label htmlFor="credit-score" className="flex-shrink-0">
+                                        信誉分:
+                                    </Label>
+                                    <Input
+                                        id="credit-score"
+                                        name="credit-score"
+                                        type="number"
+                                        value={creditScore}
+                                        onChange={(e) => setCreditScore(e.target.value)}
+                                    />
+                                    <Button onClick={handleCreditScoreSave}>保存</Button>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                     <Label htmlFor="freeze-account-btn" className="flex-shrink-0">
+                                        账户状态:
+                                    </Label>
+                                     {user.is_frozen ? (
+                                        <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
+                                            解冻账户
+                                        </Button>
+                                    ) : (
+                                        <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(true)} variant="destructive">
+                                            冻结账户
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                             <div className="space-y-4">
+                                <h5 className="text-sm font-medium flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 发送消息给用户</h5>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="message-title">标题</Label>
+                                    <Input 
+                                        id="message-title"
+                                        value={messageTitle}
+                                        onChange={(e) => setMessageTitle(e.target.value)}
+                                        placeholder="输入消息标题"
+                                    />
+                                 </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="message-content">内容</Label>
+                                    <Textarea
+                                        id="message-content"
+                                        value={messageContent}
+                                        onChange={(e) => setMessageContent(e.target.value)}
+                                        placeholder="输入消息内容..."
+                                    />
+                                 </div>
+                                 <Button onClick={handleSendMessage} className="w-full">
+                                    <Send className="w-4 h-4 mr-2"/>
+                                    发送消息
+                                 </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

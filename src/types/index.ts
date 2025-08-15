@@ -16,7 +16,18 @@ export type User = {
     invitation_code: string;
     created_at: string;
     password?: string; // For mock DB
+    credit_score: number;
 };
+
+export type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  user_id?: string; // Optional: for user-specific announcements
+  is_read?: boolean; // Optional: for user to mark as read
+}
+
 
 // Represents an order in the order book
 export type Order = {

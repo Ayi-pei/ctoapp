@@ -3,20 +3,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import type { User as UserType } from '@/types';
 
-export type User = {
-  id: string;
-  username: string;
-  nickname: string;
-  password?: string; // Keep password for our mock DB
-  email: string;
-  inviter_id: string | null;
-  is_admin: boolean;
-  is_test_user: boolean;
-  is_frozen: boolean;
-  invitation_code: string;
-  created_at: string;
-};
+// Re-exporting the type from types/index.ts to avoid circular dependencies
+// and to be the single source of truth.
+export type User = UserType;
+
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -97,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '',
                 inviter_id: null,
                 created_at: new Date().toISOString(),
+                credit_score: 999,
             };
             allUsers[ADMIN_USER_ID] = adminUser;
             saveMockUsers(allUsers);
@@ -133,17 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let inviterId: string | null = null;
       
-      // Special check for Admin's "genesis" invitation code from .env
       if (invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH) {
           inviterId = ADMIN_USER_ID;
       } else {
-          // Check for a standard user invitation code OR the dynamically generated admin code.
           const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
           if (inviter) {
               inviterId = inviter.id;
           } else if (invitationCode.length > 6 && /^\d+$/.test(invitationCode)) {
-              // Heuristic: If the code is long and all digits, assume it's a dynamically generated admin code.
-              // In this case, the inviter is the admin.
               inviterId = ADMIN_USER_ID;
           }
       }
@@ -166,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           invitation_code: generateInvitationCode(),
           inviter_id: inviterId,
           created_at: new Date().toISOString(),
+          credit_score: 100,
       };
       
       allUsers[newUser.id] = newUser;

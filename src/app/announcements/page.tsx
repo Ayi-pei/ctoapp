@@ -1,36 +1,29 @@
 
 "use client";
 
+import { useState, useEffect }from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { useAnnouncements } from "@/context/announcements-context";
 
-
-export const announcements = [
-    {
-        id: 1,
-        title: "系统维护通知",
-        date: "2024-08-10",
-        content: "为了提供更优质的服务，我们将在2024年8月15日凌晨2:00至4:00进行系统升级维护。届时交易、充值、提现等功能将暂停使用。给您带来的不便，敬请谅解。"
-    },
-    {
-        id: 2,
-        title: "新交易对上线通知",
-        date: "2024-08-05",
-        content: "我们高兴地宣布，平台已于2024年8月5日正式上线 DOGE/USDT, ADA/USDT, 和 SHIB/USDT 交易对。欢迎广大用户前来交易！"
-    },
-    {
-        id: 3,
-        title: "关于加强账户安全的提醒",
-        date: "2024-07-28",
-        content: "近期网络钓鱼和诈骗活动猖獗，请广大用户务必保管好自己的账户密码和私钥，不要点击来路不明的链接，不要向任何人透露您的验证码。平台工作人员不会以任何理由向您索要密码。"
-    }
-]
 
 export default function AnnouncementsPage() {
     const router = useRouter();
+    const { user } = useAuth();
+    const { announcements, platformAnnouncements } = useAnnouncements();
+    const [userAnnouncements, setUserAnnouncements] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (user) {
+            const filtered = announcements.filter(a => a.user_id === user.id);
+            setUserAnnouncements(filtered);
+        }
+    }, [announcements, user]);
+
 
     return (
         <DashboardLayout>
@@ -43,11 +36,25 @@ export default function AnnouncementsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    {announcements.map(announcement => (
+                    {userAnnouncements.map(announcement => (
+                        <Card key={announcement.id} className="border-primary/50">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <User className="h-5 w-5 text-primary" />
+                                    <span>{announcement.title}</span>
+                                </CardTitle>
+                                <CardDescription>{new Date(announcement.date).toLocaleString()}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-muted-foreground">{announcement.content}</p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    {platformAnnouncements.map(announcement => (
                         <Card key={announcement.id}>
                             <CardHeader>
                                 <CardTitle>{announcement.title}</CardTitle>
-                                <CardDescription>{announcement.date}</CardDescription>
+                                <CardDescription>{new Date(announcement.date).toLocaleString()}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-muted-foreground">{announcement.content}</p>

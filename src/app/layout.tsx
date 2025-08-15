@@ -9,6 +9,7 @@ import { MarketDataProvider } from '@/context/market-data-context';
 import { SettingsProvider } from '@/context/settings-context';
 import { SystemSettingsProvider } from '@/context/system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
+import { AnnouncementsProvider } from '@/context/announcements-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,7 +35,9 @@ export default function RootLayout({
               <MarketDataProvider>
                 <BalanceProvider>
                   <RequestsProvider>
-                    {children}
+                    <AnnouncementsProvider>
+                      {children}
+                    </AnnouncementsProvider>
                   </RequestsProvider>
                 </BalanceProvider>
               </MarketDataProvider>
