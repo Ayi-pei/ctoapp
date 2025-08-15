@@ -50,7 +50,7 @@ const getMarketDataFlow = ai.defineFlow(
     const assetDataPromises = input.assetIds.map(async (assetId) => {
       try {
         const response = await axios.get(
-          `https://api.tatum.io/v3/market-data/${assetId}`,
+          `https://api.tatum.io/v4/market/price/${assetId}`,
           {
             headers: {
               'x-api-key': process.env.TATUM_API_KEY,
@@ -59,13 +59,13 @@ const getMarketDataFlow = ai.defineFlow(
         );
         const rate = response.data;
 
-        if (rate && rate.price) {
+        if (rate && rate.value) {
           return {
             id: assetId.toLowerCase(),
             symbol: assetId,
-            priceUsd: rate.price.toString(),
-            changePercent24Hr: rate.change24h?.toString() || '0',
-            volumeUsd24Hr: rate.volume24h?.toString() || '0',
+            priceUsd: rate.value.toString(),
+            changePercent24Hr: '0', // V4 endpoint does not provide this
+            volumeUsd24Hr: '0', // V4 endpoint does not provide this
           };
         }
         return null;
