@@ -15,6 +15,22 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Ticket } from 'lucide-react';
 
+const getAllUsers = (): User[] => {
+    if (typeof window === 'undefined') return [];
+    
+    const storedUsersData = localStorage.getItem('tradeflow_users');
+    if (!storedUsersData) return [];
+
+    try {
+        const usersObject = JSON.parse(storedUsersData);
+        return Object.values(usersObject);
+    } catch (e) {
+        console.error("Failed to parse users from localStorage", e);
+        return [];
+    }
+}
+
+
 export default function AdminUsersPage() {
     const { user, isAdmin } = useAuth();
     const router = useRouter();
@@ -26,16 +42,10 @@ export default function AdminUsersPage() {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(() => {
         if (!isAdmin) return;
-        
-        // Mock data since Supabase is removed
-        const mockUsers: User[] = [
-            { id: 'user1', username: 'testuser1', email: 'testuser1@noemail.app', is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'TEST1', inviter_id: null, created_at: new Date().toISOString() },
-            { id: 'user2', username: 'testuser2', email: 'testuser2@noemail.app', is_admin: false, is_test_user: false, is_frozen: true, invitation_code: 'TEST2', inviter_id: 'user1', created_at: new Date().toISOString() },
-            { id: 'user3', username: 'longusername_frozen', email: 'longusername@noemail.app', is_admin: false, is_test_user: false, is_frozen: true, invitation_code: 'TEST3', inviter_id: 'user1', created_at: new Date().toISOString() },
-        ];
-        setUsers(mockUsers);
+        const allUsers = getAllUsers();
+        setUsers(allUsers);
     }, [isAdmin]);
 
     useEffect(() => {
@@ -58,7 +68,7 @@ export default function AdminUsersPage() {
     };
 
     const handleSuccessfulUpdate = useCallback(() => {
-        // Mock update - just show a toast
+        // Mock update - just show a toast and reload data
         toast({ title: 'Success', description: 'User data has been updated (mock).' });
         loadData();
     }, [loadData, toast]);
@@ -191,5 +201,3 @@ export default function AdminUsersPage() {
 
     
 }
-
-    

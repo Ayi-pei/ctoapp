@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useBalance } from "@/context/balance-context";
+import { useRequests } from "@/context/requests-context";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -39,29 +39,26 @@ export default function AdminFinancePage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
+    const { requests } = useRequests(); // Use real data
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-    const loadTransactions = useCallback(async () => {
-        if (!isAdmin) return;
-        // Mock data since Supabase is removed
-        const mockTransactions: Transaction[] = [
-             { id: 'tx1', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 5000, status: 'pending', created_at: new Date().toISOString(), transaction_hash: '0xabc...def', user: { username: 'testuser1' } },
-             { id: 'tx2', user_id: 'user456', type: 'withdrawal', asset: 'USDT', amount: 1200, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), address: 'Tmockaddress123', user: { username: 'testuser2' } },
-             { id: 'tx3', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 2000, status: 'approved', created_at: new Date(Date.now() - 86400000).toISOString(), transaction_hash: '0x123...456', user: { username: 'testuser1' } },
-        ];
-        setTransactions(mockTransactions);
-    }, [isAdmin]);
+    useEffect(() => {
+        // Load transactions from requests context
+        const financialTransactions = requests.filter(
+            r => r.type === 'deposit' || r.type === 'withdrawal'
+        ) as Transaction[];
+        setTransactions(financialTransactions);
+    }, [requests]);
+
 
     useEffect(() => {
         if (isAdmin === false) {
             router.push('/login');
-        } else if (isAdmin === true) {
-           loadTransactions();
         }
-    }, [isAdmin, router, loadTransactions]);
+    }, [isAdmin, router]);
     
     const handleOpenDeleteDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
@@ -70,8 +67,10 @@ export default function AdminFinancePage() {
     
     const handleDeleteTransaction = async () => {
         if (!selectedTransaction) return;
+        // This is a mock delete as we don't have a real backend DB
+        // It will just remove it from the local state
         setTransactions(prev => prev.filter(t => t.id !== selectedTransaction.id));
-        toast({ title: "成功", description: "交易记录已删除。" });
+        toast({ title: "成功 (Mock)", description: "交易记录已删除。" });
         setIsDeleteDialogOpen(false);
         setSelectedTransaction(null);
     };

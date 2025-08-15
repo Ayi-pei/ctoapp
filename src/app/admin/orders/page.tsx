@@ -10,10 +10,6 @@ import { useRouter } from 'next/navigation';
 import { SpotTrade, ContractTrade } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
-type OrderWithUser = (SpotTrade | ContractTrade) & {
-  user: { username: string } | null;
-};
-
 type FormattedOrder = (SpotTrade | ContractTrade) & {
     userId: string;
     tradingPair: string;
@@ -22,8 +18,29 @@ type FormattedOrder = (SpotTrade | ContractTrade) & {
 };
 
 
+const getAllUserHistoricalTrades = () => {
+    if (typeof window === 'undefined') return [];
+    
+    const allTrades: (SpotTrade | ContractTrade)[] = [];
+    const userKeys = Object.keys(localStorage).filter(key => key.startsWith('tradeflow_user_'));
+    
+    userKeys.forEach(key => {
+        try {
+            const userData = JSON.parse(localStorage.getItem(key) || '{}');
+            if (userData.historicalTrades && Array.isArray(userData.historicalTrades)) {
+                allTrades.push(...userData.historicalTrades);
+            }
+        } catch (e) {
+            console.error(`Failed to parse data for key ${key}`, e);
+        }
+    });
+
+    return allTrades;
+}
+
+
 export default function AdminOrdersPage() {
-    const { isAdmin } = useAuth();
+    const { isAdmin, getUserById } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [orders, setOrders] = useState<FormattedOrder[]>([]);
@@ -31,37 +48,22 @@ export default function AdminOrdersPage() {
     const loadOrders = useCallback(async () => {
         if (!isAdmin) return;
 
-        // Mock data since Supabase is removed
-        const mockSpotTrades: (SpotTrade & { user: { username: string }})[] = [
-            { id: 's1', user_id: 'user123', trading_pair: 'BTC/USDT', type: 'buy', base_asset: 'BTC', quote_asset: 'USDT', amount: 0.1, total: 6800, status: 'filled', created_at: new Date().toISOString(), orderType: 'spot', user: { username: 'testuser1' } }
-        ];
-        const mockContractTrades: (ContractTrade & { user: { username: string }})[] = [
-            { id: 'c1', user_id: 'user456', trading_pair: 'ETH/USDT', type: 'sell', amount: 100, entry_price: 3800, settlement_time: '', period: 30, profit_rate: 0.85, status: 'settled', outcome: 'win', profit: 85, created_at: new Date().toISOString(), orderType: 'contract', user: { username: 'testuser2' } }
-        ];
+        const allHistoricalTrades = getAllUserHistoricalTrades();
 
-        const formattedSpot = mockSpotTrades.map(t => ({ 
-            ...t, 
-            orderType: 'spot' as const, 
-            userId: t.user?.username || t.user_id, 
-            tradingPair: t.trading_pair, 
-            statusText: t.status, 
-            createdAt: t.created_at 
-        }));
-        const formattedContract = mockContractTrades.map(t => ({ 
-            ...t, 
-            orderType: 'contract' as const, 
-            userId: t.user?.username || t.user_id, 
-            tradingPair: t.trading_pair, 
-            statusText: t.status, 
-            createdAt: t.created_at 
-        }));
+        const formattedOrders = allHistoricalTrades.map(t => {
+            const user = getUserById(t.user_id);
+            return {
+                ...t,
+                userId: user?.username || t.user_id,
+                tradingPair: t.trading_pair,
+                statusText: 'status' in t ? t.status : (t.outcome || 'unknown'),
+                createdAt: t.created_at,
+            }
+        }).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-        const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
 
-        setOrders(allOrders as FormattedOrder[]);
-    }, [isAdmin, toast]);
+        setOrders(formattedOrders as FormattedOrder[]);
+    }, [isAdmin, toast, getUserById]);
 
     useEffect(() => {
         if (isAdmin === false) {
@@ -91,6 +93,18 @@ export default function AdminOrdersPage() {
         }
         return 'N/A';
     }
+    
+    const getStatusText = (order: FormattedOrder) => {
+        if (order.orderType === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
+        if (order.orderType === 'contract') {
+            const contract = order as ContractTrade;
+            if (contract.outcome === 'win') return '盈利';
+            if (contract.outcome === 'loss') return '亏损';
+            return '进行中';
+        }
+        return 'N/A';
+    }
+
 
     return (
         <DashboardLayout>
@@ -109,8 +123,8 @@ export default function AdminOrdersPage() {
                                     <TableHead>交易对</TableHead>
                                     <TableHead>类型</TableHead>
                                     <TableHead>方向</TableHead>
-                                    <TableHead>金额</TableHead>
-                                    <TableHead>状态</TableHead>
+                                    <TableHead>金额 (USDT)</TableHead>
+                                    <TableHead>状态/结果</TableHead>
                                     <TableHead>时间</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -126,11 +140,11 @@ export default function AdminOrdersPage() {
                                         </TableCell>
                                         <TableCell>
                                             <span className={order.type === 'buy' ? 'text-green-500' : 'text-red-500'}>
-                                                {order.type === 'buy' ? '买入' : '卖出'}
+                                                {order.type === 'buy' ? '买入/看涨' : '卖出/看跌'}
                                             </span>
                                         </TableCell>
                                         <TableCell>{getOrderAmount(order)}</TableCell>
-                                        <TableCell>{order.statusText}</TableCell>
+                                        <TableCell>{getStatusText(order)}</TableCell>
                                         <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
