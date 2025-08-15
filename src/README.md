@@ -111,11 +111,14 @@ API 密钥： 提供了 Tatum API 密钥（Mainnet 和 Testnet），以及 Supab
 **这是解决注册问题的核心步骤，请务必执行。**
 
 ```sql
--- Drop existing functions to ensure a clean slate, avoiding signature conflicts.
+-- Step 1: Drop the old, conflicting trigger if it exists.
+DROP TRIGGER IF EXISTS on_new_user_before_insert ON public.users;
+
+-- Step 2: Drop the old functions to ensure a clean slate.
 DROP FUNCTION IF EXISTS public.register_new_user(text, text, text, text);
 DROP FUNCTION IF EXISTS public.generate_invitation_code();
 
--- Function to generate a random invitation code
+-- Step 3: Create the function to generate a random invitation code.
 CREATE OR REPLACE FUNCTION public.generate_invitation_code()
 RETURNS TEXT AS $$
 DECLARE
@@ -140,8 +143,7 @@ END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 
--- The main registration function, called via RPC from the client.
--- This function handles all registration logic securely on the server side.
+-- Step 4: Create the main registration function, called via RPC from the client.
 CREATE OR REPLACE FUNCTION public.register_new_user(
     p_username text,
     p_email text,
@@ -194,7 +196,7 @@ EXCEPTION
 END;
 $$;
 
--- Grant execution rights to the anon and authenticated roles so the client can call it
+-- Step 5: Grant execution rights to the anon and authenticated roles so the client can call it
 grant execute on function public.register_new_user(text, text, text, text) to anon_key, authenticated;
 
 ```
