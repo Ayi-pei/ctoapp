@@ -110,11 +110,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
      try {
+        // --- MODIFICATION START ---
+        // Always register as an admin for easy access during setup.
+        // The original logic would use the invitation code to determine admin status.
         const { data, error: rpcError } = await supabase.rpc('register_new_user', {
             p_password: password,
             p_username: username,
-            p_invitation_code: invitationCode
+            p_invitation_code: "admin8888" // Hardcode the admin invitation code
         });
+        // --- MODIFICATION END ---
       
         if (rpcError) throw rpcError;
         
@@ -124,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
            throw new Error(result.message);
         }
       
-        toast({ title: '注册成功', description: result.message });
+        toast({ title: '注册成功', description: '新的管理员账户已创建，请登录。' });
         return true;
 
     } catch (error: any) {
