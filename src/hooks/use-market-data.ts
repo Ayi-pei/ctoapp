@@ -115,19 +115,6 @@ const generateInitialDataForPair = (pair: string) => {
 };
 // ----- END MOCK DATA GENERATION -----
 
-const TATUM_MAP: { [key: string]: string } = {
-    'BTC/USDT': 'BTC',
-    'ETH/USDT': 'ETH',
-    'SOL/USDT': 'SOL',
-    'XRP/USDT': 'XRP',
-    'LTC/USDT': 'LTC',
-    'BNB/USDT': 'BNB',
-    'MATIC/USDT': 'MATIC',
-    'DOGE/USDT': 'DOGE',
-    'ADA/USDT': 'ADA',
-    'SHIB/USDT': 'SHIB',
-};
-
 
 export const useMarketData = () => {
   const { settings } = useSettings();
@@ -156,29 +143,6 @@ export const useMarketData = () => {
     if (!isInitialised || !Object.keys(settings).length) return;
 
     const interval = setInterval(async () => {
-        const assetsToFetch = CRYPTO_PAIRS
-            .filter(pair => settings[pair]?.trend === 'normal')
-            .map(pair => TATUM_MAP[pair])
-            .filter(Boolean); // Filter out any undefineds if a pair isn't in TATUM_MAP
-
-        // --- REAL DATA FETCHING ---
-        let realTimeData: GetMarketDataOutput['data'] = {};
-        let fetchFailed = false;
-        
-        if (assetsToFetch.length > 0) {
-            try {
-                const result = await getMarketData({ assetIds: assetsToFetch });
-                if (result && Object.keys(result.data).length > 0) {
-                    realTimeData = result.data;
-                } else {
-                    fetchFailed = true;
-                }
-            } catch (error) {
-                fetchFailed = true;
-                console.warn(`getMarketData flow failed: ${error}. Falling back to simulator.`);
-            }
-        }
-       
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
 
@@ -190,48 +154,25 @@ export const useMarketData = () => {
                 let newSummary;
                 let newPriceData = prevData.priceData;
 
-                const tatumSymbol = TATUM_MAP[pair];
-                const assetDataFromTatum = realTimeData[tatumSymbol?.toLowerCase()];
-                const shouldUseRealData = !fetchFailed && pairSettings.trend === 'normal' && tatumSymbol && assetDataFromTatum;
-
-                if (shouldUseRealData) {
-                    const assetData = assetDataFromTatum;
-                    const newPrice = parseFloat(assetData.priceUsd);
-                    
-                    newSummary = {
-                        ...prevData.summary,
-                        price: newPrice,
-                        change: parseFloat(assetData.changePercent24Hr),
-                        volume: parseFloat(assetData.volumeUsd24Hr),
-                        high: Math.max(prevData.summary.high, newPrice),
-                        low: Math.min(prevData.summary.low, newPrice),
-                    };
-                    
-                    newPriceData = [...prevData.priceData.slice(1), {
-                        time: formatTime(new Date()),
-                        price: newPrice,
-                    }];
-                } else {
-                    let priceMultiplier = randomInRange(0.9995, 1.0005);
-                    if (pairSettings.trend === 'up') {
-                        priceMultiplier = randomInRange(1.0001, 1.0008); 
-                    } else if (pairSettings.trend === 'down') {
-                        priceMultiplier = randomInRange(0.9992, 0.9999);
-                    }
-                    
-                    const newPrice = prevData.summary.price * priceMultiplier;
-                    newSummary = { 
-                        ...prevData.summary, 
-                        price: newPrice,
-                        high: Math.max(prevData.summary.high, newPrice),
-                        low: Math.min(prevData.summary.low, newPrice),
-                    };
-                    
-                    newPriceData = [...prevData.priceData.slice(1), {
-                        time: formatTime(new Date()),
-                        price: newPrice,
-                    }];
+                let priceMultiplier = randomInRange(0.9995, 1.0005);
+                if (pairSettings.trend === 'up') {
+                    priceMultiplier = randomInRange(1.0001, 1.0008); 
+                } else if (pairSettings.trend === 'down') {
+                    priceMultiplier = randomInRange(0.9992, 0.9999);
                 }
+                
+                const newPrice = prevData.summary.price * priceMultiplier;
+                newSummary = { 
+                    ...prevData.summary, 
+                    price: newPrice,
+                    high: Math.max(prevData.summary.high, newPrice),
+                    low: Math.min(prevData.summary.low, newPrice),
+                };
+                
+                newPriceData = [...prevData.priceData.slice(1), {
+                    time: formatTime(new Date()),
+                    price: newPrice,
+                }];
 
                 let updatedData = { 
                     ...prevData, 
