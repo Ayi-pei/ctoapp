@@ -2,7 +2,7 @@
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,7 @@ import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
@@ -26,7 +27,7 @@ export default function AdminSettingsPage() {
         updateSpecialTimeFrame
     } = useSettings();
 
-    const { systemSettings, updateDepositAddress } = useSystemSettings();
+    const { systemSettings, updateDepositAddress, toggleContractTrading } = useSystemSettings();
 
     const { toast } = useToast();
 
@@ -39,6 +40,10 @@ export default function AdminSettingsPage() {
     const handleSettingChange = (pair: string, key: keyof TradingPairSettings, value: any) => {
         updateSettings(pair, { [key]: value });
     };
+
+    const handleVolatilityChange = (pair: string, value: number[]) => {
+        updateSettings(pair, { volatility: value[0] });
+    }
     
     const handleSaveSystemSettings = () => {
         // In a real app, this would trigger an API call.
@@ -62,14 +67,31 @@ export default function AdminSettingsPage() {
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     {/* Column 1: System Settings */}
-                    <div className="space-y-6">
+                    <div className="lg:col-span-1 space-y-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>通用设置</CardTitle>
+                                <CardDescription>影响整个平台的全局配置</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
+                                <div className="space-y-4 p-4 border rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="global-contract-trading" className="font-semibold">秒合约总开关</Label>
+                                         <Switch
+                                            id="global-contract-trading"
+                                            checked={systemSettings.isContractTradingEnabled}
+                                            onCheckedChange={toggleContractTrading}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        关闭后，整个平台将无法进行新的秒合约交易。
+                                    </p>
+                                </div>
+                                
+                                <Separator />
+                                
                                 {supportedAssets.map((asset) => (
                                     <div className="space-y-2" key={asset}>
                                         <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
@@ -80,24 +102,22 @@ export default function AdminSettingsPage() {
                                             onChange={(e) => updateDepositAddress(asset, e.target.value)}
                                             placeholder={`请输入您的 ${asset} 钱包或账户地址`}
                                         />
-                                        <p className="text-xs text-muted-foreground">
-                                            此地址将显示给用户用于充值 {asset}。
-                                        </p>
                                     </div>
                                 ))}
                             </CardContent>
                              <CardFooter>
-                                <Button onClick={handleSaveSystemSettings}>保存地址设置</Button>
+                                <Button onClick={handleSaveSystemSettings}>保存通用设置</Button>
                             </CardFooter>
                         </Card>
                     </div>
 
                     {/* Column 2: Market Settings */}
-                     <Card>
+                     <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>市场设置</CardTitle>
+                             <CardDescription>为每个交易对配置独特的市场行为</CardDescription>
                         </CardHeader>
-                        <ScrollArea className="h-[calc(100vh-22rem)]">
+                        <ScrollArea className="h-[calc(100vh-24rem)]">
                             <CardContent className="space-y-6 pr-6">
                                 {availablePairs.map((pair) => {
                                     const pairSettings = settings[pair] || { 
@@ -105,16 +125,30 @@ export default function AdminSettingsPage() {
                                         tradingDisabled: false, 
                                         baseProfitRate: 0.85,
                                         specialTimeFrames: [],
+                                        isTradingHalted: false,
+                                        volatility: 0.05,
                                     };
                                     return (
                                         <div key={pair} className="p-4 border rounded-lg space-y-4">
                                             <h3 className="font-semibold text-lg">{pair}</h3>
                                             
+                                            {/* Trading halt switch */}
+                                            <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                                                <Label htmlFor={`halt-trading-${pair}`} className="font-semibold">暂停此币种交易</Label>
+                                                <Switch
+                                                    id={`halt-trading-${pair}`}
+                                                    checked={pairSettings.isTradingHalted}
+                                                    onCheckedChange={(checked) => handleSettingChange(pair, 'isTradingHalted', checked)}
+                                                />
+                                            </div>
+                                            
+                                            <Separator />
+
                                             {/* Trend Control */}
                                             <div className="space-y-2">
-                                                <Label>价格趋势 (模拟)</Label>
+                                                <Label>价格趋势模拟</Label>
                                                 <p className="text-xs text-muted-foreground">
-                                                关闭所有开关则默认使用真实市场数据。
+                                                关闭所有开关则默认使用随机市场数据。
                                                 </p>
                                                 <div className="flex items-center space-x-4 pt-2">
                                                     <div className="flex items-center space-x-2">
@@ -133,6 +167,22 @@ export default function AdminSettingsPage() {
                                                             onCheckedChange={() => handleTrendChange(pair, 'down')}
                                                         />
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Volatility Control */}
+                                            <div className="space-y-2">
+                                                <Label>价格波动率</Label>
+                                                <Slider
+                                                    defaultValue={[pairSettings.volatility]}
+                                                    max={0.2}
+                                                    min={0.01}
+                                                    step={0.01}
+                                                    onValueCommit={(value) => handleVolatilityChange(pair, value)}
+                                                />
+                                                <div className="flex justify-between text-xs text-muted-foreground">
+                                                    <span>平稳</span>
+                                                    <span>剧烈</span>
                                                 </div>
                                             </div>
 

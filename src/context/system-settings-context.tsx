@@ -12,11 +12,13 @@ export type SystemSettings = {
         BTC: string;
         USD: string;
     };
+    isContractTradingEnabled: boolean;
 };
 
 interface SystemSettingsContextType {
     systemSettings: SystemSettings;
     updateDepositAddress: (asset: keyof SystemSettings['depositAddresses'], value: string) => void;
+    toggleContractTrading: () => void;
 }
 
 const defaultSystemSettings: SystemSettings = {
@@ -26,6 +28,7 @@ const defaultSystemSettings: SystemSettings = {
         BTC: "",
         USD: "",
     },
+    isContractTradingEnabled: true,
 };
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined);
@@ -47,7 +50,9 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
                     depositAddresses: {
                         ...prev.depositAddresses,
                         ...(parsedSettings.depositAddresses || {})
-                    }
+                    },
+                    // Ensure isContractTradingEnabled is not undefined
+                    isContractTradingEnabled: parsedSettings.isContractTradingEnabled !== undefined ? parsedSettings.isContractTradingEnabled : true,
                 }));
             }
         } catch (error) {
@@ -76,9 +81,16 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
             }
         }));
     }, []);
+    
+    const toggleContractTrading = useCallback(() => {
+        setSystemSettings(prev => ({
+            ...prev,
+            isContractTradingEnabled: !prev.isContractTradingEnabled,
+        }));
+    }, []);
 
     return (
-        <SystemSettingsContext.Provider value={{ systemSettings, updateDepositAddress }}>
+        <SystemSettingsContext.Provider value={{ systemSettings, updateDepositAddress, toggleContractTrading }}>
             {children}
         </SystemSettingsContext.Provider>
     );

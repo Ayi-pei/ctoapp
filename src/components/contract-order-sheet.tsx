@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import { useSettings } from "@/context/settings-context";
+import { useSystemSettings } from "@/context/system-settings-context";
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -53,6 +54,7 @@ export function ContractOrderSheet({
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
   const { settings } = useSettings();
+  const { systemSettings } = useSystemSettings();
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
@@ -102,7 +104,27 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
-    // Check for trading restrictions
+    // 1. Check Global switch
+    if (!systemSettings.isContractTradingEnabled) {
+        toast({
+            variant: "destructive",
+            title: "交易暂停",
+            description: "秒合约交易功能正在维护中，请稍后再试。",
+        });
+        return;
+    }
+    
+    // 2. Check per-pair halt switch
+    if (pairSettings?.isTradingHalted) {
+        toast({
+            variant: "destructive",
+            title: "交易暂停",
+            description: `[${tradingPair}] 交易对已暂停交易。`,
+        });
+        return;
+    }
+
+    // 3. Check for time-based restrictions
     if (pairSettings?.tradingDisabled) {
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
@@ -114,9 +136,7 @@ export function ContractOrderSheet({
             const endTime = endH * 60 + endM;
             return currentTime >= startTime && currentTime <= endTime;
         });
-
-        // If trading is generally disabled, it's only allowed INSIDE special frames.
-        // So, if trading is disabled AND we are NOT in a special frame, block the trade.
+        
         if (!isInSpecialFrame) {
              toast({
                 variant: "destructive",

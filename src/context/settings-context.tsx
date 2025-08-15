@@ -13,7 +13,9 @@ export type SpecialTimeFrame = {
 
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
-    tradingDisabled: boolean;
+    tradingDisabled: boolean; // For special time frames
+    isTradingHalted: boolean; // To completely halt trading for this pair
+    volatility: number; // 0.01 (calm) to 0.2 (volatile)
     baseProfitRate: number;
     specialTimeFrames: SpecialTimeFrame[];
 };
@@ -33,6 +35,8 @@ interface SettingsContextType {
 const getDefaultPairSettings = (): TradingPairSettings => ({
     trend: 'normal',
     tradingDisabled: false,
+    isTradingHalted: false,
+    volatility: 0.05,
     baseProfitRate: 0.85,
     specialTimeFrames: [],
 });

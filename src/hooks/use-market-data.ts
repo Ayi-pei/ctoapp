@@ -143,37 +143,6 @@ export const useMarketData = () => {
     if (!isInitialised || !Object.keys(settings).length) return;
 
     const interval = setInterval(async () => {
-        // IGNORE: The following block for fetching real data is temporarily disabled
-        // as per the user's request to avoid external API errors.
-        // The app will rely on the internal data simulator.
-        /*
-        try {
-            const assetIds = availablePairs.map(p => p.split('/')[0]).filter(id => !['XAU', 'EUR', 'GBP'].includes(id));
-            const result: GetMarketDataOutput = await getMarketData({ assetIds });
-            
-            if (result && result.data) {
-                const newAllData = new Map(allData);
-                Object.values(result.data).forEach(asset => {
-                    const pair = `${asset.symbol}/USDT`;
-                    if(newAllData.has(pair)) {
-                        const prevData = newAllData.get(pair);
-                        const newPrice = parseFloat(asset.priceUsd);
-                        const updatedSummary = {
-                             ...prevData.summary,
-                             price: newPrice,
-                             change: parseFloat(asset.changePercent24Hr) || prevData.summary.change,
-                             volume: parseFloat(asset.volumeUsd24Hr) || prevData.summary.volume,
-                        }
-                        newAllData.set(pair, { ...prevData, summary: updatedSummary });
-                    }
-                });
-                setAllData(newAllData);
-            }
-        } catch (error) {
-            console.error("Failed to fetch real-time market data:", error);
-        }
-        */
-
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
 
@@ -181,15 +150,23 @@ export const useMarketData = () => {
                 const prevData = newAllData.get(pair);
                 if (!prevData) return;
 
-                const pairSettings = settings[pair] || { trend: 'normal' };
+                const pairSettings = settings[pair] || { trend: 'normal', volatility: 0.05, isTradingHalted: false };
+                
+                if (pairSettings.isTradingHalted) {
+                    // If trading is halted, don't update market data to keep it static
+                    return;
+                }
+
                 let newSummary;
                 let newPriceData = prevData.priceData;
 
-                let priceMultiplier = randomInRange(0.9995, 1.0005);
+                const volatilityFactor = pairSettings.volatility;
+                let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
+
                 if (pairSettings.trend === 'up') {
-                    priceMultiplier = randomInRange(1.0001, 1.0008); 
+                    priceMultiplier = 1 + (Math.random() * volatilityFactor); 
                 } else if (pairSettings.trend === 'down') {
-                    priceMultiplier = randomInRange(0.9992, 0.9999);
+                    priceMultiplier = 1 - (Math.random() * volatilityFactor);
                 }
                 
                 const newPrice = prevData.summary.price * priceMultiplier;
