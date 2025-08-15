@@ -54,6 +54,21 @@ const SmIcon = () => (
     </svg>
 );
 
+const RegularIcon = () => (
+    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <radialGradient id="regularGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
+                <stop offset="60%" style={{ stopColor: '#64B5F6' }} />
+                <stop offset="100%" style={{ stopColor: '#1976D2' }} />
+            </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="45" fill="url(#regularGradient)" />
+        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
+        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
+    </svg>
+);
+
 
 const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress, icon, onInvest }: InvestmentProductProps) => (
     <Card className="bg-card">
@@ -146,7 +161,7 @@ export default function FinancePage() {
     const productIcons: { [key: string]: React.ReactNode } = {
         "USDT Metfone contract": <MfIcon />,
         "USDT Smart contract": <SmIcon />,
-        "USDT Regular Saver": <Image src="https://placehold.co/40x40.png" alt="USDT" width={40} height={40} data-ai-hint="logo cryptocurrency" />
+        "USDT Regular Saver": <RegularIcon />,
     }
 
     const handleInvestClick = (product: Omit<InvestmentProductProps, 'icon' | 'onInvest'>) => {
@@ -230,7 +245,7 @@ export default function FinancePage() {
                         {investments.length > 0 ? (
                             <MyInvestmentsList investments={investments} />
                         ) : (
-                             renderEmptyState("暂无投资记录")
+                             renderEmptyState("您还没有任何投资记录。")
                         )}
                     </TabsContent>
                 </Tabs>

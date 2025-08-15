@@ -235,13 +235,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
     
     if (balances.USDT.available < amount) {
-      toast({ variant: 'destructive', title: 'Investment Failed', description: 'Insufficient balance.' });
       return false;
     }
     
     setBalances(prev => ({
       ...prev,
-      USDT: { ...prev.USDT, available: prev.USDT.available - amount }
+      USDT: { ...prev.USDT, available: prev.USDT.available - amount, frozen: prev.USDT.frozen }
     }));
 
     const newInvestment: Investment = {
@@ -253,8 +252,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         productName: productName,
         date: new Date().toLocaleDateString(),
     }
-    setInvestments(prev => [...prev, newInvestment]);
-    toast({ title: 'Investment Successful' });
+    setInvestments(prev => [newInvestment, ...prev]);
     return true;
   }
   
