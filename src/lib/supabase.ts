@@ -4,8 +4,20 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+
+// This client is safe to use in the browser
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// This client is intended for server-side use only, bypassing RLS
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false
+    }
+});
+
 
 // The RPC function `register_new_user` handles new user creation.
 // It is a SECURITY DEFINER function, running with elevated privileges.

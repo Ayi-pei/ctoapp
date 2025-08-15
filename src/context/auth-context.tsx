@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/types';
@@ -36,7 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     try {
-      const { data, error } = await supabase
+      // Use the admin client to bypass RLS for this internal-facing query.
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
