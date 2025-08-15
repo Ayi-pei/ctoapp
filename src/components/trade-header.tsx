@@ -23,6 +23,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useState, useEffect } from 'react';
+
 
 // Simple SVG Logo component
 const Logo = () => (
@@ -43,6 +45,13 @@ export function TradeHeader() {
   const router = useRouter();
   const { tradingPair, availablePairs, changeTradingPair } = useMarket();
   const { logout, user } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState('');
+
+  useEffect(() => {
+    if (user) {
+        setAvatarUrl(`https://api.dicebear.com/8.x/initials/svg?seed=${user.id}`);
+    }
+  }, [user]);
 
   const isTradePage = pathname === '/trade';
   const showLogo = ['/dashboard', '/market', '/finance', '/promotion', '/download'].includes(pathname);
@@ -90,16 +99,16 @@ export function TradeHeader() {
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                     <Avatar>
-                        <AvatarImage src={undefined} alt={user?.username} />
+                        <AvatarImage src={avatarUrl} alt={user?.username} />
                         <AvatarFallback>
-                            {user?.username ? user.username.charAt(0).toUpperCase() : <User />}
+                           <User />
                         </AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Profile</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>我的账户 ({user?.username})</DropdownMenuLabel>
+                <DropdownMenuLabel>我的账户 ({user?.nickname || user?.username})</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <Link href="/profile" passHref>
                     <DropdownMenuItem>

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 export type User = {
   id: string;
   username: string;
+  nickname: string;
   password?: string; // Keep password for our mock DB
   email: string;
   inviter_id: string | null;
@@ -87,12 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             adminUser = {
                 id: ADMIN_USER_ID,
                 username: username,
+                nickname: 'Administrator',
                 password: password, // Save password for mock login
                 email: `${username}@noemail.app`,
                 is_admin: true,
                 is_test_user: false,
                 is_frozen: false,
-                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '', // Hardcoded secret removed
+                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '',
                 inviter_id: null,
                 created_at: new Date().toISOString(),
             };
@@ -155,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUser: User = {
           id: `user_${Date.now()}`,
           username,
+          nickname: username,
           password,
           email: `${username}@noemail.app`,
           is_admin: false,
@@ -214,6 +217,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       allUsers[userId] = { ...allUsers[userId], ...updates };
       saveMockUsers(allUsers);
+
+      // If the updated user is the current user, update the state and session storage
+      if (user && user.id === userId) {
+        const updatedCurrentUser = { ...user, ...updates };
+        setUser(updatedCurrentUser);
+        localStorage.setItem('userSession', JSON.stringify(updatedCurrentUser));
+      }
+
       return true;
   }
 

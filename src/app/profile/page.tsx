@@ -1,26 +1,39 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, Bell, LogOut, FileText, Share2, Shield, Globe, MessageSquare, CreditCard, Check } from "lucide-react";
+import { ChevronRight, Bell, LogOut, FileText, Share2, Shield, Globe, MessageSquare, CreditCard, Check, User as UserIcon } from "lucide-react";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { useBalance } from "@/context/balance-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+
 
 const ProfileHeader = () => {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { balances } = useBalance();
+    const { toast } = useToast();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    const [isEditingNickname, setIsEditingNickname] = useState(false);
+    const [nickname, setNickname] = useState(user?.nickname || user?.username || "");
+    const [avatarUrl, setAvatarUrl] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            setNickname(user.nickname || user.username);
+            // Generate a consistent avatar based on user ID
+            setAvatarUrl(`https://api.dicebear.com/8.x/initials/svg?seed=${user.id}`);
+        }
+    }, [user]);
 
     // Using the same logic as dashboard page for consistency
     const getUsdtValue = (assetName: string, amount: number) => {
@@ -34,6 +47,26 @@ const ProfileHeader = () => {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
 
+    const handleNicknameBlur = async () => {
+        setIsEditingNickname(false);
+        if (user && nickname !== (user.nickname || user.username)) {
+            const success = await updateUser(user.id, { nickname });
+            if (success) {
+                toast({ title: "成功", description: "昵称已更新。" });
+            } else {
+                toast({ variant: 'destructive', title: "失败", description: "无法更新您的昵称。" });
+                setNickname(user.nickname || user.username); // Revert on failure
+            }
+        }
+    };
+    
+     const handleNicknameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.currentTarget.blur();
+        }
+    };
+
+
      return (
         <div className="relative bg-gradient-to-b from-blue-400 to-blue-600 p-6 text-white text-center rounded-b-3xl -mx-4 -mt-4 mb-6">
             <div className="absolute top-4 right-4">
@@ -41,10 +74,29 @@ const ProfileHeader = () => {
             </div>
             <div className="flex flex-col items-center">
                 <Avatar className="h-20 w-20 mb-3 border-2 border-white">
-                    <AvatarImage src={undefined} alt={user?.username} />
-                    <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={avatarUrl} alt={user?.username} />
+                    <AvatarFallback>
+                        <UserIcon className="h-10 w-10" />
+                    </AvatarFallback>
                 </Avatar>
-                <h2 className="font-semibold text-lg">{user?.username}</h2>
+                {isEditingNickname ? (
+                    <Input
+                        type="text"
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                        onBlur={handleNicknameBlur}
+                        onKeyDown={handleNicknameKeyDown}
+                        className="text-lg bg-transparent text-white border-b-2 border-white/50 text-center focus:outline-none focus:ring-0 h-auto p-1"
+                        autoFocus
+                    />
+                ) : (
+                    <h2 
+                        className="font-semibold text-lg cursor-pointer"
+                        onClick={() => setIsEditingNickname(true)}
+                    >
+                        {nickname}
+                    </h2>
+                )}
                 <p className="text-sm">余额: {totalBalance.toFixed(2)} USDT</p>
                  <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">信誉分: 100</div></div>
 
