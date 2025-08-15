@@ -100,6 +100,38 @@ API 密钥： 提供了 Tatum API 密钥（Mainnet 和 Testnet），以及 Supab
 账号：admin666
 密码：admin789
 邀请码：admin8888
+
+---
+## 数据库修复脚本
+
+如果您遇到管理员 (`admin666`) 无法登录，或看到 `Cannot coerce the result to a single JSON object` 的错误，请在您的 Supabase 项目的 **SQL Editor** 中执行以下脚本一次。
+
+这个脚本会创建一个函数，该函数的作用是：在管理员登录时，自动检查并创建其在 `public.users` 表中缺失的个人资料，从而修复登录问题。
+
+```sql
+-- Creates or replaces the function to ensure the admin user profile exists.
+CREATE OR REPLACE FUNCTION create_admin_user_profile_if_not_exists()
+RETURNS void AS $$
+DECLARE
+    admin_auth_user RECORD;
+BEGIN
+    -- Find the admin user in the auth.users table
+    SELECT * INTO admin_auth_user FROM auth.users WHERE email = 'admin666@noemail.app' LIMIT 1;
+
+    -- If the admin exists in auth but not in public.users, create the profile
+    IF admin_auth_user IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.users WHERE id = admin_auth_user.id) THEN
+        INSERT INTO public.users (id, username, email, is_admin)
+        VALUES (admin_auth_user.id, 'admin666', 'admin666@noemail.app', TRUE);
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to the authenticated role
+GRANT EXECUTE ON FUNCTION create_admin_user_profile_if_not_exists() TO authenticated;
+```
+
+---
+
 其他笔记：
 src/app/download/page.tsx 提示应用可能提供下载功能。
 README.md 详细解释了认证逻辑。

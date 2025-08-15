@@ -95,6 +95,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
+
+    // When admin logs in, ensure their profile exists to prevent "Cannot coerce..." error.
+    if (username === 'admin666') {
+      try {
+        const { error: rpcError } = await supabase.rpc('create_admin_user_profile_if_not_exists');
+        if (rpcError) {
+          // Log the error but proceed with login attempt. 
+          // The login might fail gracefully if the profile is missing, which is the problem we're solving.
+          console.error("Error calling create_admin_user_profile_if_not_exists:", rpcError.message);
+        }
+      } catch (e) {
+        // Catch any exceptions from the RPC call itself
+        console.error("Exception during RPC call for admin profile check:", e);
+      }
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email, 
       password,
@@ -127,28 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       
         if (error) {
-            // This is the special fix: if admin already exists in auth but not public.users,
-            // we manually create the public profile here.
-            if (error.message.includes('User already registered') && username === 'admin666') {
-                 toast({ title: '通知', description: '管理员账户已存在，正在尝试修复用户资料...'});
-                 const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
-                 if (userError) throw userError;
-
-                 const adminAuthUser = users.find(u => u.email === 'admin666@noemail.app');
-                 if (adminAuthUser) {
-                    const { error: upsertError } = await supabaseAdmin.from('users').upsert({
-                        id: adminAuthUser.id,
-                        username: 'admin666',
-                        email: 'admin666@noemail.app',
-                        is_admin: true,
-                    }, { onConflict: 'id' });
-
-                    if (upsertError) throw upsertError;
-
-                    toast({ title: '修复成功', description: '管理员资料已创建，请现在登录。'});
-                    return true;
-                 }
-            }
             throw error;
         }
         
@@ -163,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("An unexpected error occurred during registration:", error);
         
         let errorMessage = '发生未知错误，请重试。';
-        if (error.message) {
+        if (error?.message) {
             if (error.message.includes('User already registered')) {
                 errorMessage = '该用户名已被使用，请更换一个。';
             } else if (error.message.includes('duplicate key value violates unique constraint "users_username_key"')) {
