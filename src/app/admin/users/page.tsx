@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
                                 {filteredUsers.length === 0 && (
                                      <TableRow>
                                         <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                            找不到匹配的用户。
+                                            加载用户列表失败
                                         </TableCell>
                                     </TableRow>
                                 )}
