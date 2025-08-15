@@ -147,7 +147,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         addDepositRequest({
             asset: asset,
             amount: amount,
-            transaction_hash: `Admin adjustment for ${user.username}`
+            transaction_hash: `管理员调整: ${user.username}`
         }, 'adjustment', user.id);
 
 
