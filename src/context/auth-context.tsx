@@ -85,11 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             adminUser = {
                 id: adminId,
                 username: username,
+                password: password, // Save password for mock login
                 email: `${username}@noemail.app`,
                 is_admin: true,
                 is_test_user: false,
                 is_frozen: false,
-                invitation_code: 'ADMIN888',
+                invitation_code: 'ADMIN888', // Genesis invitation code
                 inviter_id: null,
                 created_at: new Date().toISOString(),
             };
@@ -107,6 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
 
     if (foundUser) {
+        if (foundUser.is_frozen) {
+            console.error("Login failed: Account is frozen.");
+            return false;
+        }
         setUser(foundUser);
         localStorage.setItem('userSession', JSON.stringify(foundUser));
         return true;
@@ -116,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
-      // Special admin registration check (acts more like a login now)
+      // Special admin registration check
       if (
           username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
           password === process.env.NEXT_PUBLIC_ADMIN_KEY &&
