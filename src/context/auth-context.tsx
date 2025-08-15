@@ -56,14 +56,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
-        setSession(session);
-        if (session?.user) {
-            const userProfile = await fetchUserProfile(session.user);
-            setUser(userProfile);
-            setIsAdmin(userProfile?.is_admin || false);
+        // Handle special admin case
+        if (sessionStorage.getItem('isSpecialAdmin') === 'true') {
+            const adminUser: User = {
+                id: '00000000-0000-0000-0000-000000000001',
+                username: 'admin',
+                email: 'admin@noemail.app',
+                inviter_id: null,
+                is_admin: true,
+                is_test_user: true,
+                is_frozen: false,
+                invitation_code: 'admin8888',
+                created_at: new Date().toISOString(),
+            };
+            setUser(adminUser);
+            setIsAdmin(true);
+            setSession(null); // No real session for this special case
         } else {
-            setUser(null);
-            setIsAdmin(false);
+            setSession(session);
+            if (session?.user) {
+                const userProfile = await fetchUserProfile(session.user);
+                setUser(userProfile);
+                setIsAdmin(userProfile?.is_admin || false);
+            } else {
+                setUser(null);
+                setIsAdmin(false);
+            }
         }
         setIsLoading(false);
       }
@@ -72,12 +90,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initial check
     const checkUser = async () => {
       setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session?.user) {
-        const userProfile = await fetchUserProfile(session.user);
-        setUser(userProfile);
-        setIsAdmin(userProfile?.is_admin || false);
+      if (sessionStorage.getItem('isSpecialAdmin') === 'true') {
+         const adminUser: User = {
+                id: '00000000-0000-0000-0000-000000000001',
+                username: 'admin',
+                email: 'admin@noemail.app',
+                inviter_id: null,
+                is_admin: true,
+                is_test_user: true,
+                is_frozen: false,
+                invitation_code: 'admin8888',
+                created_at: new Date().toISOString(),
+            };
+        setUser(adminUser);
+        setIsAdmin(true);
+        setSession(null);
+      } else {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        if (session?.user) {
+          const userProfile = await fetchUserProfile(session.user);
+          setUser(userProfile);
+          setIsAdmin(userProfile?.is_admin || false);
+        }
       }
       setIsLoading(false);
     };
@@ -89,6 +124,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
+    // Special case for admin login to simplify process
+    if (username.toLowerCase() === 'admin' && password === 'password') {
+        sessionStorage.setItem('isSpecialAdmin', 'true');
+        const adminUser: User = {
+            id: '00000000-0000-0000-0000-000000000001',
+            username: 'admin',
+            email: 'admin@noemail.app',
+            inviter_id: null,
+            is_admin: true,
+            is_test_user: true,
+            is_frozen: false,
+            invitation_code: 'admin8888',
+            created_at: new Date().toISOString(),
+        };
+        setUser(adminUser);
+        setIsAdmin(true);
+        setSession(null); // No real session for this special case
+        setIsLoading(false);
+        router.push('/admin'); // Manually redirect
+        return true;
+    }
+
+    // Standard login for all other users
     const email = `${username.toLowerCase()}@noemail.app`;
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email, 
@@ -104,16 +162,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return false;
     }
-    // Auth listener handles setting user state
+    // Auth listener will handle setting user state for regular users
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
      try {
-        // The standard signUp method is the correct approach.
-        // A database trigger 'create_user_profile' will handle inserting into public.users.
-        // We pass metadata via the options.data object, which the trigger can then use.
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -121,7 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     invitation_code: invitationCode,
-                    // This is the crucial part: set the admin flag based on the invitation code.
                     is_admin: invitationCode === 'admin8888'
                 }
             }
@@ -129,9 +183,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
         if (error) throw error;
         
-        // The new user is created. For this app, we can assume direct success.
         if (!data.user) {
-             throw new Error("Registration succeeded but no user object was returned. This might be expected if email confirmation is on.");
+             throw new Error("Registration succeeded but no user object was returned.");
         }
       
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
@@ -149,13 +202,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    sessionStorage.removeItem('isSpecialAdmin');
     await supabase.auth.signOut();
+    setUser(null);
+    setIsAdmin(false);
+    setSession(null);
     router.push('/login');
   };
   
    useEffect(() => {
     if (!isLoading) {
-      const isAuthenticated = !!session;
+      const isAuthenticated = !!user;
       const isAuthPage = pathname === '/login' || pathname === '/register';
       
       if (!isAuthenticated && !isAuthPage) {
@@ -164,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           router.push(isAdmin ? '/admin/users' : '/dashboard');
       }
     }
-  }, [session, isAdmin, isLoading, pathname, router]);
+  }, [user, isAdmin, isLoading, pathname, router]);
 
 
   const value = {
