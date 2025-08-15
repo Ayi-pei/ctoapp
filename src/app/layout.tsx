@@ -7,6 +7,7 @@ import { AuthProvider } from '@/context/auth-context';
 import { BalanceProvider } from '@/context/balance-context';
 import { MarketDataProvider } from '@/context/market-data-context';
 import { SettingsProvider } from '@/context/settings-context';
+import { SystemSettingsProvider } from '@/context/system-settings-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -27,18 +28,19 @@ export default function RootLayout({
     <html lang="en" className={`dark ${inter.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground">
         <AuthProvider>
-          <SettingsProvider>
-            <MarketDataProvider>
-              <BalanceProvider>
-                {children}
-              </BalanceProvider>
-            </MarketDataProvider>
-          </SettingsProvider>
+          <SystemSettingsProvider>
+            <SettingsProvider>
+              <MarketDataProvider>
+                <BalanceProvider>
+                  {children}
+                </BalanceProvider>
+              </MarketDataProvider>
+            </SettingsProvider>
+          </SystemSettingsProvider>
         </AuthProvider>
         <Toaster />
       </body>
     </html>
   );
 }
-
     

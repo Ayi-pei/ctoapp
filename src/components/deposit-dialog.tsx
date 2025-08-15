@@ -12,10 +12,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Send } from "lucide-react";
+import { Copy, Send, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useSystemSettings } from "@/context/system-settings-context";
 
 
 type DepositDialogProps = {
@@ -26,11 +27,20 @@ type DepositDialogProps = {
 export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
-    const walletAddress = "TAsimulatedAddressForU12345XYZ";
+    const { systemSettings } = useSystemSettings();
+    const walletAddress = systemSettings.depositAddress;
     const [amount, setAmount] = useState("");
     const [transactionHash, setTransactionHash] = useState("");
 
     const handleCopy = () => {
+        if (!walletAddress) {
+             toast({
+                variant: "destructive",
+                title: "无法复制",
+                description: "管理员尚未配置充币地址。",
+            });
+            return;
+        }
         navigator.clipboard.writeText(walletAddress);
         toast({
             title: "已复制",
@@ -83,45 +93,60 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 
-                <div className="my-2 p-3 bg-muted rounded-md text-center">
-                    <p className="font-mono text-sm break-all">{walletAddress}</p>
-                </div>
-                <div className="flex justify-center">
-                    <Button onClick={handleCopy} variant="outline" size="sm">
-                        <Copy className="mr-2 h-4 w-4" />
-                        复制地址
-                    </Button>
-                </div>
+                {walletAddress ? (
+                    <>
+                        <div className="my-2 p-3 bg-muted rounded-md text-center">
+                            <p className="font-mono text-sm break-all">{walletAddress}</p>
+                        </div>
+                        <div className="flex justify-center">
+                            <Button onClick={handleCopy} variant="outline" size="sm">
+                                <Copy className="mr-2 h-4 w-4" />
+                                复制地址
+                            </Button>
+                        </div>
 
-                <div className="space-y-4 pt-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="deposit-amount">充值金额 (USDT)</Label>
-                        <Input 
-                            id="deposit-amount"
-                            type="number"
-                            placeholder="请输入您充值的USDT数量"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                        />
-                     </div>
-                     <div className="space-y-2">
-                         <Label htmlFor="tx-hash">交易哈希/ID (凭证)</Label>
-                        <Input 
-                            id="tx-hash"
-                            type="text"
-                            placeholder="请输入链上交易哈希/ID"
-                            value={transactionHash}
-                            onChange={(e) => setTransactionHash(e.target.value)}
-                        />
-                     </div>
-                </div>
+                        <div className="space-y-4 pt-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="deposit-amount">充值金额 (USDT)</Label>
+                                <Input 
+                                    id="deposit-amount"
+                                    type="number"
+                                    placeholder="请输入您充值的USDT数量"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                />
+                             </div>
+                             <div className="space-y-2">
+                                 <Label htmlFor="tx-hash">交易哈希/ID (凭证)</Label>
+                                <Input 
+                                    id="tx-hash"
+                                    type="text"
+                                    placeholder="请输入链上交易哈希/ID"
+                                    value={transactionHash}
+                                    onChange={(e) => setTransactionHash(e.target.value)}
+                                />
+                             </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="my-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-4 text-destructive">
+                        <AlertTriangle className="h-8 w-8" />
+                        <div>
+                            <h4 className="font-bold">功能暂不可用</h4>
+                            <p className="text-xs">系统管理员尚未配置在线充币地址。请稍后再试或联系客服。</p>
+                        </div>
+                    </div>
+                )}
+
 
                 <AlertDialogFooter className="mt-4">
                     <Button onClick={() => onOpenChangeWrapper(false)} variant="ghost">取消</Button>
-                    <Button onClick={handleDepositRequest} className="bg-blue-600 hover:bg-blue-700">
-                        <Send className="mr-2 h-4 w-4" />
-                        提交充值请求
-                    </Button>
+                    {walletAddress && (
+                        <Button onClick={handleDepositRequest} className="bg-blue-600 hover:bg-blue-700">
+                            <Send className="mr-2 h-4 w-4" />
+                            提交充值请求
+                        </Button>
+                    )}
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

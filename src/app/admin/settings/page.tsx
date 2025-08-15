@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings, TradingPairSettings } from "@/context/settings-context";
+import { useSystemSettings } from "@/context/system-settings-context";
 import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +21,9 @@ export default function AdminSettingsPage() {
         removeSpecialTimeFrame,
         updateSpecialTimeFrame
     } = useSettings();
+
+    const { systemSettings, updateSystemSetting } = useSystemSettings();
+
     const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
@@ -38,7 +42,7 @@ export default function AdminSettingsPage() {
         // The context now saves on every change, but we can keep the button for user feedback.
         toast({
             title: "设置已保存",
-            description: "市场模拟参数已更新。",
+            description: "所有设置已更新。",
         });
     };
 
@@ -50,6 +54,28 @@ export default function AdminSettingsPage() {
                     <Button onClick={handleSave}>保存全部更改</Button>
                 </div>
                 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>通用设置</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="deposit-address">在线充币地址 (USDT-TRC20)</Label>
+                            <Input
+                                id="deposit-address"
+                                type="text"
+                                value={systemSettings.depositAddress}
+                                onChange={(e) => updateSystemSetting('depositAddress', e.target.value)}
+                                placeholder="请输入TRC20钱包地址"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                这个地址将显示给所有用户用于充值。请确保地址正确无误。
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {availablePairs.map((pair) => {
                         const pairSettings = settings[pair] || { 
