@@ -14,12 +14,13 @@ import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMarket } from "@/context/market-data-context";
-import { announcements } from "@/app/announcements/page";
+import { useAnnouncements } from "@/context/announcements-context";
 
 
 export default function DashboardPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
     const { balances } = useBalance();
+    const { platformAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
@@ -116,7 +117,7 @@ export default function DashboardPage() {
                     <div className="bg-card p-3 rounded-lg flex items-center space-x-3 overflow-hidden">
                         <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
                         <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
-                           {announcements.length > 0 ? announcements[0].title : "欢迎来到TradeFlow！"}
+                           {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
                         </div>
                     </div>
                 </Link>
