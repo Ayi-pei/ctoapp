@@ -23,6 +23,7 @@ import { useAuth } from "@/context/auth-context";
 import { availablePairs } from "@/types";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
+import { useRequests } from "@/context/requests-context";
 
 type UserBalance = {
     [key: string]: {
@@ -90,6 +91,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
     const { toast } = useToast();
     const { recalculateBalanceForUser } = useBalance();
     const { updateUser } = useAuth();
+    const { addDepositRequest } = useRequests();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
 
 
@@ -133,10 +135,17 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
             return;
         }
         
-        toast({ title: "成功 (Mock)", description: `${user.username} 的 ${asset} 余额已调整。` });
+        // Use the request system for adjustments
+        addDepositRequest({
+            asset: asset,
+            amount: amount,
+            transaction_hash: `Admin adjustment for ${user.username}`
+        }, 'adjustment', user.id);
+
+
+        toast({ title: "成功", description: `为 ${user.username} 的 ${asset} 余额调整请求已提交。请在资金管理页面审核。` });
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
         
-        // This would be where you update balances, but it's mocked in the context now
         onUpdate(); 
     };
 
@@ -213,7 +222,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Input
-                                                        type="number"
+                                                        type="text"
                                                         placeholder="输入 +/- 调整值"
                                                         value={balanceAdjustments[asset] || ''}
                                                         onChange={(e) => handleAdjustmentChange(asset, e.target.value)}

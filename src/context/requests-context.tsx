@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { AnyRequest, PasswordResetRequest } from '@/types';
+import type { AnyRequest, PasswordResetRequest, Transaction } from '@/types';
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 
@@ -23,7 +23,7 @@ type WithdrawalRequestParams = {
 
 interface RequestsContextType {
     requests: AnyRequest[];
-    addDepositRequest: (params: DepositRequestParams) => void;
+    addDepositRequest: (params: DepositRequestParams, type?: 'deposit' | 'adjustment', forUserId?: string) => void;
     addWithdrawalRequest: (params: WithdrawalRequestParams) => void;
     addPasswordResetRequest: (newPassword: string) => Promise<void>;
     approveRequest: (requestId: string) => Promise<void>;
@@ -72,25 +72,36 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         }
     }, [requests, isLoaded]);
 
-    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user_id'>) => {
-        if (!user) return;
+    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user_id'>, forUserId?: string) => {
+        const targetUser = forUserId ? getUserById(forUserId) : user;
+        if (!targetUser) return;
         
         const fullRequest: AnyRequest = {
             ...newRequest,
             id: `req_${Date.now()}`,
-            user_id: user.id,
+            user_id: targetUser.id,
             status: 'pending',
             created_at: new Date().toISOString(),
-            user: { username: user.username },
+            user: { username: targetUser.username },
         };
-        setRequests(prev => [fullRequest, ...prev]);
-    }, [user]);
 
-    const addDepositRequest = useCallback((params: DepositRequestParams) => {
+        if (newRequest.type === 'adjustment') {
+             fullRequest.status = 'approved';
+        }
+
+        setRequests(prev => [fullRequest, ...prev]);
+
+        if (fullRequest.status === 'approved' && fullRequest.type === 'adjustment') {
+            adjustBalance(fullRequest.user_id, (fullRequest as Transaction).asset, (fullRequest as Transaction).amount);
+        }
+
+    }, [user, getUserById, adjustBalance]);
+
+    const addDepositRequest = useCallback((params: DepositRequestParams, type: 'deposit' | 'adjustment' = 'deposit', forUserId?: string) => {
         addRequest({
-            type: 'deposit',
+            type,
             ...params
-        });
+        }, forUserId);
     }, [addRequest]);
 
     const addWithdrawalRequest = useCallback((params: WithdrawalRequestParams) => {
@@ -125,7 +136,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
     const approveRequest = async (requestId: string) => {
         const request = requests.find(r => r.id === requestId);
-        if (!request) return;
+        if (!request || request.status !== 'pending') return;
 
         if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
             adjustBalance(request.user_id, request.asset, request.amount);
@@ -154,9 +165,22 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     }
     
     const updateRequest = async (requestId: string, updates: Partial<AnyRequest>) => {
-        setRequests(prev => prev.map(r => 
-            r.id === requestId ? { ...r, ...updates } : r
-        ));
+        setRequests(prev => prev.map(r => {
+            if (r.id === requestId) {
+                const originalRequest = r;
+                const updatedRequest = { ...r, ...updates };
+
+                // If status is changed to approved, handle balance changes
+                if (originalRequest.status !== 'approved' && updatedRequest.status === 'approved') {
+                    if (updatedRequest.type === 'deposit' || updatedRequest.type === 'adjustment') {
+                         adjustBalance(updatedRequest.user_id, (updatedRequest as Transaction).asset, (updatedRequest as Transaction).amount);
+                    }
+                }
+
+                return updatedRequest;
+            }
+            return r;
+        }));
     }
 
 
