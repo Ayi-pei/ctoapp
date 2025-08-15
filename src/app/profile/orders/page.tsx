@@ -59,8 +59,15 @@ export default function ProfileOrdersPage() {
                 case 'pending':
                     return <Badge className="bg-yellow-500/20 text-yellow-500">待审核</Badge>;
                 case 'approved':
-                    return <Badge className="bg-green-500/20 text-green-500">{transaction.type === 'deposit' ? '充值成功' : '提取成功'}</Badge>;
+                     if (transaction.type === 'deposit') {
+                        return <Badge className="bg-green-500/20 text-green-500">充值成功</Badge>;
+                    } else {
+                        return <Badge className="bg-blue-500/20 text-blue-500">提取成功</Badge>;
+                    }
                 case 'rejected':
+                     if (transaction.type === 'withdrawal') {
+                         return <Badge variant="destructive" className="bg-red-500/20 text-red-500">已折返</Badge>;
+                     }
                      return <Badge variant="destructive" className="bg-red-500/20 text-red-500">已拒绝</Badge>;
             }
         }
