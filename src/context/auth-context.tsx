@@ -27,6 +27,7 @@ interface AuthContextType {
   isLoading: boolean;
   getUserById: (id: string) => User | null;
   getDownline: (userId: string) => User[];
+  updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -181,26 +182,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const allUsers = getMockUsers();
       return allUsers[id] || null;
   }
-  
+
   const getDownline = (userId: string) => {
-      const allUsers = getMockUsers();
-      let downline: User[] = [];
-      
-      // Level 1
-      const level1 = Object.values(allUsers).filter(u => u.inviter_id === userId);
-      downline.push(...level1);
-      
-      // Level 2
-      const level1_ids = level1.map(u => u.id);
+    const allUsers = getMockUsers();
+    let downline: User[] = [];
+
+    // Level 1
+    const level1 = Object.values(allUsers).filter(u => u.inviter_id === userId);
+    downline.push(...level1.map(u => ({ ...u, level: 1 })));
+
+    // Level 2
+    const level1_ids = level1.map(u => u.id);
+    if (level1_ids.length > 0) {
       const level2 = Object.values(allUsers).filter(u => u.inviter_id && level1_ids.includes(u.inviter_id));
-      downline.push(...level2);
+      downline.push(...level2.map(u => ({ ...u, level: 2 })));
       
       // Level 3
       const level2_ids = level2.map(u => u.id);
-      const level3 = Object.values(allUsers).filter(u => u.inviter_id && level2_ids.includes(u.inviter_id));
-      downline.push(...level3);
+      if (level2_ids.length > 0) {
+          const level3 = Object.values(allUsers).filter(u => u.inviter_id && level2_ids.includes(u.inviter_id));
+          downline.push(...level3.map(u => ({ ...u, level: 3 })));
+      }
+    }
 
-      return downline;
+    return downline;
+  };
+
+  const updateUser = async (userId: string, updates: Partial<User>): Promise<boolean> => {
+      const allUsers = getMockUsers();
+      if (!allUsers[userId]) {
+          return false;
+      }
+      allUsers[userId] = { ...allUsers[userId], ...updates };
+      saveMockUsers(allUsers);
+      return true;
   }
 
   const value = {
@@ -213,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     getUserById,
     getDownline,
+    updateUser,
   };
 
   return (

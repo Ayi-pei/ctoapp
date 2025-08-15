@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { User, Transaction, DownlineMember } from '@/types';
+import type { User } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
 import { Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
+import { useAuth } from "@/context/auth-context";
 import { availablePairs } from "@/types";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
@@ -44,20 +45,17 @@ type BalanceAdjustments = {
 const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 const DownlineTree = ({ userId }: { userId: string; }) => {
-    const [downline, setDownline] = useState<DownlineMember[]>([]);
+    const { getDownline } = useAuth();
+    const [downline, setDownline] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!userId) return;
         setIsLoading(true);
-        // Mock data since Supabase is removed
-        const mockDownline: DownlineMember[] = [
-            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
-            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
-        ];
-        setDownline(mockDownline);
+        const fetchedDownline = getDownline(userId);
+        setDownline(fetchedDownline);
         setIsLoading(false);
-    }, [userId]);
+    }, [userId, getDownline]);
     
     if (isLoading) {
         return (
@@ -76,7 +74,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
         <ul className="space-y-2 p-2 max-h-48 overflow-y-auto">
             {downline.map(member => (
                  <li key={member.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                    <Badge variant="outline">LV {member.level}</Badge>
+                    <Badge variant="outline">LV {(member as any).level}</Badge>
                     <span>{member.username}</span>
                 </li>
             ))}
@@ -85,31 +83,40 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
 };
 
 
-export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: UserDetailsDialogProps) {
+export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onUpdate }: UserDetailsDialogProps) {
+    const [user, setUser] = useState<User | null>(initialUser);
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
     const { recalculateBalanceForUser } = useBalance();
+    const { updateUser } = useAuth();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
 
 
     useEffect(() => {
-        if (isOpen && user) {
+        setUser(initialUser);
+        if (isOpen && initialUser) {
             setNewPassword("");
             setBalanceAdjustments({});
             
             const getBalances = async () => {
-                const bal = await recalculateBalanceForUser(user.id);
+                const bal = await recalculateBalanceForUser(initialUser.id);
                 setCalculatedBalances(bal);
             }
             getBalances();
 
         }
-    }, [isOpen, user, recalculateBalanceForUser]);
+    }, [isOpen, initialUser, recalculateBalanceForUser]);
 
 
     if (!user) {
         return null;
+    }
+    
+    const handleSuccessfulUpdate = () => {
+        const updatedUser = { ...user, is_frozen: !user.is_frozen };
+        setUser(updatedUser);
+        onUpdate();
     }
 
     const handleAdjustmentChange = (asset: string, value: string) => {
@@ -139,14 +146,25 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             toast({ variant: "destructive", title: "错误", description: "请输入新密码。" });
             return;
         }
-        toast({ title: "成功 (Mock)", description: `用户 ${user.username} 的密码已更新。` });
-        setNewPassword("");
+        const success = await updateUser(user.id, { password: newPassword.trim() });
+
+        if (success) {
+            toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
+            setNewPassword("");
+        } else {
+             toast({ variant: "destructive", title: "失败", description: "更新密码失败。" });
+        }
     };
     
     const handleToggleFreeze = async (freeze: boolean) => {
         if (!user) return;
-        toast({ title: "成功 (Mock)", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
-        onUpdate();
+        const success = await updateUser(user.id, { is_frozen: freeze });
+        if (success) {
+            toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
+            handleSuccessfulUpdate();
+        } else {
+            toast({ variant: "destructive", title: "失败", description: "操作失败。" });
+        }
     }
     
     const registeredAtDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';
