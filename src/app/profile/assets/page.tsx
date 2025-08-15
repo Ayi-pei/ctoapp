@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBalance } from "@/context/balance-context";
 import type { Investment } from "@/context/balance-context";
 import Image from "next/image";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB"];
@@ -74,7 +74,7 @@ const InvestmentList = ({ investments }: { investments: Investment[] }) => (
 const EmptyState = ({ text }: { text: string }) => (
     <Card>
         <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
-            <Image src="https://placehold.co/100x100.png" alt="No data" width={80} height={80} data-ai-hint="illustration no-data" />
+            <Archive className="h-16 w-16 text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">{text}</p>
         </CardContent>
     </Card>
@@ -120,4 +120,5 @@ export default function AssetsPage() {
         </DashboardLayout>
     );
 }
+
 

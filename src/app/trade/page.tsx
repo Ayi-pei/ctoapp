@@ -20,6 +20,7 @@ import { useMarket } from "@/context/market-data-context";
 import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
+import { Archive } from 'lucide-react';
 
 
 const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: string }) {
@@ -61,7 +62,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
   const renderEmptyState = (text: string) => (
       <Card>
           <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
-              <Image src="https://placehold.co/100x100.png" alt="No data" width={80} height={80} data-ai-hint="illustration no-data" />
+              <Archive className="h-16 w-16 text-muted-foreground" />
               <p className="mt-4 text-muted-foreground">{text}</p>
           </CardContent>
       </Card>
@@ -228,4 +229,3 @@ export default function SuspenseWrapper() {
         </React.Suspense>
     )
 }
-

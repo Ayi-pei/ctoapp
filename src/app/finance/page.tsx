@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Gem, Star, User } from "lucide-react";
+import { BarChart, Gem, Star, User, Archive } from "lucide-react";
 import Image from "next/image";
 import { InvestmentDialog } from "@/components/investment-dialog";
 import { useBalance, Investment } from "@/context/balance-context";
@@ -192,7 +192,7 @@ export default function FinancePage() {
     const renderEmptyState = (text: string) => (
          <Card>
             <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
-                 <Image src="https://placehold.co/100x100.png" alt="No data" width={80} height={80} data-ai-hint="illustration no-data" />
+                 <Archive className="h-16 w-16 text-muted-foreground" />
                 <p className="mt-4 text-muted-foreground">{text}</p>
             </CardContent>
         </Card>
