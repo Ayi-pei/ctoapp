@@ -54,7 +54,7 @@ export default function PaymentPage() {
         if (user) {
             // Mock data since Supabase is removed
             const mockAddresses: WithdrawalAddress[] = [
-                { id: 'addr1', name: 'My Binance Wallet', address: 'Tabcdef1234567890', network: 'USDT-TRC20', user_id: user.id },
+                { id: 'addr1', name: '我的币安钱包', address: 'Tabcdef1234567890', network: 'USDT-TRC20', user_id: user.id },
             ];
             setAddresses(mockAddresses);
         }
