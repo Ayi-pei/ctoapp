@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     try {
-      // Use the admin client to bypass RLS for this internal-facing query.
       const { data, error } = await supabaseAdmin
         .from('users')
         .select('*')
@@ -49,7 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      // If profile doesn't exist, sign out to prevent orphan auth entries
+      toast({
+        variant: 'destructive',
+        title: '获取用户资料失败',
+        description: error.message,
+      });
       await supabase.auth.signOut();
       return null;
     }
@@ -102,35 +105,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     
-    // onAuthStateChange will handle fetching profile and setting state.
-    // We just report success.
     toast({ title: '登录成功' });
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-    
-    // The logic to determine if the user is an admin based on specific credentials.
     const isAdminRegistration = invitationCode === 'admin8888';
 
      try {
-        // Use the standard Supabase signUp method.
-        // The `handle_new_user` trigger in Supabase will automatically create the public user profile
-        // from the metadata provided in `options.data`.
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     username: username,
-                    raw_invitation_code: invitationCode, // The trigger will use this to find the inviter
-                    is_admin: isAdminRegistration // Pass the admin flag to the trigger
+                    raw_invitation_code: invitationCode,
+                    is_admin: isAdminRegistration
                 }
             }
         });
       
-        if (error) throw error;
+        if (error) {
+            // This is the special fix: if admin already exists in auth but not public.users,
+            // we manually create the public profile here.
+            if (error.message.includes('User already registered') && username === 'admin666') {
+                 toast({ title: '通知', description: '管理员账户已存在，正在尝试修复用户资料...'});
+                 const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
+                 if (userError) throw userError;
+
+                 const adminAuthUser = users.find(u => u.email === 'admin666@noemail.app');
+                 if (adminAuthUser) {
+                    const { error: upsertError } = await supabaseAdmin.from('users').upsert({
+                        id: adminAuthUser.id,
+                        username: 'admin666',
+                        email: 'admin666@noemail.app',
+                        is_admin: true,
+                    }, { onConflict: 'id' });
+
+                    if (upsertError) throw upsertError;
+
+                    toast({ title: '修复成功', description: '管理员资料已创建，请现在登录。'});
+                    return true;
+                 }
+            }
+            throw error;
+        }
         
         if (!data.user) {
              throw new Error("Registration succeeded but no user object was returned.");
