@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/hooks/use-toast';
 
 
 const registerSchema = z.object({
@@ -23,7 +24,8 @@ const registerSchema = z.object({
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register: registerUser } = useAuth();
+  const { register } = useAuth();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -35,10 +37,13 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof registerSchema>) => {
-    const success = await registerUser(values.username, values.password, values.invitationCode);
+    const success = await register(values.username, values.password, values.invitationCode);
 
     if (success) {
+        toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
         router.push('/login');
+    } else {
+        toast({ variant: 'destructive', title: '注册失败', description: '发生未知错误，请重试。' });
     }
   };
 
@@ -58,12 +63,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                       <div className="relative">
-                        <Input placeholder="5-10位字母或数字" {...field} className="pr-28" />
-                         <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
-                            @noemail.app
-                        </span>
-                      </div>
+                       <Input placeholder="5-10位字母或数字" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

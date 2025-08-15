@@ -3,10 +3,12 @@
 
 import { useState, useEffect } from "react";
 import { Skeleton } from "./ui/skeleton";
-import { supabase } from "@/lib/supabase";
 import { Badge } from "./ui/badge";
 import type { DownlineMember } from "@/types";
 
+type DownlineTreeProps = {
+    userId: string;
+};
 
 const DownlineList = ({ members }: { members: DownlineMember[] }) => {
     if (!members || members.length === 0) {
@@ -29,26 +31,15 @@ export const DownlineTree = ({ userId }: DownlineTreeProps) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchDownline = async () => {
-            if (!userId) return;
-            setIsLoading(true);
-            try {
-                // Call the RPC function to get the multi-level downline
-                const { data, error } = await supabase
-                    .rpc('get_user_downline', { p_user_id: userId });
-                
-                if (error) throw error;
-                
-                setDownline(data as DownlineMember[]);
-
-            } catch (error) {
-                console.error("Failed to load user downline:", error);
-                setDownline([]);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        fetchDownline();
+        if (!userId) return;
+        setIsLoading(true);
+        // Mock data since Supabase is removed
+        const mockDownline: DownlineMember[] = [
+            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
+            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
+        ];
+        setDownline(mockDownline);
+        setIsLoading(false);
     }, [userId]);
     
     if (isLoading) {

@@ -41,8 +41,7 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      // Redirect to home page after successful login, which will then redirect to the correct dashboard.
-      router.push('/');
+      router.push(isAdmin ? '/admin' : '/dashboard');
     } else {
       toast({
         variant: 'destructive',
@@ -52,14 +51,13 @@ export default function LoginPage() {
     }
   };
 
-  // This hook is now managed by the AuthProvider, but we can keep a fallback here.
   useEffect(() => {
     if (isAuthenticated) {
       router.replace(isAdmin ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, isAdmin, router]);
 
-  if (isLoading || isAuthenticated) {
+  if (isLoading) {
      return (
         <AuthLayout>
             <Card className="w-full max-w-md">
@@ -98,12 +96,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>用户名</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Input placeholder="请输入您的用户名" {...field} className="pr-28"/>
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
-                            @noemail.app
-                        </span>
-                      </div>
+                      <Input placeholder="请输入您的用户名" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

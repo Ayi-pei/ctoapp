@@ -19,7 +19,6 @@ import { useAuth } from "@/context/auth-context";
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
-import { supabase } from "@/lib/supabase";
 
 type WithdrawDialogProps = {
     isOpen: boolean;
@@ -36,23 +35,13 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
 
     useEffect(() => {
         if (user && isOpen) {
-            const fetchAddresses = async () => {
-                 try {
-                    const { data, error } = await supabase
-                        .from('withdrawal_addresses')
-                        .select('*')
-                        .eq('user_id', user.id);
-                    if (error) throw error;
-                    setSavedAddresses(data || []);
-                } catch (error) {
-                    console.error("Failed to load addresses from Supabase", error);
-                    setSavedAddresses([]);
-                    toast({ variant: "destructive", title: "错误", description: "加载提现地址失败。" });
-                }
-            };
-            fetchAddresses();
+            // Mock data since Supabase is removed
+            const mockAddresses: WithdrawalAddress[] = [
+                { id: 'addr1', name: 'My Binance Wallet', address: 'Tabcdef1234567890', network: 'USDT-TRC20', user_id: user.id },
+            ];
+            setSavedAddresses(mockAddresses);
         }
-    }, [user, isOpen, toast]);
+    }, [user, isOpen]);
 
 
     const handleWithdraw = async () => {
@@ -152,5 +141,3 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
         </Dialog>
     );
 }
-
-    

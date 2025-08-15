@@ -5,7 +5,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { ContractTrade, SpotTrade, Transaction, availablePairs, Investment } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 export type { Investment };
@@ -22,23 +21,6 @@ const INITIAL_BALANCES_TEST_USER: { [key: string]: { available: number; frozen: 
     DOGE: { available: 1000000, frozen: 0},
     ADA: { available: 100000, frozen: 0},
     SHIB: { available: 500000000, frozen: 0},
-    'XAU/USD': { available: 0, frozen: 0},
-    'EUR/USD': { available: 0, frozen: 0},
-    'GBP/USD': { available: 0, frozen: 0},
-};
-
-const INITIAL_BALANCES_REAL_USER: { [key: string]: { available: number; frozen: number } } = {
-    USDT: { available: 0, frozen: 0 },
-    BTC: { available: 0, frozen: 0 },
-    ETH: { available: 0, frozen: 0 },
-    SOL: { available: 0, frozen: 0},
-    XRP: { available: 0, frozen: 0},
-    LTC: { available: 0, frozen: 0},
-    BNB: { available: 0, frozen: 0},
-    MATIC: { available: 0, frozen: 0},
-    DOGE: { available: 0, frozen: 0},
-    ADA: { available: 0, frozen: 0},
-    SHIB: { available: 0, frozen: 0},
     'XAU/USD': { available: 0, frozen: 0},
     'EUR/USD': { available: 0, frozen: 0},
     'GBP/USD': { available: 0, frozen: 0},
@@ -74,448 +56,143 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { data: marketData } = useMarket();
   const { toast } = useToast();
-  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_REAL_USER);
+  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_TEST_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
-
   
-  const loadUserTrades = useCallback(async (userId: string) => {
-        if (!userId) return;
-        try {
-            const { data: allContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
-            const { data: allSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId);
-            
-            if (contractError) throw contractError;
-            if (spotError) throw spotError;
-            
-            const activeTrades = allContractTrades.filter(t => t.status === 'active');
-            setActiveContractTrades(activeTrades.map(t => ({...t, orderType: 'contract'})));
-
-            const settledContractTrades = allContractTrades.filter(t => t.status === 'settled');
-            const combinedHistory = [...settledContractTrades, ...allSpotTrades]
-                .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            
-            const formattedHistory = combinedHistory.map(t => {
-                if ('base_asset' in t) {
-                    return { ...t, orderType: 'spot' };
-                }
-                return { ...t, orderType: 'contract' };
-            });
-
-            setHistoricalTrades(formattedHistory as (SpotTrade | ContractTrade)[]);
-
-        } catch (error) {
-            console.error("Failed to fetch user trades:", error);
-        }
-    }, []);
-
-
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
-    if (!userId) return {};
-    try {
-        const { data: targetUser, error: userError } = await supabase.from('users').select('*').eq('id', userId).single();
-        if (userError || !targetUser) return {};
+    console.log("Recalculating balance for (mock)", userId);
+    // In a real scenario, this would fetch and calculate. Now it does nothing.
+    return balances;
+  }, [balances]);
 
-        let calculatedBalances: { [key: string]: { available: number; frozen: number } } = targetUser.is_test_user ? 
-            JSON.parse(JSON.stringify(INITIAL_BALANCES_TEST_USER)) : 
-            JSON.parse(JSON.stringify(INITIAL_BALANCES_REAL_USER));
-
-        const { data: userFinancialTxs, error: txError } = await supabase.from('transactions').select('*').eq('user_id', userId);
-        if (txError) throw txError;
-
-        userFinancialTxs.forEach((tx: Transaction) => {
-            if (!calculatedBalances[tx.asset]) calculatedBalances[tx.asset] = { available: 0, frozen: 0 };
-            
-            if (tx.type === 'deposit' && tx.status === 'approved') {
-                calculatedBalances[tx.asset].available += tx.amount;
-            } else if (tx.type === 'withdrawal') {
-                 if (tx.status === 'pending') {
-                    calculatedBalances[tx.asset].available -= tx.amount;
-                    calculatedBalances[tx.asset].frozen += tx.amount;
-                 } else if (tx.status === 'rejected') {
-                    calculatedBalances[tx.asset].available += tx.amount;
-                 } else if (tx.status === 'approved') {
-                    calculatedBalances[tx.asset].frozen -= tx.amount;
-                 }
-            } else if (tx.type === 'adjustment' && tx.status === 'approved') {
-                calculatedBalances[tx.asset].available += tx.amount;
-            }
-        });
-
-        const {data: userSpotTrades, error: spotError } = await supabase.from('spot_trades').select('*').eq('user_id', userId).eq('status', 'filled');
-        if (spotError) throw spotError;
-        userSpotTrades.forEach(trade => {
-            if (!calculatedBalances[trade.base_asset]) calculatedBalances[trade.base_asset] = { available: 0, frozen: 0 };
-            if (!calculatedBalances[trade.quote_asset]) calculatedBalances[trade.quote_asset] = { available: 0, frozen: 0 };
-
-            if (trade.type === 'buy') {
-                calculatedBalances[trade.quote_asset].available -= trade.total;
-                calculatedBalances[trade.base_asset].available += trade.amount;
-            } else { 
-                calculatedBalances[trade.base_asset].available -= trade.amount;
-                calculatedBalances[trade.quote_asset].available += trade.total;
-            }
-        });
-
-        const { data: userContractTrades, error: contractError } = await supabase.from('contract_trades').select('*').eq('user_id', userId);
-        if(contractError) throw contractError;
-        userContractTrades.forEach(trade => {
-             if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             
-             if (trade.status === 'active') {
-                calculatedBalances['USDT'].available -= trade.amount;
-                calculatedBalances['USDT'].frozen += trade.amount;
-             }
-             
-             if (trade.status === 'settled' && trade.profit !== null) {
-                 calculatedBalances['USDT'].frozen -= trade.amount;
-                 calculatedBalances['USDT'].available += (trade.amount + trade.profit);
-             }
-        });
-
-        const { data: userInvestments, error: invError } = await supabase.from('investments').select('*').eq('user_id', userId);
-        if(invError) throw invError;
-        userInvestments.forEach(investment => {
-             if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             calculatedBalances['USDT'].available -= investment.amount;
-        });
-
-        const { data: userCommissions, error: commError } = await supabase.from('commission_logs').select('*').eq('upline_user_id', userId);
-        if(commError) throw commError;
-        userCommissions.forEach(log => {
-             if (!calculatedBalances['USDT']) calculatedBalances['USDT'] = { available: 0, frozen: 0 };
-             calculatedBalances['USDT'].available += log.commission_amount;
-        })
-        
-        if (user && user.id === userId) {
-            setBalances(calculatedBalances);
-        }
-        return calculatedBalances;
-
-    } catch (error) {
-        console.error(`Error recalculating balance for ${userId}:`, error);
-        return {};
-    }
+  useEffect(() => {
+    // Since we are using mock data, we don't need to reload anything when the user changes.
   }, [user]);
-
-  // ONE-TIME FIX: Automatically create the admin user if they don't exist.
-  useEffect(() => {
-    const ensureAdminExists = async () => {
-        const adminEmail = 'admin666@noemail.app';
-        
-        // 1. Check if the user exists in the public table first.
-        const { data: existingUser, error: checkError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('username', 'admin666')
-            .single();
-
-        // If user already exists or there was an error checking, stop.
-        if (existingUser || (checkError && checkError.code !== 'PGRST116')) { // PGRST116 = no rows found
-             console.log("Admin user check complete.");
-             return;
-        }
-
-        console.log("Admin user 'admin666' not found. Attempting to create...");
-
-        try {
-            // 2. Create the user in auth.users
-            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-                email: adminEmail,
-                password: 'admin789',
-                email_confirm: true, // Bypass email verification
-            });
-
-            if (authError) {
-                 // Handle cases where the auth user might already exist but public profile doesn't
-                if (authError.message.includes('User already registered')) {
-                    console.warn("Auth user 'admin666' exists, but public profile is missing. Will try to recover.");
-                    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({ email: adminEmail });
-                    if (listError || users.length === 0) {
-                        throw listError || new Error("Cannot find existing admin auth user to recover.");
-                    }
-                    authData.user = users[0];
-                } else {
-                    throw authError;
-                }
-            }
-
-            if (!authData.user) {
-                throw new Error("Admin user creation in auth failed silently.");
-            }
-
-            const newAdminUserId = authData.user.id;
-
-            // 3. Create the corresponding profile in public.users
-            const { error: profileError } = await supabase
-                .from('public.users')
-                .insert({
-                    id: newAdminUserId,
-                    username: 'admin666',
-                    email: adminEmail,
-                    is_admin: true,
-                    inviter_id: null,
-                    // A simplified invitation code generation for this one-time fix
-                    invitation_code: 'ADMIN' + Math.random().toString(36).substring(2, 6).toUpperCase()
-                });
-
-            if (profileError) {
-                throw profileError;
-            }
-
-            console.log("Successfully created and configured admin user 'admin666'.");
-
-        } catch (e: any) {
-            console.error("CRITICAL: Failed to auto-create admin user. Please check Supabase logs and database policies.", e.message);
-        }
-    };
-
-    ensureAdminExists();
-  }, []); // Run only once on initial mount.
-
-
-  useEffect(() => {
-    setIsLoading(true);
-    if (user && !user.is_admin) {
-        recalculateBalanceForUser(user.id);
-        loadUserTrades(user.id);
-        const loadInvestments = async () => {
-          if (!user) return;
-          const { data, error } = await supabase.from('investments').select('*').eq('user_id', user.id);
-          if (error) {
-              console.error("Could not fetch investments", error);
-          } else if (data) {
-            setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
-          }
-        }
-        loadInvestments();
-    } else {
-      setBalances(INITIAL_BALANCES_REAL_USER);
-      setInvestments([]);
-      setActiveContractTrades([]);
-      setHistoricalTrades([]);
-    }
-    setIsLoading(false);
-  }, [user, recalculateBalanceForUser, loadUserTrades]);
-
-
-  useEffect(() => {
-    if (!user || typeof window === 'undefined' || user.is_admin) return;
-
-    const interval = setInterval(async () => {
-        try {
-            if(!user) return;
-            const { data: userActiveTrades, error } = await supabase
-                .from('contract_trades')
-                .select('*')
-                .eq('user_id', user.id)
-                .eq('status', 'active');
-            
-            if (error || !userActiveTrades || userActiveTrades.length === 0) return;
-
-            let tradeSettled = false;
-            const now = Date.now();
-
-            for (const trade of userActiveTrades) {
-                if (now >= new Date(trade.settlement_time).getTime()) {
-                    const settlementPrice = trade.entry_price * (1 + (Math.random() - 0.5) * 0.001); 
-                    let outcome: 'win' | 'loss';
-
-                    if (trade.type === 'buy') {
-                        outcome = settlementPrice > trade.entry_price ? 'win' : 'loss';
-                    } else {
-                        outcome = settlementPrice < trade.entry_price ? 'win' : 'loss';
-                    }
-
-                    const profit = outcome === 'win' ? trade.amount * trade.profit_rate : -trade.amount;
-                    
-                    const { error: updateError } = await supabase
-                        .from('contract_trades')
-                        .update({
-                            status: 'settled',
-                            settlement_price: settlementPrice,
-                            outcome: outcome,
-                            profit: profit
-                        })
-                        .eq('id', trade.id);
-
-                    if (!updateError) {
-                      tradeSettled = true;
-                    }
-                }
-            }
-            
-            if (tradeSettled) {
-                if (user) {
-                    loadUserTrades(user.id);
-                    recalculateBalanceForUser(user.id);
-                }
-            }
-        } catch (error) {
-            console.error("Error during settlement simulation:", error);
-        }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [user, recalculateBalanceForUser, loadUserTrades]);
-  
 
   const addInvestment = async (productName: string, amount: number) => {
     if (!user) return false;
     
-    if (user.is_frozen) {
-        toast({ variant: 'destructive', title: '操作失败', description: '您的账户已被冻结。'});
-        return false;
-    }
     if (balances.USDT.available < amount) {
-        return false;
+      toast({ variant: 'destructive', title: 'Investment Failed', description: 'Insufficient balance.' });
+      return false;
     }
     
-    const newInvestment = {
+    setBalances(prev => ({
+      ...prev,
+      USDT: { ...prev.USDT, available: prev.USDT.available - amount }
+    }));
+
+    const newInvestment: Investment = {
+        id: `inv-${Date.now()}`,
+        user_id: user.id,
         product_name: productName,
         amount,
-        user_id: user.id
+        created_at: new Date().toISOString(),
+        productName: productName,
+        date: new Date().toLocaleDateString(),
     }
-    try {
-        const { error } = await supabase.from('investments').insert(newInvestment);
-        if (error) throw error;
-        
-        await recalculateBalanceForUser(user.id);
-        if(user) {
-            const { data } = await supabase.from('investments').select('*').eq('user_id', user.id);
-            if (data) {
-                setInvestments(data.map(i => ({...i, productName: i.product_name, date: new Date(i.created_at).toLocaleDateString()})) || []);
-            }
-        }
-        return true;
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
+    setInvestments(prev => [...prev, newInvestment]);
+    toast({ title: 'Investment Successful' });
+    return true;
   }
   
-    const handleCommissionDistribution = async (sourceUserId: string, tradeAmount: number) => {
-        try {
-            const { error } = await supabase.rpc('distribute_commissions', {
-                p_source_user_id: sourceUserId,
-                p_trade_amount: tradeAmount
-            });
-
-            if (error) {
-                console.error(`Commission distribution failed: ${error.message}`);
-            }
-
-        } catch (error) {
-            console.error("Failed to call distribute_commissions RPC:", error);
-        }
-    };
-
-
   const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
 
     if (user.is_frozen) {
-        toast({ variant: 'destructive', title: '操作失败', description: '您的账户已被冻结，无法进行交易。'});
+        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
         return;
     }
     
-    try {
-        const now = Date.now();
-        const fullTrade: Omit<ContractTrade, 'id' | 'orderType'> = {
-            ...trade,
-            user_id: user.id,
-            trading_pair: tradingPair,
-            status: 'active',
-            entry_price: marketData.summary.price,
-            settlement_time: new Date(now + (trade.period * 1000)).toISOString(),
-            profit_rate: trade.profitRate,
-            created_at: new Date().toISOString(),
-        }
-
-        const { error } = await supabase.from('contract_trades').insert(fullTrade);
-        if (error) throw error;
-
-        handleCommissionDistribution(user.id, trade.amount);
-        
-        await recalculateBalanceForUser(user.id);
-        await loadUserTrades(user.id);
-
-    } catch (error) {
-        console.error("Failed to save contract trade to Supabase", error);
+    const newTrade: ContractTrade = {
+      id: `ct-${Date.now()}`,
+      user_id: user.id,
+      trading_pair: tradingPair,
+      type: trade.type,
+      amount: trade.amount,
+      entry_price: marketData.summary.price,
+      settlement_time: new Date(Date.now() + (trade.period * 1000)).toISOString(),
+      period: trade.period,
+      profit_rate: trade.profitRate,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      orderType: 'contract',
     }
+
+    setActiveContractTrades(prev => [...prev, newTrade]);
+    setBalances(prev => ({
+      ...prev,
+      USDT: { 
+        available: prev.USDT.available - trade.amount,
+        frozen: prev.USDT.frozen + trade.amount
+      }
+    }));
   };
   
   const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
-     if (!user) return;
+     if (!user || !marketData) return;
     
      if (user.is_frozen) {
-        toast({ variant: 'destructive', title: '操作失败', description: '您的账户已被冻结，无法进行交易。'});
+        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
         return;
     }
 
-    try {
-        const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
-        const fullTrade: Omit<SpotTrade, 'id' | 'orderType'> = {
-            type: trade.type,
-            amount: trade.amount,
-            total: trade.total,
-            user_id: user.id,
-            trading_pair: trade.trading_pair,
-            base_asset: baseAsset,
-            quote_asset: quoteAsset,
-            status: 'filled',
-            created_at: new Date().toISOString(),
-        }
-        
-        const { error } = await supabase.from('spot_trades').insert(fullTrade);
-        if (error) throw error;
-
-
-        await recalculateBalanceForUser(user.id);
-        await loadUserTrades(user.id);
-    } catch (error) {
-        console.error("Failed to save spot trade to Supabase", error);
+    const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
+    const fullTrade: SpotTrade = {
+        id: `st-${Date.now()}`,
+        type: trade.type,
+        amount: trade.amount,
+        total: trade.total,
+        user_id: user.id,
+        trading_pair: trade.trading_pair,
+        base_asset: baseAsset,
+        quote_asset: quoteAsset,
+        status: 'filled',
+        created_at: new Date().toISOString(),
+        orderType: 'spot'
     }
 
+    setHistoricalTrades(prev => [fullTrade, ...prev]);
+    
+    setBalances(prev => {
+      const newBalances = {...prev};
+      if (trade.type === 'buy') {
+        newBalances[quoteAsset].available -= trade.total;
+        newBalances[baseAsset].available += trade.amount;
+      } else {
+        newBalances[baseAsset].available -= trade.amount;
+        newBalances[quoteAsset].available += trade.total;
+      }
+      return newBalances;
+    })
   };
   
   const requestWithdrawal = async (asset: string, amount: number, address: string) => {
       if (!user) return false;
-
       if (user.is_frozen) {
-        toast({ variant: 'destructive', title: '操作失败', description: '您的账户已被冻结，无法提现。'});
+        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
         return false;
       }
-
-      const balance = balances[asset] as { available: number; frozen: number } | undefined;
+      const balance = balances[asset];
       if (!balance || amount > balance.available) {
+          toast({ variant: 'destructive', title: 'Withdrawal Failed', description: 'Insufficient balance.' });
           return false;
       }
-       try {
-           const newTransaction: Omit<Transaction, 'id' | 'user' | 'createdAt'> = {
-                user_id: user.id,
-                type: 'withdrawal',
-                asset: asset,
-                amount: amount,
-                address: address,
-                status: 'pending',
-                created_at: new Date().toISOString(),
-            };
 
-            const { error } = await supabase.from('transactions').insert(newTransaction);
-            if (error) throw error;
-            
-            await recalculateBalanceForUser(user.id);
-            return true;
-       } catch (error) {
-           console.error("Failed to save withdrawal request to Supabase", error);
-           return false;
-       }
+      toast({ title: 'Withdrawal Requested', description: 'Your request has been submitted for review.' });
+      setBalances(prev => ({
+        ...prev,
+        [asset]: {
+          available: prev[asset].available - amount,
+          frozen: prev[asset].frozen + amount,
+        }
+      }))
+      return true;
   };
-
 
   const value = { 
       balances, 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -19,7 +20,6 @@ import { Separator } from "./ui/separator";
 import { Users } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { availablePairs } from "@/types";
-import { supabase } from "@/lib/supabase";
 import { Skeleton } from "./ui/skeleton";
 import { Badge } from "./ui/badge";
 
@@ -48,22 +48,15 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchDownline = async () => {
-            if (!userId) return;
-            setIsLoading(true);
-            try {
-                // Use the admin-specific function to get the team
-                const { data, error } = await supabase.rpc('get_user_downline', { p_user_id: userId });
-                if (error) throw error;
-                setDownline(data as DownlineMember[]);
-            } catch (error) {
-                console.error("Failed to load user downline:", error);
-                setDownline([]);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-        fetchDownline();
+        if (!userId) return;
+        setIsLoading(true);
+        // Mock data since Supabase is removed
+        const mockDownline: DownlineMember[] = [
+            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
+            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
+        ];
+        setDownline(mockDownline);
+        setIsLoading(false);
     }, [userId]);
     
     if (isLoading) {
@@ -132,31 +125,12 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             toast({ variant: "destructive", title: "错误", description: "请输入一个有效的、非零的调整值。" });
             return;
         }
-
-        try {
-            const newAdjustment: Omit<Transaction, 'id' | 'createdAt' | 'user' > = {
-                user_id: user.id,
-                type: 'adjustment',
-                asset: asset,
-                amount: amount,
-                status: 'approved',
-                created_at: new Date().toISOString(),
-            };
-            
-            const { error } = await supabase.from('transactions').insert(newAdjustment);
-            if (error) throw error;
-            
-            toast({ title: "成功", description: `${user.username} 的 ${asset} 余额调整记录已创建。` });
-            setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
-            
-            const updatedBalances = await recalculateBalanceForUser(user.id);
-            setCalculatedBalances(updatedBalances);
-            
-            onUpdate(); 
-
-        } catch (error) {
-            toast({ variant: "destructive", title: "错误", description: "调整余额失败。" });
-        }
+        
+        toast({ title: "成功 (Mock)", description: `${user.username} 的 ${asset} 余额已调整。` });
+        setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
+        
+        // This would be where you update balances, but it's mocked in the context now
+        onUpdate(); 
     };
 
 
@@ -165,39 +139,14 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user, onUpdate }: User
             toast({ variant: "destructive", title: "错误", description: "请输入新密码。" });
             return;
         }
-        try {
-           const { error } = await supabase.auth.admin.updateUserById(
-                user.id,
-                { password: newPassword.trim() }
-            )
-            if (error) throw error;
-            
-            toast({ title: "成功", description: `用户 ${user.username} 的密码已更新。` });
-            setNewPassword("");
-
-        } catch (error: any) {
-            console.error("Failed to update password:", error);
-            toast({ variant: "destructive", title: "错误", description: `更新密码失败: ${error.message}` });
-        }
+        toast({ title: "成功 (Mock)", description: `用户 ${user.username} 的密码已更新。` });
+        setNewPassword("");
     };
     
     const handleToggleFreeze = async (freeze: boolean) => {
         if (!user) return;
-        try {
-             const { error } = await supabase
-                .from('users')
-                .update({ is_frozen: freeze })
-                .eq('id', user.id);
-            
-            if (error) throw error;
-                
-            toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
-            onUpdate();
-
-        } catch (error: any) {
-            console.error("Failed to update user freeze state:", error);
-            toast({ variant: "destructive", title: "错误", description: `操作失败: ${error.message}` });
-        }
+        toast({ title: "成功 (Mock)", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
+        onUpdate();
     }
     
     const registeredAtDate = user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A';

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +8,6 @@ import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import { SpotTrade, ContractTrade } from '@/types';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 type OrderWithUser = (SpotTrade | ContractTrade) & {
@@ -33,44 +31,36 @@ export default function AdminOrdersPage() {
     const loadOrders = useCallback(async () => {
         if (!isAdmin) return;
 
-        try {
-            const { data: spotTrades, error: spotError } = await supabase
-                .from('spot_trades')
-                .select('*, user:users(username)');
+        // Mock data since Supabase is removed
+        const mockSpotTrades: (SpotTrade & { user: { username: string }})[] = [
+            { id: 's1', user_id: 'user123', trading_pair: 'BTC/USDT', type: 'buy', base_asset: 'BTC', quote_asset: 'USDT', amount: 0.1, total: 6800, status: 'filled', created_at: new Date().toISOString(), orderType: 'spot', user: { username: 'testuser1' } }
+        ];
+        const mockContractTrades: (ContractTrade & { user: { username: string }})[] = [
+            { id: 'c1', user_id: 'user456', trading_pair: 'ETH/USDT', type: 'sell', amount: 100, entry_price: 3800, settlement_time: '', period: 30, profit_rate: 0.85, status: 'settled', outcome: 'win', profit: 85, created_at: new Date().toISOString(), orderType: 'contract', user: { username: 'testuser2' } }
+        ];
 
-            const { data: contractTrades, error: contractError } = await supabase
-                .from('contract_trades')
-                .select('*, user:users(username)');
+        const formattedSpot = mockSpotTrades.map(t => ({ 
+            ...t, 
+            orderType: 'spot' as const, 
+            userId: t.user?.username || t.user_id, 
+            tradingPair: t.trading_pair, 
+            statusText: t.status, 
+            createdAt: t.created_at 
+        }));
+        const formattedContract = mockContractTrades.map(t => ({ 
+            ...t, 
+            orderType: 'contract' as const, 
+            userId: t.user?.username || t.user_id, 
+            tradingPair: t.trading_pair, 
+            statusText: t.status, 
+            createdAt: t.created_at 
+        }));
 
-            if (spotError) throw spotError;
-            if (contractError) throw contractError;
+        const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
 
-            const formattedSpot = (spotTrades as OrderWithUser[]).map(t => ({ 
-                ...t, 
-                orderType: 'spot' as const, 
-                userId: t.user?.username || t.user_id, 
-                tradingPair: t.trading_pair, 
-                statusText: t.status, 
-                createdAt: t.created_at 
-            }));
-            const formattedContract = (contractTrades as OrderWithUser[]).map(t => ({ 
-                ...t, 
-                orderType: 'contract' as const, 
-                userId: t.user?.username || t.user_id, 
-                tradingPair: t.trading_pair, 
-                statusText: t.status, 
-                createdAt: t.created_at 
-            }));
-
-            const allOrders = [...formattedSpot, ...formattedContract].sort((a,b) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-
-            setOrders(allOrders as FormattedOrder[]);
-        } catch (error) {
-            console.error("Failed to fetch orders from Supabase", error);
-            toast({ variant: "destructive", title: "错误", description: "加载订单记录失败。" });
-        }
+        setOrders(allOrders as FormattedOrder[]);
     }, [isAdmin, toast]);
 
     useEffect(() => {
@@ -158,4 +148,3 @@ export default function AdminOrdersPage() {
         </DashboardLayout>
     );
 }
-

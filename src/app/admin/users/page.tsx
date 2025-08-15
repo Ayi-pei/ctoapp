@@ -13,8 +13,6 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
-
 
 export default function AdminUsersPage() {
     const { user, isAdmin } = useAuth();
@@ -28,18 +26,15 @@ export default function AdminUsersPage() {
     
     const loadData = useCallback(async () => {
         if (!isAdmin) return;
-        try {
-            // Use the new, correct RPC function name
-            const { data, error } = await supabase.rpc('admin_get_all_users');
-            if (error) throw error;
-            
-            setUsers(data as User[]);
-
-        } catch (error) {
-            console.error("Failed to fetch data from Supabase", error);
-            toast({ variant: "destructive", title: "错误", description: "加载用户数据失败。" });
-        }
-    }, [isAdmin, toast]);
+        
+        // Mock data since Supabase is removed
+        const mockUsers: User[] = [
+            { id: 'user1', username: 'testuser1', email: 'testuser1@noemail.app', is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'TEST1', inviter_id: null, created_at: new Date().toISOString() },
+            { id: 'user2', username: 'testuser2', email: 'testuser2@noemail.app', is_admin: false, is_test_user: false, is_frozen: true, invitation_code: 'TEST2', inviter_id: 'user1', created_at: new Date().toISOString() },
+            { id: 'user3', username: 'longusername_frozen', email: 'longusername@noemail.app', is_admin: false, is_test_user: false, is_frozen: true, invitation_code: 'TEST3', inviter_id: 'user1', created_at: new Date().toISOString() },
+        ];
+        setUsers(mockUsers);
+    }, [isAdmin]);
 
     useEffect(() => {
         if (isAdmin === false) {
@@ -61,22 +56,10 @@ export default function AdminUsersPage() {
     };
 
     const handleSuccessfulUpdate = useCallback(() => {
+        // Mock update - just show a toast
+        toast({ title: 'Success', description: 'User data has been updated (mock).' });
         loadData();
-        
-        if (selectedUser) {
-            // Also refresh the data for the selected user in the dialog
-            const findUpdatedUser = async () => {
-                const { data, error } = await supabase.from('users').select('*').eq('id', selectedUser.id).single();
-                if (!error && data) {
-                    setSelectedUser(data as User);
-                } else {
-                   // If user not found (e.g., deleted), close the dialog
-                   setIsDetailsOpen(false);
-                }
-            }
-            findUpdatedUser();
-        }
-    }, [loadData, selectedUser]);
+    }, [loadData, toast]);
 
 
     if (!user || !isAdmin) {
@@ -144,7 +127,7 @@ export default function AdminUsersPage() {
                                 )) : (
                                      <TableRow>
                                         <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                            加载用户列表失败
+                                            暂无用户。
                                         </TableCell>
                                     </TableRow>
                                 )}

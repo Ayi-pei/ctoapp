@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,13 +9,9 @@ import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import type { Transaction, PasswordResetRequest } from '@/types';
-import { useBalance } from '@/context/balance-context';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 
-// The data from Supabase will have the nested user object now
 type RequestWithUser = (Transaction | PasswordResetRequest);
 
 const requestTypeText: { [key: string]: string } = {
@@ -35,7 +30,6 @@ const requestTypeColor: { [key: string]: string } = {
 export default function AdminRequestsPage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
-    const { recalculateBalanceForUser } = useBalance();
     const { toast } = useToast();
 
     const [requests, setRequests] = useState<RequestWithUser[]>([]);
@@ -48,62 +42,27 @@ export default function AdminRequestsPage() {
 
     const loadData = useCallback(async () => {
         if (!isAdmin) return;
-        try {
-            const { data: financeRequests, error: financeError } = await supabase
-                .from('transactions')
-                .select('*, user:users(username)')
-                .in('type', ['deposit', 'withdrawal'])
-                .eq('status', 'pending');
+        
+        // Mock data since Supabase is removed
+        const mockRequests: RequestWithUser[] = [
+            { id: 'req1', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 5000, status: 'pending', created_at: new Date().toISOString(), transaction_hash: '0xabc...def', user: { username: 'testuser1' } },
+            { id: 'req2', user_id: 'user456', type: 'withdrawal', asset: 'BTC', amount: 0.1, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), address: 'bc1q...', user: { username: 'testuser2' } },
+            { id: 'req3', user_id: 'user789', type: 'password_reset', new_password: 'newpassword123', status: 'pending', created_at: new Date(Date.now() - 7200000).toISOString(), user: { username: 'testuser3' } },
+        ];
+        setRequests(mockRequests);
 
-            const { data: passwordRequests, error: passwordError } = await supabase
-                .from('admin_requests')
-                .select('*, user:users(username)')
-                .eq('type', 'password_reset')
-                .eq('status', 'pending');
-                
-            if (financeError) throw financeError;
-            if (passwordError) throw passwordError;
-
-            const allRequests = [...(financeRequests || []), ...(passwordRequests || [])]
-                .sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-            setRequests(allRequests as RequestWithUser[]);
-
-        } catch (error) {
-            console.error("Failed to fetch data from Supabase", error);
-            toast({ variant: "destructive", title: "错误", description: "加载请求失败。" });
-        }
-    }, [isAdmin, toast]);
+    }, [isAdmin]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
 
     const handleRequest = async (request: RequestWithUser, newStatus: 'approved' | 'rejected') => {
-        try {
-            if (request.type === 'password_reset') {
-                 if (newStatus === 'approved' && 'new_password' in request) {
-                    const { error: updateErr } = await supabase.auth.admin.updateUserById(request.user_id, { password: request.new_password! });
-                    if(updateErr) throw updateErr;
-                }
-                const { error } = await supabase.from('admin_requests').update({ status: newStatus }).eq('id', request.id);
-                if(error) throw error;
-            } else {
-                const { error } = await supabase.from('transactions').update({ status: newStatus }).eq('id', request.id);
-                if (error) throw error;
-                recalculateBalanceForUser(request.user_id);
-            }
-            
-            loadData();
-            toast({
-                title: "操作成功",
-                description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
-            });
-            
-        } catch (error) {
-            console.error("Failed to handle request:", error);
-            toast({ variant: "destructive", title: "错误", description: `处理请求失败: ${(error as Error).message}` });
-        }
+        setRequests(prev => prev.filter(r => r.id !== request.id));
+        toast({
+            title: "操作成功",
+            description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
+        });
     };
 
 
@@ -175,4 +134,3 @@ export default function AdminRequestsPage() {
         </DashboardLayout>
     );
 }
-    

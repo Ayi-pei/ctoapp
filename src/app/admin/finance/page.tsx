@@ -1,5 +1,4 @@
 
-
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -12,7 +11,6 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +22,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useBalance } from "@/context/balance-context";
-import { supabase } from "@/lib/supabase";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
     'pending': 'secondary',
@@ -42,28 +39,21 @@ export default function AdminFinancePage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
-    const { recalculateBalanceForUser } = useBalance();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
     const loadTransactions = useCallback(async () => {
         if (!isAdmin) return;
-         try {
-            const { data, error } = await supabase
-                .from('transactions')
-                .select('*, user:users(username)')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setTransactions(data as Transaction[]);
-        } catch (error) {
-            console.error("Failed to fetch transactions from Supabase", error);
-            toast({ variant: "destructive", title: "错误", description: "加载资金流水失败。" });
-        }
-    }, [isAdmin, toast]);
+        // Mock data since Supabase is removed
+        const mockTransactions: Transaction[] = [
+             { id: 'tx1', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 5000, status: 'pending', created_at: new Date().toISOString(), transaction_hash: '0xabc...def', user: { username: 'testuser1' } },
+             { id: 'tx2', user_id: 'user456', type: 'withdrawal', asset: 'USDT', amount: 1200, status: 'pending', created_at: new Date(Date.now() - 3600000).toISOString(), address: 'Tmockaddress123', user: { username: 'testuser2' } },
+             { id: 'tx3', user_id: 'user123', type: 'deposit', asset: 'USDT', amount: 2000, status: 'approved', created_at: new Date(Date.now() - 86400000).toISOString(), transaction_hash: '0x123...456', user: { username: 'testuser1' } },
+        ];
+        setTransactions(mockTransactions);
+    }, [isAdmin]);
 
     useEffect(() => {
         if (isAdmin === false) {
@@ -73,11 +63,6 @@ export default function AdminFinancePage() {
         }
     }, [isAdmin, router, loadTransactions]);
     
-    const handleOpenEditDialog = (transaction: Transaction) => {
-        setSelectedTransaction(transaction);
-        setIsEditDialogOpen(true);
-    };
-
     const handleOpenDeleteDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsDeleteDialogOpen(true);
@@ -85,47 +70,10 @@ export default function AdminFinancePage() {
     
     const handleDeleteTransaction = async () => {
         if (!selectedTransaction) return;
-        try {
-            const { error } = await supabase.from('transactions').delete().eq('id', selectedTransaction.id);
-            if (error) throw error;
-
-            recalculateBalanceForUser(selectedTransaction.user_id);
-            
-            loadTransactions();
-            toast({ title: "成功", description: "交易记录已删除。" });
-        } catch (error) {
-            toast({ variant: "destructive", title: "错误", description: "删除交易失败。" });
-        } finally {
-            setIsDeleteDialogOpen(false);
-            setSelectedTransaction(null);
-        }
-    };
-    
-    const handleSaveTransaction = async (updatedTransaction: Transaction) => {
-        try {
-            const { error } = await supabase
-                .from('transactions')
-                .update({
-                    type: updatedTransaction.type,
-                    asset: updatedTransaction.asset,
-                    amount: updatedTransaction.amount,
-                    status: updatedTransaction.status,
-                    address: updatedTransaction.address,
-                    transaction_hash: updatedTransaction.transaction_hash,
-                    created_at: updatedTransaction.created_at,
-                })
-                .eq('id', updatedTransaction.id);
-                
-            if (error) throw error;
-            
-            recalculateBalanceForUser(updatedTransaction.user_id);
-            
-            loadTransactions();
-            toast({ title: "成功", description: "交易记录已更新。" });
-            
-        } catch (error) {
-             toast({ variant: "destructive", title: "错误", description: "更新交易失败。" });
-        }
+        setTransactions(prev => prev.filter(t => t.id !== selectedTransaction.id));
+        toast({ title: "成功", description: "交易记录已删除。" });
+        setIsDeleteDialogOpen(false);
+        setSelectedTransaction(null);
     };
     
     if (!isAdmin) {
@@ -183,7 +131,6 @@ export default function AdminFinancePage() {
                                        <TableCell className="text-xs truncate max-w-[150px]">{t.transaction_hash || t.address || 'N/A'}</TableCell>
                                        <TableCell className="text-right text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString()}</TableCell>
                                        <TableCell className="text-right space-x-2">
-                                           <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(t)}>修改</Button>
                                            <Button variant="destructive" size="sm" onClick={() => handleOpenDeleteDialog(t)}>删除</Button>
                                        </TableCell>
                                    </TableRow>
@@ -200,15 +147,6 @@ export default function AdminFinancePage() {
                 </Card>
             </div>
             
-            {selectedTransaction && (
-                <EditTransactionDialog
-                    isOpen={isEditDialogOpen}
-                    onOpenChange={setIsEditDialogOpen}
-                    transaction={selectedTransaction}
-                    onSave={handleSaveTransaction}
-                />
-            )}
-
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -227,4 +165,3 @@ export default function AdminFinancePage() {
         </DashboardLayout>
     );
 }
-    

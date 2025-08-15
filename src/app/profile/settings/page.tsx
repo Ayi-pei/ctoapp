@@ -11,7 +11,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
-import { supabase } from "@/lib/supabase";
 import { PasswordResetRequest } from "@/types";
 
 
@@ -42,45 +41,13 @@ export default function ProfileSettingsPage() {
     const onSubmit = async (values: z.infer<typeof changePasswordSchema>) => {
         if (!user) return;
         
-        try {
-            // 1. Verify current password by trying to re-authenticate
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: user.email!,
-                password: values.currentPassword
-            });
+        // Mocked logic since Supabase is removed
+        toast({
+            title: "请求已提交 (Mock)",
+            description: "您的密码修改请求已提交给管理员审核。",
+        });
 
-            if (signInError) {
-                toast({ variant: "destructive", title: "密码错误", description: "当前密码不正确。" });
-                return;
-            }
-
-            // 2. Submit password change request to admin
-            const newRequest: Omit<PasswordResetRequest, 'id'> = {
-                user_id: user.id,
-                type: 'password_reset',
-                new_password: values.newPassword,
-                status: 'pending',
-                created_at: new Date().toISOString(),
-            }
-
-            const { error: requestError } = await supabase.from('admin_requests').insert(newRequest);
-            if (requestError) throw requestError;
-
-
-            toast({
-                title: "请求已提交",
-                description: "您的密码修改请求已提交给管理员审核。",
-            });
-
-            form.reset();
-
-        } catch (error) {
-            toast({
-                variant: "destructive",
-                title: "操作失败",
-                description: `发生未知错误: ${(error as Error).message}`,
-            });
-        }
+        form.reset();
     }
 
 

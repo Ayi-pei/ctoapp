@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuth } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart2, Users, Copy } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -22,28 +21,22 @@ export default function PromotionPage() {
 
     const loadData = useCallback(async () => {
         if (!user) return;
-        try {
-            // Load commission logs for the current user
-            const { data: commissionData, error: commissionError } = await supabase
-                .from('commission_logs')
-                .select('*')
-                .eq('upline_user_id', user.id)
-                .order('created_at', { ascending: false });
+        
+        // Mock data since Supabase is removed
+        const mockCommissions: CommissionLog[] = [
+            { id: 'cl1', upline_user_id: user.id, source_user_id: 'user2', source_username: 'testuser2', source_level: 1, trade_amount: 1000, commission_rate: 0.08, commission_amount: 80, created_at: new Date().toISOString() },
+            { id: 'cl2', upline_user_id: user.id, source_user_id: 'user3', source_username: 'testuser3', source_level: 2, trade_amount: 500, commission_rate: 0.05, commission_amount: 25, created_at: new Date().toISOString() },
+        ];
+        const mockDownline: DownlineMember[] = [
+            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
+            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
+            { id: 'user4', username: 'testuser4', level: 1, created_at: new Date().toISOString() },
+        ];
+        
+        setCommissions(mockCommissions);
+        setDownline(mockDownline);
 
-            if (commissionError) throw commissionError;
-            setCommissions(commissionData as CommissionLog[]);
-
-            // Load downline team using the dedicated RPC function
-            const { data: downlineData, error: downlineError } = await supabase
-                .rpc('get_user_downline', { p_user_id: user.id });
-            
-            if (downlineError) throw downlineError;
-            setDownline(downlineData as DownlineMember[]);
-        } catch (error) {
-            console.error("Error loading promotion data:", error);
-            toast({ variant: "destructive", title: "错误", description: "加载推广数据失败。" });
-        }
-    }, [user, toast]);
+    }, [user]);
 
     useEffect(() => {
         loadData();

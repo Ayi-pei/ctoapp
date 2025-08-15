@@ -30,8 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-
 
 export type WithdrawalAddress = {
     id: string;
@@ -53,23 +51,14 @@ export default function PaymentPage() {
 
 
     useEffect(() => {
-        const fetchAddresses = async () => {
-            if (user) {
-                try {
-                    const { data, error } = await supabase
-                        .from('withdrawal_addresses')
-                        .select('*')
-                        .eq('user_id', user.id);
-                    if (error) throw error;
-                    setAddresses(data || []);
-                } catch (error) {
-                    console.error("Failed to load addresses from Supabase", error);
-                    toast({ variant: "destructive", title: "错误", description: "加载提现地址失败。" });
-                }
-            }
-        };
-        fetchAddresses();
-    }, [user, toast]);
+        if (user) {
+            // Mock data since Supabase is removed
+            const mockAddresses: WithdrawalAddress[] = [
+                { id: 'addr1', name: 'My Binance Wallet', address: 'Tabcdef1234567890', network: 'USDT-TRC20', user_id: user.id },
+            ];
+            setAddresses(mockAddresses);
+        }
+    }, [user]);
 
     const handleAddAddress = async () => {
         if (!newName.trim() || !newAddress.trim() || !user) {
@@ -77,46 +66,24 @@ export default function PaymentPage() {
             return;
         }
 
-        try {
-            const { data, error } = await supabase
-                .from('withdrawal_addresses')
-                .insert({
-                    name: newName,
-                    address: newAddress,
-                    network: "USDT-TRC20",
-                    user_id: user.id
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-            
-            setAddresses(prev => [...prev, data]);
-            toast({ title: "成功", description: "新的提现地址已添加。" });
-            setIsAddDialogOpen(false);
-            setNewName("");
-            setNewAddress("");
-
-        } catch(error) {
-             toast({ variant: "destructive", title: "错误", description: "添加地址失败。" });
-        }
+        const newAddr: WithdrawalAddress = {
+            id: `addr-${Date.now()}`,
+            name: newName,
+            address: newAddress,
+            network: "USDT-TRC20",
+            user_id: user.id
+        };
+        
+        setAddresses(prev => [...prev, newAddr]);
+        toast({ title: "成功", description: "新的提现地址已添加。" });
+        setIsAddDialogOpen(false);
+        setNewName("");
+        setNewAddress("");
     };
 
     const handleDeleteAddress = async (addressId: string) => {
-        try {
-            const { error } = await supabase
-                .from('withdrawal_addresses')
-                .delete()
-                .eq('id', addressId);
-            
-            if (error) throw error;
-
-            setAddresses(prev => prev.filter(addr => addr.id !== addressId));
-            toast({ title: "成功", description: "提现地址已删除。" });
-
-        } catch (error) {
-             toast({ variant: "destructive", title: "错误", description: "删除地址失败。" });
-        }
+        setAddresses(prev => prev.filter(addr => addr.id !== addressId));
+        toast({ title: "成功", description: "提现地址已删除。" });
     };
 
     return (
