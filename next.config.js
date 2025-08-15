@@ -17,6 +17,9 @@ const nextConfig = {
       },
     ],
   },
+  devIndicators: {
+    reloadOnOnline: false,
+  },
 };
 
 module.exports = nextConfig;
