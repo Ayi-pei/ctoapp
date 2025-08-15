@@ -2,7 +2,7 @@
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +12,7 @@ import { useSystemSettings } from "@/context/system-settings-context";
 import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
@@ -39,170 +40,192 @@ export default function AdminSettingsPage() {
         updateSettings(pair, { [key]: value });
     };
     
-    const handleSave = () => {
+    const handleSaveSystemSettings = () => {
+        // In a real app, this would trigger an API call.
+        // Since we are using localStorage which saves automatically, we just show a toast.
         toast({
             title: "设置已保存",
-            description: "所有设置已更新。",
+            description: "所有通用设置已更新。",
         });
     };
+    
+    const handleSaveMarketSettings = () => {
+        // In a real app, this would trigger an API call.
+        // Since we are using localStorage which saves automatically, we just show a toast.
+         toast({
+            title: "设置已保存",
+            description: "所有市场设置已更新。",
+        });
+    }
 
     return (
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-2xl font-bold">系统与市场设置</h1>
-                    <Button onClick={handleSave}>保存全部更改</Button>
-                </div>
+                 <h1 className="text-2xl font-bold">系统与市场设置</h1>
                 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>通用设置</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        {supportedAssets.map((asset) => (
-                            <div className="space-y-2" key={asset}>
-                                <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
-                                <Input
-                                    id={`deposit-address-${asset}`}
-                                    type="text"
-                                    value={systemSettings.depositAddresses[asset] || ''}
-                                    onChange={(e) => updateDepositAddress(asset, e.target.value)}
-                                    placeholder={`请输入您的 ${asset} 钱包或账户地址`}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    此地址将显示给用户用于充值 {asset}。
-                                </p>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-
-                <Separator />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {availablePairs.map((pair) => {
-                        const pairSettings = settings[pair] || { 
-                            trend: 'normal', 
-                            tradingDisabled: false, 
-                            baseProfitRate: 0.85,
-                            specialTimeFrames: [],
-                        };
-                        return (
-                             <Card key={pair}>
-                                <CardHeader>
-                                    <CardTitle>{pair}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {/* Trend Control */}
-                                    <div className="space-y-2">
-                                        <Label>价格趋势 (模拟)</Label>
-                                        <p className="text-xs text-muted-foreground">
-                                           关闭所有开关则默认使用真实市场数据。
-                                        </p>
-                                        <div className="flex items-center space-x-4 pt-2">
-                                             <div className="flex items-center space-x-2">
-                                                <Label htmlFor={`trend-up-${pair}`}>拉升</Label>
-                                                <Switch
-                                                    id={`trend-up-${pair}`}
-                                                    checked={pairSettings.trend === 'up'}
-                                                    onCheckedChange={() => handleTrendChange(pair, 'up')}
-                                                />
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <Label htmlFor={`trend-down-${pair}`}>下降</Label>
-                                                <Switch
-                                                    id={`trend-down-${pair}`}
-                                                    checked={pairSettings.trend === 'down'}
-                                                    onCheckedChange={() => handleTrendChange(pair, 'down')}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <Separator />
-                                    
-                                    {/* Default Profit Rate */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor={`base-profit-rate-${pair}`}>基础秒合约收益率 (%)</Label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    {/* Column 1: System Settings */}
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>通用设置</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {supportedAssets.map((asset) => (
+                                    <div className="space-y-2" key={asset}>
+                                        <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
                                         <Input
-                                            id={`base-profit-rate-${pair}`}
-                                            type="number"
-                                            value={(pairSettings.baseProfitRate * 100).toFixed(0)}
-                                            onChange={(e) => handleSettingChange(pair, 'baseProfitRate', parseFloat(e.target.value) / 100)}
-                                            placeholder="例如: 85"
+                                            id={`deposit-address-${asset}`}
+                                            type="text"
+                                            value={systemSettings.depositAddresses[asset] || ''}
+                                            onChange={(e) => updateDepositAddress(asset, e.target.value)}
+                                            placeholder={`请输入您的 ${asset} 钱包或账户地址`}
                                         />
-                                    </div>
-                                    
-                                    <Separator />
-                                    
-                                    {/* Special Time Frames */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor={`limit-buy-${pair}`} className="font-semibold">限定时段交易</Label>
-                                            <Switch
-                                                id={`limit-buy-${pair}`}
-                                                checked={pairSettings.tradingDisabled}
-                                                onCheckedChange={(checked) => handleSettingChange(pair, 'tradingDisabled', checked)}
-                                            />
-                                        </div>
-
                                         <p className="text-xs text-muted-foreground">
-                                            启用后，仅在下方设定的特殊时间段内可以进行交易，并应用特殊收益率。
+                                            此地址将显示给用户用于充值 {asset}。
                                         </p>
+                                    </div>
+                                ))}
+                            </CardContent>
+                             <CardFooter>
+                                <Button onClick={handleSaveSystemSettings}>保存地址设置</Button>
+                            </CardFooter>
+                        </Card>
+                    </div>
 
-                                        <div className="space-y-4">
-                                            {pairSettings.specialTimeFrames.map((frame, index) => (
-                                                <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
-                                                    <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <Label htmlFor={`start-time-${frame.id}`} className="text-xs">开始时间</Label>
-                                                            <Input 
-                                                                id={`start-time-${frame.id}`}
-                                                                type="time" 
-                                                                value={frame.startTime}
-                                                                onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { startTime: e.target.value })}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <Label htmlFor={`end-time-${frame.id}`} className="text-xs">结束时间</Label>
-                                                            <Input 
-                                                                id={`end-time-${frame.id}`}
-                                                                type="time" 
-                                                                value={frame.endTime}
-                                                                onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { endTime: e.target.value })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">此时间段收益率 (%)</Label>
-                                                        <Input
-                                                            id={`profit-rate-${frame.id}`}
-                                                            type="number"
-                                                            value={(frame.profitRate * 100).toFixed(0)}
-                                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
+                    {/* Column 2: Market Settings */}
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>市场设置</CardTitle>
+                        </CardHeader>
+                        <ScrollArea className="h-[calc(100vh-22rem)]">
+                            <CardContent className="space-y-6 pr-6">
+                                {availablePairs.map((pair) => {
+                                    const pairSettings = settings[pair] || { 
+                                        trend: 'normal', 
+                                        tradingDisabled: false, 
+                                        baseProfitRate: 0.85,
+                                        specialTimeFrames: [],
+                                    };
+                                    return (
+                                        <div key={pair} className="p-4 border rounded-lg space-y-4">
+                                            <h3 className="font-semibold text-lg">{pair}</h3>
+                                            
+                                            {/* Trend Control */}
+                                            <div className="space-y-2">
+                                                <Label>价格趋势 (模拟)</Label>
+                                                <p className="text-xs text-muted-foreground">
+                                                关闭所有开关则默认使用真实市场数据。
+                                                </p>
+                                                <div className="flex items-center space-x-4 pt-2">
+                                                    <div className="flex items-center space-x-2">
+                                                        <Label htmlFor={`trend-up-${pair}`}>拉升</Label>
+                                                        <Switch
+                                                            id={`trend-up-${pair}`}
+                                                            checked={pairSettings.trend === 'up'}
+                                                            onCheckedChange={() => handleTrendChange(pair, 'up')}
                                                         />
                                                     </div>
-                                                     <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={() => removeSpecialTimeFrame(pair, frame.id)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <div className="flex items-center space-x-2">
+                                                        <Label htmlFor={`trend-down-${pair}`}>下降</Label>
+                                                        <Switch
+                                                            id={`trend-down-${pair}`}
+                                                            checked={pairSettings.trend === 'down'}
+                                                            onCheckedChange={() => handleTrendChange(pair, 'down')}
+                                                        />
+                                                    </div>
                                                 </div>
-                                            ))}
+                                            </div>
+
+                                            <Separator />
+                                            
+                                            {/* Default Profit Rate */}
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`base-profit-rate-${pair}`}>基础秒合约收益率 (%)</Label>
+                                                <Input
+                                                    id={`base-profit-rate-${pair}`}
+                                                    type="number"
+                                                    value={(pairSettings.baseProfitRate * 100).toFixed(0)}
+                                                    onChange={(e) => handleSettingChange(pair, 'baseProfitRate', parseFloat(e.target.value) / 100)}
+                                                    placeholder="例如: 85"
+                                                />
+                                            </div>
+                                            
+                                            <Separator />
+                                            
+                                            {/* Special Time Frames */}
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor={`limit-buy-${pair}`} className="font-semibold">限定时段交易</Label>
+                                                    <Switch
+                                                        id={`limit-buy-${pair}`}
+                                                        checked={pairSettings.tradingDisabled}
+                                                        onCheckedChange={(checked) => handleSettingChange(pair, 'tradingDisabled', checked)}
+                                                    />
+                                                </div>
+
+                                                <p className="text-xs text-muted-foreground">
+                                                    启用后，仅在下方设定的特殊时间段内可以进行交易，并应用特殊收益率。
+                                                </p>
+
+                                                <div className="space-y-4">
+                                                    {pairSettings.specialTimeFrames.map((frame, index) => (
+                                                        <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
+                                                            <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <div>
+                                                                    <Label htmlFor={`start-time-${frame.id}`} className="text-xs">开始时间</Label>
+                                                                    <Input 
+                                                                        id={`start-time-${frame.id}`}
+                                                                        type="time" 
+                                                                        value={frame.startTime}
+                                                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { startTime: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <Label htmlFor={`end-time-${frame.id}`} className="text-xs">结束时间</Label>
+                                                                    <Input 
+                                                                        id={`end-time-${frame.id}`}
+                                                                        type="time" 
+                                                                        value={frame.endTime}
+                                                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { endTime: e.target.value })}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">此时间段收益率 (%)</Label>
+                                                                <Input
+                                                                    id={`profit-rate-${frame.id}`}
+                                                                    type="number"
+                                                                    value={(frame.profitRate * 100).toFixed(0)}
+                                                                    onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
+                                                                />
+                                                            </div>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="icon" 
+                                                                className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                                onClick={() => removeSpecialTimeFrame(pair, frame.id)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                
+                                                <Button variant="outline" size="sm" onClick={() => addSpecialTimeFrame(pair)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                    添加特殊时间段
+                                                </Button>
+                                            </div>
                                         </div>
-                                        
-                                        <Button variant="outline" size="sm" onClick={() => addSpecialTimeFrame(pair)}>
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            添加特殊时间段
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )
-                    })}
+                                    )
+                                })}
+                            </CardContent>
+                        </ScrollArea>
+                        <CardFooter>
+                           <Button onClick={handleSaveMarketSettings}>保存市场设置</Button>
+                        </CardFooter>
+                    </Card>
                 </div>
             </div>
         </DashboardLayout>
