@@ -17,11 +17,6 @@ const nextConfig = {
       },
     ],
   },
-  env: {
-    NEXT_PUBLIC_ADMIN_NAME: process.env.ADMIN_NAME,
-    NEXT_PUBLIC_ADMIN_KEY: process.env.ADMIN_KEY,
-    NEXT_PUBLIC_ADMIN_AUTH: process.env.ADMIN_AUTH,
-  }
 };
 
 module.exports = nextConfig;

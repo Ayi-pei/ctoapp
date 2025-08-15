@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as UserType } from '@/types';
+import { loginUser, checkAdminInviteCode } from '@/app/actions/auth';
 
 // Re-exporting the type from types/index.ts to avoid circular dependencies
 // and to be the single source of truth.
@@ -27,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- Mock Database using localStorage ---
 const USERS_STORAGE_KEY = 'tradeflow_users';
-const ADMIN_USER_ID = 'admin_user_001';
+export const ADMIN_USER_ID = 'admin_user_001';
 
 const generateInvitationCode = () => {
     const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -67,40 +68,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Admin Login Check (using environment variables)
-    if (
-        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
-        password === process.env.NEXT_PUBLIC_ADMIN_KEY
-    ) {
-        let allUsers = getMockUsers();
-        let adminUser = allUsers[ADMIN_USER_ID];
+    // First, try to log in as admin via the secure server action
+    const adminResult = await loginUser(username, password);
 
-        // If admin user doesn't exist in our mock DB, create it on first login.
-        if (!adminUser) {
-            adminUser = {
-                id: ADMIN_USER_ID,
-                username: username,
-                nickname: 'Administrator',
-                password: password, // Save password for mock login
-                email: `${username}@noemail.app`,
-                is_admin: true,
-                is_test_user: false,
-                is_frozen: false,
-                invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '',
-                inviter_id: null,
-                created_at: new Date().toISOString(),
-                credit_score: 999,
-            };
-            allUsers[ADMIN_USER_ID] = adminUser;
-            saveMockUsers(allUsers);
-        }
+    if (adminResult.success && adminResult.user) {
+        let allUsers = getMockUsers();
+        // Ensure admin user exists in our mock DB and is up-to-date
+        allUsers[ADMIN_USER_ID] = adminResult.user;
+        saveMockUsers(allUsers);
         
-        setUser(adminUser);
-        localStorage.setItem('userSession', JSON.stringify(adminUser));
+        setUser(adminResult.user);
+        localStorage.setItem('userSession', JSON.stringify(adminResult.user));
         return true;
     }
     
-    // Regular User Login
+    // If admin login fails, fall back to regular user login (client-side localStorage)
     const allUsers = getMockUsers();
     const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
 
@@ -126,17 +108,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let inviterId: string | null = null;
       
-      if (invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH) {
+      // Use the secure server action to check for the admin invite code
+      const isAdminCode = await checkAdminInviteCode(invitationCode);
+      if (isAdminCode) {
           inviterId = ADMIN_USER_ID;
       } else {
           const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
           if (inviter) {
               inviterId = inviter.id;
           } else if (invitationCode.length > 6 && /^\d+$/.test(invitationCode)) {
+               // This is a fallback for numeric codes, assuming they are from admin
               inviterId = ADMIN_USER_ID;
           }
       }
-
 
       if (!inviterId) {
           console.error("Invalid invitation code");
