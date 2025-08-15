@@ -10,33 +10,40 @@ import { BarChart2, Users, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import type { CommissionLog, DownlineMember } from "@/types";
+import type { CommissionLog, User as DownlineMember } from "@/types";
 
 
 export default function PromotionPage() {
-    const { user } = useAuth();
+    const { user, getDownline, getUserById } = useAuth();
     const { toast } = useToast();
     const [commissions, setCommissions] = useState<CommissionLog[]>([]);
     const [downline, setDownline] = useState<DownlineMember[]>([]);
 
+    const getLevel = useCallback((targetUser: DownlineMember, uplineId: string, allUsers: { [key: string]: DownlineMember }) => {
+        let currentUser = targetUser;
+        let level = 1;
+        while(currentUser.inviter_id && currentUser.inviter_id !== uplineId && level < 4) {
+            currentUser = allUsers[currentUser.inviter_id];
+            if (!currentUser) return -1; // Should not happen
+            level++;
+        }
+        return currentUser.inviter_id === uplineId ? level : -1;
+    }, []);
+
     const loadData = useCallback(async () => {
         if (!user) return;
         
-        // Mock data since Supabase is removed
+        // Mock data since we have no real trades
         const mockCommissions: CommissionLog[] = [
             { id: 'cl1', upline_user_id: user.id, source_user_id: 'user2', source_username: 'testuser2', source_level: 1, trade_amount: 1000, commission_rate: 0.08, commission_amount: 80, created_at: new Date().toISOString() },
             { id: 'cl2', upline_user_id: user.id, source_user_id: 'user3', source_username: 'testuser3', source_level: 2, trade_amount: 500, commission_rate: 0.05, commission_amount: 25, created_at: new Date().toISOString() },
         ];
-        const mockDownline: DownlineMember[] = [
-            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
-            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
-            { id: 'user4', username: 'testuser4', level: 1, created_at: new Date().toISOString() },
-        ];
         
+        const allDownline = getDownline(user.id);
+        setDownline(allDownline);
         setCommissions(mockCommissions);
-        setDownline(mockDownline);
 
-    }, [user]);
+    }, [user, getDownline]);
 
     useEffect(() => {
         loadData();
@@ -53,6 +60,23 @@ export default function PromotionPage() {
     };
 
     const totalCommission = commissions.reduce((acc, curr) => acc + curr.commission_amount, 0);
+
+    const getMemberLevel = (member: DownlineMember) => {
+        if (!user || !user.id) return 0;
+        if (member.inviter_id === user.id) return 1;
+        
+        const inviter = getUserById(member.inviter_id!);
+        if (!inviter) return 0;
+
+        if (inviter.inviter_id === user.id) return 2;
+
+        const grandInviter = getUserById(inviter.inviter_id!);
+        if (!grandInviter) return 0;
+        
+        if(grandInviter.inviter_id === user.id) return 3;
+
+        return 0;
+    }
 
     return (
         <DashboardLayout>
@@ -102,7 +126,7 @@ export default function PromotionPage() {
                                        <TableRow key={member.id}>
                                            <TableCell className="font-medium">{member.username}</TableCell>
                                            <TableCell>
-                                                <Badge variant="outline">LV {member.level}</Badge>
+                                                <Badge variant="outline">LV {getMemberLevel(member)}</Badge>
                                            </TableCell>
                                            <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                                        </TableRow>

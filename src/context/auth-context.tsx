@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 export type User = {
   id: string;
   username: string;
+  password?: string; // Keep password for our mock DB
   email: string;
   inviter_id: string | null;
   is_admin: boolean;
@@ -24,22 +25,36 @@ interface AuthContextType {
   logout: () => void;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   isLoading: boolean;
+  getUserById: (id: string) => User | null;
+  getDownline: (userId: string) => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// A mock user for the new auth system
-const createMockUser = (username: string, isAdmin = false): User => ({
-    id: `mock-${Date.now()}`,
-    username,
-    email: `${username}@noemail.app`,
-    is_admin: isAdmin,
-    is_test_user: !isAdmin,
-    is_frozen: false,
-    invitation_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-    inviter_id: null,
-    created_at: new Date().toISOString(),
-});
+// --- Mock Database using localStorage ---
+const USERS_STORAGE_KEY = 'tradeflow_users';
+
+const generateInvitationCode = () => {
+    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
+
+
+const getMockUsers = (): { [id: string]: User } => {
+    if (typeof window === 'undefined') return {};
+    const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+    return storedUsers ? JSON.parse(storedUsers) : {};
+};
+
+const saveMockUsers = (users: { [id: string]: User }) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+};
+// --- End Mock Database ---
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -55,50 +70,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false);
   }, []);
-  
+
   const login = async (username: string, password: string): Promise<boolean> => {
-    // In a real app, you'd verify against a backend.
-    // For now, we allow any login for a "normal" user if they are already registered.
-    const storedUser = localStorage.getItem('userRegistry');
-    const registry = storedUser ? JSON.parse(storedUser) : {};
-    
-    if (registry[username] && registry[username] === password) {
-       const mockUser = createMockUser(username, false);
-       setUser(mockUser);
-       localStorage.setItem('userSession', JSON.stringify(mockUser));
-       return true;
+    // Admin Login
+    if (
+        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+        password === process.env.NEXT_PUBLIC_ADMIN_KEY
+    ) {
+        const adminId = 'admin_user_001';
+        let allUsers = getMockUsers();
+        let adminUser = Object.values(allUsers).find(u => u.is_admin);
+
+        if (!adminUser) {
+            adminUser = {
+                id: adminId,
+                username: username,
+                email: `${username}@noemail.app`,
+                is_admin: true,
+                is_test_user: false,
+                is_frozen: false,
+                invitation_code: 'ADMIN888',
+                inviter_id: null,
+                created_at: new Date().toISOString(),
+            };
+            allUsers[adminId] = adminUser;
+            saveMockUsers(allUsers);
+        }
+        
+        setUser(adminUser);
+        localStorage.setItem('userSession', JSON.stringify(adminUser));
+        return true;
     }
+    
+    // Regular User Login
+    const allUsers = getMockUsers();
+    const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
+
+    if (foundUser) {
+        setUser(foundUser);
+        localStorage.setItem('userSession', JSON.stringify(foundUser));
+        return true;
+    }
+    
     return false;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
-    // Special admin registration check
-    if (
-        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
-        password === process.env.NEXT_PUBLIC_ADMIN_KEY &&
-        invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH
-    ) {
-        const adminUser = createMockUser(username, true);
-        setUser(adminUser);
-        localStorage.setItem('userSession', JSON.stringify(adminUser));
-        console.log("Admin registration successful");
-        return true;
-    }
-    
-    // Normal user registration
-    const storedUser = localStorage.getItem('userRegistry');
-    const registry = storedUser ? JSON.parse(storedUser) : {};
-    if (registry[username]) {
-        console.error("Username already exists");
-        return false;
-    }
-    
-    registry[username] = password;
-    localStorage.setItem('userRegistry', JSON.stringify(registry));
-    
-    // For this flow, we just register them. They still need to log in.
-    return true;
-  }
+      // Special admin registration check (acts more like a login now)
+      if (
+          username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+          password === process.env.NEXT_PUBLIC_ADMIN_KEY &&
+          invitationCode === process.env.NEXT_PUBLIC_ADMIN_AUTH
+      ) {
+          return login(username, password);
+      }
+      
+      // Normal user registration
+      let allUsers = getMockUsers();
+      if (Object.values(allUsers).some(u => u.username === username)) {
+          console.error("Username already exists");
+          return false;
+      }
+      
+      const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
+      if (!inviter) {
+          console.error("Invalid invitation code");
+          return false;
+      }
+      
+      const newUser: User = {
+          id: `user_${Date.now()}`,
+          username,
+          password,
+          email: `${username}@noemail.app`,
+          is_admin: false,
+          is_test_user: true,
+          is_frozen: false,
+          invitation_code: generateInvitationCode(),
+          inviter_id: inviter.id,
+          created_at: new Date().toISOString(),
+      };
+      
+      allUsers[newUser.id] = newUser;
+      saveMockUsers(allUsers);
+      
+      return true;
+  };
 
   const logout = () => {
     setUser(null);
@@ -106,6 +163,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   };
   
+  const getUserById = (id: string): User | null => {
+      const allUsers = getMockUsers();
+      return allUsers[id] || null;
+  }
+  
+  const getDownline = (userId: string) => {
+      const allUsers = getMockUsers();
+      let downline: User[] = [];
+      
+      // Level 1
+      const level1 = Object.values(allUsers).filter(u => u.inviter_id === userId);
+      downline.push(...level1);
+      
+      // Level 2
+      const level1_ids = level1.map(u => u.id);
+      const level2 = Object.values(allUsers).filter(u => u.inviter_id && level1_ids.includes(u.inviter_id));
+      downline.push(...level2);
+      
+      // Level 3
+      const level2_ids = level2.map(u => u.id);
+      const level3 = Object.values(allUsers).filter(u => u.inviter_id && level2_ids.includes(u.inviter_id));
+      downline.push(...level3);
+
+      return downline;
+  }
+
   const value = {
     isAuthenticated: !!user,
     user,
@@ -114,6 +197,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     register,
     isLoading,
+    getUserById,
+    getDownline,
   };
 
   return (

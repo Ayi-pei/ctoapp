@@ -1,4 +1,5 @@
 
+
 // Main set of available trading pairs
 export const availablePairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
 
@@ -13,6 +14,7 @@ export type User = {
     is_frozen: boolean;
     invitation_code: string;
     created_at: string;
+    password?: string; // For mock DB
 };
 
 // Represents an order in the order book
@@ -120,13 +122,10 @@ export type CommissionLog = {
     created_at: string;
 };
 
-// Represents a member in the downline/team
-export type DownlineMember = {
-    id: string;
-    username: string;
-    level: number;
-    created_at: string;
-};
+// Represents a member in the downline/team - now it is just the User type
+// We keep the alias for clarity in components
+export type DownlineMember = User & { level?: number };
+
 
 // Represents the JSON response from the register_new_user function
 export type RegisterUserResponse = {

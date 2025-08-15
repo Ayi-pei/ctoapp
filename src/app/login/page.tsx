@@ -41,7 +41,8 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      router.push(isAdmin ? '/admin' : '/dashboard');
+      // The redirect logic is now inside the effect, 
+      // so we just need to trigger a re-render by successful login.
     } else {
       toast({
         variant: 'destructive',
@@ -52,10 +53,14 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.replace(isAdmin ? '/admin' : '/dashboard');
+    if (!isLoading && isAuthenticated) {
+        if (isAdmin) {
+            router.replace('/admin');
+        } else {
+            router.replace('/dashboard');
+        }
     }
-  }, [isAuthenticated, isAdmin, router]);
+  }, [isAuthenticated, isAdmin, isLoading, router]);
 
   if (isLoading) {
      return (

@@ -24,7 +24,7 @@ const registerSchema = z.object({
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isAdmin } = useAuth();
+  const { register } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof registerSchema>>({
@@ -41,17 +41,14 @@ export default function RegisterPage() {
 
     if (success) {
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
-        // Check if the registered user was an admin, then redirect appropriately
-        if (
-          values.username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
-          values.password === process.env.NEXT_PUBLIC_ADMIN_KEY
-        ) {
-          router.push('/admin');
-        } else {
-          router.push('/login');
-        }
+        // After successful registration, always send to login page
+        router.push('/login');
     } else {
-        toast({ variant: 'destructive', title: '注册失败', description: '用户名可能已被占用，或管理员信息不正确。' });
+        toast({ 
+          variant: 'destructive', 
+          title: '注册失败', 
+          description: '用户名可能已被占用，或邀请码无效。' 
+        });
     }
   };
 
