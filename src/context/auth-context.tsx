@@ -36,22 +36,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     try {
+      // Use the admin client to bypass RLS for fetching user profiles.
       const { data, error } = await supabaseAdmin
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If the error is "PGRST116", it means no rows were found. This is expected for a new user
+        // or a user whose profile hasn't been created yet. We return null and handle it.
+        if (error.code === 'PGRST116') {
+          console.warn(`User profile for ${supabaseUser.id} not found. This might be a new user.`);
+          return null;
+        }
+        // For other errors, we throw them to be caught below.
+        throw error;
+      }
       return data as User;
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      toast({
-        variant: 'destructive',
-        title: '获取用户资料失败',
-        description: error.message,
-      });
+      // Avoid showing a toast for the common "no rows found" case.
+      if (error.code !== 'PGRST116') {
+        toast({
+            variant: 'destructive',
+            title: '获取用户资料失败',
+            description: error.message,
+        });
+      }
+      // If we can't get the profile, sign out to be safe.
       await supabase.auth.signOut();
       return null;
     }
@@ -91,45 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       authListener?.subscription.unsubscribe();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-
-    // When admin logs in, ensure their profile exists to prevent "Cannot coerce..." error.
-    if (username === 'admin666') {
-        try {
-            // Find the admin user in the auth table to get their ID
-            const { data: { users }, error: adminAuthError } = await supabaseAdmin.auth.admin.listUsers({ email });
-            if (adminAuthError) throw adminAuthError;
-
-            const adminAuthUser = users[0];
-            if (!adminAuthUser) throw new Error("Admin user not found in auth table.");
-
-            // Check if the profile exists in public.users
-            const { data: adminProfile, error: profileError } = await supabaseAdmin
-                .from('users')
-                .select('id')
-                .eq('id', adminAuthUser.id)
-                .maybeSingle();
-
-            if (profileError) throw profileError;
-            
-            // If profile does not exist, create it.
-            if (!adminProfile) {
-                const { error: insertError } = await supabaseAdmin.from('users').insert({
-                    id: adminAuthUser.id,
-                    username: 'admin666',
-                    email: 'admin666@noemail.app',
-                    is_admin: true,
-                });
-                if (insertError) throw insertError;
-            }
-        } catch (e: any) {
-            console.error("Error during admin profile check/creation:", e.message);
-            // Do not block login attempt if this fails, let the login process handle it.
-        }
-    }
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email, 
@@ -141,12 +121,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     
-    toast({ title: '登录成功' });
+    // The onAuthStateChange listener will handle fetching the profile and setting state.
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
+    // The database trigger will determine if the user is an admin based on the invitation code.
     const isAdminRegistration = invitationCode === 'admin8888';
 
      try {
@@ -157,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     raw_invitation_code: invitationCode,
+                    // Pass the is_admin flag to the metadata, which the DB trigger will use.
                     is_admin: isAdminRegistration
                 }
             }
@@ -201,7 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsAdmin(false);
     setSession(null);
-    // No need to manually push, the useEffect below will handle it
   };
   
    useEffect(() => {
