@@ -22,7 +22,17 @@ const ProfileHeader = () => {
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
-    const totalBalance = Object.values(balances).reduce((acc, b) => acc + b.available, 0);
+    // Using the same logic as dashboard page for consistency
+    const getUsdtValue = (assetName: string, amount: number) => {
+        if (assetName === 'USDT') return amount;
+        if (assetName === 'BTC') return amount * 68000; // Mock price
+        if (assetName === 'ETH') return amount * 3800; // Mock price
+        return 0;
+    }
+
+    const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
+        return acc + getUsdtValue(name, balance.available);
+    }, 0);
 
      return (
         <div className="relative bg-gradient-to-b from-blue-400 to-blue-600 p-6 text-white text-center rounded-b-3xl -mx-4 -mt-4 mb-6">
