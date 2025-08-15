@@ -90,10 +90,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email, 
+      password,
+    });
     
     if (error) {
       console.error('Login failed:', error.message);
+      toast({
+        variant: 'destructive',
+        title: '登录失败',
+        description: '用户名或密码错误。',
+      });
       return false;
     }
     // Auth listener handles setting user state
