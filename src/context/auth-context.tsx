@@ -36,7 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseUser) return null;
     
     try {
-      // Use the admin client to bypass RLS for fetching user profiles.
       const { data, error } = await supabaseAdmin
         .from('users')
         .select('*')
@@ -44,20 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        // If the error is "PGRST116", it means no rows were found. This is expected for a new user
-        // or a user whose profile hasn't been created yet. We return null and handle it.
         if (error.code === 'PGRST116') {
-          console.warn(`User profile for ${supabaseUser.id} not found. This might be a new user.`);
+          console.warn(`User profile for ${supabaseUser.id} not found. This might be a new user or an admin that needs their profile created.`);
           return null;
         }
-        // For other errors, we throw them to be caught below.
         throw error;
       }
       return data as User;
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
-      // Avoid showing a toast for the common "no rows found" case.
       if (error.code !== 'PGRST116') {
         toast({
             variant: 'destructive',
@@ -65,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: error.message,
         });
       }
-      // If we can't get the profile, sign out to be safe.
       await supabase.auth.signOut();
       return null;
     }
@@ -77,7 +71,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setSession(session);
         if (session?.user) {
-            const userProfile = await fetchUserProfile(session.user);
+            let userProfile = await fetchUserProfile(session.user);
+            
+            // If admin logs in and has no profile, create it.
+            if (!userProfile && session.user.email?.startsWith('admin666')) {
+                console.log("Admin user has no profile, attempting to create one...");
+                 try {
+                    const { data: adminUserData, error: adminUserError } = await supabaseAdmin
+                        .from('users')
+                        .insert({
+                            id: session.user.id,
+                            username: 'admin666',
+                            email: session.user.email,
+                            is_admin: true
+                        })
+                        .select()
+                        .single();
+
+                    if(adminUserError) throw adminUserError;
+                    userProfile = adminUserData as User;
+                    console.log("Admin user profile created successfully.");
+
+                } catch (e: any) {
+                    console.error("Failed to create admin profile on-the-fly:", e.message);
+                }
+            }
+            
             setUser(userProfile);
             setIsAdmin(userProfile?.is_admin || false);
         } else {
@@ -88,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Initial check on load
     const checkUser = async () => {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -121,13 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     
-    // The onAuthStateChange listener will handle fetching the profile and setting state.
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-    // The database trigger will determine if the user is an admin based on the invitation code.
     const isAdminRegistration = invitationCode === 'admin8888';
 
      try {
@@ -137,8 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             options: {
                 data: {
                     username: username,
+                    email: email,
                     raw_invitation_code: invitationCode,
-                    // Pass the is_admin flag to the metadata, which the DB trigger will use.
                     is_admin: isAdminRegistration
                 }
             }
@@ -162,8 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error?.message) {
             if (error.message.includes('User already registered')) {
                 errorMessage = '该用户名已被使用，请更换一个。';
-            } else if (error.message.includes('duplicate key value violates unique constraint "users_username_key"')) {
-                 errorMessage = '该用户名已被使用，请更换一个。';
+            } else if (error.message.includes('Database error saving new user')) {
+                errorMessage = '创建用户资料时发生数据库错误，请联系管理员或检查邀请码是否有效。';
             } else {
                 errorMessage = error.message;
             }
