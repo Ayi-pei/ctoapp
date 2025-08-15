@@ -95,8 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     
-    if (error) {
-      console.error('Login failed:', error.message);
+    if (error || !data.user) {
+      console.error('Login failed:', error?.message);
       toast({
         variant: 'destructive',
         title: '登录失败',
@@ -104,7 +104,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return false;
     }
-    // Auth listener will handle setting user state
+    
+    // The onAuthStateChange listener will handle fetching the profile and updating state.
+    // This function's only job is to sign in and report success/failure.
+    toast({
+        title: '登录成功',
+    });
     return true;
   };
   
@@ -150,9 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    setSession(null);
+    // Setting state to null is handled by the onAuthStateChange listener
     router.push('/login');
   };
   
@@ -161,10 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isAuthenticated = !!user;
       const isAuthPage = pathname === '/login' || pathname === '/register';
       
-      if (!isAuthenticated && !isAuthPage) {
-          router.push('/login');
-      } else if (isAuthenticated && isAuthPage) {
-          router.push(isAdmin ? '/admin' : '/dashboard');
+      if (isAuthenticated && isAuthPage) {
+          router.replace(isAdmin ? '/admin' : '/dashboard');
+      } else if (!isAuthenticated && !isAuthPage) {
+          router.replace('/login');
       }
     }
   }, [user, isAdmin, isLoading, pathname, router]);
