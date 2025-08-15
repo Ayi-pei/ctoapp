@@ -56,32 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setIsLoading(true);
-        // Handle special admin case
-        if (sessionStorage.getItem('isSpecialAdmin') === 'true') {
-            const adminUser: User = {
-                id: '00000000-0000-0000-0000-000000000001',
-                username: 'admin',
-                email: 'admin@noemail.app',
-                inviter_id: null,
-                is_admin: true,
-                is_test_user: true,
-                is_frozen: false,
-                invitation_code: 'admin8888',
-                created_at: new Date().toISOString(),
-            };
-            setUser(adminUser);
-            setIsAdmin(true);
-            setSession(null); // No real session for this special case
+        setSession(session);
+        if (session?.user) {
+            const userProfile = await fetchUserProfile(session.user);
+            setUser(userProfile);
+            setIsAdmin(userProfile?.is_admin || false);
         } else {
-            setSession(session);
-            if (session?.user) {
-                const userProfile = await fetchUserProfile(session.user);
-                setUser(userProfile);
-                setIsAdmin(userProfile?.is_admin || false);
-            } else {
-                setUser(null);
-                setIsAdmin(false);
-            }
+            setUser(null);
+            setIsAdmin(false);
         }
         setIsLoading(false);
       }
@@ -90,29 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initial check
     const checkUser = async () => {
       setIsLoading(true);
-      if (sessionStorage.getItem('isSpecialAdmin') === 'true') {
-         const adminUser: User = {
-                id: '00000000-0000-0000-0000-000000000001',
-                username: 'admin',
-                email: 'admin@noemail.app',
-                inviter_id: null,
-                is_admin: true,
-                is_test_user: true,
-                is_frozen: false,
-                invitation_code: 'admin8888',
-                created_at: new Date().toISOString(),
-            };
-        setUser(adminUser);
-        setIsAdmin(true);
-        setSession(null);
-      } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        if (session?.user) {
-          const userProfile = await fetchUserProfile(session.user);
-          setUser(userProfile);
-          setIsAdmin(userProfile?.is_admin || false);
-        }
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      if (session?.user) {
+        const userProfile = await fetchUserProfile(session.user);
+        setUser(userProfile);
+        setIsAdmin(userProfile?.is_admin || false);
       }
       setIsLoading(false);
     };
@@ -124,29 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    // Special case for admin login to simplify process
-    if (username.toLowerCase() === 'admin' && password === 'password') {
-        sessionStorage.setItem('isSpecialAdmin', 'true');
-        const adminUser: User = {
-            id: '00000000-0000-0000-0000-000000000001',
-            username: 'admin',
-            email: 'admin@noemail.app',
-            inviter_id: null,
-            is_admin: true,
-            is_test_user: true,
-            is_frozen: false,
-            invitation_code: 'admin8888',
-            created_at: new Date().toISOString(),
-        };
-        setUser(adminUser);
-        setIsAdmin(true);
-        setSession(null); // No real session for this special case
-        setIsLoading(false);
-        router.push('/admin'); // Manually redirect
-        return true;
-    }
-
-    // Standard login for all other users
     const email = `${username.toLowerCase()}@noemail.app`;
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email, 
@@ -162,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return false;
     }
-    // Auth listener will handle setting user state for regular users
+    // Auth listener will handle setting user state
     return true;
   };
   
@@ -202,7 +144,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    sessionStorage.removeItem('isSpecialAdmin');
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);

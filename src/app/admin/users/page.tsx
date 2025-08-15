@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredUsers.map((u) => (
+                                {filteredUsers.length > 0 ? filteredUsers.map((u) => (
                                     <TableRow key={u.id}>
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
@@ -141,8 +141,7 @@ export default function AdminUsersPage() {
                                             </Button>
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                                {filteredUsers.length === 0 && (
+                                )) : (
                                      <TableRow>
                                         <TableCell colSpan={5} className="text-center text-muted-foreground">
                                             加载用户列表失败
