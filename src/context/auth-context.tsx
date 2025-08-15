@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -109,7 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
-    const adminCodes = ['admin666', 'admin789', 'admin8888'];
+    
+    // Check for the specific admin credentials combination
+    const wantsAdmin = username === 'admin666' && password === 'admin789' && invitationCode === 'admin8888';
+
      try {
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -118,7 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     invitation_code: invitationCode,
-                    is_admin: adminCodes.includes(invitationCode)
+                    // Set is_admin based on the specific combination
+                    is_admin: wantsAdmin
                 }
             }
         });
