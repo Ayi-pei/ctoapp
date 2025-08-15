@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Ticket } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const getAllUsers = (): User[] => {
     if (typeof window === 'undefined') return [];
@@ -160,7 +161,7 @@ export default function AdminUsersPage() {
                                     <TableRow key={u.id}>
                                         <TableCell className="font-medium">{u.username}</TableCell>
                                         <TableCell>
-                                            <Badge variant="outline" className={`font-semibold ${u.is_test_user ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500'}`}>
+                                            <Badge variant="outline" className={cn('font-semibold', u.is_test_user ? 'border-green-500 text-green-500' : 'border-blue-500 text-blue-500')}>
                                                 {u.is_test_user ? '测试' : '真实'}
                                             </Badge>
                                         </TableCell>

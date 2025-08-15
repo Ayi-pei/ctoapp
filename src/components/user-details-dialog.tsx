@@ -17,7 +17,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
-import { MessageSquare, Send, Users } from "lucide-react";
+import { MessageSquare, Send, Users, Repeat } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { useAuth } from "@/context/auth-context";
 import { availablePairs } from "@/types";
@@ -26,6 +26,7 @@ import { Badge } from "./ui/badge";
 import { useRequests } from "@/context/requests-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { Textarea } from "./ui/textarea";
+import { cn } from "@/lib/utils";
 
 type UserBalance = {
     [key: string]: {
@@ -124,8 +125,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         return null;
     }
     
-    const handleSuccessfulUpdate = () => {
-        const updatedUser = { ...user, is_frozen: !user.is_frozen };
+    const handleSuccessfulUpdate = (updatedUser: User) => {
         setUser(updatedUser);
         onUpdate();
     }
@@ -178,7 +178,19 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
         const success = await updateUser(user.id, { is_frozen: freeze });
         if (success) {
             toast({ title: "成功", description: `用户 ${user.username} 已被${freeze ? '冻结' : '解冻'}。` });
-            handleSuccessfulUpdate();
+            handleSuccessfulUpdate({ ...user, is_frozen: freeze });
+        } else {
+            toast({ variant: "destructive", title: "失败", description: "操作失败。" });
+        }
+    }
+
+    const handleToggleAccountType = async () => {
+        if (!user) return;
+        const newType = !user.is_test_user;
+        const success = await updateUser(user.id, { is_test_user: newType });
+        if (success) {
+            toast({ title: "成功", description: `用户类型已更新为 ${newType ? '测试账户' : '真实账户'}` });
+            handleSuccessfulUpdate({ ...user, is_test_user: newType });
         } else {
             toast({ variant: "destructive", title: "失败", description: "操作失败。" });
         }
@@ -321,19 +333,24 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                                     />
                                     <Button onClick={handleCreditScoreSave}>保存</Button>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                     <Label htmlFor="freeze-account-btn" className="flex-shrink-0">
-                                        账户状态:
-                                    </Label>
+                                 <div className="flex items-center justify-between">
+                                    <Label>账户状态:</Label>
                                      {user.is_frozen ? (
-                                        <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
+                                        <Button onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
                                             解冻账户
                                         </Button>
                                     ) : (
-                                        <Button id="freeze-account-btn" onClick={() => handleToggleFreeze(true)} variant="destructive">
+                                        <Button onClick={() => handleToggleFreeze(true)} variant="destructive">
                                             冻结账户
                                         </Button>
                                     )}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Label>账户类型:</Label>
+                                    <Button onClick={handleToggleAccountType} variant="outline">
+                                        <Repeat className="w-4 h-4 mr-2"/>
+                                        切换为 {user.is_test_user ? '真实账户' : '测试账户'}
+                                    </Button>
                                 </div>
                             </div>
 
