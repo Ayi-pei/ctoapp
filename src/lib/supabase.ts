@@ -30,4 +30,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // 5.  Create a new user in the `auth.users` table using `auth.uid()` and the provided credentials.
 // 6.  Create a corresponding profile in the `public.users` table with all the details (id, username, email, is_admin, inviter_id).
 // 7.  Return a JSON object with a success status and message.
+//
+// Example function signature in SQL:
+// CREATE OR REPLACE FUNCTION register_new_user(p_email TEXT, p_password TEXT, p_username TEXT, p_invitation_code TEXT)
+// RETURNS JSON
+// AS $$
+// -- function body here
+// $$ LANGUAGE plpgsql VOLATILE SECURITY DEFINER;
     
