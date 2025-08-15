@@ -80,13 +80,13 @@ const ProfileHeader = () => {
                     </AvatarFallback>
                 </Avatar>
                 {isEditingNickname ? (
-                    <Input
+                    <input
                         type="text"
                         value={nickname}
                         onChange={(e) => setNickname(e.target.value)}
                         onBlur={handleNicknameBlur}
                         onKeyDown={handleNicknameKeyDown}
-                        className="text-lg bg-transparent text-white border-b-2 border-white/50 text-center focus:outline-none focus:ring-0 h-auto p-1"
+                        className="font-semibold text-lg bg-transparent text-white border-b-2 border-white/50 text-center focus:outline-none focus:ring-0 h-auto p-1 max-w-[200px]"
                         autoFocus
                     />
                 ) : (
