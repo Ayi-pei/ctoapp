@@ -169,26 +169,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
   }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades]);
 
-  // Effect to handle contract trade settlement
-  useEffect(() => {
-    if (activeContractTrades.length === 0) return;
-
-    const interval = setInterval(() => {
-        const now = new Date();
-        const tradesToSettle = activeContractTrades.filter(
-            trade => new Date(trade.settlement_time) <= now
-        );
-
-        if (tradesToSettle.length > 0) {
-            tradesToSettle.forEach(trade => settleContractTrade(trade.id));
-        }
-    }, 1000); // Check every second
-
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeContractTrades]);
-  
-  const settleContractTrade = (tradeId: string) => {
+  const settleContractTrade = useCallback((tradeId: string) => {
     const trade = activeContractTrades.find(t => t.id === tradeId);
     if (!trade || !marketData) return;
 
@@ -214,8 +195,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     // Update balances
     setBalances(prev => {
         const newBalances = { ...prev };
-        const newAvailable = newBalances.USDT.available + (outcome === 'win' ? trade.amount + profit : 0);
         const newFrozen = newBalances.USDT.frozen - trade.amount;
+        // If win, add back principal + profit. If loss, principal is lost, so only adjust frozen.
+        const newAvailable = newBalances.USDT.available + (outcome === 'win' ? trade.amount + profit : 0);
         newBalances.USDT = { available: newAvailable, frozen: newFrozen };
         return newBalances;
     });
@@ -228,8 +210,27 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         title: `合约结算: ${outcome === 'win' ? '盈利' : '亏损'}`,
         description: `${trade.trading_pair} 合约已结算，盈亏: ${profit.toFixed(2)} USDT`
     });
-  }
+  }, [activeContractTrades, marketData, toast]);
 
+  // Effect to handle contract trade settlement
+  useEffect(() => {
+    if (activeContractTrades.length === 0) return;
+
+    const interval = setInterval(() => {
+        const now = new Date();
+        const tradesToSettle = activeContractTrades.filter(
+            trade => new Date(trade.settlement_time) <= now
+        );
+
+        if (tradesToSettle.length > 0) {
+            tradesToSettle.forEach(trade => settleContractTrade(trade.id));
+        }
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [activeContractTrades, settleContractTrade]);
+  
+  
 
   const addInvestment = async (productName: string, amount: number) => {
     if (!user) return false;
