@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = `${username.toLowerCase()}@noemail.app`;
     
     // The logic to determine if the user is an admin based on specific credentials.
-    const isAdminRegistration = username === 'admin666' && password === 'admin789' && invitationCode === 'admin8888';
+    const isAdminRegistration = invitationCode === 'admin8888';
 
      try {
         // Use the standard Supabase signUp method.
