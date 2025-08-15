@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
-import type { User, RegisterUserResponse } from '@/types';
+import type { User } from '@/types';
 
 export type { User };
 
@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
       console.error('Error fetching user profile:', error.message);
+      // If profile doesn't exist, sign out to prevent orphan auth entries
       await supabase.auth.signOut();
       return null;
     }
@@ -55,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setIsLoading(true);
         setSession(session);
         if (session?.user) {
             const userProfile = await fetchUserProfile(session.user);
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Initial check
+    // Initial check on load
     const checkUser = async () => {
       setIsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -97,38 +97,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (error || !data.user) {
       console.error('Login failed:', error?.message);
-      toast({
-        variant: 'destructive',
-        title: '登录失败',
-        description: '用户名或密码错误。',
-      });
       return false;
     }
     
-    // The onAuthStateChange listener will handle fetching the profile and updating state.
-    // This function's only job is to sign in and report success/failure.
-    toast({
-        title: '登录成功',
-    });
+    // onAuthStateChange will handle fetching profile and setting state.
+    // We just report success.
+    toast({ title: '登录成功' });
     return true;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
     
-    // Check for the specific admin credentials combination
-    const wantsAdmin = username === 'admin666' && password === 'admin789' && invitationCode === 'admin8888';
+    // The logic to determine if the user is an admin based on specific credentials.
+    const isAdminRegistration = username === 'admin666' && password === 'admin789' && invitationCode === 'admin8888';
 
      try {
+        // Use the standard Supabase signUp method.
+        // The `handle_new_user` trigger in Supabase will automatically create the public user profile
+        // from the metadata provided in `options.data`.
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
                     username: username,
-                    invitation_code: invitationCode,
-                    // Set is_admin based on the specific combination
-                    is_admin: wantsAdmin
+                    raw_invitation_code: invitationCode, // The trigger will use this to find the inviter
+                    is_admin: isAdminRegistration // Pass the admin flag to the trigger
                 }
             }
         });
@@ -144,10 +139,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
         console.error("An unexpected error occurred during registration:", error);
+        
+        let errorMessage = '发生未知错误，请重试。';
+        if (error.message) {
+            if (error.message.includes('User already registered')) {
+                errorMessage = '该用户名已被使用，请更换一个。';
+            } else if (error.message.includes('duplicate key value violates unique constraint "users_username_key"')) {
+                 errorMessage = '该用户名已被使用，请更换一个。';
+            } else {
+                errorMessage = error.message;
+            }
+        }
+
         toast({
             variant: 'destructive',
             title: '注册失败',
-            description: error.message || '发生未知错误，请重试。',
+            description: errorMessage,
         });
         return false;
     }
@@ -155,7 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
-    // Setting state to null is handled by the onAuthStateChange listener
+    setUser(null);
+    setIsAdmin(false);
+    setSession(null);
     router.push('/login');
   };
   
