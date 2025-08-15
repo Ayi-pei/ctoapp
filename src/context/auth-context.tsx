@@ -111,8 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
     const email = `${username.toLowerCase()}@noemail.app`;
      try {
-        // Use the standard signUp method which is the correct approach.
-        // The database trigger 'create_user_profile' will handle inserting into the public.users table.
+        // The standard signUp method is the correct approach.
+        // A database trigger 'create_user_profile' will handle inserting into public.users.
+        // We pass metadata via the options.data object, which the trigger can then use.
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -120,14 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 data: {
                     username: username,
                     invitation_code: invitationCode,
+                    // This is the crucial part: set the admin flag based on the invitation code.
+                    is_admin: invitationCode === 'admin8888'
                 }
             }
         });
       
         if (error) throw error;
         
-        // The new user is created but requires email confirmation by default.
-        // For this app, we can assume direct success.
+        // The new user is created. For this app, we can assume direct success.
         if (!data.user) {
              throw new Error("Registration succeeded but no user object was returned. This might be expected if email confirmation is on.");
         }
