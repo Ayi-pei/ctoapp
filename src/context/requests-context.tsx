@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -32,7 +33,7 @@ const RequestsContext = createContext<RequestsContextType | undefined>(undefined
 
 export function RequestsProvider({ children }: { children: ReactNode }) {
     const { user, getUserById } = useAuth();
-    const { adjustBalance, adjustFrozenBalance } = useBalance();
+    const { adjustBalance, adjustFrozenBalance, confirmWithdrawal, revertWithdrawal } = useBalance();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -94,7 +95,6 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             type: 'withdrawal',
             ...params,
         });
-        // Immediately freeze the balance on request
         adjustFrozenBalance(params.asset, params.amount);
     }, [addRequest, adjustFrozenBalance]);
 
@@ -111,8 +111,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
             adjustBalance(request.user_id, request.asset, request.amount);
         } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-            // On approval, the frozen amount is confirmed and removed
-            adjustFrozenBalance(request.asset, -request.amount, request.user_id);
+            confirmWithdrawal(request.asset, request.amount, request.user_id);
         }
         
         updateRequestStatus(requestId, 'approved');
@@ -123,8 +122,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         if (!request) return;
 
         if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-            // On rejection, unfreeze the user's balance
-            adjustFrozenBalance(request.asset, -request.amount, request.user_id);
+            revertWithdrawal(request.asset, request.amount, request.user_id);
         }
         
         updateRequestStatus(requestId, 'rejected');

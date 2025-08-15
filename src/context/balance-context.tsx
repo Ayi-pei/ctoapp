@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -50,6 +51,8 @@ interface BalanceContextType {
   recalculateBalanceForUser: (userId: string) => Promise<any>;
   adjustBalance: (userId: string, asset: string, amount: number) => void;
   adjustFrozenBalance: (asset: string, amount: number, userId?: string) => void;
+  confirmWithdrawal: (asset: string, amount: number, userId?: string) => void;
+  revertWithdrawal: (asset: string, amount: number, userId?: string) => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -73,11 +76,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return balances;
   }, [balances]);
 
-  // This should only be called by an admin or a trusted context (like RequestsContext)
   const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
-      // In a real app, you'd find the user's balance state and adjust it.
-      // Since this is a single-user-view app, we adjust the current user's balance
-      // if the ID matches. This is a simplification for the mock environment.
       if (user?.id === userId) {
           setBalances(prev => {
               const newBalances = { ...prev };
@@ -91,12 +90,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [user]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
-      // If userId is provided, check if it's the current user. If not, this is for the current user.
-      if (userId && user?.id !== userId) {
-          // This adjustment is for another user, so we do nothing in this client's state.
-          // In a real app with a central DB, this would just work.
-          return;
-      }
+      if (userId && user?.id !== userId) return;
       setBalances(prev => {
         const newBalances = { ...prev };
         newBalances[asset] = {
@@ -107,9 +101,32 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       })
 
   }, [user]);
+  
+  const confirmWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
+      if (userId && user?.id !== userId) return;
+      setBalances(prev => {
+        const newBalances = { ...prev };
+        newBalances[asset] = {
+            ...newBalances[asset],
+            frozen: (newBalances[asset]?.frozen || 0) - amount,
+        };
+        return newBalances;
+      });
+  }, [user]);
+
+  const revertWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
+      if (userId && user?.id !== userId) return;
+      setBalances(prev => {
+        const newBalances = { ...prev };
+        newBalances[asset] = {
+            available: (newBalances[asset]?.available || 0) + amount,
+            frozen: (newBalances[asset]?.frozen || 0) - amount,
+        };
+        return newBalances;
+      });
+  }, [user]);
 
   useEffect(() => {
-    // Since we are using mock data, we don't need to reload anything when the user changes.
   }, [user]);
 
   const addInvestment = async (productName: string, amount: number) => {
@@ -223,6 +240,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       historicalTrades,
       adjustBalance,
       adjustFrozenBalance,
+      confirmWithdrawal,
+      revertWithdrawal
     };
 
   return (
