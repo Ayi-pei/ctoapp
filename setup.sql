@@ -1,7 +1,25 @@
-
 ---------------------------
 -- 0. 清理和准备
 ---------------------------
+-- 撤销并删除旧角色，处理依赖问题
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
+        -- 撤销未来对象的默认权限
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON TABLES FROM admin_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON SEQUENCES FROM admin_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public FOR ROLE postgres REVOKE ALL ON FUNCTIONS FROM admin_role;
+        
+        -- 撤销现有对象的所有权限
+        REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM admin_role;
+        REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM admin_role;
+        REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM admin_role;
+
+        -- 现在可以安全删除角色了
+        DROP ROLE admin_role;
+    END IF;
+END $$;
+
 -- 删除旧表（如果存在），注意顺序以避免外键约束问题
 DROP TABLE IF EXISTS public.commission_logs, public.investments, public.spot_trades, 
              public.contract_trades, public.transactions, public.withdrawal_addresses, 
@@ -17,21 +35,13 @@ DROP FUNCTION IF EXISTS public.admin_get_user_team(UUID);
 DROP FUNCTION IF EXISTS public.check_account_active(UUID);
 DROP FUNCTION IF EXISTS public.check_password_complexity(TEXT);
 
--- 删除旧角色
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
-        DROP ROLE admin_role;
-    END IF;
-END $$;
 
 ---------------------------
 -- 1. 创建核心用户表 (移除邮箱)
 ---------------------------
 CREATE TABLE public.users (
-    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+    id UUID PRIMARY KEY, -- 直接使用 auth.users.id
     username TEXT NOT NULL UNIQUE, -- 用户名作为唯一标识
-    email TEXT UNIQUE, -- 保持 email 字段以兼容 Supabase auth
     inviter_id UUID REFERENCES public.users(id),
     is_admin BOOLEAN NOT NULL DEFAULT false,
     is_test_user BOOLEAN NOT NULL DEFAULT false,
@@ -250,43 +260,32 @@ FOR ALL USING (((SELECT is_admin FROM public.users WHERE id = auth.uid()) = true
 ---------------------------
 DO $$
 BEGIN
-    -- 1. 创建或更新管理员角色
+    -- 1. 创建角色
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_role') THEN
-        -- 创建新角色并添加BYPASSRLS属性
         CREATE ROLE admin_role WITH BYPASSRLS NOLOGIN;
-    ELSE
-        -- 更新现有角色添加BYPASSRLS属性
-        ALTER ROLE admin_role WITH BYPASSRLS;
     END IF;
     
-    -- 2. 将admin_role授予service_role（Supabase内置管理员角色）
+    -- 2. 将admin_role授予service_role
     GRANT admin_role TO service_role;
     
-    -- 3. 授予现有表的所有权限
-    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_role;
+    -- 3. 授予现有表的权限
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO admin_role;
+    GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO admin_role;
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO admin_role;
     
-    -- 4. 授予未来表的权限（重要！）
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT ALL ON TABLES TO admin_role;
-    
-    -- 5. 授予序列权限（为自动递增ID）
-    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO admin_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT USAGE, SELECT ON SEQUENCES TO admin_role;
-    
-    -- 6. 授予函数执行权限
-    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO admin_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT EXECUTE ON FUNCTIONS TO admin_role;
+    -- 4. 授予未来表的权限
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO admin_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO admin_role;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO admin_role;
+
 END $$;
 
 ---------------------------
--- 10. 核心业务函数 (MODIFIED)
+-- 10. 核心业务函数 (移除邮箱, 实现管理员邀请码逻辑)
 ---------------------------
 CREATE OR REPLACE FUNCTION public.register_new_user(
-    p_email TEXT,
-    p_password TEXT, 
     p_username TEXT, 
+    p_password TEXT, 
     p_invitation_code TEXT
 )
 RETURNS JSON
@@ -296,43 +295,41 @@ AS $$
 DECLARE
     v_inviter_id UUID;
     v_is_admin BOOLEAN := false;
+    v_is_test_user BOOLEAN := false;
     new_user_id UUID;
+    v_virtual_email TEXT := p_username || '@noemail.app';
 BEGIN
     -- 检查密码复杂度
     PERFORM public.check_password_complexity(p_password);
 
-    -- 检查用户名是否已存在
-    IF EXISTS (SELECT 1 FROM public.users WHERE username = p_username) THEN
-        RETURN json_build_object('status', 'error', 'message', '用户名已存在');
-    END IF;
-    
-    -- 检查邮箱是否已存在
-    IF EXISTS (SELECT 1 FROM auth.users WHERE email = p_email) THEN
-        RETURN json_build_object('status', 'error', 'message', '邮箱已被注册');
-    END IF;
-
-    -- 处理邀请码
+    -- 处理邀请码逻辑
     IF p_invitation_code = 'admin8888' THEN
         v_is_admin := true;
-        v_inviter_id := NULL; -- 管理员没有邀请人
+        v_is_test_user := true; -- 管理员默认为测试用户
+        v_inviter_id := NULL;
     ELSE
-        SELECT id INTO v_inviter_id 
+        -- 查找普通邀请人
+        SELECT id, is_test_user INTO v_inviter_id, v_is_test_user
         FROM public.users 
         WHERE invitation_code = p_invitation_code;
         
         IF v_inviter_id IS NULL THEN
-            RETURN json_build_object('status', 'error', 'message', '无效的邀请码');
+            RETURN json_build_object(
+                'status', 'error',
+                'code', 'INVALID_INVITATION_CODE',
+                'message', '无效的邀请码'
+            );
         END IF;
     END IF;
-
-    -- 创建认证用户
+    
+    -- 创建认证用户 (使用 signUp)
     new_user_id := auth.uid();
-    INSERT INTO auth.users(id, email, encrypted_password, aud, role, raw_user_meta_data)
-    VALUES (new_user_id, p_email, crypt(p_password, gen_salt('bf')), 'authenticated', 'authenticated', jsonb_build_object('username', p_username));
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, recovery_token, recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, phone, phone_confirmed_at, is_sso_user)
+    VALUES (current_setting('app.instance_id')::uuid, new_user_id, 'authenticated', 'authenticated', v_virtual_email, crypt(p_password, gen_salt('bf')), now(), '', null, null, json_build_object('provider', 'email', 'providers', '["email"]'), '{}'::jsonb, now(), now(), null, null, false);
 
     -- 创建业务用户
-    INSERT INTO public.users(id, username, email, inviter_id, is_admin)
-    VALUES (new_user_id, p_username, p_email, v_inviter_id, v_is_admin);
+    INSERT INTO public.users(id, username, inviter_id, is_admin, is_test_user)
+    VALUES (new_user_id, p_username, v_inviter_id, v_is_admin, v_is_test_user);
 
     RETURN json_build_object(
         'status', 'success',
@@ -340,14 +337,22 @@ BEGIN
         'message', '用户注册成功'
     );
 EXCEPTION
+    WHEN unique_violation THEN
+        RETURN json_build_object(
+            'status', 'error',
+            'code', 'USER_EXISTS',
+            'message', '用户名已存在'
+        );
     WHEN others THEN
         RETURN json_build_object(
             'status', 'error',
+            'code', 'REGISTRATION_FAILED',
             'message', '注册失败: ' || SQLERRM
         );
 END;
 $$;
-COMMENT ON FUNCTION public.register_new_user IS '注册新用户。处理admin邀请码并建立邀请关系，返回JSON格式结果。';
+COMMENT ON FUNCTION public.register_new_user IS '注册新用户。使用 admin8888 邀请码可创建管理员。普通邀请码则建立邀请关系。';
+
 
 CREATE OR REPLACE FUNCTION public.distribute_commissions(
     p_source_user_id UUID, 
@@ -417,8 +422,8 @@ COMMENT ON FUNCTION public.distribute_commissions IS '计算并分配三级佣�
 CREATE OR REPLACE FUNCTION public.after_contract_trade()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- 仅处理已完成的交易
-    IF NEW.status = 'settled' THEN
+    -- 仅当交易被结算且有盈利时触发
+    IF NEW.status = 'settled' AND NEW.profit > 0 THEN
         -- 分配佣金
         PERFORM public.distribute_commissions(NEW.user_id, NEW.amount);
     END IF;
@@ -427,9 +432,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_after_contract_trade
-AFTER INSERT OR UPDATE ON public.contract_trades
+AFTER UPDATE ON public.contract_trades
 FOR EACH ROW
-WHEN (NEW.status = 'settled')
+WHEN (OLD.status IS DISTINCT FROM 'settled' AND NEW.status = 'settled')
 EXECUTE FUNCTION public.after_contract_trade();
 
 ---------------------------
@@ -472,8 +477,9 @@ END;
 $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION public.get_user_downline IS '获取用户的三级下线关系';
 
+
 CREATE OR REPLACE FUNCTION public.admin_get_user_team(p_user_id UUID)
-RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTAMPTZ)
+RETURNS TABLE(id UUID, username TEXT, level INT, created_at TIMESTamptz)
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
@@ -505,33 +511,34 @@ BEGIN
     END IF;
     
     UPDATE public.users
-    SET is_frozen = p_freeze
+    SET 
+        is_frozen = p_freeze
     WHERE id = p_user_id;
 END;
 $$;
 COMMENT ON FUNCTION public.admin_freeze_user IS '管理员冻结或解冻用户账户';
 
 ---------------------------
--- 14. 初始数据
+-- 14. 初始数据 - 使用默认密码
 ---------------------------
 -- 创建管理员用户
 DO $$
 DECLARE
     admin_user_id UUID;
-    admin_password TEXT := 'adminpassword'; -- 您应该从安全的地方获取这个值
-    admin_email TEXT := 'admin@noemail.app';
+    admin_password TEXT := 'password'; -- 直接设置密码
 BEGIN
-    -- 检查密码复杂度
-    PERFORM public.check_password_complexity(admin_password);
-    
     -- 创建认证用户
-    INSERT INTO auth.users (id, email, encrypted_password, aud, role, raw_user_meta_data)
-    VALUES (extensions.uuid_generate_v4(), admin_email, crypt(admin_password, gen_salt('bf')), 'authenticated', 'authenticated', '{"username":"admin"}')
-    RETURNING id INTO admin_user_id;
+    admin_user_id := extensions.uuid_generate_v4();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_sso_user)
+    VALUES (current_setting('app.instance_id')::uuid, admin_user_id, 'authenticated', 'authenticated', 'admin@noemail.app', crypt(admin_password, gen_salt('bf')), now(), json_build_object('provider', 'email', 'providers', '["email"]'), '{}'::jsonb, now(), now(), false)
+    ON CONFLICT (email) DO NOTHING;
     
+    -- 获取刚插入或已存在的用户ID
+    SELECT id INTO admin_user_id FROM auth.users WHERE email = 'admin@noemail.app';
+
     -- 创建业务用户
-    INSERT INTO public.users(id, username, email, is_admin, is_test_user, invitation_code)
-    VALUES (admin_user_id, 'admin', admin_email, true, true, 'admin8888')
+    INSERT INTO public.users(id, username, is_admin, is_test_user, invitation_code)
+    VALUES (admin_user_id, 'admin', true, true, 'ADMIN123')
     ON CONFLICT (username) DO NOTHING;
 END $$;
 
@@ -540,22 +547,22 @@ DO $$
 DECLARE
     test_user_id UUID;
     admin_id UUID;
-    testuser_password TEXT := 'testpassword'; -- 您应该从安全的地方获取这个值
-    testuser_email TEXT := 'testuser@noemail.app';
+    testuser_password TEXT := 'password'; -- 直接设置密码
 BEGIN
     SELECT id INTO admin_id FROM public.users WHERE username = 'admin';
     
-    -- 验证密码长度
-    PERFORM public.check_password_complexity(testuser_password);
-    
     -- 创建认证用户
-    INSERT INTO auth.users(id, email, encrypted_password, aud, role, raw_user_meta_data)
-    VALUES (extensions.uuid_generate_v4(), testuser_email, crypt(testuser_password, gen_salt('bf')), 'authenticated', 'authenticated', '{"username":"testuser"}')
-    RETURNING id INTO test_user_id;
+    test_user_id := extensions.uuid_generate_v4();
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, is_sso_user)
+    VALUES (current_setting('app.instance_id')::uuid, test_user_id, 'authenticated', 'authenticated', 'testuser@noemail.app', crypt(testuser_password, gen_salt('bf')), now(), json_build_object('provider', 'email', 'providers', '["email"]'), '{}'::jsonb, now(), now(), false)
+    ON CONFLICT (email) DO NOTHING;
+
+    -- 获取刚插入或已存在的用户ID
+    SELECT id INTO test_user_id FROM auth.users WHERE email = 'testuser@noemail.app';
 
     -- 创建业务用户
-    INSERT INTO public.users (id, username, email, inviter_id, is_test_user)
-    VALUES (test_user_id, 'testuser', testuser_email, admin_id, true)
+    INSERT INTO public.users (id, username, inviter_id, is_test_user)
+    VALUES (test_user_id, 'testuser', admin_id, true)
     ON CONFLICT (username) DO NOTHING;
 END $$;
 
@@ -569,7 +576,6 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user ON public.transactions(user_id)
 CREATE INDEX IF NOT EXISTS idx_contract_trades_user ON public.contract_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_spot_trades_user ON public.spot_trades(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_is_frozen ON public.users(is_frozen);
-CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
 
 ---------------------------
 -- 16. 扩展启用确认
