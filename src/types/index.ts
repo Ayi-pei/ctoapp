@@ -34,6 +34,7 @@ export type User = {
     created_at: string;
     password?: string; // For mock DB
     credit_score: number;
+    last_login_at?: string;
 };
 
 export type Announcement = {

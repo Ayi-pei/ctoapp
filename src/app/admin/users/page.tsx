@@ -153,6 +153,7 @@ export default function AdminUsersPage() {
                                     <TableHead>账户类型</TableHead>
                                     <TableHead>状态</TableHead>
                                     <TableHead className="hidden md:table-cell">注册日期</TableHead>
+                                    <TableHead className="hidden md:table-cell">活跃时间</TableHead>
                                     <TableHead className="text-right">操作</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -171,6 +172,7 @@ export default function AdminUsersPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                                        <TableCell className="hidden md:table-cell text-xs">{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : '暂无记录'}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="outline" size="sm" onClick={() => handleViewDetails(u)}>
                                                 详情
@@ -179,7 +181,7 @@ export default function AdminUsersPage() {
                                     </TableRow>
                                 )) : (
                                      <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                                             暂无用户。
                                         </TableCell>
                                     </TableRow>
