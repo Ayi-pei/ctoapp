@@ -54,8 +54,8 @@ export function CandlestickChartComponent({ data }: CandlestickChartProps) {
                         
                         <ReferenceLine y={data[data.length - 1].close} stroke="hsl(var(--primary))" strokeDasharray="3 3" />
                         
-                        <Bar dataKey="open_close" barSize={4}>
-                           {processedData.map((entry, index) => (
+                         <Bar dataKey="open_close" barSize={4}>
+                            {processedData.map((entry, index) => (
                                 <ErrorBar key={`error-bar-${index}`} dataKey="high_low" width={1} strokeWidth={1} stroke={entry.close > entry.open ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"} direction="y" />
                             ))}
                         </Bar>
