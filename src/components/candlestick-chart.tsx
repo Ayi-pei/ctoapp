@@ -1,7 +1,7 @@
 
 "use client"
 
-import { Bar, ComposedChart, CartesianGrid, ReferenceLine, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar } from "recharts";
+import { Bar, ComposedChart, CartesianGrid, ReferenceLine, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar, Cell } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import type { KlineDataPoint } from "@/types";
 
@@ -11,7 +11,11 @@ type CandlestickChartProps = {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    // Find the payload for the visible bar (body)
+    const dataPoint = payload.find(p => p.dataKey === 'body');
+    if (!dataPoint) return null;
+    
+    const data = dataPoint.payload;
     return (
       <div className="p-2 bg-background/80 border border-border rounded-md shadow-lg text-xs">
         <p className="font-bold">{label}</p>
@@ -25,14 +29,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+
 // Pre-process data for the ComposedChart to render candlesticks
 const processDataForChart = (data: KlineDataPoint[]) => {
     return data.map(d => ({
         ...d,
-        // For the bar, we need an array of [open, close]
-        open_close: [d.open, d.close],
+        // The base value for the stacked bar (the lower of open/close)
+        base: Math.min(d.open, d.close),
+        // The visible part of the bar (the difference between open and close)
+        body: Math.abs(d.open - d.close),
         // For the error bar (wick), we need an array of [low, high]
         high_low: [d.low, d.high],
+        // Color for the visible bar
+        fill: d.close > d.open ? "hsl(var(--chart-2))" : "hsl(var(--destructive))",
     }));
 }
 
@@ -54,10 +63,16 @@ export function CandlestickChartComponent({ data }: CandlestickChartProps) {
                         
                         <ReferenceLine y={data[data.length - 1].close} stroke="hsl(var(--primary))" strokeDasharray="3 3" />
                         
-                         <Bar dataKey="open_close" barSize={4}>
-                            {processedData.map((entry, index) => (
-                                <ErrorBar key={`error-bar-${index}`} dataKey="high_low" width={1} strokeWidth={1} stroke={entry.close > entry.open ? "hsl(var(--chart-2))" : "hsl(var(--destructive))"} direction="y" />
+                        {/* Transparent bar to "pad" the visible bar to the correct y-position */}
+                        <Bar dataKey="base" stackId="a" fill="transparent" />
+
+                        {/* The visible part of the candlestick */}
+                        <Bar dataKey="body" stackId="a" barSize={4}>
+                           {processedData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
+                           {/* Single ErrorBar declaration, recharts will apply it to each bar */}
+                           <ErrorBar dataKey="high_low" width={1} strokeWidth={1} />
                         </Bar>
 
                     </ComposedChart>
