@@ -12,7 +12,7 @@ import type { Investment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Archive, Clock, Calendar, Percent } from "lucide-react";
+import { ChevronLeft, Archive, Clock, Calendar, Percent, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
