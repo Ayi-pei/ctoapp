@@ -22,6 +22,7 @@ import { ContractTrade, SpotTrade, PriceDataPoint } from '@/types';
 import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 import { Archive } from 'lucide-react';
+import { AIAssistant } from '@/components/ai-assistant';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -127,12 +128,18 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                 </TabsContent>
                 <TabsContent value="contract" className="mt-4">
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <OrderForm
-                            tradingPair={tradingPair}
-                            balance={balances[quoteAsset]?.available || 0}
-                            onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
-                            quoteAsset={quoteAsset}
-                        />
+                        <div className="flex flex-col gap-4">
+                            <OrderForm
+                                tradingPair={tradingPair}
+                                balance={balances[quoteAsset]?.available || 0}
+                                onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+                                quoteAsset={quoteAsset}
+                            />
+                            <AIAssistant 
+                                orderBook={data.orderBook}
+                                tradingPair={tradingPair}
+                            />
+                        </div>
                         <div className="hidden md:block">
                             <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
                         </div>
