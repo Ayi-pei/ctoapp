@@ -25,6 +25,8 @@ export type UserData = {
     activeContractTrades: ContractTrade[];
     historicalTrades: (SpotTrade | ContractTrade)[];
     commissionLogs: CommissionLog[];
+    lastCheckInDate?: string;
+    consecutiveCheckIns?: number;
 };
 
 const getDefaultUserData = (): UserData => ({
@@ -33,6 +35,8 @@ const getDefaultUserData = (): UserData => ({
     activeContractTrades: [],
     historicalTrades: [],
     commissionLogs: [],
+    lastCheckInDate: undefined,
+    consecutiveCheckIns: 0,
 });
 
 

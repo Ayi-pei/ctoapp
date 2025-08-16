@@ -15,6 +15,7 @@ import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMarket } from "@/context/market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
+import { CheckInDialog } from "@/components/check-in-dialog";
 
 
 export default function DashboardPage() {
@@ -23,10 +24,11 @@ export default function DashboardPage() {
     const { platformAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
         { name: '质押挖矿', icon: Gem, href: '/coming-soon' },
-        { name: '签到中心', icon: Gift, href: '/coming-soon' },
+        { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '推广中心', icon: Share2, href: '/promotion' },
@@ -126,14 +128,24 @@ export default function DashboardPage() {
                  <div className="grid grid-cols-4 gap-4 text-center">
                     {features.map(feature => {
                         const Icon = feature.icon;
-                        return (
-                            <Link href={feature.href} key={feature.name} className="flex flex-col items-center space-y-2">
+                        const content = (
+                            <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
                                 <div className="bg-card p-4 rounded-full">
                                     <Icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-xs text-muted-foreground">{feature.name}</p>
-                            </Link>
-                        )
+                            </div>
+                        );
+
+                        if (feature.href) {
+                             return (
+                                <Link href={feature.href} key={feature.name}>
+                                    {content}
+                                </Link>
+                            );
+                        }
+                        
+                        return <div key={feature.name}>{content}</div>;
                     })}
                 </div>
                 
@@ -157,6 +169,7 @@ export default function DashboardPage() {
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
+            <CheckInDialog isOpen={isCheckInOpen} onOpenChange={setIsCheckInOpen} />
         </DashboardLayout>
     );
 }
