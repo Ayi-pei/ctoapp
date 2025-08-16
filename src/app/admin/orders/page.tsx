@@ -7,18 +7,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import { SpotTrade, ContractTrade } from '@/types';
+import { SpotTrade, ContractTrade, Investment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-type FormattedOrder = (SpotTrade | ContractTrade) & {
+type AllOrderTypes = SpotTrade | ContractTrade | Investment;
+
+type FormattedOrder = AllOrderTypes & {
     userId: string;
-    tradingPair: string;
-    statusText: string;
-    createdAt: string;
+    orderTypeText: 'spot' | 'contract' | 'investment';
 };
 
 
-const getAllUserHistoricalTrades = () => {
+const getAllUserHistoricalTrades = (): (SpotTrade | ContractTrade)[] => {
     if (typeof window === 'undefined') return [];
     
     const allTrades: (SpotTrade | ContractTrade)[] = [];
@@ -31,11 +33,36 @@ const getAllUserHistoricalTrades = () => {
                 allTrades.push(...userData.historicalTrades);
             }
         } catch (e) {
-            console.error(`Failed to parse data for key ${key}`, e);
+            console.error(`Failed to parse trade data for key ${key}`, e);
         }
     });
 
     return allTrades;
+}
+
+const getAllUserInvestments = (): Investment[] => {
+    if (typeof window === 'undefined') return [];
+
+    const allInvestments: Investment[] = [];
+     const userKeys = Object.keys(localStorage).filter(key => key.startsWith('tradeflow_user_'));
+
+    userKeys.forEach(key => {
+        try {
+            const userData = JSON.parse(localStorage.getItem(key) || '{}');
+            if (userData.investments && Array.isArray(userData.investments)) {
+                // Add user_id to each investment for admin view
+                const userInvestments = userData.investments.map((inv: Investment) => ({
+                    ...inv,
+                    user_id: key.replace('tradeflow_user_', '')
+                }));
+                allInvestments.push(...userInvestments);
+            }
+        } catch (e) {
+            console.error(`Failed to parse investment data for key ${key}`, e);
+        }
+    });
+    
+    return allInvestments;
 }
 
 
@@ -49,17 +76,25 @@ export default function AdminOrdersPage() {
         if (!isAdmin) return;
 
         const allHistoricalTrades = getAllUserHistoricalTrades();
+        const allInvestments = getAllUserInvestments();
 
-        const formattedOrders = allHistoricalTrades.map(t => {
+        const allUserOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
+
+        const formattedOrders = allUserOrders.map(t => {
             const user = getUserById(t.user_id);
+            let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
+            if ('orderType' in t) {
+                orderTypeText = t.orderType;
+            } else if ('product_name' in t) {
+                orderTypeText = 'investment';
+            }
+            
             return {
                 ...t,
                 userId: user?.username || t.user_id,
-                tradingPair: t.trading_pair,
-                statusText: 'status' in t ? t.status : (t.outcome || 'unknown'),
-                createdAt: t.created_at,
+                orderTypeText: orderTypeText,
             }
-        }).sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
 
         setOrders(formattedOrders as FormattedOrder[]);
@@ -85,23 +120,39 @@ export default function AdminOrdersPage() {
     }
 
     const getOrderAmount = (order: FormattedOrder) => {
-        if (order.orderType === 'spot') {
-            return (order as SpotTrade).total.toFixed(4);
-        }
-        if (order.orderType === 'contract') {
-            return (order as ContractTrade).amount.toFixed(4);
-        }
+        if (order.orderTypeText === 'spot') return (order as SpotTrade).total.toFixed(4);
+        if (order.orderTypeText === 'contract') return (order as ContractTrade).amount.toFixed(4);
+        if (order.orderTypeText === 'investment') return (order as Investment).amount.toFixed(2);
         return 'N/A';
     }
     
     const getStatusText = (order: FormattedOrder) => {
-        if (order.orderType === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
-        if (order.orderType === 'contract') {
+        if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
+        if (order.orderTypeText === 'contract') {
             const contract = order as ContractTrade;
-            if (contract.outcome === 'win') return '盈利';
-            if (contract.outcome === 'loss') return '亏损';
-            return '进行中';
+            if (contract.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
+            if (contract.outcome === 'win') return <Badge variant="outline" className="text-green-500">盈利</Badge>;
+            if (contract.outcome === 'loss') return <Badge variant="outline" className="text-red-500">亏损</Badge>;
         }
+        if (order.orderTypeText === 'investment') {
+            const investment = order as Investment;
+            if (investment.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
+            if (investment.status === 'settled') return <Badge variant="outline" className="text-green-500">已结算</Badge>;
+        }
+        return <Badge variant="secondary">未知</Badge>;
+    }
+    
+    const getOrderDirection = (order: FormattedOrder) => {
+         if (order.orderTypeText === 'spot' || order.orderTypeText === 'contract') {
+             const trade = order as SpotTrade | ContractTrade;
+             return <span className={trade.type === 'buy' ? 'text-green-500' : 'text-red-500'}>{trade.type === 'buy' ? '买入/看涨' : '卖出/看跌'}</span>
+         }
+         return <span className="text-muted-foreground">-</span>
+    }
+    
+     const getPairOrProduct = (order: FormattedOrder) => {
+        if ('trading_pair' in order) return order.trading_pair;
+        if ('product_name' in order) return order.product_name;
         return 'N/A';
     }
 
@@ -120,7 +171,7 @@ export default function AdminOrdersPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>用户</TableHead>
-                                    <TableHead>交易对</TableHead>
+                                    <TableHead>产品/交易对</TableHead>
                                     <TableHead>类型</TableHead>
                                     <TableHead>方向</TableHead>
                                     <TableHead>金额 (USDT)</TableHead>
@@ -132,20 +183,22 @@ export default function AdminOrdersPage() {
                                 {orders.length > 0 ? orders.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell>{order.userId}</TableCell>
-                                        <TableCell>{order.tradingPair}</TableCell>
+                                        <TableCell>{getPairOrProduct(order)}</TableCell>
                                         <TableCell>
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${order.orderType === 'spot' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'}`}>
-                                                {order.orderType === 'spot' ? '币币' : '合约'}
+                                            <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', 
+                                                order.orderTypeText === 'spot' && 'bg-blue-500/20 text-blue-500',
+                                                order.orderTypeText === 'contract' && 'bg-purple-500/20 text-purple-500',
+                                                order.orderTypeText === 'investment' && 'bg-yellow-500/20 text-yellow-500'
+                                            )}>
+                                                {order.orderTypeText === 'spot' ? '币币' : order.orderTypeText === 'contract' ? '合约' : '理财'}
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <span className={order.type === 'buy' ? 'text-green-500' : 'text-red-500'}>
-                                                {order.type === 'buy' ? '买入/看涨' : '卖出/看跌'}
-                                            </span>
+                                            {getOrderDirection(order)}
                                         </TableCell>
                                         <TableCell>{getOrderAmount(order)}</TableCell>
                                         <TableCell>{getStatusText(order)}</TableCell>
-                                        <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>
+                                        <TableCell>{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
