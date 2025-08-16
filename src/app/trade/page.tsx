@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { OrderBook } from "@/components/order-book";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarketOverview } from "@/components/market-overview";
@@ -17,11 +18,22 @@ import { Badge } from '@/components/ui/badge';
 import Image from "next/image";
 import { OrderForm } from "@/components/order-form";
 import { useMarket } from "@/context/market-data-context";
-import { ContractTrade, SpotTrade } from '@/types';
+import { ContractTrade, SpotTrade, PriceDataPoint } from '@/types';
 import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 import { Archive } from 'lucide-react';
-import { CandlestickChartComponent } from '@/components/candlestick-chart';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="p-2 bg-background/80 border border-border rounded-md shadow-lg text-xs">
+        <p className="font-bold">{label}</p>
+        <p>Price: <span className="font-mono text-primary">{payload[0].value.toFixed(2)}</span></p>
+      </div>
+    );
+  }
+  return null;
+};
 
 
 const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: string }) {
@@ -49,6 +61,9 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
   }
 
   const [baseAsset, quoteAsset] = tradingPair.split('/');
+  
+  const isPricePositive = data.summary.change >= 0;
+  const chartColor = isPricePositive ? "hsl(var(--chart-2))" : "hsl(var(--destructive))";
 
   const renderEmptyState = (text: string) => (
       <Card>
@@ -64,8 +79,30 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
         <main className="p-4 space-y-4">
             <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
             
-            <div className="h-[400px]">
-              <CandlestickChartComponent data={data.klineData} />
+            <div className="h-[400px] w-full">
+               <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                        data={data.priceData}
+                        margin={{
+                            top: 5,
+                            right: 20,
+                            left: -10,
+                            bottom: 5,
+                        }}
+                    >
+                        <defs>
+                            <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={chartColor} stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))"/>
+                        <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" domain={['dataMin - 100', 'dataMax + 100']} orientation="right" />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsla(var(--muted), 0.5)'}} />
+                        <Area type="monotone" dataKey="price" stroke={chartColor} fill="url(#chartColor)" strokeWidth={2} />
+                    </AreaChart>
+                </ResponsiveContainer>
             </div>
 
             <Tabs defaultValue={defaultTab} className="w-full">
@@ -74,22 +111,32 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                     <TabsTrigger value="spot">币币交易</TabsTrigger>
                 </TabsList>
                 <TabsContent value="spot" className="mt-4">
-                    <SpotOrderForm
-                        tradingPair={tradingPair}
-                        balances={balances}
-                        onPlaceTrade={(trade) => placeSpotTrade(trade)}
-                        baseAsset={baseAsset}
-                        quoteAsset={quoteAsset}
-                        currentPrice={data.summary.price}
-                    />
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SpotOrderForm
+                            tradingPair={tradingPair}
+                            balances={balances}
+                            onPlaceTrade={(trade) => placeSpotTrade(trade)}
+                            baseAsset={baseAsset}
+                            quoteAsset={quoteAsset}
+                            currentPrice={data.summary.price}
+                        />
+                         <div className="hidden md:block">
+                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                        </div>
+                    </div>
                 </TabsContent>
                 <TabsContent value="contract" className="mt-4">
-                    <OrderForm
-                        tradingPair={tradingPair}
-                        balance={balances[quoteAsset]?.available || 0}
-                        onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
-                        quoteAsset={quoteAsset}
-                    />
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <OrderForm
+                            tradingPair={tradingPair}
+                            balance={balances[quoteAsset]?.available || 0}
+                            onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+                            quoteAsset={quoteAsset}
+                        />
+                        <div className="hidden md:block">
+                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
             
@@ -98,7 +145,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                     <TabsList>
                         <TabsTrigger value="current">当前委托</TabsTrigger>
                         <TabsTrigger value="history">历史委托</TabsTrigger>
-                        <TabsTrigger value="orderbook">订单簿</TabsTrigger>
+                        <TabsTrigger value="orderbook" className="md:hidden">订单簿</TabsTrigger>
                         <TabsTrigger value="trades">市价成交</TabsTrigger>
                     </TabsList>
                     <TabsContent value="current" className="mt-4">

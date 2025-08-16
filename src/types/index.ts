@@ -1,6 +1,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;

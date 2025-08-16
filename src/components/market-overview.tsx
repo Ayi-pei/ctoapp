@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +32,7 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
   const isPositive = summary.change >= 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start py-2">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 items-start py-2">
         <div className="col-span-2 md:col-span-1">
             <h2 className={`text-3xl font-bold ${isPositive ? "text-green-500" : "text-red-500"}`}>
             {summary.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
