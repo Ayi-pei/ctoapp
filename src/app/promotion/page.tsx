@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Copy, Users, BarChart2, Download, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { User as DownlineMember } from "@/types";
+import type { User as DownlineMember, AnyRequest } from "@/types";
 import { useBalance } from "@/context/balance-context";
+import { useRequests } from "@/context/requests-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QRCode from "qrcode.react";
 
@@ -25,22 +26,52 @@ const StatCard = ({ label, value }: { label: string, value: string | number }) =
 export default function PromotionPage() {
     const { user, getDownline } = useAuth();
     const { commissionLogs } = useBalance();
+    const { requests } = useRequests();
     const { toast } = useToast();
-    const [downline, setDownline] = useState<DownlineMember[]>([]);
+
+    const [teamMembers, setTeamMembers] = useState<DownlineMember[]>([]);
     const [invitationLink, setInvitationLink] = useState('');
+    const [teamStats, setTeamStats] = useState({
+        totalDeposits: 0,
+        totalWithdrawals: 0,
+    });
     const qrCodeRef = useRef<HTMLDivElement>(null);
+
+    const calculateTeamStats = useCallback((team: DownlineMember[], allRequests: AnyRequest[]) => {
+        const teamIds = team.map(m => m.id);
+        let totalDeposits = 0;
+        let totalWithdrawals = 0;
+
+        allRequests.forEach(req => {
+            if (teamIds.includes(req.user_id) && req.status === 'approved') {
+                if (req.type === 'deposit') {
+                    totalDeposits += req.amount;
+                } else if (req.type === 'withdrawal') {
+                    totalWithdrawals += req.amount;
+                }
+            }
+        });
+        
+        return { totalDeposits, totalWithdrawals };
+    }, []);
 
     useEffect(() => {
         if (user) {
-            const allDownline = getDownline(user.id);
-            setDownline(allDownline);
+            // "团队人员"：代理团队包括自己不含上级代理的总注册人数
+            const downline = getDownline(user.id);
+            const fullTeam = [user, ...downline];
+            setTeamMembers(fullTeam);
             
             if (typeof window !== 'undefined') {
                  const link = `${window.location.origin}/register?code=${user.invitation_code}`;
                  setInvitationLink(link);
             }
+            
+            // "总充值" / "总提现"
+            const stats = calculateTeamStats(fullTeam, requests);
+            setTeamStats(stats);
         }
-    }, [user, getDownline]);
+    }, [user, getDownline, requests, calculateTeamStats]);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -66,18 +97,18 @@ export default function PromotionPage() {
         }
     };
 
-
+    // "团队贡献": 代理线下级给自己带来的佣金总数
     const totalCommission = commissionLogs.reduce((acc, curr) => acc + curr.commission_amount, 0);
 
     const stats = {
-        totalMembers: downline.length,
+        totalMembers: teamMembers.length,
         effectiveMembers: 0, // Placeholder
         todayEffectiveMembers: 0, // Placeholder
-        totalWithdrawals: 0.00, // Placeholder
-        totalEarnings: totalCommission.toFixed(2),
+        totalWithdrawals: teamStats.totalWithdrawals.toFixed(2), 
+        totalEarnings: totalCommission.toFixed(2), // This is Team Contribution
         todayEarnings: 0.00, // Placeholder
         yesterdayEarnings: 0.00, // Placeholder
-        totalDeposits: 0.00, // Placeholder
+        totalDeposits: teamStats.totalDeposits.toFixed(2),
     };
 
     const renderEmptyState = (text: string) => (
@@ -146,6 +177,35 @@ export default function PromotionPage() {
                         <TabsTrigger value="contribution">团队贡献</TabsTrigger>
                     </TabsList>
                     <TabsContent value="rewards" className="mt-4">
+                        {renderEmptyState("暂无其他奖励记录")}
+                    </TabsContent>
+                    <TabsContent value="team" className="mt-4">
+                         {teamMembers.length > 0 ? (
+                           <Card>
+                               <CardContent className="p-0">
+                                   <Table>
+                                       <TableHeader>
+                                           <TableRow>
+                                               <TableHead>用户名</TableHead>
+                                               <TableHead>级别</TableHead>
+                                               <TableHead>注册时间</TableHead>
+                                           </TableRow>
+                                       </TableHeader>
+                                       <TableBody>
+                                           {teamMembers.map(member => (
+                                               <TableRow key={member.id}>
+                                                   <TableCell className="font-medium">{member.username}</TableCell>
+                                                   <TableCell>LV {(member as any).level || 0}</TableCell>
+                                                   <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
+                                               </TableRow>
+                                           ))}
+                                       </TableBody>
+                                   </Table>
+                               </CardContent>
+                           </Card>
+                       ) : renderEmptyState("您还没有邀请任何用户")}
+                    </TabsContent>
+                     <TabsContent value="contribution" className="mt-4">
                         {commissionLogs.length > 0 ? (
                              <Card>
                                 <CardContent className="p-0">
@@ -170,35 +230,6 @@ export default function PromotionPage() {
                                 </CardContent>
                             </Card>
                         ) : renderEmptyState("暂无佣金记录")}
-                    </TabsContent>
-                    <TabsContent value="team" className="mt-4">
-                         {downline.length > 0 ? (
-                           <Card>
-                               <CardContent className="p-0">
-                                   <Table>
-                                       <TableHeader>
-                                           <TableRow>
-                                               <TableHead>用户名</TableHead>
-                                               <TableHead>级别</TableHead>
-                                               <TableHead>注册时间</TableHead>
-                                           </TableRow>
-                                       </TableHeader>
-                                       <TableBody>
-                                           {downline.map(member => (
-                                               <TableRow key={member.id}>
-                                                   <TableCell className="font-medium">{member.username}</TableCell>
-                                                   <TableCell>LV {(member as any).level}</TableCell>
-                                                   <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
-                                               </TableRow>
-                                           ))}
-                                       </TableBody>
-                                   </Table>
-                               </CardContent>
-                           </Card>
-                       ) : renderEmptyState("您还没有邀请任何用户")}
-                    </TabsContent>
-                    <TabsContent value="contribution" className="mt-4">
-                        {renderEmptyState("团队贡献数据即将推出")}
                     </TabsContent>
                 </Tabs>
             </div>
