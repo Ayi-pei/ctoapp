@@ -1,10 +1,21 @@
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
     price: number;
 };
+
+// Represents a single point for a candlestick chart (OHLC)
+export type KlineDataPoint = {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+
 
 // Represents a summary of market data for a trading pair
 export type MarketSummary = {

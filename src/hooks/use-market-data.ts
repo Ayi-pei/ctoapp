@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Order, MarketTrade, PriceDataPoint, MarketSummary, availablePairs } from '@/types';
+import { Order, MarketTrade, PriceDataPoint, KlineDataPoint, MarketSummary, availablePairs } from '@/types';
 import { useSettings } from '@/context/settings-context';
 import { getMarketData, GetMarketDataOutput } from '@/ai/flows/get-market-data';
 
@@ -16,7 +17,7 @@ const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
 // Helper function to format time
-const formatTime = (date: Date) => date.toLocaleTimeString('en-US', { hour12: false });
+const formatTime = (date: Date) => date.toLocaleTimeString('en-GB'); // Use 24-hour format
 
 const getBasePrice = (pair: string) => {
     switch (pair) {
@@ -40,24 +41,31 @@ const getBasePrice = (pair: string) => {
 // ----- MOCK DATA GENERATION (for development and admin override) -----
 const generateInitialDataForPair = (pair: string) => {
   const basePrice = getBasePrice(pair);
-
-  // Price chart data
-  const priceData: PriceDataPoint[] = [];
-  let lastPrice = basePrice * randomInRange(0.98, 1.02);
   const now = new Date();
+
+  // K-line data (OHLC)
+  const klineData: KlineDataPoint[] = [];
+  let lastClose = basePrice * randomInRange(0.98, 1.02);
+
   for (let i = 59; i >= 0; i--) {
-    priceData.push({
-      time: formatTime(new Date(now.getTime() - i * 60000)),
-      price: lastPrice,
-    });
-    lastPrice *= randomInRange(0.999, 1.001);
+      const open = lastClose;
+      const high = open * randomInRange(1, 1.001);
+      const low = open * randomInRange(0.999, 1);
+      const close = randomInRange(low, high);
+      klineData.push({
+          time: formatTime(new Date(now.getTime() - i * 60000)),
+          open, high, low, close
+      });
+      lastClose = close;
   }
+  
+  const currentPrice = lastClose;
 
   // Order book data
   const asks: Order[] = [];
   const bids: Order[] = [];
-  let askPrice = lastPrice * 1.0005;
-  let bidPrice = lastPrice * 0.9995;
+  let askPrice = currentPrice * 1.0005;
+  let bidPrice = currentPrice * 0.9995;
   let cumulativeAskSize = 0;
   let cumulativeBidSize = 0;
 
@@ -80,7 +88,7 @@ const generateInitialDataForPair = (pair: string) => {
   const trades: MarketTrade[] = [];
   for (let i = 0; i < 30; i++) {
     const type = Math.random() > 0.5 ? 'buy' : 'sell';
-    const price = lastPrice * randomInRange(0.999, 1.001);
+    const price = currentPrice * randomInRange(0.999, 1.001);
     const amount = randomInRange(0.01, 1.5);
     trades.push({
       id: `trade-${Date.now()}-${i}`,
@@ -93,14 +101,15 @@ const generateInitialDataForPair = (pair: string) => {
   trades.sort((a, b) => new Date(`1970-01-01T${b.time}Z`).getTime() - new Date(`1970-01-01T${a.time}Z`).getTime());
   
   const price24hAgo = basePrice * randomInRange(0.95, 1.05);
-  const currentPrice = priceData[priceData.length - 1].price;
   const change = ((currentPrice - price24hAgo) / price24hAgo) * 100;
-  const low = Math.min(...priceData.map(p => p.price), price24hAgo);
-  const high = Math.max(...priceData.map(p => p.price), price24hAgo);
+  
+  const allPrices = klineData.flatMap(k => [k.open, k.high, k.low, k.close]);
+  const low = Math.min(...allPrices, price24hAgo);
+  const high = Math.max(...allPrices, price24hAgo);
 
 
   return { 
-      priceData, 
+      klineData, 
       orderBook: { asks, bids }, 
       trades,
       summary: {
@@ -156,9 +165,8 @@ export const useMarketData = () => {
                     return;
                 }
                 
-                let newSummary;
-                let newPriceData = prevData.priceData;
-                let newPrice = prevData.summary.price;
+                const lastKline = prevData.klineData[prevData.klineData.length - 1];
+                let newPrice = lastKline.close;
                 
                 const volatilityFactor = pairSettings.volatility;
                 let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
@@ -168,25 +176,29 @@ export const useMarketData = () => {
                 } else if (pairSettings.trend === 'down') {
                     priceMultiplier = 1 - (Math.random() * volatilityFactor);
                 }
-                newPrice = prevData.summary.price * priceMultiplier;
+                newPrice *= priceMultiplier;
 
+                const newKline = {
+                  time: formatTime(new Date()),
+                  open: lastKline.close,
+                  high: Math.max(lastKline.high, newPrice),
+                  low: Math.min(lastKline.low, newPrice),
+                  close: newPrice
+                };
 
-                newSummary = { 
+                const newSummary = { 
                     ...prevData.summary, 
                     price: newPrice,
                     high: Math.max(prevData.summary.high, newPrice),
                     low: Math.min(prevData.summary.low, newPrice),
                 };
                 
-                newPriceData = [...prevData.priceData.slice(1), {
-                    time: formatTime(new Date()),
-                    price: newPrice,
-                }];
+                const newKlineData = [...prevData.klineData.slice(1), newKline];
 
                 let updatedData = { 
                     ...prevData, 
                     summary: newSummary, 
-                    priceData: newPriceData 
+                    klineData: newKlineData 
                 };
                 
                 if (pair === tradingPair) {

@@ -21,6 +21,7 @@ import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 import { Archive } from 'lucide-react';
+import { CandlestickChartComponent } from '@/components/candlestick-chart';
 
 
 const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: string }) {
@@ -38,13 +39,13 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
   if (!data || !summaryData.length || isBalanceLoading) {
     return (
        <DashboardLayout>
-            <main className="p-4">
+            <main className="p-4 space-y-4">
                 <div className="mb-4">
                     <Skeleton className="h-[90px] w-full" />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
                     <div className="flex flex-col gap-4">
-                        <Skeleton className="h-[500px] w-full" />
+                        <Skeleton className="h-[400px] w-full" />
                         <Skeleton className="h-[300px] w-full" />
                     </div>
                     <div className="flex flex-col gap-4">
@@ -74,15 +75,18 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
             <div className="mb-4">
                 <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
             </div>
-            <Tabs defaultValue={defaultTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="spot">币币交易</TabsTrigger>
-                    <TabsTrigger value="contract">秒合约</TabsTrigger>
-                </TabsList>
-                <TabsContent value="spot">
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
-                        <div className="flex flex-col gap-4">
-                             <SpotOrderForm
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
+                <div className="flex flex-col gap-4">
+                    <CandlestickChartComponent data={data.klineData} />
+
+                    <Tabs defaultValue={defaultTab} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="spot">币币交易</TabsTrigger>
+                            <TabsTrigger value="contract">秒合约</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="spot" className="mt-4">
+                            <SpotOrderForm
                                 tradingPair={tradingPair}
                                 balances={balances}
                                 onPlaceTrade={(trade) => placeSpotTrade(trade)}
@@ -90,30 +94,22 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                                 quoteAsset={quoteAsset}
                                 currentPrice={data.summary.price}
                             />
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                            <TradeHistory trades={data.trades} />
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="contract">
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4 mt-4">
-                        <div className="flex flex-col gap-4">
-                             <OrderForm
+                        </TabsContent>
+                        <TabsContent value="contract" className="mt-4">
+                            <OrderForm
                                 tradingPair={tradingPair}
                                 balance={balances[quoteAsset]?.available || 0}
                                 onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
                                 quoteAsset={quoteAsset}
                             />
-                        </div>
-                        <div className="flex flex-col gap-4">
-                             <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                             <TradeHistory trades={data.trades} />
-                        </div>
-                    </div>
-                </TabsContent>
-            </Tabs>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+                <div className="flex flex-col gap-4">
+                    <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                    <TradeHistory trades={data.trades} />
+                </div>
+            </div>
             
             <div className="pt-4">
                 <Tabs defaultValue="current">
@@ -121,7 +117,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                         <TabsTrigger value="current">当前委托</TabsTrigger>
                         <TabsTrigger value="history">历史委托</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="current">
+                    <TabsContent value="current" className="mt-4">
                        {activeContractTrades.length > 0 ? (
                            <Card>
                                <CardContent className="p-2">
@@ -153,7 +149,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                            </Card>
                        ) : renderEmptyState("暂无当前委托")}
                     </TabsContent>
-                    <TabsContent value="history">
+                    <TabsContent value="history" className="mt-4">
                         {historicalTrades.length > 0 ? (
                              <Card>
                                <CardContent className="p-2">
