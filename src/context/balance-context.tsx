@@ -35,12 +35,19 @@ type ContractTradeParams = {
   profitRate: number;
 }
 
+type InvestmentParams = {
+    productName: string;
+    amount: number;
+    dailyRate: number;
+    period: number;
+}
+
 
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
   commissionLogs: CommissionLog[];
-  addInvestment: (productName: string, amount: number) => Promise<boolean>;
+  addInvestment: (params: InvestmentParams) => Promise<boolean>;
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
   isLoading: boolean;
@@ -172,6 +179,43 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   }, [getUserById, adjustBalance, user?.id]);
 
+  const settleInvestment = useCallback((investmentId: string) => {
+        setInvestments(prev => {
+            const investmentToSettle = prev.find(inv => inv.id === investmentId);
+            if (!investmentToSettle || investmentToSettle.status !== 'active') {
+                return prev;
+            }
+
+            const profit = investmentToSettle.amount * investmentToSettle.daily_rate * investmentToSettle.period;
+            const totalReturn = investmentToSettle.amount + profit;
+
+            adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
+
+            toast({
+                title: '理财订单已结算',
+                description: `您的 “${investmentToSettle.product_name}” 订单已到期，本金和收益共 ${totalReturn.toFixed(2)} USDT 已返还至您的余额。`
+            });
+            
+            return prev.map(inv => inv.id === investmentId ? { ...inv, status: 'settled', profit } : inv);
+        })
+  }, [adjustBalance, toast]);
+
+  // Effect to handle investment settlement
+  useEffect(() => {
+    if (!investments.length) return;
+    
+    const interval = setInterval(() => {
+        const now = new Date();
+        investments.forEach(inv => {
+            if (inv.status === 'active' && new Date(inv.settlement_date) <= now) {
+                settleInvestment(inv.id);
+            }
+        });
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [investments, settleInvestment]);
+
 
   const settleContractTrade = useCallback((tradeId: string) => {
     const trade = activeContractTrades.find(t => t.id === tradeId);
@@ -232,26 +276,31 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [activeContractTrades, settleContractTrade]);
   
   
-  const addInvestment = async (productName: string, amount: number) => {
+  const addInvestment = async (params: InvestmentParams) => {
     if (!user) return false;
     
-    if (balances.USDT.available < amount) {
+    if (balances.USDT.available < params.amount) {
       return false;
     }
     
     setBalances(prev => ({
       ...prev,
-      USDT: { ...prev.USDT, available: prev.USDT.available - amount, frozen: prev.USDT.frozen }
+      USDT: { ...prev.USDT, available: prev.USDT.available - params.amount, frozen: prev.USDT.frozen }
     }));
+
+    const now = new Date();
+    const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
 
     const newInvestment: Investment = {
         id: `inv-${Date.now()}`,
         user_id: user.id,
-        product_name: productName,
-        amount,
-        created_at: new Date().toISOString(),
-        productName: productName,
-        date: new Date().toLocaleDateString(),
+        product_name: params.productName,
+        amount: params.amount,
+        created_at: now.toISOString(),
+        settlement_date: settlementDate.toISOString(),
+        daily_rate: params.dailyRate,
+        period: params.period,
+        status: 'active',
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;

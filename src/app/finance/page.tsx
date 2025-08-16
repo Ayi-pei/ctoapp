@@ -10,7 +10,12 @@ import { useBalance, Investment } from "@/context/balance-context";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Archive } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
 
 type MiningProduct = {
     name: string;
@@ -23,6 +28,14 @@ type MiningProduct = {
 
 const Header = () => {
     const router = useRouter();
+    const { investments } = useBalance();
+
+    const activeInvestments = investments.filter(inv => inv.status === 'active');
+    const totalActiveAmount = activeInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+
+    const settledInvestments = investments.filter(inv => inv.status === 'settled');
+    const totalProfit = settledInvestments.reduce((acc, inv) => acc + (inv.profit || 0), 0);
+    
     return (
         <div className="p-4 bg-card text-foreground rounded-b-lg space-y-4">
             <div className="relative flex items-center justify-center">
@@ -39,15 +52,15 @@ const Header = () => {
             <div className="grid grid-cols-3 text-center pt-4">
                 <div>
                     <p className="text-muted-foreground text-sm">正在托管订单</p>
-                    <p className="font-semibold">0</p>
+                    <p className="font-semibold">{activeInvestments.length}</p>
                 </div>
                 <div>
                     <p className="text-muted-foreground text-sm">累计收益</p>
-                    <p className="font-semibold">0.00</p>
+                    <p className="font-semibold">{totalProfit.toFixed(2)}</p>
                 </div>
                 <div>
-                    <p className="text-muted-foreground text-sm">托管中订单</p>
-                    <p className="font-semibold">0</p>
+                    <p className="text-muted-foreground text-sm">托管中金额</p>
+                    <p className="font-semibold">{totalActiveAmount.toFixed(2)}</p>
                 </div>
             </div>
         </div>
@@ -107,6 +120,47 @@ const miningProducts: MiningProduct[] = [
     { name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png" },
 ];
 
+const EmptyState = ({ text }: { text: string }) => (
+    <Card>
+        <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
+            <Archive className="h-16 w-16 text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">{text}</p>
+        </CardContent>
+    </Card>
+);
+
+const InvestmentList = ({ investments }: { investments: Investment[] }) => (
+     <Card>
+        <CardContent className="p-0">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>产品</TableHead>
+                        <TableHead>金额</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead>结算日期</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {investments.map(inv => (
+                        <TableRow key={inv.id}>
+                            <TableCell className="font-medium">{inv.product_name}</TableCell>
+                            <TableCell>{inv.amount.toFixed(2)}</TableCell>
+                            <TableCell>
+                               <Badge variant="outline" className={cn(inv.status === 'active' ? 'text-yellow-500' : 'text-green-500')}>
+                                 {inv.status === 'active' ? '进行中' : `已结算 (+${(inv.profit || 0).toFixed(2)})`}
+                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">{new Date(inv.settlement_date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
+);
+
+
 export default function FinancePage() {
     const { toast } = useToast();
     const { balances, addInvestment, investments } = useBalance();
@@ -121,8 +175,13 @@ export default function FinancePage() {
     const handleConfirmInvestment = async (amount: number) => {
         if (!selectedProduct) return;
         
-        // In this model, amount is fixed to product price.
-        const success = await addInvestment(selectedProduct.name, selectedProduct.price);
+        const success = await addInvestment({
+            productName: selectedProduct.name,
+            amount: selectedProduct.price,
+            dailyRate: selectedProduct.dailyRate,
+            period: selectedProduct.period
+        });
+        
         if (success) {
             toast({
                 title: "购买成功",
@@ -143,18 +202,44 @@ export default function FinancePage() {
         return investments.filter(inv => inv.product_name === productName).length;
     }
 
+    const activeInvestments = investments.filter(i => i.status === 'active');
+    const settledInvestments = investments.filter(i => i.status === 'settled');
+
     return (
         <DashboardLayout>
             <Header />
             <div className="p-4 space-y-4">
-                {miningProducts.map(product => (
-                    <MiningProductCard 
-                        key={product.name} 
-                        product={product}
-                        purchasedCount={getPurchasedCount(product.name)}
-                        onInvest={handleInvestClick}
-                    />
-                ))}
+                <Tabs defaultValue="products">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="products">理财产品</TabsTrigger>
+                        <TabsTrigger value="active">托管中订单 ({activeInvestments.length})</TabsTrigger>
+                        <TabsTrigger value="settled">已完成订单 ({settledInvestments.length})</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="products" className="space-y-4 mt-4">
+                       {miningProducts.map(product => (
+                            <MiningProductCard 
+                                key={product.name} 
+                                product={product}
+                                purchasedCount={getPurchasedCount(product.name)}
+                                onInvest={handleInvestClick}
+                            />
+                        ))}
+                    </TabsContent>
+                    <TabsContent value="active" className="mt-4">
+                        {activeInvestments.length > 0 ? (
+                           <InvestmentList investments={activeInvestments} />
+                        ) : (
+                            <EmptyState text="当前没有正在进行的订单。" />
+                        )}
+                    </TabsContent>
+                    <TabsContent value="settled" className="mt-4">
+                        {settledInvestments.length > 0 ? (
+                           <InvestmentList investments={settledInvestments} />
+                        ) : (
+                            <EmptyState text="暂无已完成的订单记录。" />
+                        )}
+                    </TabsContent>
+                </Tabs>
             </div>
              {selectedProduct && (
                 <InvestmentDialog

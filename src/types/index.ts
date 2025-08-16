@@ -132,12 +132,15 @@ export type Investment = {
     id: string;
     user_id: string;
     product_name: string;
-    amount: number;
+    amount: number; // principal
     created_at: string;
-    // Properties for frontend rendering, optional
-    productName: string;
-    date: string;
-}
+    settlement_date: string;
+    daily_rate: number;
+    period: number;
+    status: 'active' | 'settled';
+    profit?: number;
+};
+
 
 // Represents a commission log entry
 export type CommissionLog = {
