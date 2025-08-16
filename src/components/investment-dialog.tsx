@@ -37,6 +37,8 @@ export function InvestmentDialog({
 }: InvestmentDialogProps) {
     const { toast } = useToast();
     const [amount, setAmount] = useState("");
+    const isFixedAmount = product.minInvestment === product.maxInvestment;
+
 
     useEffect(() => {
         if (isOpen) {
@@ -86,9 +88,9 @@ export function InvestmentDialog({
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>投资: {product.name}</DialogTitle>
+                    <DialogTitle>购买: {product.name}</DialogTitle>
                     <DialogDescription>
-                       输入您希望投资的金额。您的可用余额是 {balance.toFixed(2)} USDT。
+                       请确认您的购买。您的可用余额是 {balance.toFixed(2)} USDT。
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -103,6 +105,7 @@ export function InvestmentDialog({
                             onChange={(e) => setAmount(e.target.value)}
                             className="col-span-3"
                             placeholder={`最低 ${product.minInvestment}`}
+                            disabled={isFixedAmount}
                         />
                     </div>
                 </div>
@@ -112,10 +115,9 @@ export function InvestmentDialog({
                             取消
                         </Button>
                     </DialogClose>
-                    <Button type="button" onClick={handleConfirm}>确定投资</Button>
+                    <Button type="button" onClick={handleConfirm}>确定购买</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 }
-

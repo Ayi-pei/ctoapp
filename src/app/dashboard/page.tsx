@@ -27,7 +27,7 @@ export default function DashboardPage() {
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
-        { name: '质押挖矿', icon: Gem, href: '/coming-soon' },
+        { name: '质押挖矿', icon: Gem, href: '/finance' },
         { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '下载中心', icon: Download, href: '/download' },

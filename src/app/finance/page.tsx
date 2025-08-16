@@ -3,258 +3,178 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, Gem, Star, User, Archive } from "lucide-react";
-import Image from "next/image";
 import { InvestmentDialog } from "@/components/investment-dialog";
 import { useBalance, Investment } from "@/context/balance-context";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 
-type InvestmentProductProps = {
+type MiningProduct = {
     name: string;
-    rate: number;
-    minInvestment: number;
-    maxInvestment: number;
-    lockPeriod: number;
-    progress: number;
-    icon: React.ReactNode;
-    onInvest: (product: Omit<InvestmentProductProps, 'icon' | 'onInvest'>) => void;
+    price: number;
+    dailyRate: number;
+    period: number;
+    maxPurchase: number;
+    imgSrc: string;
 };
 
-const MfIcon = () => (
-    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <radialGradient id="mfGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
-                <stop offset="60%" style={{ stopColor: '#E57373' }} />
-                <stop offset="100%" style={{ stopColor: '#D32F2F' }} />
-            </radialGradient>
-        </defs>
-        <circle cx="50" cy="50" r="45" fill="url(#mfGradient)" />
-        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
-        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
-    </svg>
-);
-
-const SmIcon = () => (
-    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <radialGradient id="smGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
-                <stop offset="60%" style={{ stopColor: '#81C784' }} />
-                <stop offset="100%" style={{ stopColor: '#388E3C' }} />
-            </radialGradient>
-        </defs>
-        <circle cx="50" cy="50" r="45" fill="url(#smGradient)" />
-        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
-        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
-    </svg>
-);
-
-const RegularIcon = () => (
-    <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <radialGradient id="regularGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
-                <stop offset="60%" style={{ stopColor: '#64B5F6' }} />
-                <stop offset="100%" style={{ stopColor: '#1976D2' }} />
-            </radialGradient>
-        </defs>
-        <circle cx="50" cy="50" r="45" fill="url(#regularGradient)" />
-        <path d="M25 65 Q50 40 75 65" stroke="white" strokeWidth="5" fill="none" />
-        <path d="M25 35 Q50 60 75 35" stroke="white" strokeWidth="5" fill="none" />
-    </svg>
-);
+const Header = ({ totalAssets }: { totalAssets: number }) => {
+    const router = useRouter();
+    return (
+        <div className="p-4 bg-card text-foreground rounded-b-lg space-y-4">
+            <div className="flex justify-between items-center">
+                <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                    <ChevronLeft />
+                </Button>
+                <div className="text-center">
+                    <p className="text-lg font-bold">{totalAssets.toFixed(2)}</p>
+                </div>
+                <div className="flex gap-4 text-sm">
+                    <Button variant="link" className="text-foreground p-0">托管订单</Button>
+                    <Button variant="link" className="text-foreground p-0">规则</Button>
+                </div>
+            </div>
+            <div className="grid grid-cols-3 text-center">
+                <div>
+                    <p className="text-muted-foreground text-sm">正在托管订单</p>
+                    <p className="font-semibold">0</p>
+                </div>
+                <div>
+                    <p className="text-muted-foreground text-sm">累计收益</p>
+                    <p className="font-semibold">0.00</p>
+                </div>
+                <div>
+                    <p className="text-muted-foreground text-sm">托管中订单</p>
+                    <p className="font-semibold">0</p>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 
-const InvestmentProductCard = ({ name, rate, minInvestment, maxInvestment, lockPeriod, progress, icon, onInvest }: InvestmentProductProps) => (
-    <Card className="bg-card">
-        <CardContent className="p-4 space-y-4">
-            <div className="flex items-start justify-between">
+const MiningProductCard = ({ product, purchasedCount, onInvest }: { 
+    product: MiningProduct, 
+    purchasedCount: number,
+    onInvest: (product: MiningProduct) => void 
+}) => (
+    <Card className="bg-card/80">
+        <CardContent className="p-4">
+            <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                     {icon}
-                    <div>
-                        <h4 className="font-semibold">{name}</h4>
-                    </div>
+                    <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+                    <h4 className="font-semibold">{product.name}</h4>
                 </div>
-                <div className="text-right">
-                    <p className="text-2xl font-bold text-green-500">{rate.toFixed(2)} %</p>
-                    {/* Placeholder for sparkline */}
+                <Button 
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-full"
+                    onClick={() => onInvest(product)}
+                >
+                    买入
+                </Button>
+            </div>
+            <div className="grid grid-cols-3 text-center mt-4 text-sm">
+                <div>
+                    <p className="text-muted-foreground">每份金额</p>
+                    <p className="font-semibold">{product.price}</p>
+                </div>
+                <div>
+                    <p className="text-muted-foreground">日收益率</p>
+                    <p className="font-semibold">{product.dailyRate * 100}%</p>
+                </div>
+                <div>
+                    <p className="text-muted-foreground">周期</p>
+                    <p className="font-semibold">{product.period} 天</p>
                 </div>
             </div>
-
-            <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />起投金额:</span>
-                    <span>{minInvestment} USDT</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />限投金额:</span>
-                    <span>{maxInvestment.toLocaleString()} USDT</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center"><Gem className="w-3 h-3 mr-2 text-primary" />锁仓天数:</span>
-                    <span>{lockPeriod}</span>
+            <div className="mt-4">
+                <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>已购买次数: {purchasedCount}</span>
+                    <span>最大购买次数: {product.maxPurchase}</span>
                 </div>
             </div>
-
-            <div>
-                <div className="flex justify-between mb-1 text-sm">
-                    <span className="text-muted-foreground">项目进度:</span>
-                    <span>{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-            </div>
-
-            <Button className="w-full bg-primary/90 hover:bg-primary" onClick={() => onInvest({ name, rate, minInvestment, maxInvestment, lockPeriod, progress })}>立即参投</Button>
         </CardContent>
     </Card>
 );
 
-const MyInvestmentsList = ({ investments }: { investments: Investment[] }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle>我的投资记录</CardTitle>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>产品名称</TableHead>
-                        <TableHead className="text-right">投资金额 (USDT)</TableHead>
-                        <TableHead className="text-right">投资日期</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {investments.map(inv => (
-                        <TableRow key={inv.id}>
-                            <TableCell className="font-medium">{inv.productName}</TableCell>
-                            <TableCell className="text-right">{inv.amount.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{inv.date}</TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
-)
-
+const miningProducts: MiningProduct[] = [
+    { name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png" },
+    { name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png" },
+    { name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png" },
+];
 
 export default function FinancePage() {
     const { toast } = useToast();
     const { balances, addInvestment, investments } = useBalance();
-    const [selectedProduct, setSelectedProduct] = useState<Omit<InvestmentProductProps, 'icon' | 'onInvest'> | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<MiningProduct | null>(null);
     const [isInvestmentDialogOpen, setIsInvestmentDialogOpen] = useState(false);
-
-    const valueAddedProducts: Omit<InvestmentProductProps, 'icon'| 'onInvest'>[] = [
-        { name: "USDT Metfone contract", rate: 0.75, minInvestment: 500, maxInvestment: 200000, lockPeriod: 15, progress: 25 },
-        { name: "USDT Smart contract", rate: 0.90, minInvestment: 1000, maxInvestment: 500000, lockPeriod: 30, progress: 60 },
-    ];
-
-    const regularProducts: Omit<InvestmentProductProps, 'icon'| 'onInvest'>[] = [
-        { name: "USDT Regular Saver", rate: 0.35, minInvestment: 100, maxInvestment: 50000, lockPeriod: 7, progress: 78 },
-    ];
     
-    const productIcons: { [key: string]: React.ReactNode } = {
-        "USDT Metfone contract": <MfIcon />,
-        "USDT Smart contract": <SmIcon />,
-        "USDT Regular Saver": <RegularIcon />,
+    const getUsdtValue = (assetName: string, amount: number) => {
+        if (assetName === 'USDT') return amount;
+        if (assetName === 'BTC') return amount * 68000;
+        if (assetName === 'ETH') return amount * 3800;
+        return 0;
     }
 
-    const handleInvestClick = (product: Omit<InvestmentProductProps, 'icon' | 'onInvest'>) => {
+    const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
+        return acc + getUsdtValue(name, balance.available);
+    }, 0);
+
+    const handleInvestClick = (product: MiningProduct) => {
         setSelectedProduct(product);
         setIsInvestmentDialogOpen(true);
     }
     
     const handleConfirmInvestment = async (amount: number) => {
         if (!selectedProduct) return;
-        const success = await addInvestment(selectedProduct.name, amount);
+        
+        // In this model, amount is fixed to product price.
+        const success = await addInvestment(selectedProduct.name, selectedProduct.price);
         if (success) {
             toast({
-                title: "投资成功",
-                description: `您已成功投资 ${amount} USDT 到 ${selectedProduct.name}。`
+                title: "购买成功",
+                description: `您已成功购买 ${selectedProduct.name}。`
             });
         } else {
              toast({
                 variant: "destructive",
-                title: "投资失败",
+                title: "购买失败",
                 description: "您的余额不足。"
             });
         }
         setIsInvestmentDialogOpen(false);
         setSelectedProduct(null);
     }
-
-
-    const renderEmptyState = (text: string) => (
-         <Card>
-            <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-48">
-                 <Archive className="h-16 w-16 text-muted-foreground" />
-                <p className="mt-4 text-muted-foreground">{text}</p>
-            </CardContent>
-        </Card>
-    );
+    
+    const getPurchasedCount = (productName: string) => {
+        return investments.filter(inv => inv.product_name === productName).length;
+    }
 
     return (
         <DashboardLayout>
+            <Header totalAssets={totalBalance} />
             <div className="p-4 space-y-4">
-                <Tabs defaultValue="value-added" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4 bg-card">
-                        <TabsTrigger value="value-added">
-                            <BarChart className="w-4 h-4 mr-2" />
-                            增值收益
-                        </TabsTrigger>
-                        <TabsTrigger value="membership">
-                            <Star className="w-4 h-4 mr-2" />
-                            会员专区
-                        </TabsTrigger>
-                        <TabsTrigger value="regular">
-                             <Gem className="w-4 h-4 mr-2" />
-                            普通产品
-                        </TabsTrigger>
-                        <TabsTrigger value="my-investments">
-                            <User className="w-4 h-4 mr-2" />
-                           我的投资
-                        </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="value-added">
-                        <div className="space-y-4">
-                           {valueAddedProducts.map(product => (
-                                <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} onInvest={handleInvestClick} />
-                           ))}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="membership">
-                         {renderEmptyState("暂无会员专区产品")}
-                    </TabsContent>
-                    <TabsContent value="regular">
-                        <div className="space-y-4">
-                           {regularProducts.length > 0 ? (
-                                regularProducts.map(product => (
-                                    <InvestmentProductCard key={product.name} {...product} icon={productIcons[product.name]} onInvest={handleInvestClick}/>
-                                ))
-                           ) : (
-                                renderEmptyState("暂无普通产品")
-                           )}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="my-investments">
-                        {investments.length > 0 ? (
-                            <MyInvestmentsList investments={investments} />
-                        ) : (
-                             renderEmptyState("您还没有任何投资记录。")
-                        )}
-                    </TabsContent>
-                </Tabs>
+                {miningProducts.map(product => (
+                    <MiningProductCard 
+                        key={product.name} 
+                        product={product}
+                        purchasedCount={getPurchasedCount(product.name)}
+                        onInvest={handleInvestClick}
+                    />
+                ))}
             </div>
              {selectedProduct && (
                 <InvestmentDialog
                     isOpen={isInvestmentDialogOpen}
                     onOpenChange={setIsInvestmentDialogOpen}
-                    product={selectedProduct}
+                    product={{
+                        name: selectedProduct.name,
+                        minInvestment: selectedProduct.price,
+                        maxInvestment: selectedProduct.price, // Each purchase is one unit
+                    }}
                     balance={balances['USDT']?.available || 0}
                     onConfirm={handleConfirmInvestment}
                 />
@@ -262,5 +182,3 @@ export default function FinancePage() {
         </DashboardLayout>
     );
 }
-
-    
