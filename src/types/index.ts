@@ -1,7 +1,5 @@
 
 
-
-
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -139,6 +137,12 @@ export type PasswordResetRequest = {
 
 export type AnyRequest = Transaction | PasswordResetRequest;
 
+// For hourly investment products
+export type InvestmentTier = {
+    hours: number;
+    rate: number; // Hourly rate
+};
+
 
 // Represents a user's investment in a product
 export type Investment = {
@@ -148,10 +152,16 @@ export type Investment = {
     amount: number; // principal
     created_at: string;
     settlement_date: string;
-    daily_rate: number;
-    period: number;
     status: 'active' | 'settled';
     profit?: number;
+    // For different product types
+    productType?: 'daily' | 'hourly';
+    // Daily product fields
+    daily_rate?: number;
+    period?: number;
+    // Hourly product fields
+    duration_hours?: number;
+    hourly_rate?: number;
 };
 
 

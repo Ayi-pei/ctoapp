@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -35,11 +35,18 @@ type ContractTradeParams = {
   profitRate: number;
 }
 
-type InvestmentParams = {
+type DailyInvestmentParams = {
     productName: string;
     amount: number;
     dailyRate: number;
     period: number;
+}
+
+type HourlyInvestmentParams = {
+    productName: string;
+    amount: number;
+    durationHours: number;
+    tiers: InvestmentTier[];
 }
 
 
@@ -47,7 +54,8 @@ interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
   commissionLogs: CommissionLog[];
-  addInvestment: (params: InvestmentParams) => Promise<boolean>;
+  addDailyInvestment: (params: DailyInvestmentParams) => Promise<boolean>;
+  addHourlyInvestment: (params: HourlyInvestmentParams) => Promise<boolean>;
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
   placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
   isLoading: boolean;
@@ -185,8 +193,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             if (!investmentToSettle || investmentToSettle.status !== 'active') {
                 return prev;
             }
+            
+            let profit = 0;
+            if (investmentToSettle.productType === 'hourly' && investmentToSettle.hourly_rate && investmentToSettle.duration_hours) {
+                profit = investmentToSettle.amount * investmentToSettle.hourly_rate;
+            } else if (investmentToSettle.productType === 'daily' && investmentToSettle.daily_rate && investmentToSettle.period) {
+                profit = investmentToSettle.amount * investmentToSettle.daily_rate * investmentToSettle.period;
+            }
 
-            const profit = investmentToSettle.amount * investmentToSettle.daily_rate * investmentToSettle.period;
             const totalReturn = investmentToSettle.amount + profit;
 
             adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
@@ -276,7 +290,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [activeContractTrades, settleContractTrade]);
   
   
-  const addInvestment = async (params: InvestmentParams) => {
+  const addDailyInvestment = async (params: DailyInvestmentParams) => {
     if (!user) return false;
     
     if (balances.USDT.available < params.amount) {
@@ -301,11 +315,50 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         daily_rate: params.dailyRate,
         period: params.period,
         status: 'active',
+        productType: 'daily'
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;
   }
   
+  const addHourlyInvestment = async (params: HourlyInvestmentParams) => {
+     if (!user) return false;
+    
+    if (balances.USDT.available < params.amount) {
+      return false;
+    }
+    
+    // Find the correct rate for the selected duration
+    const selectedTier = params.tiers.find(t => t.hours === params.durationHours);
+    if (!selectedTier) {
+        console.error("Invalid duration or tier not found for hourly investment");
+        return false;
+    }
+
+    setBalances(prev => ({
+      ...prev,
+      USDT: { ...prev.USDT, available: prev.USDT.available - params.amount, frozen: prev.USDT.frozen }
+    }));
+
+    const now = new Date();
+    const settlementDate = new Date(now.getTime() + params.durationHours * 60 * 60 * 1000);
+
+    const newInvestment: Investment = {
+        id: `inv-h-${Date.now()}`,
+        user_id: user.id,
+        product_name: params.productName,
+        amount: params.amount,
+        created_at: now.toISOString(),
+        settlement_date: settlementDate.toISOString(),
+        status: 'active',
+        productType: 'hourly',
+        duration_hours: params.durationHours,
+        hourly_rate: selectedTier.rate,
+    }
+    setInvestments(prev => [newInvestment, ...prev]);
+    return true;
+  }
+
   const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
     if (!user || !marketData) return;
 
@@ -479,7 +532,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       isLoading,
       investments,
       commissionLogs,
-      addInvestment,
+      addDailyInvestment,
+      addHourlyInvestment,
       recalculateBalanceForUser,
       activeContractTrades,
       historicalTrades,

@@ -5,23 +5,49 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 
 const SETTINGS_STORAGE_KEY = 'tradeflow_investment_settings';
 
+export type InvestmentTier = {
+    hours: number;
+    rate: number; // Hourly rate
+};
+
 export type InvestmentProduct = {
     id: string;
     name: string;
     price: number;
-    dailyRate: number;
-    period: number;
+    dailyRate?: number; // Optional for daily products
+    period?: number; // Optional for daily products
     maxPurchase: number;
     imgSrc: string;
+    // New fields for hourly products
+    productType?: 'daily' | 'hourly';
+    activeStartTime?: string; // e.g., "18:00"
+    activeEndTime?: string; // e.g., "06:00"
+    hourlyTiers?: InvestmentTier[];
 };
+
 
 // Default products if nothing is in storage
 const defaultInvestmentProducts: InvestmentProduct[] = [
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png" },
-    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png" },
-    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png" },
-    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/canaan-miner.png" },
-    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png" },
+    { 
+        id: 'prod-futoubao', 
+        name: "富投宝", 
+        price: 1, // Min investment amount
+        maxPurchase: 999, 
+        imgSrc: "/images/futoubao.png",
+        productType: 'hourly',
+        activeStartTime: '18:00',
+        activeEndTime: '06:00',
+        hourlyTiers: [
+            { hours: 2, rate: 0.015 }, // 1.5%
+            { hours: 4, rate: 0.020 }, // 2.0%
+            { hours: 6, rate: 0.025 }, // 2.5%
+        ]
+    },
+    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png", productType: 'daily' },
+    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png", productType: 'daily' },
+    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png", productType: 'daily' },
+    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/canaan-miner.png", productType: 'daily' },
+    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png", productType: 'daily' },
 ];
 
 
@@ -43,7 +69,20 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
         try {
             const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
             if (storedSettings) {
-                setInvestmentProducts(JSON.parse(storedSettings));
+                const parsed = JSON.parse(storedSettings);
+                // Simple merge to ensure new products/fields from default are added
+                const finalProducts = defaultInvestmentProducts.map(dp => {
+                    const found = parsed.find((sp: InvestmentProduct) => sp.id === dp.id);
+                    return found ? { ...dp, ...found } : dp;
+                });
+                // Add any purely custom products from storage that aren't in default
+                parsed.forEach((sp: InvestmentProduct) => {
+                    if (!finalProducts.some(fp => fp.id === sp.id)) {
+                        finalProducts.push(sp);
+                    }
+                });
+
+                setInvestmentProducts(finalProducts);
             } else {
                 setInvestmentProducts(defaultInvestmentProducts);
             }
@@ -74,7 +113,8 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             dailyRate: 0.01,
             period: 30,
             maxPurchase: 1,
-            imgSrc: '/images/placeholder-miner.png'
+            imgSrc: '/images/placeholder-miner.png',
+            productType: 'daily'
         };
         setInvestmentProducts(prev => [...prev, newProduct]);
     }, []);
