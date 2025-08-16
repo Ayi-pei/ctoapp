@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings, TradingPairSettings } from "@/context/settings-context";
+import { useSettings, TradingPairSettings, SpecialTimeFrame } from "@/context/settings-context";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import { availablePairs } from "@/types";
@@ -27,7 +27,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
     handleSettingChange: (pair: string, key: keyof TradingPairSettings, value: any) => void,
     handleTrendChange: (pair: string, newTrend: 'up' | 'down' | 'normal') => void,
     handleVolatilityChange: (pair: string, value: number[]) => void,
-    updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<any>) => void,
+    updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => void,
     addSpecialTimeFrame: (pair: string) => void,
     removeSpecialTimeFrame: (pair: string, frameId: string) => void
 }) => {
@@ -37,7 +37,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
         <div key={pair} className="p-4 border rounded-lg space-y-4">
             <h3 className="font-semibold text-lg">{pair}</h3>
             
-            {/* Trading halt switch */}
             <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
                 <Label htmlFor={`halt-trading-${pair}`} className="font-semibold">暂停此币种交易</Label>
                 <Switch
@@ -49,7 +48,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
             
             <Separator />
 
-            {/* Trend Control */}
             <div className="space-y-2">
                 <Label>价格趋势模拟</Label>
                 <p className="text-xs text-muted-foreground">
@@ -75,7 +73,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 </div>
             </div>
 
-            {/* Volatility Control */}
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
                     <Label>价格波动率</Label>
@@ -100,7 +97,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
 
             <Separator />
             
-            {/* Default Profit Rate */}
             <div className="space-y-2">
                 <Label htmlFor={`base-profit-rate-${pair}`}>基础秒合约收益率 (%)</Label>
                 <Input
@@ -114,7 +110,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
             
             <Separator />
             
-            {/* Special Time Frames */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <Label htmlFor={`limit-buy-${pair}`} className="font-semibold">限定时段交易</Label>
@@ -126,7 +121,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    启用后，仅在下方设定的特殊时间点可以进行交易，并应用特殊收益率或指定价格。
+                    启用后，仅在下方设定的特殊时间点可以进行交易，并应用特殊收益率。
                 </p>
 
                 <div className="space-y-4">
@@ -134,35 +129,34 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                         return (
                             <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
                                 <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <Label htmlFor={`time-${frame.id}`} className="text-xs">指定时间 (HH:mm:ss)</Label>
+                                        <Label htmlFor={`start-time-${frame.id}`} className="text-xs">开始时间</Label>
                                         <Input 
-                                            id={`time-${frame.id}`}
-                                            type="text" 
-                                            value={frame.time}
-                                            placeholder="HH:mm:ss"
-                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { time: e.target.value })}
+                                            id={`start-time-${frame.id}`}
+                                            type="time" 
+                                            value={frame.startTime}
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { startTime: e.target.value })}
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor={`buy-price-${frame.id}`} className="text-xs">指定买入价 (选填)</Label>
+                                        <Label htmlFor={`end-time-${frame.id}`} className="text-xs">结束时间</Label>
                                         <Input 
-                                            id={`buy-price-${frame.id}`}
-                                            type="number" 
-                                            value={frame.buyPrice ?? ''}
-                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { buyPrice: parseFloat(e.target.value) || undefined })}
+                                            id={`end-time-${frame.id}`}
+                                            type="time" 
+                                            value={frame.endTime}
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { endTime: e.target.value })}
                                         />
                                     </div>
-                                    <div>
-                                        <Label htmlFor={`sell-price-${frame.id}`} className="text-xs">指定卖出价 (选填)</Label>
-                                        <Input 
-                                            id={`sell-price-${frame.id}`}
-                                            type="number" 
-                                            value={frame.sellPrice ?? ''}
-                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { sellPrice: parseFloat(e.target.value) || undefined })}
-                                        />
-                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">此时间段收益率 (%)</Label>
+                                    <Input 
+                                        id={`profit-rate-${frame.id}`}
+                                        type="number" 
+                                        value={(frame.profitRate * 100).toFixed(0)}
+                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
+                                    />
                                 </div>
                                 
                                 <Button 
@@ -291,7 +285,6 @@ export default function AdminSettingsPage() {
     }
     
     const handleSaveSettings = (section: string) => {
-        // In this mock setup, data is saved on change. This button just provides user feedback.
         toast({
             title: "设置已保存",
             description: `所有${section}设置已更新。`,
@@ -303,7 +296,6 @@ export default function AdminSettingsPage() {
             <div className="p-4 md:p-8 space-y-6">
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    {/* Column 1: System & Investment Settings */}
                     <div className="space-y-8">
                         <Card>
                             <CardHeader>
@@ -372,7 +364,6 @@ export default function AdminSettingsPage() {
                         </Card>
                     </div>
 
-                    {/* Column 2: Market Settings */}
                      <Card>
                         <CardHeader>
                             <CardTitle>市场设置</CardTitle>

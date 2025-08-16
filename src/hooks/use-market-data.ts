@@ -153,7 +153,6 @@ export const useMarketData = () => {
                 const pairSettings = settings[pair] || { trend: 'normal', volatility: 0.05, isTradingHalted: false, specialTimeFrames: [] };
                 
                 if (pairSettings.isTradingHalted) {
-                    // If trading is halted, don't update market data to keep it static
                     return;
                 }
                 
@@ -161,39 +160,16 @@ export const useMarketData = () => {
                 let newPriceData = prevData.priceData;
                 let newPrice = prevData.summary.price;
                 
-                // Check for special time frames with fixed prices
-                const now = new Date();
-                const currentTotalSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+                const volatilityFactor = pairSettings.volatility;
+                let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
 
-                let isFixedPrice = false;
-
-                if (pairSettings.tradingDisabled && pairSettings.specialTimeFrames) {
-                    for (const frame of pairSettings.specialTimeFrames) {
-                         const [h, m, s] = frame.time.split(':').map(Number);
-                         const frameTotalSeconds = (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
-
-                         if (currentTotalSeconds === frameTotalSeconds) {
-                             // Use the sell price as the primary "current price" for the chart if available
-                             if (frame.sellPrice !== undefined && frame.sellPrice > 0) {
-                                 newPrice = frame.sellPrice;
-                                 isFixedPrice = true;
-                                 break;
-                             }
-                         }
-                    }
+                if (pairSettings.trend === 'up') {
+                    priceMultiplier = 1 + (Math.random() * volatilityFactor); 
+                } else if (pairSettings.trend === 'down') {
+                    priceMultiplier = 1 - (Math.random() * volatilityFactor);
                 }
+                newPrice = prevData.summary.price * priceMultiplier;
 
-                if (!isFixedPrice) {
-                    const volatilityFactor = pairSettings.volatility;
-                    let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
-
-                    if (pairSettings.trend === 'up') {
-                        priceMultiplier = 1 + (Math.random() * volatilityFactor); 
-                    } else if (pairSettings.trend === 'down') {
-                        priceMultiplier = 1 - (Math.random() * volatilityFactor);
-                    }
-                    newPrice = prevData.summary.price * priceMultiplier;
-                }
 
                 newSummary = { 
                     ...prevData.summary, 
@@ -213,7 +189,6 @@ export const useMarketData = () => {
                     priceData: newPriceData 
                 };
                 
-                // For the currently active trading pair, also update the heavy order book and trades for visual effect
                 if (pair === tradingPair) {
                      const newAsks = prevData.orderBook.asks.map((order: Order) => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a: Order,b: Order) => a.price - b.price);
                      const newBids = prevData.orderBook.bids.map((order: Order) => ({ ...order, price: order.price * 0.99 + newSummary.price * 0.01 })).sort((a: Order,b: Order) => b.price - a.price);

@@ -6,9 +6,9 @@ import { availablePairs } from '@/types';
 
 export type SpecialTimeFrame = {
     id: string;
-    time: string; // Changed from startTime and endTime
-    buyPrice?: number;
-    sellPrice?: number;
+    startTime: string; // Restored
+    endTime: string;   // Restored
+    profitRate: number; // Restored
 };
 
 export type TradingPairSettings = {
@@ -36,7 +36,6 @@ const getDefaultPairSettings = (): TradingPairSettings => ({
     trend: 'normal',
     tradingDisabled: false,
     isTradingHalted: false,
-    // Set a random volatility between 0.01 (1%) and 0.02 (2%)
     volatility: Math.random() * (0.02 - 0.01) + 0.01,
     baseProfitRate: 0.85,
     specialTimeFrames: [],
@@ -70,7 +69,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSettings(prevSettings => {
             const newFrame: SpecialTimeFrame = {
                 id: `frame_${Date.now()}`,
-                time: "10:00:00",
+                startTime: "10:00",
+                endTime: "11:00",
+                profitRate: 0.90, // Default special profit rate
             };
             const pairSettings = prevSettings[pair] || getDefaultPairSettings();
             const updatedFrames = [...pairSettings.specialTimeFrames, newFrame];

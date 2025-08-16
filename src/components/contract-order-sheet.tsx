@@ -74,28 +74,28 @@ export function ContractOrderSheet({
     let activeProfitRate = pairSettings.baseProfitRate;
     let isInSpecialFrame = false;
 
-    for (const frame of pairSettings.specialTimeFrames) {
-        const [startH, startM] = frame.startTime.split(':').map(Number);
-        const startTime = startH * 60 + startM;
-        const [endH, endM] = frame.endTime.split(':').map(Number);
-        const endTime = endH * 60 + endM;
-        
-        if (currentTime >= startTime && currentTime <= endTime) {
-            activeProfitRate = frame.profitRate;
-            isInSpecialFrame = true;
-            break; 
+    if (pairSettings.specialTimeFrames) {
+        for (const frame of pairSettings.specialTimeFrames) {
+            const [startH, startM] = frame.startTime.split(':').map(Number);
+            const startTime = startH * 60 + startM;
+            const [endH, endM] = frame.endTime.split(':').map(Number);
+            const endTime = endH * 60 + endM;
+            
+            if (currentTime >= startTime && currentTime <= endTime) {
+                activeProfitRate = frame.profitRate;
+                isInSpecialFrame = true;
+                break; 
+            }
         }
     }
 
     if (pairSettings.tradingDisabled && !isInSpecialFrame) {
-      // If limited trading is on AND we are outside a special frame,
-      // the profit rate doesn't matter as much, but we can reflect the base.
       setCurrentProfitRate(pairSettings.baseProfitRate);
     } else {
       setCurrentProfitRate(activeProfitRate);
     }
 
-  }, [pairSettings, isOpen]); // Rerun when settings change or dialog opens
+  }, [pairSettings, isOpen]);
 
 
   const asset = tradingPair.split('/')[0];
@@ -107,7 +107,6 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
-    // 1. Check Global switch
     if (!systemSettings.isContractTradingEnabled) {
         toast({
             variant: "destructive",
@@ -117,7 +116,6 @@ export function ContractOrderSheet({
         return;
     }
     
-    // 2. Check per-pair halt switch
     if (pairSettings?.isTradingHalted) {
         toast({
             variant: "destructive",
@@ -127,7 +125,6 @@ export function ContractOrderSheet({
         return;
     }
 
-    // 3. Check for time-based restrictions
     if (pairSettings?.tradingDisabled) {
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
@@ -309,5 +306,3 @@ export function ContractOrderSheet({
     </Sheet>
   );
 }
-
-    
