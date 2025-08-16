@@ -14,6 +14,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@genkit-ai/firebase": "1.15.5",
     "@genkit-ai/googleai": "1.15.5",
     "@genkit-ai/next": "1.15.5",
     "@hookform/resolvers": "^3.3.4",
