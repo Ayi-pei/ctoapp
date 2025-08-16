@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,10 +9,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
-import { Check, Gift } from "lucide-react";
+import { Check, Gift, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CheckInDialogProps = {
@@ -101,9 +110,32 @@ export function CheckInDialog({ isOpen, onOpenChange }: CheckInDialogProps) {
                         </Button>
                     </DialogFooter>
                 </div>
-                 <div className="absolute top-1/2 -right-1.5 -translate-y-1/2 bg-zinc-900/80 px-1 py-4 rounded-l-md transform">
-                    <p className="[writing-mode:vertical-rl] text-sm text-yellow-300 tracking-wider">活动规则</p>
-                </div>
+                <AlertDialog>
+                     <AlertDialogTrigger asChild>
+                        <div className="absolute top-1/2 -right-1.5 -translate-y-1/2 bg-zinc-900/80 px-1 py-4 rounded-l-md transform cursor-pointer hover:bg-zinc-900">
+                            <p className="[writing-mode:vertical-rl] text-sm text-yellow-300 tracking-wider">活动规则</p>
+                        </div>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2">
+                                <HelpCircle className="h-5 w-5" />
+                                签到活动规则
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="text-left pt-4 space-y-2">
+                                <p>1. 每日签到均可获得USDT现金奖励，奖励将直接发放到您的账户余额。</p>
+                                <p>2. 签到活动以7天为一个完整周期，连续签到天数越长，奖励越丰厚。</p>
+                                <p>3. 奖励计算规则：首日签到奖励为 <strong>0.5 USDT</strong>。从第二天起，每日奖励金额为前一天奖励金额的 <strong>1.5倍</strong>。</p>
+                                <p>4. 如果签到中断，连续签到天数将从第一天重新开始计算。</p>
+                                <p>5. 完成一个7天的签到周期后，下一轮签到将从第一天的奖励重新开始。</p>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogAction>我明白了</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
             </DialogContent>
         </Dialog>
     );
