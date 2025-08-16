@@ -11,13 +11,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { User } from '@/types';
+import type { Investment, User } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "./ui/separator";
-import { MessageSquare, Send, Users, Repeat } from "lucide-react";
+import { MessageSquare, Send, Users, Repeat, Archive } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { useAuth } from "@/context/auth-context";
 import { availablePairs } from "@/types";
@@ -27,6 +27,7 @@ import { useRequests } from "@/context/requests-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
+import { getUserData } from "@/lib/user-data";
 
 type UserBalance = {
     [key: string]: {
@@ -78,7 +79,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
         <ul className="space-y-2 p-2 max-h-48 overflow-y-auto">
             {downline.map(member => (
                  <li key={member.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                    <Badge variant="outline">LV {(member as any).level}</Badge>
+                    <Badge variant="outline">LV {(member as any).level || 0}</Badge>
                     <span>{member.username}</span>
                 </li>
             ))}
@@ -97,6 +98,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
     const { addDepositRequest } = useRequests();
     const { addAnnouncement } = useAnnouncements();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
+    const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
     const [creditScore, setCreditScore] = useState((initialUser?.credit_score ?? 100).toString());
     const [messageTitle, setMessageTitle] = useState("");
     const [messageContent, setMessageContent] = useState("");
@@ -111,11 +113,13 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
             setMessageTitle("");
             setMessageContent("");
             
-            const getBalances = async () => {
+            const loadUserData = async () => {
                 const bal = await recalculateBalanceForUser(initialUser.id);
                 setCalculatedBalances(bal);
+                const data = getUserData(initialUser.id);
+                setUserInvestments(data.investments);
             }
-            getBalances();
+            loadUserData();
 
         }
     }, [isOpen, initialUser, recalculateBalanceForUser]);
@@ -295,6 +299,42 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                     </div>
 
                     <div>
+                        <h4 className="font-semibold mb-2">理财订单</h4>
+                         {userInvestments.length > 0 ? (
+                           <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>产品名称</TableHead>
+                                        <TableHead>投资金额 (USDT)</TableHead>
+                                        <TableHead>状态</TableHead>
+                                        <TableHead>结算日期</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {userInvestments.map(inv => (
+                                        <TableRow key={inv.id}>
+                                            <TableCell>{inv.product_name}</TableCell>
+                                            <TableCell>{inv.amount.toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={cn(inv.status === 'active' ? 'text-yellow-500' : 'text-green-500')}>
+                                                    {inv.status === 'active' ? '进行中' : `已结算 (+${(inv.profit || 0).toFixed(2)})`}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-xs">{new Date(inv.settlement_date).toLocaleDateString()}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                         ) : (
+                             <div className="text-center py-10 text-muted-foreground bg-muted/50 rounded-md">
+                                <Archive className="mx-auto h-12 w-12" />
+                                <p className="mt-4">该用户暂无理财记录。</p>
+                            </div>
+                         )}
+                    </div>
+
+
+                    <div>
                         <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息</h4>
                         <DownlineTree userId={user.id} />
                     </div>
@@ -349,7 +389,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                                     <Label>账户类型:</Label>
                                     <Button onClick={handleToggleAccountType} variant="outline">
                                         <Repeat className="w-4 h-4 mr-2"/>
-                                        切换为 {user.is_test_user ? '真实账户' : '测试账户'}
+                                        切换为 {user.is_test_user ? '真实账户' : '真实账户'}
                                     </Button>
                                 </div>
                             </div>
