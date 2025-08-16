@@ -90,7 +90,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     min={0.01}
                     step={0.01}
                     onValueChange={(value) => setVolatilityValue(value[0])}
-                    onValueCommit={(value) => handleVolatilityChange(pair, value)}
+                    onCommit={(value) => handleVolatilityChange(pair, value)}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                     <span>平稳</span>
@@ -126,7 +126,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    启用后，仅在下方设定的特殊时间段内可以进行交易，并应用特殊收益率。
+                    启用后，仅在下方设定的特殊时间段内可以进行交易，并应用特殊收益率或指定价格。
                 </p>
 
                 <div className="space-y-4">
@@ -153,8 +153,28 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                                     />
                                 </div>
                             </div>
+                             <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <Label htmlFor={`buy-price-${frame.id}`} className="text-xs">指定买入价 (选填)</Label>
+                                    <Input 
+                                        id={`buy-price-${frame.id}`}
+                                        type="number" 
+                                        value={frame.buyPrice ?? ''}
+                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { buyPrice: parseFloat(e.target.value) || undefined })}
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor={`sell-price-${frame.id}`} className="text-xs">指定卖出价 (选填)</Label>
+                                    <Input 
+                                        id={`sell-price-${frame.id}`}
+                                        type="number" 
+                                        value={frame.sellPrice ?? ''}
+                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { sellPrice: parseFloat(e.target.value) || undefined })}
+                                    />
+                                </div>
+                            </div>
                             <div>
-                                <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">此时间段收益率 (%)</Label>
+                                <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">特殊收益率 (%)</Label>
                                 <Input
                                     id={`profit-rate-${frame.id}`}
                                     type="number"

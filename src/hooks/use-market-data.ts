@@ -150,26 +150,52 @@ export const useMarketData = () => {
                 const prevData = newAllData.get(pair);
                 if (!prevData) return;
 
-                const pairSettings = settings[pair] || { trend: 'normal', volatility: 0.05, isTradingHalted: false };
+                const pairSettings = settings[pair] || { trend: 'normal', volatility: 0.05, isTradingHalted: false, specialTimeFrames: [] };
                 
                 if (pairSettings.isTradingHalted) {
                     // If trading is halted, don't update market data to keep it static
                     return;
                 }
-
+                
                 let newSummary;
                 let newPriceData = prevData.priceData;
-
-                const volatilityFactor = pairSettings.volatility;
-                let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
-
-                if (pairSettings.trend === 'up') {
-                    priceMultiplier = 1 + (Math.random() * volatilityFactor); 
-                } else if (pairSettings.trend === 'down') {
-                    priceMultiplier = 1 - (Math.random() * volatilityFactor);
-                }
+                let newPrice = prevData.summary.price;
                 
-                const newPrice = prevData.summary.price * priceMultiplier;
+                // Check for special time frames with fixed prices
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+                let isFixedPrice = false;
+
+                if (pairSettings.tradingDisabled && pairSettings.specialTimeFrames) {
+                    for (const frame of pairSettings.specialTimeFrames) {
+                         const [startH, startM] = frame.startTime.split(':').map(Number);
+                         const startTime = startH * 60 + startM;
+                         const [endH, endM] = frame.endTime.split(':').map(Number);
+                         const endTime = endH * 60 + endM;
+
+                         if (currentTime >= startTime && currentTime <= endTime) {
+                             // Use the sell price as the primary "current price" for the chart if available
+                             if (frame.sellPrice !== undefined && frame.sellPrice > 0) {
+                                 newPrice = frame.sellPrice;
+                                 isFixedPrice = true;
+                                 break;
+                             }
+                         }
+                    }
+                }
+
+                if (!isFixedPrice) {
+                    const volatilityFactor = pairSettings.volatility;
+                    let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
+
+                    if (pairSettings.trend === 'up') {
+                        priceMultiplier = 1 + (Math.random() * volatilityFactor); 
+                    } else if (pairSettings.trend === 'down') {
+                        priceMultiplier = 1 - (Math.random() * volatilityFactor);
+                    }
+                    newPrice = prevData.summary.price * priceMultiplier;
+                }
+
                 newSummary = { 
                     ...prevData.summary, 
                     price: newPrice,

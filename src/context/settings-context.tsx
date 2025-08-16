@@ -9,6 +9,8 @@ export type SpecialTimeFrame = {
     startTime: string;
     endTime: string;
     profitRate: number;
+    buyPrice?: number;
+    sellPrice?: number;
 };
 
 export type TradingPairSettings = {
