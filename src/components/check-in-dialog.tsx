@@ -123,13 +123,13 @@ export function CheckInDialog({ isOpen, onOpenChange }: CheckInDialogProps) {
                                 <HelpCircle className="h-5 w-5" />
                                 签到活动规则
                             </AlertDialogTitle>
-                            <AlertDialogDescription className="text-left pt-4 space-y-2">
+                            <div className="text-sm text-muted-foreground text-left pt-4 space-y-2">
                                 <p>1. 每日签到均可获得USDT现金奖励，奖励将直接发放到您的账户余额。</p>
                                 <p>2. 签到活动以7天为一个完整周期，连续签到天数越长，奖励越丰厚。</p>
                                 <p>3. 奖励计算规则：首日签到奖励为 <strong>0.5 USDT</strong>。从第二天起，每日奖励金额为前一天奖励金额的 <strong>1.5倍</strong>。</p>
                                 <p>4. 如果签到中断，连续签到天数将从第一天重新开始计算。</p>
                                 <p>5. 完成一个7天的签到周期后，下一轮签到将从第一天的奖励重新开始。</p>
-                            </AlertDialogDescription>
+                            </div>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogAction>我明白了</AlertDialogAction>
