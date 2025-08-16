@@ -126,36 +126,24 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                    启用后，仅在下方设定的特殊时间段内可以进行交易，并应用特殊收益率或指定价格。
+                    启用后，仅在下方设定的特殊时间点可以进行交易，并应用特殊收益率或指定价格。
                 </p>
 
                 <div className="space-y-4">
                     {settings.specialTimeFrames.map((frame, index) => (
                         <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
                             <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                 <div>
-                                    <Label htmlFor={`start-time-${frame.id}`} className="text-xs">开始时间</Label>
+                                    <Label htmlFor={`time-${frame.id}`} className="text-xs">指定时间 (HH:mm:ss)</Label>
                                     <Input 
-                                        id={`start-time-${frame.id}`}
+                                        id={`time-${frame.id}`}
                                         type="text" 
-                                        value={frame.startTime}
+                                        value={frame.time}
                                         placeholder="HH:mm:ss"
-                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { startTime: e.target.value })}
+                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { time: e.target.value })}
                                     />
                                 </div>
-                                <div>
-                                    <Label htmlFor={`end-time-${frame.id}`} className="text-xs">结束时间</Label>
-                                    <Input 
-                                        id={`end-time-${frame.id}`}
-                                        type="text" 
-                                        value={frame.endTime}
-                                        placeholder="HH:mm:ss"
-                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { endTime: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <Label htmlFor={`buy-price-${frame.id}`} className="text-xs">指定买入价 (选填)</Label>
                                     <Input 

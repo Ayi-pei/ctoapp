@@ -169,12 +169,10 @@ export const useMarketData = () => {
 
                 if (pairSettings.tradingDisabled && pairSettings.specialTimeFrames) {
                     for (const frame of pairSettings.specialTimeFrames) {
-                         const [startH, startM, startS] = frame.startTime.split(':').map(Number);
-                         const startTime = (startH || 0) * 3600 + (startM || 0) * 60 + (startS || 0);
-                         const [endH, endM, endS] = frame.endTime.split(':').map(Number);
-                         const endTime = (endH || 0) * 3600 + (endM || 0) * 60 + (endS || 0);
+                         const [h, m, s] = frame.time.split(':').map(Number);
+                         const frameTotalSeconds = (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
 
-                         if (currentTotalSeconds >= startTime && currentTotalSeconds <= endTime) {
+                         if (currentTotalSeconds === frameTotalSeconds) {
                              // Use the sell price as the primary "current price" for the chart if available
                              if (frame.sellPrice !== undefined && frame.sellPrice > 0) {
                                  newPrice = frame.sellPrice;
