@@ -40,8 +40,8 @@ type ContractOrderSheetProps = {
 const periods = [
     { label: "30s", value: 30 },
     { label: "60s", value: 60 },
+    { label: "180s", value: 180 },
     { label: "300s", value: 300 },
-    { label: "3600s", value: 3600 },
 ];
 
 const amounts = [10, 20, 50, 100, 500, 1000, 2000];

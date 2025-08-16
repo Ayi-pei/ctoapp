@@ -40,19 +40,9 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
     return (
        <DashboardLayout>
             <main className="p-4 space-y-4">
-                <div className="mb-4">
-                    <Skeleton className="h-[90px] w-full" />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
-                    <div className="flex flex-col gap-4">
-                        <Skeleton className="h-[400px] w-full" />
-                        <Skeleton className="h-[300px] w-full" />
-                    </div>
-                    <div className="flex flex-col gap-4">
-                        <Skeleton className="h-[420px] w-full" />
-                        <Skeleton className="h-[200px] w-full" />
-                    </div>
-                </div>
+                <Skeleton className="h-[60px] w-full" />
+                <Skeleton className="h-[400px] w-full" />
+                <Skeleton className="h-[300px] w-full" />
             </main>
        </DashboardLayout>
     );
@@ -72,50 +62,44 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
   return (
     <DashboardLayout>
         <main className="p-4 space-y-4">
-            <div className="mb-4">
-                <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
+            <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
+            
+            <div className="h-[400px]">
+              <CandlestickChartComponent data={data.klineData} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-4">
-                <div className="flex flex-col gap-4">
-                    <CandlestickChartComponent data={data.klineData} />
-
-                    <Tabs defaultValue={defaultTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="spot">币币交易</TabsTrigger>
-                            <TabsTrigger value="contract">秒合约</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="spot" className="mt-4">
-                            <SpotOrderForm
-                                tradingPair={tradingPair}
-                                balances={balances}
-                                onPlaceTrade={(trade) => placeSpotTrade(trade)}
-                                baseAsset={baseAsset}
-                                quoteAsset={quoteAsset}
-                                currentPrice={data.summary.price}
-                            />
-                        </TabsContent>
-                        <TabsContent value="contract" className="mt-4">
-                            <OrderForm
-                                tradingPair={tradingPair}
-                                balance={balances[quoteAsset]?.available || 0}
-                                onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
-                                quoteAsset={quoteAsset}
-                            />
-                        </TabsContent>
-                    </Tabs>
-                </div>
-                <div className="flex flex-col gap-4">
-                    <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                    <TradeHistory trades={data.trades} />
-                </div>
-            </div>
+            <Tabs defaultValue={defaultTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="contract">秒合约</TabsTrigger>
+                    <TabsTrigger value="spot">币币交易</TabsTrigger>
+                </TabsList>
+                <TabsContent value="spot" className="mt-4">
+                    <SpotOrderForm
+                        tradingPair={tradingPair}
+                        balances={balances}
+                        onPlaceTrade={(trade) => placeSpotTrade(trade)}
+                        baseAsset={baseAsset}
+                        quoteAsset={quoteAsset}
+                        currentPrice={data.summary.price}
+                    />
+                </TabsContent>
+                <TabsContent value="contract" className="mt-4">
+                    <OrderForm
+                        tradingPair={tradingPair}
+                        balance={balances[quoteAsset]?.available || 0}
+                        onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+                        quoteAsset={quoteAsset}
+                    />
+                </TabsContent>
+            </Tabs>
             
             <div className="pt-4">
                 <Tabs defaultValue="current">
                     <TabsList>
                         <TabsTrigger value="current">当前委托</TabsTrigger>
                         <TabsTrigger value="history">历史委托</TabsTrigger>
+                        <TabsTrigger value="orderbook">订单簿</TabsTrigger>
+                        <TabsTrigger value="trades">市价成交</TabsTrigger>
                     </TabsList>
                     <TabsContent value="current" className="mt-4">
                        {activeContractTrades.length > 0 ? (
@@ -201,6 +185,12 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                            </Card>
                         ) : renderEmptyState("暂无历史委托")}
                     </TabsContent>
+                    <TabsContent value="orderbook" className="mt-4">
+                        <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+                    </TabsContent>
+                    <TabsContent value="trades" className="mt-4">
+                       <TradeHistory trades={data.trades} />
+                    </TabsContent>
                 </Tabs>
             </div>
         </main>
@@ -212,7 +202,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
 function TradePageWrapper() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
-  const defaultTab = tab === 'contract' ? 'contract' : 'spot';
+  const defaultTab = tab === 'spot' ? 'spot' : 'contract';
   
   return <TradePage defaultTab={defaultTab} />;
 }

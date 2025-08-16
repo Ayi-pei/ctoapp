@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,21 +41,21 @@ export function OrderBook({ asks, bids, tradingPair }: OrderBookProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Order Book</CardTitle>
+        <CardTitle className="text-lg">订单簿</CardTitle>
         <MarketExplanation orderBook={{asks, bids}} tradingPair={tradingPair} />
       </CardHeader>
-      <CardContent className="pr-0">
+      <CardContent className="h-[400px] overflow-y-auto pr-0">
         <div className="grid grid-cols-1 md:grid-cols-1">
             <Table>
               <TableHeader>
                 <TableRow className="text-xs">
-                  <TableHead className="p-1 text-left">Price (USDT)</TableHead>
-                  <TableHead className="p-1 text-right">Size</TableHead>
-                  <TableHead className="p-1 text-right">Total</TableHead>
+                  <TableHead className="p-1 text-left">价格 (USDT)</TableHead>
+                  <TableHead className="p-1 text-right">数量</TableHead>
+                  <TableHead className="p-1 text-right">累计</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {asks.slice(0, 10).reverse().map(order => renderOrderRow(order, 'ask'))}
+                {asks.slice(0, 15).reverse().map(order => renderOrderRow(order, 'ask'))}
               </TableBody>
             </Table>
 
@@ -64,7 +65,7 @@ export function OrderBook({ asks, bids, tradingPair }: OrderBookProps) {
 
             <Table>
                 <TableBody>
-                    {bids.slice(0, 10).map(order => renderOrderRow(order, 'bid'))}
+                    {bids.slice(0, 15).map(order => renderOrderRow(order, 'bid'))}
                 </TableBody>
             </Table>
         </div>

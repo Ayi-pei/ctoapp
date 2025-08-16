@@ -31,7 +31,7 @@ export function TradeHistory({ trades }: { trades: MarketTrade[] }) {
       <CardHeader>
         <CardTitle className="text-lg">市价成交</CardTitle>
       </CardHeader>
-      <CardContent className="h-[300px] overflow-y-auto pr-0">
+      <CardContent className="h-[400px] overflow-y-auto pr-0">
         <Table>
           <TableHeader>
             <TableRow className="text-xs">

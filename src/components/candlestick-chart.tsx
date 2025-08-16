@@ -2,7 +2,6 @@
 "use client"
 
 import { Bar, ComposedChart, CartesianGrid, ReferenceLine, XAxis, YAxis, Tooltip, ResponsiveContainer, ErrorBar, Cell } from "recharts";
-import { Card, CardContent } from "@/components/ui/card";
 import type { KlineDataPoint } from "@/types";
 
 type CandlestickChartProps = {
@@ -52,32 +51,27 @@ export function CandlestickChartComponent({ data }: CandlestickChartProps) {
     const processedData = processDataForChart(data);
 
     return (
-        <Card>
-            <CardContent className="p-2 h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={processedData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                        <YAxis domain={['dataMin - 100', 'dataMax + 100']} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" orientation="right" tickFormatter={(val) => typeof val === 'number' ? val.toLocaleString() : ''} />
-                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsla(var(--muted), 0.5)'}}/>
-                        
-                        <ReferenceLine y={data[data.length - 1].close} stroke="hsl(var(--primary))" strokeDasharray="3 3" />
-                        
-                        {/* Transparent bar to "pad" the visible bar to the correct y-position */}
-                        <Bar dataKey="base" stackId="a" fill="transparent" />
+        <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={processedData} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis domain={['dataMin - 100', 'dataMax + 100']} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" orientation="right" tickFormatter={(val) => typeof val === 'number' ? val.toLocaleString() : ''} />
+                <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsla(var(--muted), 0.5)'}}/>
+                
+                <ReferenceLine y={data[data.length - 1].close} stroke="hsl(var(--primary))" strokeDasharray="3 3" />
+                
+                {/* Transparent bar to "pad" the visible bar to the correct y-position */}
+                <Bar dataKey="base" stackId="a" fill="transparent" />
 
-                        {/* The visible part of the candlestick */}
-                        <Bar dataKey="body" stackId="a" barSize={4}>
-                           {processedData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                           {/* Single ErrorBar declaration, recharts will apply it to each bar */}
-                           <ErrorBar dataKey="high_low" width={1} strokeWidth={1} />
-                        </Bar>
+                {/* The visible part of the candlestick */}
+                <Bar dataKey="body" stackId="a" barSize={4}>
+                    <ErrorBar dataKey="high_low" width={1} strokeWidth={1} />
+                    {processedData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                </Bar>
 
-                    </ComposedChart>
-                </ResponsiveContainer>
-            </CardContent>
-        </Card>
+            </ComposedChart>
+        </ResponsiveContainer>
     );
 }
