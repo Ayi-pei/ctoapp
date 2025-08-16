@@ -21,7 +21,7 @@ type MiningProduct = {
     imgSrc: string;
 };
 
-const Header = ({ totalAssets }: { totalAssets: number }) => {
+const Header = () => {
     const router = useRouter();
     return (
         <div className="p-4 bg-card text-foreground rounded-b-lg space-y-4">
@@ -30,11 +30,9 @@ const Header = ({ totalAssets }: { totalAssets: number }) => {
                     <ChevronLeft />
                 </Button>
                 <div className="text-center">
-                    <p className="text-lg font-bold">总资产</p>
-                    <p className="text-xl font-bold">{totalAssets.toFixed(2)}</p>
+                    <p className="text-lg font-bold">托管订单</p>
                 </div>
                 <div className="absolute right-0 flex gap-2 text-sm">
-                    <Button variant="link" className="text-foreground p-0 h-auto">托管订单</Button>
                     <Button variant="link" className="text-foreground p-0 h-auto">规则</Button>
                 </div>
             </div>
@@ -113,17 +111,6 @@ export default function FinancePage() {
     const [selectedProduct, setSelectedProduct] = useState<MiningProduct | null>(null);
     const [isInvestmentDialogOpen, setIsInvestmentDialogOpen] = useState(false);
     
-    const getUsdtValue = (assetName: string, amount: number) => {
-        if (assetName === 'USDT') return amount;
-        if (assetName === 'BTC') return amount * 68000;
-        if (assetName === 'ETH') return amount * 3800;
-        return 0;
-    }
-
-    const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
-        return acc + getUsdtValue(name, balance.available);
-    }, 0);
-
     const handleInvestClick = (product: MiningProduct) => {
         setSelectedProduct(product);
         setIsInvestmentDialogOpen(true);
@@ -156,7 +143,7 @@ export default function FinancePage() {
 
     return (
         <DashboardLayout>
-            <Header totalAssets={totalBalance} />
+            <Header />
             <div className="p-4 space-y-4">
                 {miningProducts.map(product => (
                     <MiningProductCard 
