@@ -25,19 +25,20 @@ const Header = ({ totalAssets }: { totalAssets: number }) => {
     const router = useRouter();
     return (
         <div className="p-4 bg-card text-foreground rounded-b-lg space-y-4">
-            <div className="flex justify-between items-center">
-                <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <div className="relative flex items-center justify-center">
+                <Button variant="ghost" size="icon" className="absolute left-0" onClick={() => router.back()}>
                     <ChevronLeft />
                 </Button>
                 <div className="text-center">
-                    <p className="text-lg font-bold">{totalAssets.toFixed(2)}</p>
+                    <p className="text-lg font-bold">总资产</p>
+                    <p className="text-xl font-bold">{totalAssets.toFixed(2)}</p>
                 </div>
-                <div className="flex gap-4 text-sm">
-                    <Button variant="link" className="text-foreground p-0">托管订单</Button>
-                    <Button variant="link" className="text-foreground p-0">规则</Button>
+                <div className="absolute right-0 flex gap-2 text-sm">
+                    <Button variant="link" className="text-foreground p-0 h-auto">托管订单</Button>
+                    <Button variant="link" className="text-foreground p-0 h-auto">规则</Button>
                 </div>
             </div>
-            <div className="grid grid-cols-3 text-center">
+            <div className="grid grid-cols-3 text-center pt-4">
                 <div>
                     <p className="text-muted-foreground text-sm">正在托管订单</p>
                     <p className="font-semibold">0</p>
