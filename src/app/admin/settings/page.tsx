@@ -138,8 +138,9 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                                     <Label htmlFor={`start-time-${frame.id}`} className="text-xs">开始时间</Label>
                                     <Input 
                                         id={`start-time-${frame.id}`}
-                                        type="time" 
+                                        type="text" 
                                         value={frame.startTime}
+                                        placeholder="HH:mm:ss"
                                         onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { startTime: e.target.value })}
                                     />
                                 </div>
@@ -147,8 +148,9 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                                     <Label htmlFor={`end-time-${frame.id}`} className="text-xs">结束时间</Label>
                                     <Input 
                                         id={`end-time-${frame.id}`}
-                                        type="time" 
+                                        type="text" 
                                         value={frame.endTime}
+                                        placeholder="HH:mm:ss"
                                         onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { endTime: e.target.value })}
                                     />
                                 </div>
@@ -430,4 +432,3 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
-
