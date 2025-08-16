@@ -213,7 +213,7 @@ export const useMarketData = () => {
             return newAllData;
         });
 
-    }, 2500); // Update every 2.5 seconds
+    }, 5000); // Update every 5 seconds
 
     return () => clearInterval(interval);
   }, [isInitialised, tradingPair, settings]);
