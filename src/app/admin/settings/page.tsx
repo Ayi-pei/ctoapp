@@ -131,7 +131,6 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
 
                 <div className="space-y-4">
                     {settings.specialTimeFrames.map((frame, index) => {
-                        const showProfitRate = !frame.buyPrice && !frame.sellPrice;
                         return (
                             <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
                                 <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
@@ -165,17 +164,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                                         />
                                     </div>
                                 </div>
-                                {showProfitRate && (
-                                    <div>
-                                        <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">特殊收益率 (%)</Label>
-                                        <Input
-                                            id={`profit-rate-${frame.id}`}
-                                            type="number"
-                                            value={(frame.profitRate * 100).toFixed(0)}
-                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
-                                        />
-                                    </div>
-                                )}
+                                
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 

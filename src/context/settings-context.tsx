@@ -7,7 +7,6 @@ import { availablePairs } from '@/types';
 export type SpecialTimeFrame = {
     id: string;
     time: string; // Changed from startTime and endTime
-    profitRate: number;
     buyPrice?: number;
     sellPrice?: number;
 };
@@ -72,7 +71,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             const newFrame: SpecialTimeFrame = {
                 id: `frame_${Date.now()}`,
                 time: "10:00:00",
-                profitRate: 0.90,
             };
             const pairSettings = prevSettings[pair] || getDefaultPairSettings();
             const updatedFrames = [...pairSettings.specialTimeFrames, newFrame];
