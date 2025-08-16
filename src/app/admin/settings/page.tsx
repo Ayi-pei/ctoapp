@@ -90,7 +90,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     min={0.01}
                     step={0.01}
                     onValueChange={(value) => setVolatilityValue(value[0])}
-                    onCommit={(value) => handleVolatilityChange(pair, value)}
+                    onValueChangeCommit={(value) => handleVolatilityChange(pair, value)}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                     <span>平稳</span>
@@ -430,3 +430,5 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
+
+    
