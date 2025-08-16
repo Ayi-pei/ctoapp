@@ -77,177 +77,174 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
 
   return (
     <DashboardLayout>
-        <main className="p-4 space-y-4">
-            <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
-            
-            <div className="h-[400px] w-full">
-               <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                        data={data.priceData}
-                        margin={{
-                            top: 5,
-                            right: 20,
-                            left: -10,
-                            bottom: 5,
-                        }}
-                    >
-                        <defs>
-                            <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={chartColor} stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))"/>
-                        <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" domain={['dataMin - 100', 'dataMax + 100']} orientation="right" />
-                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsla(var(--muted), 0.5)'}} />
-                        <Area type="monotone" dataKey="price" stroke={chartColor} fill="url(#chartColor)" strokeWidth={2} />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
+      <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
+        <div className="col-span-1 space-y-4 lg:col-span-2">
+          <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
+          <div className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={data.priceData}
+                margin={{
+                  top: 5,
+                  right: 20,
+                  left: -10,
+                  bottom: 5,
+                }}
+              >
+                <defs>
+                  <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" domain={['dataMin - 100', 'dataMax + 100']} orientation="right" />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsla(var(--muted), 0.5)' }} />
+                <Area type="monotone" dataKey="price" stroke={chartColor} fill="url(#chartColor)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
-            <Tabs defaultValue={defaultTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="contract">秒合约</TabsTrigger>
-                    <TabsTrigger value="spot">币币交易</TabsTrigger>
-                </TabsList>
-                <TabsContent value="spot" className="mt-4">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <SpotOrderForm
-                            tradingPair={tradingPair}
-                            balances={balances}
-                            onPlaceTrade={(trade) => placeSpotTrade(trade)}
-                            baseAsset={baseAsset}
-                            quoteAsset={quoteAsset}
-                            currentPrice={data.summary.price}
-                        />
-                         <div className="hidden md:block">
-                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="contract" className="mt-4">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-4">
-                            <OrderForm
-                                tradingPair={tradingPair}
-                                balance={balances[quoteAsset]?.available || 0}
-                                onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
-                                quoteAsset={quoteAsset}
-                            />
-                            <AIAssistant 
-                                orderBook={data.orderBook}
-                                tradingPair={tradingPair}
-                            />
-                        </div>
-                        <div className="hidden md:block">
-                            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                        </div>
-                    </div>
-                </TabsContent>
+        <div className="col-span-1 space-y-4">
+          <Tabs defaultValue={defaultTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="contract">秒合约</TabsTrigger>
+              <TabsTrigger value="spot">币币交易</TabsTrigger>
+            </TabsList>
+            <TabsContent value="spot" className="mt-4">
+              <SpotOrderForm
+                tradingPair={tradingPair}
+                balances={balances}
+                onPlaceTrade={(trade) => placeSpotTrade(trade)}
+                baseAsset={baseAsset}
+                quoteAsset={quoteAsset}
+                currentPrice={data.summary.price}
+              />
+            </TabsContent>
+            <TabsContent value="contract" className="mt-4">
+              <div className="flex flex-col gap-4">
+                <OrderForm
+                  tradingPair={tradingPair}
+                  balance={balances[quoteAsset]?.available || 0}
+                  onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+                  quoteAsset={quoteAsset}
+                />
+                <AIAssistant
+                  orderBook={data.orderBook}
+                  tradingPair={tradingPair}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="pt-4">
+            <Tabs defaultValue="current">
+              <TabsList>
+                <TabsTrigger value="current">当前委托</TabsTrigger>
+                <TabsTrigger value="history">历史委托</TabsTrigger>
+                <TabsTrigger value="orderbook" className="md:hidden">订单簿</TabsTrigger>
+                <TabsTrigger value="trades">市价成交</TabsTrigger>
+              </TabsList>
+              <TabsContent value="current" className="mt-4">
+                {activeContractTrades.length > 0 ? (
+                  <Card>
+                    <CardContent className="p-2">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>交易对</TableHead>
+                            <TableHead>方向</TableHead>
+                            <TableHead>开仓价</TableHead>
+                            <TableHead>金额</TableHead>
+                            <TableHead>创建时间</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {activeContractTrades.map(trade => (
+                            <TableRow key={trade.id}>
+                              <TableCell>{trade.trading_pair}</TableCell>
+                              <TableCell className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
+                                {trade.type === 'buy' ? '买涨' : '买跌'}
+                              </TableCell>
+                              <TableCell>{trade.entry_price.toFixed(4)}</TableCell>
+                              <TableCell>{trade.amount.toFixed(2)} {trade.trading_pair.split('/')[1]}</TableCell>
+                              <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ) : renderEmptyState("暂无当前委托")}
+              </TabsContent>
+              <TabsContent value="history" className="mt-4">
+                {historicalTrades.length > 0 ? (
+                  <Card>
+                    <CardContent className="p-2">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>交易对</TableHead>
+                            <TableHead>类型</TableHead>
+                            <TableHead>结果</TableHead>
+                            <TableHead>金额/盈利</TableHead>
+                            <TableHead>时间</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {historicalTrades.map(trade => (
+                            <TableRow key={trade.id}>
+                              <TableCell>{trade.trading_pair}</TableCell>
+                              <TableCell>
+                                {trade.orderType === 'spot' ? '币币' : '合约'}
+                              </TableCell>
+                              <TableCell>
+                                {trade.orderType === 'spot' ? (
+                                  <Badge variant="outline" className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
+                                    {trade.type === 'buy' ? `买入` : `卖出`}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className={cn(
+                                    (trade as ContractTrade).outcome === 'win' ? 'text-green-500' : 'text-red-500'
+                                  )}>
+                                    {(trade as ContractTrade).outcome === 'win' ? '盈利' : '亏损'}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {trade.orderType === 'spot' ? (
+                                  <span>{(trade as SpotTrade).total.toFixed(2)} {trade.trading_pair.split('/')[1]}</span>
+                                ) : (
+                                  <span className={cn((trade as ContractTrade).profit ?? 0 >= 0 ? 'text-green-500' : 'text-red-500')}>
+                                    {((trade as ContractTrade).profit ?? 0) >= 0 ? '+' : ''}{((trade as ContractTrade).profit ?? 0).toFixed(2)} {trade.trading_pair.split('/')[1]}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ) : renderEmptyState("暂无历史委托")}
+              </TabsContent>
+              <TabsContent value="orderbook" className="mt-4">
+                <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+              </TabsContent>
+              <TabsContent value="trades" className="mt-4">
+                <TradeHistory trades={data.trades} />
+              </TabsContent>
             </Tabs>
-            
-            <div className="pt-4">
-                <Tabs defaultValue="current">
-                    <TabsList>
-                        <TabsTrigger value="current">当前委托</TabsTrigger>
-                        <TabsTrigger value="history">历史委托</TabsTrigger>
-                        <TabsTrigger value="orderbook" className="md:hidden">订单簿</TabsTrigger>
-                        <TabsTrigger value="trades">市价成交</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="current" className="mt-4">
-                       {activeContractTrades.length > 0 ? (
-                           <Card>
-                               <CardContent className="p-2">
-                                  <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>交易对</TableHead>
-                                            <TableHead>方向</TableHead>
-                                            <TableHead>开仓价</TableHead>
-                                            <TableHead>金额</TableHead>
-                                            <TableHead>创建时间</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {activeContractTrades.map(trade => (
-                                            <TableRow key={trade.id}>
-                                                <TableCell>{trade.trading_pair}</TableCell>
-                                                <TableCell className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
-                                                    {trade.type === 'buy' ? '买涨' : '买跌'}
-                                                </TableCell>
-                                                <TableCell>{trade.entry_price.toFixed(4)}</TableCell>
-                                                <TableCell>{trade.amount.toFixed(2)} {trade.trading_pair.split('/')[1]}</TableCell>
-                                                <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                               </CardContent>
-                           </Card>
-                       ) : renderEmptyState("暂无当前委托")}
-                    </TabsContent>
-                    <TabsContent value="history" className="mt-4">
-                        {historicalTrades.length > 0 ? (
-                             <Card>
-                               <CardContent className="p-2">
-                                  <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>交易对</TableHead>
-                                            <TableHead>类型</TableHead>
-                                            <TableHead>结果</TableHead>
-                                            <TableHead>金额/盈利</TableHead>
-                                            <TableHead>时间</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {historicalTrades.map(trade => (
-                                            <TableRow key={trade.id}>
-                                                <TableCell>{trade.trading_pair}</TableCell>
-                                                <TableCell>
-                                                    {trade.orderType === 'spot' ? '币币' : '合约'}
-                                                </TableCell>
-                                                 <TableCell>
-                                                   {trade.orderType === 'spot' ? (
-                                                        <Badge variant="outline" className={cn(trade.type === 'buy' ? 'text-green-500' : 'text-red-500')}>
-                                                            {trade.type === 'buy' ? `买入` : `卖出`}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline" className={cn(
-                                                            (trade as ContractTrade).outcome === 'win' ? 'text-green-500' : 'text-red-500'
-                                                        )}>
-                                                            {(trade as ContractTrade).outcome === 'win' ? '盈利' : '亏损'}
-                                                        </Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                     {trade.orderType === 'spot' ? (
-                                                        <span>{(trade as SpotTrade).total.toFixed(2)} {trade.trading_pair.split('/')[1]}</span>
-                                                    ) : (
-                                                        <span className={cn((trade as ContractTrade).profit ?? 0 >= 0 ? 'text-green-500' : 'text-red-500')}>
-                                                            {((trade as ContractTrade).profit ?? 0) >= 0 ? '+' : ''}{((trade as ContractTrade).profit ?? 0).toFixed(2)} {trade.trading_pair.split('/')[1]}
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-xs">{new Date(trade.created_at).toLocaleString()}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                               </CardContent>
-                           </Card>
-                        ) : renderEmptyState("暂无历史委托")}
-                    </TabsContent>
-                    <TabsContent value="orderbook" className="mt-4">
-                        <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
-                    </TabsContent>
-                    <TabsContent value="trades" className="mt-4">
-                       <TradeHistory trades={data.trades} />
-                    </TabsContent>
-                </Tabs>
-            </div>
-        </main>
+          </div>
+
+          <div className="hidden md:block">
+            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
+          </div>
+        </div>
+      </main>
     </DashboardLayout>
   );
 });
