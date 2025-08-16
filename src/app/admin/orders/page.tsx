@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
@@ -11,12 +11,25 @@ import { SpotTrade, ContractTrade, Investment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Calendar as CalendarIcon } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { DateRange } from "react-day-picker"
+import { format } from "date-fns"
+
 
 type AllOrderTypes = SpotTrade | ContractTrade | Investment;
 
 type FormattedOrder = AllOrderTypes & {
     userId: string;
     orderTypeText: 'spot' | 'contract' | 'investment';
+    statusText: string;
 };
 
 
@@ -65,48 +78,85 @@ const getAllUserInvestments = (): Investment[] => {
     return allInvestments;
 }
 
+const getOrderStatusText = (order: FormattedOrder) => {
+    if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
+    if (order.orderTypeText === 'contract') {
+        const contract = order as ContractTrade;
+        if (contract.status === 'active') return '进行中';
+        if (contract.outcome === 'win') return '盈利';
+        if (contract.outcome === 'loss') return '亏损';
+    }
+    if (order.orderTypeText === 'investment') {
+        const investment = order as Investment;
+        if (investment.status === 'active') return '进行中';
+        if (investment.status === 'settled') return '已结算';
+    }
+    return '未知';
+}
+
 
 export default function AdminOrdersPage() {
     const { isAdmin, getUserById } = useAuth();
     const router = useRouter();
-    const { toast } = useToast();
-    const [orders, setOrders] = useState<FormattedOrder[]>([]);
-
-    const loadOrders = useCallback(async () => {
-        if (!isAdmin) return;
-
-        const allHistoricalTrades = getAllUserHistoricalTrades();
-        const allInvestments = getAllUserInvestments();
-
-        const allUserOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
-
-        const formattedOrders = allUserOrders.map(t => {
-            const user = getUserById(t.user_id);
-            let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
-            if ('orderType' in t) {
-                orderTypeText = t.orderType;
-            } else if ('product_name' in t) {
-                orderTypeText = 'investment';
-            }
-            
-            return {
-                ...t,
-                userId: user?.username || t.user_id,
-                orderTypeText: orderTypeText,
-            }
-        }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-
-        setOrders(formattedOrders as FormattedOrder[]);
-    }, [isAdmin, toast, getUserById]);
-
+    const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
+    
+    // Filter states
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
+    
     useEffect(() => {
         if (isAdmin === false) {
             router.push('/login');
         } else if (isAdmin === true) {
-            loadOrders();
+            if (typeof window !== 'undefined') {
+                const allHistoricalTrades = getAllUserHistoricalTrades();
+                const allInvestments = getAllUserInvestments();
+
+                const combinedOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
+
+                const formattedOrders = combinedOrders.map(t => {
+                    const user = getUserById(t.user_id);
+                    let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
+                    if ('orderType' in t) {
+                        orderTypeText = t.orderType;
+                    } else if ('product_name' in t) {
+                        orderTypeText = 'investment';
+                    }
+                    
+                    const baseFormatted = {
+                        ...t,
+                        userId: user?.username || t.user_id,
+                        orderTypeText: orderTypeText,
+                    } as FormattedOrder;
+                    
+                    return { ...baseFormatted, statusText: getOrderStatusText(baseFormatted) };
+
+                }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+
+                setAllOrders(formattedOrders);
+            }
         }
-    }, [isAdmin, router, loadOrders]);
+    }, [isAdmin, router, getUserById]);
+    
+    const filteredOrders = useMemo(() => {
+        return allOrders.filter(order => {
+            const typeMatch = typeFilter === 'all' || order.orderTypeText === typeFilter;
+            const statusMatch = statusFilter === 'all' || order.statusText === statusFilter;
+            const dateMatch = !dateFilter || (
+                new Date(order.created_at) >= (dateFilter.from || new Date(0)) &&
+                new Date(order.created_at) <= (dateFilter.to || new Date())
+            );
+            return typeMatch && statusMatch && dateMatch;
+        });
+    }, [allOrders, typeFilter, statusFilter, dateFilter]);
+    
+    const resetFilters = () => {
+        setTypeFilter('all');
+        setStatusFilter('all');
+        setDateFilter(undefined);
+    }
 
 
     if (!isAdmin) {
@@ -126,8 +176,8 @@ export default function AdminOrdersPage() {
         return 'N/A';
     }
     
-    const getStatusText = (order: FormattedOrder) => {
-        if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
+    const getStatusBadge = (order: FormattedOrder) => {
+        if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? <Badge variant="outline" className="text-green-500">已成交</Badge> : <Badge variant="secondary">未知</Badge>;
         if (order.orderTypeText === 'contract') {
             const contract = order as ContractTrade;
             if (contract.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
@@ -165,6 +215,74 @@ export default function AdminOrdersPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>所有用户订单</CardTitle>
+                        <CardDescription>按类型、状态和日期筛选和查看所有订单。</CardDescription>
+                         <div className="flex items-center space-x-4 pt-4">
+                            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="所有类型" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">所有类型</SelectItem>
+                                    <SelectItem value="spot">币币</SelectItem>
+                                    <SelectItem value="contract">合约</SelectItem>
+                                    <SelectItem value="investment">理财</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            
+                             <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="所有状态" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">所有状态</SelectItem>
+                                    <SelectItem value="进行中">进行中</SelectItem>
+                                    <SelectItem value="已成交">已成交</SelectItem>
+                                    <SelectItem value="已结算">已结算</SelectItem>
+                                    <SelectItem value="盈利">盈利</SelectItem>
+                                    <SelectItem value="亏损">亏损</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-[300px] justify-start text-left font-normal",
+                                    !dateFilter && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateFilter?.from ? (
+                                    dateFilter.to ? (
+                                        <>
+                                        {format(dateFilter.from, "LLL dd, y")} -{" "}
+                                        {format(dateFilter.to, "LLL dd, y")}
+                                        </>
+                                    ) : (
+                                        format(dateFilter.from, "LLL dd, y")
+                                    )
+                                    ) : (
+                                    <span>选择日期范围</span>
+                                    )}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateFilter?.from}
+                                    selected={dateFilter}
+                                    onSelect={setDateFilter}
+                                    numberOfMonths={2}
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            {(typeFilter !== 'all' || statusFilter !== 'all' || dateFilter) && (
+                                <Button variant="ghost" onClick={resetFilters}>重置</Button>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -180,7 +298,7 @@ export default function AdminOrdersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {orders.length > 0 ? orders.map((order) => (
+                                {filteredOrders.length > 0 ? filteredOrders.map((order) => (
                                     <TableRow key={order.id}>
                                         <TableCell>{order.userId}</TableCell>
                                         <TableCell>{getPairOrProduct(order)}</TableCell>
@@ -197,13 +315,13 @@ export default function AdminOrdersPage() {
                                             {getOrderDirection(order)}
                                         </TableCell>
                                         <TableCell>{getOrderAmount(order)}</TableCell>
-                                        <TableCell>{getStatusText(order)}</TableCell>
+                                        <TableCell>{getStatusBadge(order)}</TableCell>
                                         <TableCell>{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-muted-foreground">
-                                            暂无订单记录。
+                                        <TableCell colSpan={7} className="text-center text-muted-foreground h-24">
+                                            没有找到符合条件的订单记录。
                                         </TableCell>
                                     </TableRow>
                                 )}
