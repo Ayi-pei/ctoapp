@@ -8,12 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
-import { Check, Gift, X } from "lucide-react";
+import { Check, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CheckInDialogProps = {
@@ -102,10 +101,6 @@ export function CheckInDialog({ isOpen, onOpenChange }: CheckInDialogProps) {
                         </Button>
                     </DialogFooter>
                 </div>
-                 <DialogClose className="absolute right-4 top-4 rounded-full p-1 bg-black/20 text-white/70 hover:bg-black/40 hover:text-white transition-all">
-                    <X className="h-5 w-5" />
-                    <span className="sr-only">Close</span>
-                </DialogClose>
                  <div className="absolute top-1/2 -right-1.5 -translate-y-1/2 bg-zinc-900/80 px-1 py-4 rounded-l-md transform">
                     <p className="[writing-mode:vertical-rl] text-sm text-yellow-300 tracking-wider">活动规则</p>
                 </div>
