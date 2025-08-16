@@ -15,16 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 
-
-type MiningProduct = {
-    name: string;
-    price: number;
-    dailyRate: number;
-    period: number;
-    maxPurchase: number;
-    imgSrc: string;
-};
 
 const Header = () => {
     const router = useRouter();
@@ -69,9 +61,9 @@ const Header = () => {
 
 
 const MiningProductCard = ({ product, purchasedCount, onInvest }: { 
-    product: MiningProduct, 
+    product: InvestmentProduct, 
     purchasedCount: number,
-    onInvest: (product: MiningProduct) => void 
+    onInvest: (product: InvestmentProduct) => void 
 }) => (
     <Card className="bg-card/80">
         <CardContent className="p-4">
@@ -111,14 +103,6 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
         </CardContent>
     </Card>
 );
-
-const miningProducts: MiningProduct[] = [
-    { name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png" },
-    { name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png" },
-    { name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png" },
-    { name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/canaan-miner.png" },
-    { name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png" },
-];
 
 const EmptyState = ({ text }: { text: string }) => (
     <Card>
@@ -164,10 +148,11 @@ const InvestmentList = ({ investments }: { investments: Investment[] }) => (
 export default function FinancePage() {
     const { toast } = useToast();
     const { balances, addInvestment, investments } = useBalance();
-    const [selectedProduct, setSelectedProduct] = useState<MiningProduct | null>(null);
+    const { investmentProducts } = useInvestmentSettings();
+    const [selectedProduct, setSelectedProduct] = useState<InvestmentProduct | null>(null);
     const [isInvestmentDialogOpen, setIsInvestmentDialogOpen] = useState(false);
     
-    const handleInvestClick = (product: MiningProduct) => {
+    const handleInvestClick = (product: InvestmentProduct) => {
         setSelectedProduct(product);
         setIsInvestmentDialogOpen(true);
     }
@@ -216,9 +201,9 @@ export default function FinancePage() {
                         <TabsTrigger value="settled">已完成订单 ({settledInvestments.length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value="products" className="space-y-4 mt-4">
-                       {miningProducts.map(product => (
+                       {investmentProducts.map(product => (
                             <MiningProductCard 
-                                key={product.name} 
+                                key={product.id} 
                                 product={product}
                                 purchasedCount={getPurchasedCount(product.name)}
                                 onInvest={handleInvestClick}
