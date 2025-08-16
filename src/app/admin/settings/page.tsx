@@ -130,57 +130,62 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 </p>
 
                 <div className="space-y-4">
-                    {settings.specialTimeFrames.map((frame, index) => (
-                        <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
-                            <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <div>
-                                    <Label htmlFor={`time-${frame.id}`} className="text-xs">指定时间 (HH:mm:ss)</Label>
-                                    <Input 
-                                        id={`time-${frame.id}`}
-                                        type="text" 
-                                        value={frame.time}
-                                        placeholder="HH:mm:ss"
-                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { time: e.target.value })}
-                                    />
+                    {settings.specialTimeFrames.map((frame, index) => {
+                        const showProfitRate = !frame.buyPrice && !frame.sellPrice;
+                        return (
+                            <div key={frame.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
+                                <h4 className="text-sm font-medium">特殊时段 {index + 1}</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <div>
+                                        <Label htmlFor={`time-${frame.id}`} className="text-xs">指定时间 (HH:mm:ss)</Label>
+                                        <Input 
+                                            id={`time-${frame.id}`}
+                                            type="text" 
+                                            value={frame.time}
+                                            placeholder="HH:mm:ss"
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { time: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor={`buy-price-${frame.id}`} className="text-xs">指定买入价 (选填)</Label>
+                                        <Input 
+                                            id={`buy-price-${frame.id}`}
+                                            type="number" 
+                                            value={frame.buyPrice ?? ''}
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { buyPrice: parseFloat(e.target.value) || undefined })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor={`sell-price-${frame.id}`} className="text-xs">指定卖出价 (选填)</Label>
+                                        <Input 
+                                            id={`sell-price-${frame.id}`}
+                                            type="number" 
+                                            value={frame.sellPrice ?? ''}
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { sellPrice: parseFloat(e.target.value) || undefined })}
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <Label htmlFor={`buy-price-${frame.id}`} className="text-xs">指定买入价 (选填)</Label>
-                                    <Input 
-                                        id={`buy-price-${frame.id}`}
-                                        type="number" 
-                                        value={frame.buyPrice ?? ''}
-                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { buyPrice: parseFloat(e.target.value) || undefined })}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor={`sell-price-${frame.id}`} className="text-xs">指定卖出价 (选填)</Label>
-                                    <Input 
-                                        id={`sell-price-${frame.id}`}
-                                        type="number" 
-                                        value={frame.sellPrice ?? ''}
-                                        onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { sellPrice: parseFloat(e.target.value) || undefined })}
-                                    />
-                                </div>
+                                {showProfitRate && (
+                                    <div>
+                                        <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">特殊收益率 (%)</Label>
+                                        <Input
+                                            id={`profit-rate-${frame.id}`}
+                                            type="number"
+                                            value={(frame.profitRate * 100).toFixed(0)}
+                                            onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
+                                        />
+                                    </div>
+                                )}
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => removeSpecialTimeFrame(pair, frame.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
                             </div>
-                            <div>
-                                <Label htmlFor={`profit-rate-${frame.id}`} className="text-xs">特殊收益率 (%)</Label>
-                                <Input
-                                    id={`profit-rate-${frame.id}`}
-                                    type="number"
-                                    value={(frame.profitRate * 100).toFixed(0)}
-                                    onChange={(e) => updateSpecialTimeFrame(pair, frame.id, { profitRate: parseFloat(e.target.value) / 100 })}
-                                />
-                            </div>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => removeSpecialTimeFrame(pair, frame.id)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
                 
                 <Button variant="outline" size="sm" onClick={() => addSpecialTimeFrame(pair)}>
