@@ -265,6 +265,7 @@ export function ContractOrderSheet({
               <h4 className="text-sm font-medium mb-2">买入量</h4>
               <Input 
                   type="number"
+                  step="0.01"
                   placeholder={`最少 1 ${quoteAsset}`}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
