@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -107,7 +106,7 @@ export default function AdminOrdersPage() {
     
     useEffect(() => {
         if (isAdmin === false) {
-            router.push('/login');
+            router.push('/');
         } else if (isAdmin === true) {
             if (typeof window !== 'undefined') {
                 const allHistoricalTrades = getAllUserHistoricalTrades();

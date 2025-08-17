@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -35,7 +34,7 @@ export default function AdminRequestsPage() {
     
     useEffect(() => {
         if (isAdmin === false) {
-            router.push('/login');
+            router.push('/');
         }
     }, [isAdmin, router]);
 
@@ -135,5 +134,3 @@ export default function AdminRequestsPage() {
         </DashboardLayout>
     );
 }
-
-    

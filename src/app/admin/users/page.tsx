@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -51,7 +50,7 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         if (isAdmin === false) {
-            router.push('/login');
+            router.push('/');
         } else if (isAdmin === true) {
             loadData();
         }
@@ -204,5 +203,3 @@ export default function AdminUsersPage() {
 
     
 }
-
-    

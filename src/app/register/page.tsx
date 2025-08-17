@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from 'react-hook-form';
@@ -42,7 +41,7 @@ export default function RegisterPage() {
     if (success) {
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
         // After successful registration, always send to login page
-        router.push('/login');
+        router.push('/');
     } else {
         toast({ 
           variant: 'destructive', 
@@ -107,7 +106,7 @@ export default function RegisterPage() {
           </Form>
           <div className="mt-4 text-center text-sm">
             已有账户?{' '}
-            <Link href="/login" className="underline">
+            <Link href="/" className="underline">
               立即登录
             </Link>
           </div>

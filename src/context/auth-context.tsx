@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -159,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('userSession');
-    router.push('/login');
+    router.push('/');
   };
   
   const getUserById = (id: string): User | null => {

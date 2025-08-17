@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -33,7 +32,7 @@ export default function AdminOperationsPage() {
 
     useEffect(() => {
         if (isAdmin === false) {
-            router.push('/login');
+            router.push('/');
         }
     }, [isAdmin, router]);
     

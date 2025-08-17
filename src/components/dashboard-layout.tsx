@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -21,7 +20,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     // The check for `user === undefined` is removed as the context now handles the redirect on logout.
     // We still keep a check here for initial load protection.
     if (!isAuthenticated) {
-      router.push('/login');
+      router.push('/');
     }
   }, [isAuthenticated, router]);
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from '@/context/auth-context';
@@ -18,7 +17,7 @@ export default function AdminPage() {
                 router.replace('/admin/users');
             } else {
                 // If a non-admin somehow lands here, send them away.
-                router.replace('/login');
+                router.replace('/');
             }
         }
     }, [isAdmin, isLoading, router]);
