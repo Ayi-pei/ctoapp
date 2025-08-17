@@ -1,39 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Supported streams based on project's cryptocurrencies (paired with USDT)
- */
-const STREAMS = [
-  "btcusdt@trade",
-  "ethusdt@trade",
-  "solusdt@trade",
-  "xrpusdt@trade",
-  "ltcusdt@trade",
-  "bnbusdt@trade",
-  "maticusdt@trade",
-  "dogeusdt@trade",
-  "adausdt@trade",
-  "shibusdt@trade",
-  "avaxusdt@trade",
-  "linkusdt@trade",
-  "dotusdt@trade",
-  "uniusdt@trade",
-  "trxusdt@trade",
-  "xlmusdt@trade",
-  "vetusdt@trade",
-  "eosusdt@trade",
-  "filusdt@trade",
-  "icpusdt@trade",
-];
-
 type TradeRaw = { price: number; quantity: number; time: number };
 
 export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<Record<string, TradeRaw>>({});
   const wsRef = useRef<WebSocket | null>(null);
+  const streamName = "btcusdt@trade";
 
   useEffect(() => {
-    const url = `wss://stream.binance.com:9443/stream?streams=${STREAMS.join("/")}`;
+    const url = `wss://stream.binance.com:9443/ws/${streamName}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -43,10 +18,11 @@ export default function useTrades() {
 
     ws.onmessage = (event) => {
       try {
-        const { stream, data } = JSON.parse(event.data);
+        const data = JSON.parse(event.data);
+        // Data from a single stream is not wrapped in a "stream" object
         setTradesMap((prev) => ({
           ...prev,
-          [stream]: {
+          [streamName]: {
             price: parseFloat(data.p),
             quantity: parseFloat(data.q),
             time: data.T,
