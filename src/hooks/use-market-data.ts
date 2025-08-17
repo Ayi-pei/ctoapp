@@ -64,7 +64,7 @@ const generateInitialDataForPair = (pair: string) => {
   let askPrice = currentPrice * 1.0005;
   let bidPrice = currentPrice * 0.9995;
   
-  // The API response sorts asks from lowest to highest price
+  // The API response sorts asks from lowest to highest price.
   for (let i = 0; i < 20; i++) {
     const size = randomInRange(0.01, 2);
     asks.push({ price: askPrice, size: size, total: 0 }); // total will be calculated later
@@ -264,3 +264,4 @@ export const useMarketData = () => {
       forexSummaryData,
     };
 };
+
