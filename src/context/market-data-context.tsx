@@ -13,31 +13,35 @@ const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-const coingeckoIdMap: Record<string, string> = {
-    'BTC/USDT': 'bitcoin',
-    'ETH/USDT': 'ethereum',
-    'SOL/USDT': 'solana',
-    'XRP/USDT': 'ripple',
-    'LTC/USDT': 'litecoin',
-    'BNB/USDT': 'binancecoin',
-    'MATIC/USDT': 'matic-network',
-    'DOGE/USDT': 'dogecoin',
-    'ADA/USDT': 'cardano',
-    'SHIB/USDT': 'shiba-inu',
-    'AVAX/USDT': 'avalanche-2',
-    'LINK/USDT': 'chainlink',
-    'DOT/USDT': 'polkadot',
-    'UNI/USDT': 'uniswap',
-    'TRX/USDT': 'tron',
-    'XLM/USDT': 'stellar',
-    'VET/USDT': 'vechain',
-    'EOS/USDT': 'eos',
-    'FIL/USDT': 'filecoin',
-    'ICP/USDT': 'internet-computer',
-    'XAU/USD': 'gold', 
-    'EUR/USD': 'eur',
-    'GBP/USD': 'gbp',
+// Unified ID mapping
+const apiIdMap: Record<string, { coingecko: string, tatum: string }> = {
+    'BTC/USDT': { coingecko: 'bitcoin', tatum: 'BTC' },
+    'ETH/USDT': { coingecko: 'ethereum', tatum: 'ETH' },
+    'SOL/USDT': { coingecko: 'solana', tatum: 'SOL' },
+    'XRP/USDT': { coingecko: 'ripple', tatum: 'XRP' },
+    'LTC/USDT': { coingecko: 'litecoin', tatum: 'LTC' },
+    'BNB/USDT': { coingecko: 'binancecoin', tatum: 'BNB' },
+    'MATIC/USDT': { coingecko: 'matic-network', tatum: 'MATIC' },
+    'DOGE/USDT': { coingecko: 'dogecoin', tatum: 'DOGE' },
+    'ADA/USDT': { coingecko: 'cardano', tatum: 'ADA' },
+    'SHIB/USDT': { coingecko: 'shiba-inu', tatum: 'SHIB' },
+    'AVAX/USDT': { coingecko: 'avalanche-2', tatum: 'AVAX' },
+    'LINK/USDT': { coingecko: 'chainlink', tatum: 'LINK' },
+    'DOT/USDT': { coingecko: 'polkadot', tatum: 'DOT' },
+    'UNI/USDT': { coingecko: 'uniswap', tatum: 'UNI' },
+    'TRX/USDT': { coingecko: 'tron', tatum: 'TRON' },
+    'XLM/USDT': { coingecko: 'stellar', tatum: 'XLM' },
+    'VET/USDT': { coingecko: 'vechain', tatum: 'VET' },
+    'EOS/USDT': { coingecko: 'eos', tatum: 'EOS' },
+    'FIL/USDT': { coingecko: 'filecoin', tatum: 'FIL' },
+    'ICP/USDT': { coingecko: 'internet-computer', tatum: 'ICP' },
+    // Non-crypto pairs might not have tatum ids
+    'XAU/USD': { coingecko: 'gold', tatum: '' },
+    'EUR/USD': { coingecko: 'eur', tatum: '' },
+    'GBP/USD': { coingecko: 'gbp', tatum: '' },
 };
+
+const API_SOURCES = ['coingecko', 'tatum'];
 
 
 interface MarketContextType {
@@ -62,6 +66,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
+    const [apiSourceIndex, setApiSourceIndex] = useState(0);
     
     const changeTradingPair = (pair: string) => {
         if (availablePairs.includes(pair)) {
@@ -81,19 +86,22 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
 
     const fetchMarketData = useCallback(async () => {
-        const cryptoIds = CRYPTO_PAIRS.map(pair => coingeckoIdMap[pair]).filter(Boolean);
-        if (cryptoIds.length === 0) return;
+        const currentSource = API_SOURCES[apiSourceIndex];
+        
+        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap[typeof pair]]).filter(Boolean);
+        if (ids.length === 0) return;
 
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
+                    source: currentSource,
                     endpoint: 'markets',
-                    ids: cryptoIds.join(','),
+                    ids: ids.join(','),
                 }
             });
-
+            
             const newSummaryData = CRYPTO_PAIRS.map(pair => {
-                const id = coingeckoIdMap[pair];
+                const id = apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap[typeof pair]];
                 const data = response.data.find((d: any) => d.id === id);
                 if (data) {
                     return {
@@ -117,14 +125,17 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData([...newSummaryData, ...nonCryptoSummary]);
 
         } catch (error) {
-            console.error("Error fetching market summary via proxy:", error);
+            console.error(`Error fetching market summary via proxy from ${currentSource}:`, error);
+        } finally {
+             // Rotate to the next API source for the next fetch
+            setApiSourceIndex((prevIndex) => (prevIndex + 1) % API_SOURCES.length);
         }
-    }, [summaryData]);
+    }, [apiSourceIndex, summaryData]);
 
 
      const fetchKlineData = useCallback(async (pair: string) => {
-        const coingeckoId = coingeckoIdMap[pair];
-        if (!coingeckoId || !CRYPTO_PAIRS.includes(pair)) {
+        const coingeckoId = apiIdMap[pair]?.coingecko;
+        if (!coingeckoId) {
             const lastPrice = getLatestPrice(pair) || randomInRange(1, 100);
             const newData: OHLC[] = Array.from({ length: 50 }).map(() => {
                 const price = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
@@ -137,6 +148,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
+                    source: 'coingecko', // OHLC data is more consistent from a single source
                     endpoint: 'ohlc',
                     pairId: coingeckoId,
                 }
@@ -159,7 +171,8 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         fetchMarketData();
-        const marketInterval = setInterval(fetchMarketData, 300000); // 5 minutes
+        // Fetch every 1 minute
+        const marketInterval = setInterval(fetchMarketData, 60000); 
         return () => clearInterval(marketInterval);
     }, [fetchMarketData]);
     
@@ -194,9 +207,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         }
                     }
 
+                    // Simulate real-time ticks for non-crypto pairs as they aren't fetched frequently
                     if (!CRYPTO_PAIRS.includes(item.pair)) {
                         const lastPrice = item.price || randomInRange(1, 2000);
-                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
+                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.0005); // Smaller volatility for forex/gold
                         
                         setKlineData(prevKline => {
                             const pairKline = prevKline[item.pair] || [];
@@ -212,7 +226,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 })
             );
 
-        }, 5000);
+        }, 5000); // 5-second interval for smooth UI updates
 
         return () => clearInterval(interval);
     }, [settings, adminOverrides]);
