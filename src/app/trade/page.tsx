@@ -15,15 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { OrderForm } from "@/components/order-form";
 import { useMarket } from "@/context/market-data-context";
-import { ContractTrade, SpotTrade, PriceDataPoint } from '@/types';
+import { ContractTrade, SpotTrade } from '@/types';
 import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 import { Archive } from 'lucide-react';
-import { AIAssistant } from '@/components/ai-assistant';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronsUpDown } from 'lucide-react';
 import { MarketList } from '@/components/market-list';
@@ -88,23 +86,20 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
 
   return (
     <DashboardLayout>
-      <main className="p-4 space-y-4">
+      <main className="p-4 flex flex-col gap-4">
+        {/* Top Full-width Area */}
         <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
 
+        {/* Main Two-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           
           {/* Left Column (2/3 width) - Chart */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2">
             <div className="h-[500px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={data.priceData}
-                  margin={{
-                    top: 5,
-                    right: 20,
-                    left: -10,
-                    bottom: 5,
-                  }}
+                  margin={{ top: 5, right: 20, left: -10, bottom: 5, }}
                 >
                   <defs>
                     <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
@@ -196,6 +191,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
           </div>
         </div>
         
+        {/* Bottom Full-width Area */}
         <div className="pt-4">
           <Tabs defaultValue="current">
             <TabsList>
