@@ -1,17 +1,23 @@
 
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { MarketTrade } from "@/types";
+import { TradeRaw } from "@/types";
+import { useMarket } from "@/context/market-data-context";
 import { useEffect, useState } from "react";
 
-export function TradeHistory({ trades }: { trades: MarketTrade[] }) {
-  const [highlighted, setHighlighted] = useState<string[]>([]);
-  
+export function TradeHistory({ tradingPair }: { tradingPair: string }) {
+  const { displayedTrades } = useMarket();
+  const [highlighted, setHighlighted] = useState<number[]>([]);
+
+  const streamName = tradingPair.replace('/', '').toLowerCase();
+  const trades = displayedTrades[streamName] || [];
+
   useEffect(() => {
     if (trades.length > 0) {
-      const newTradeIds = trades.map(t => t.id).slice(0, 5); // highlight recent ones
+      const newTradeIds = trades.map(t => t.timestamp).slice(-5); // highlight recent ones
       const oldTradeIds = highlighted;
       const trulyNew = newTradeIds.filter(id => !oldTradeIds.includes(id));
 
@@ -41,17 +47,15 @@ export function TradeHistory({ trades }: { trades: MarketTrade[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {trades.slice(0, 50).map((trade) => (
-              <TableRow key={trade.id} className={`text-xs transition-colors duration-500 ${highlighted.includes(trade.id) ? 'bg-primary/20' : ''}`}>
+            {trades.slice(-50).reverse().map((trade) => (
+              <TableRow key={trade.timestamp} className={`text-xs transition-colors duration-500 ${highlighted.includes(trade.timestamp) ? 'bg-primary/20' : ''}`}>
                 <TableCell
-                  className={`p-1 font-medium ${
-                    trade.type === "buy" ? "text-green-500" : "text-red-500"
-                  }`}
+                  className={`p-1 font-medium text-green-500`} // Assuming all are buys for now
                 >
                   {trade.price.toFixed(2)}
                 </TableCell>
-                <TableCell className="p-1 text-right">{trade.amount.toFixed(4)}</TableCell>
-                <TableCell className="p-1 text-right text-muted-foreground">{trade.time}</TableCell>
+                <TableCell className="p-1 text-right">{trade.quantity.toFixed(4)}</TableCell>
+                <TableCell className="p-1 text-right text-muted-foreground">{new Date(trade.timestamp).toLocaleTimeString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>
