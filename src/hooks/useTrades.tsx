@@ -37,7 +37,7 @@ export default function useTrades() {
             setTradesMap(prev => {
                 const newMap = { ...prev };
                 trades.forEach(trade => {
-                    // stream name is based on symbol, e.g., btcusdt@aggTrade
+                    // stream name is based on symbol, e.g., btcusdt@aggtrade
                     const streamName = `${trade.s.toLowerCase()}@aggtrade`;
                     newMap[streamName] = { 
                         price: parseFloat(trade.p), 
