@@ -14,6 +14,12 @@ import { useAuth } from "@/context/auth-context";
 import { Button } from "./ui/button";
 import { useAdminSettings } from "@/context/admin-settings-context";
 
+// Helper function to get computed style of a CSS variable
+const getCssVar = (variable: string) => {
+  if (typeof window === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+}
+
 export default function TradeBoard() {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
@@ -28,6 +34,10 @@ export default function TradeBoard() {
   if (klineData.length === 0) {
     return <div>Loading market data...</div>;
   }
+
+  const chartColorHsl = getCssVar('--chart-2');
+  const chartColorRgbaStart = `hsla(${chartColorHsl}, 0.3)`;
+  const chartColorRgbaEnd = `hsla(${chartColorHsl}, 0)`;
   
   const klineOption = {
       backgroundColor: "transparent",
@@ -61,7 +71,7 @@ export default function TradeBoard() {
         smooth: true,
         showSymbol: false,
         lineStyle: {
-          color: 'hsl(var(--chart-2))',
+          color: `hsl(${chartColorHsl})`,
           width: 2,
         },
         areaStyle: {
@@ -72,9 +82,9 @@ export default function TradeBoard() {
             x2: 0,
             y2: 1,
             colorStops: [{
-                offset: 0, color: 'hsla(var(--chart-2), 0.3)'
+                offset: 0, color: chartColorRgbaStart
             }, {
-                offset: 1, color: 'hsla(var(--chart-2), 0)'
+                offset: 1, color: chartColorRgbaEnd
             }]
           }
         },
