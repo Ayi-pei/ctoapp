@@ -3,7 +3,6 @@ import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bel
 
 export const userNavItems = [
   { href: '/dashboard', label: '首页', icon: Home },
-  { href: '/market', label: '行情', icon: LineChart },
   { href: '/trade', label: '交易', icon: CandlestickChart },
   { href: '/staking', label: '质押', icon: Gem },
   { href: '/finance', label: '理财', icon: Landmark },
