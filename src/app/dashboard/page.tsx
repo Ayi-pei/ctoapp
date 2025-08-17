@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRightLeft, Download, Gem, Gift, Share2, Megaphone, Repeat, Scale, User, BarChart } from "lucide-react";
+import { ArrowRightLeft, Download, Gem, Gift, Share2, Megaphone, Repeat, Scale, User, BarChart, Users } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -29,9 +29,9 @@ export default function DashboardPage() {
     const features = [
         { name: '质押挖矿', icon: Gem, href: '/finance' },
         { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
-        { name: '闪兑', icon: Repeat, href: '/coming-soon' },
+        { name: '代理团队', icon: Users, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
-        { name: '推广中心', icon: Share2, href: '/profile/promotion' },
+        { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
         { name: '行情中心', icon: BarChart, href: '/market' },

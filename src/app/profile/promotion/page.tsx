@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Users, Download, Archive } from "lucide-react";
+import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest } from "@/types";
@@ -14,6 +14,7 @@ import { useBalance } from "@/context/balance-context";
 import { useRequests } from "@/context/requests-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QRCode from "qrcode.react";
+import { useRouter } from "next/navigation";
 
 const StatCard = ({ label, value }: { label: string, value: string | number }) => (
     <div className="text-center">
@@ -27,6 +28,7 @@ export default function PromotionPage() {
     const { commissionLogs } = useBalance();
     const { requests } = useRequests();
     const { toast } = useToast();
+    const router = useRouter();
 
     const [teamMembers, setTeamMembers] = useState<DownlineMember[]>([]);
     const [invitationLink, setInvitationLink] = useState('');
@@ -123,6 +125,13 @@ export default function PromotionPage() {
     return (
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
+                 <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                        <ChevronLeft className="h-6 w-6" />
+                    </Button>
+                    <h1 className="text-2xl font-bold">我的团队</h1>
+                </div>
+
                 <Card className="bg-card/50">
                     <CardContent className="p-4 grid grid-cols-4 gap-y-4">
                         <StatCard label="总人数" value={stats.totalMembers} />
