@@ -81,7 +81,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const fetchMarketData = useCallback(async (isRetry = false) => {
         const storedIndex = localStorage.getItem('apiSourceIndex');
         const currentIndex = storedIndex ? parseInt(storedIndex, 10) : 0;
-        const currentSource = API_SOURCES[currentIndex];
+        let currentSource = API_SOURCES[currentIndex];
+        
+        // Ensure Coinpaprika is used for markets endpoint as it provides more data
+        if (currentSource !== 'coinpaprika') {
+            currentSource = 'coinpaprika';
+        }
         
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
         
@@ -135,6 +140,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const fetchKlineData = useCallback(async (pair: string) => {
         if (!CRYPTO_PAIRS.includes(pair)) return;
         
+        // Always use coingecko for OHLC as it's reliable and free
         const currentSource = 'coingecko';
         const coingeckoId = apiIdMap[pair]?.coingecko;
         
