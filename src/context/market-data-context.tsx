@@ -13,35 +13,32 @@ const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-// Unified ID mapping
-const apiIdMap: Record<string, { coingecko: string, tatum: string }> = {
-    'BTC/USDT': { coingecko: 'bitcoin', tatum: 'BTC' },
-    'ETH/USDT': { coingecko: 'ethereum', tatum: 'ETH' },
-    'SOL/USDT': { coingecko: 'solana', tatum: 'SOL' },
-    'XRP/USDT': { coingecko: 'ripple', tatum: 'XRP' },
-    'LTC/USDT': { coingecko: 'litecoin', tatum: 'LTC' },
-    'BNB/USDT': { coingecko: 'binancecoin', tatum: 'BNB' },
-    'MATIC/USDT': { coingecko: 'matic-network', tatum: 'MATIC' },
-    'DOGE/USDT': { coingecko: 'dogecoin', tatum: 'DOGE' },
-    'ADA/USDT': { coingecko: 'cardano', tatum: 'ADA' },
-    'SHIB/USDT': { coingecko: 'shiba-inu', tatum: 'SHIB' },
-    'AVAX/USDT': { coingecko: 'avalanche-2', tatum: 'AVAX' },
-    'LINK/USDT': { coingecko: 'chainlink', tatum: 'LINK' },
-    'DOT/USDT': { coingecko: 'polkadot', tatum: 'DOT' },
-    'UNI/USDT': { coingecko: 'uniswap', tatum: 'UNI' },
-    'TRX/USDT': { coingecko: 'tron', tatum: 'TRON' },
-    'XLM/USDT': { coingecko: 'stellar', tatum: 'XLM' },
-    'VET/USDT': { coingecko: 'vechain', tatum: 'VET' },
-    'EOS/USDT': { coingecko: 'eos', tatum: 'EOS' },
-    'FIL/USDT': { coingecko: 'filecoin', tatum: 'FIL' },
-    'ICP/USDT': { coingecko: 'internet-computer', tatum: 'ICP' },
-    'XAU/USD': { coingecko: 'gold', tatum: '' },
-    'EUR/USD': { coingecko: 'eur', tatum: '' },
-    'GBP/USD': { coingecko: 'gbp', tatum: '' },
+// Unified ID mapping for CoinGecko
+const apiIdMap: Record<string, { coingecko: string }> = {
+    'BTC/USDT': { coingecko: 'bitcoin' },
+    'ETH/USDT': { coingecko: 'ethereum' },
+    'SOL/USDT': { coingecko: 'solana' },
+    'XRP/USDT': { coingecko: 'ripple' },
+    'LTC/USDT': { coingecko: 'litecoin' },
+    'BNB/USDT': { coingecko: 'binancecoin' },
+    'MATIC/USDT': { coingecko: 'matic-network' },
+    'DOGE/USDT': { coingecko: 'dogecoin' },
+    'ADA/USDT': { coingecko: 'cardano' },
+    'SHIB/USDT': { coingecko: 'shiba-inu' },
+    'AVAX/USDT': { coingecko: 'avalanche-2' },
+    'LINK/USDT': { coingecko: 'chainlink' },
+    'DOT/USDT': { coingecko: 'polkadot' },
+    'UNI/USDT': { coingecko: 'uniswap' },
+    'TRX/USDT': { coingecko: 'tron' },
+    'XLM/USDT': { coingecko: 'stellar' },
+    'VET/USDT': { coingecko: 'vechain' },
+    'EOS/USDT': { coingecko: 'eos' },
+    'FIL/USDT': { coingecko: 'filecoin' },
+    'ICP/USDT': { coingecko: 'internet-computer' },
+    'XAU/USD': { coingecko: 'gold' },
+    'EUR/USD': { coingecko: 'eur' },
+    'GBP/USD': { coingecko: 'gbp' },
 };
-
-const API_SOURCES: ('coingecko' | 'tatum')[] = ['coingecko', 'tatum'];
-const API_SOURCE_KEY = 'tradeflow_api_source_index';
 
 
 interface MarketContextType {
@@ -66,15 +63,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    const [apiSourceIndex, setApiSourceIndex] = useState(0);
-
-    useEffect(() => {
-        // On initial load, get the saved API index from localStorage
-        const savedIndex = localStorage.getItem(API_SOURCE_KEY);
-        if (savedIndex) {
-            setApiSourceIndex(parseInt(savedIndex, 10));
-        }
-    }, []);
     
     const changeTradingPair = (pair: string) => {
         if (availablePairs.includes(pair)) {
@@ -94,28 +82,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
 
     const fetchMarketData = useCallback(async (isRetry = false) => {
-        let currentIndex = 0;
-        if (typeof window !== 'undefined') {
-            const savedIndex = localStorage.getItem(API_SOURCE_KEY);
-            currentIndex = savedIndex ? parseInt(savedIndex, 10) : 0;
-        }
-
-        const currentSource = API_SOURCES[currentIndex];
-        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource]).filter(Boolean);
+        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
         if (ids.length === 0) return;
 
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
-                    source: currentSource,
+                    source: 'coingecko',
                     endpoint: 'markets',
                     ids: ids.join(','),
                 }
             });
             
             const newSummaryData = CRYPTO_PAIRS.map(pair => {
-                const id = apiIdMap[pair]?.[currentSource];
-                const data = response.data.find((d: any) => d.id === id || d.symbol?.toLowerCase() === id.toLowerCase());
+                const id = apiIdMap[pair]?.coingecko;
+                const data = response.data.find((d: any) => d.id === id);
                 if (data) {
                     return {
                         pair: pair,
@@ -138,20 +119,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData([...newSummaryData, ...nonCryptoSummary]);
 
         } catch (error) {
-            console.error(`Error fetching market summary from ${currentSource}:`, error);
-
-            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
-                if(isRetry) {
-                     console.error(`All API sources failed. Waiting for next interval.`);
-                     return;
-                }
-                console.warn(`API quota likely exceeded for ${currentSource}. Switching to next source.`);
-                const nextIndex = (currentIndex + 1) % API_SOURCES.length;
-                setApiSourceIndex(nextIndex);
-                localStorage.setItem(API_SOURCE_KEY, nextIndex.toString());
-                // Immediately retry with the new source
-                fetchMarketData(true); 
-            }
+            console.error(`Error fetching market summary from coingecko:`, error);
         }
     }, [summaryData]);
 
