@@ -33,10 +33,13 @@ export default function useTrades() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(
-      `wss://stream.binance.com:9443/stream?streams=${STREAMS.join("/")}`
-    );
+    const url = `wss://stream.binance.com:9443/stream?streams=${STREAMS.join("/")}`;
+    const ws = new WebSocket(url);
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("✅ Connected to Binance WS:", url);
+    };
 
     ws.onmessage = (event) => {
       try {
@@ -54,9 +57,13 @@ export default function useTrades() {
       }
     };
     
-    ws.onopen = () => console.log("Binance WS connected");
-    ws.onclose = () => console.log("Binance WS closed");
-    ws.onerror = (err) => console.error("Binance WS err", err);
+    ws.onclose = (event) => {
+      console.warn("⚠️ WS closed:", event.code, event.reason);
+    };
+
+    ws.onerror = (event) => {
+      console.error("❌ WS error event:", event);
+    };
 
     return () => {
       if (wsRef.current) {
