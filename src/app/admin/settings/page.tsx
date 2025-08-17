@@ -10,14 +10,13 @@ import { useSettings, TradingPairSettings, SpecialTimeFrame, TimedMarketPreset, 
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import { availablePairs } from "@/types";
-import { PlusCircle, Trash2, ChevronsRight } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GlobalInterventionCard } from "@/components/global-intervention-card";
 
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
@@ -502,7 +501,6 @@ export default function AdminSettingsPage() {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                     <div className="space-y-8">
-                        <GlobalInterventionCard />
                         
                         <Card>
                             <CardHeader>

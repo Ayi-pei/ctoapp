@@ -4,7 +4,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import { useSettings } from './settings-context';
-import { useAdminSettings } from './admin-settings-context';
 import axios, { AxiosError } from 'axios';
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
@@ -58,7 +57,6 @@ const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { settings, timedMarketPresets } = useSettings();
-    const { overrides: adminOverrides } = useAdminSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
@@ -179,20 +177,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const newPrices: Record<string, number> = {};
 
             availablePairs.forEach(pair => {
-                const adminOverride = adminOverrides[pair];
                 const pairSettings = settings[pair];
                 const lastSimulatedPrice = simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
                 
                 let nextPrice = lastSimulatedPrice;
                 let overrideApplied = false;
 
-                // 1. Highest Priority: Admin real-time override
-                if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
-                    nextPrice = adminOverride.overridePrice;
-                    overrideApplied = true;
-                }
-                // 2. Second Priority: Timed Market Presets
-                else if (timedMarketPresets?.length) {
+                // 1. Highest Priority: Timed Market Presets
+                if (timedMarketPresets?.length) {
                     for (const preset of timedMarketPresets) {
                         if (preset.pair !== pair) continue;
 
@@ -210,8 +202,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         }
                     }
                 }
-                // 3. Third Priority: Scheduled market overrides from settings
-                else if (pairSettings?.marketOverrides?.length) {
+                
+                // 2. Second Priority: Scheduled market overrides from settings
+                if (!overrideApplied && pairSettings?.marketOverrides?.length) {
                     for (const override of pairSettings.marketOverrides) {
                         const [startH, startM] = override.startTime.split(':').map(Number);
                         const [endH, endM] = override.endTime.split(':').map(Number);
@@ -226,7 +219,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
                 }
                 
-                // 4. Default Simulation Logic (if no overrides are active)
+                // 3. Default Simulation Logic (if no overrides are active)
                 if (!overrideApplied) {
                     const volatility = pairSettings?.volatility || 0.0005;
                     const trendStrength = 0.0001;
@@ -251,7 +244,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }, 1000);
 
         return () => clearInterval(simulationInterval);
-    }, [settings, adminOverrides, simulatedPrices, summaryData, timedMarketPresets]);
+    }, [settings, simulatedPrices, summaryData, timedMarketPresets]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
