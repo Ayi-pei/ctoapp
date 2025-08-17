@@ -4,125 +4,188 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PriceDataPoint } from "@/types";
-import { Play, Square, Bot, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
+import { Clock, ListTodo, Trash2 } from "lucide-react";
+
+type ScheduledTrade = {
+    id: string;
+    type: 'buy' | 'sell';
+    amount: number;
+    executionTime: Date;
+    tradingPair: string;
+    timeoutId: NodeJS.Timeout;
+};
 
 type AIAssistantProps = {
-    priceHistory: PriceDataPoint[];
     tradingPair: string;
 };
 
-// Simple automated trading strategy logic
-const decideTrade = (priceHistory: PriceDataPoint[]): 'buy' | 'sell' | null => {
-    if (priceHistory.length < 5) {
-        return null; // Not enough data
-    }
-    const recentPrices = priceHistory.slice(-5).map(p => p.price);
-    const startPrice = recentPrices[0];
-    const endPrice = recentPrices[4];
-
-    if (endPrice > startPrice) {
-        return 'buy'; // Trend is up
-    } else if (endPrice < startPrice) {
-        return 'sell'; // Trend is down
-    }
-    return null; // No clear trend
-};
-
-
-export function AIAssistant({ priceHistory, tradingPair }: AIAssistantProps) {
-  const [isAutoTrading, setIsAutoTrading] = useState(false);
-  const [status, setStatus] = useState("未运行");
+export function AIAssistant({ tradingPair }: AIAssistantProps) {
   const { toast } = useToast();
   const { placeContractTrade, balances } = useBalance();
   const quoteAsset = tradingPair.split('/')[1];
 
-  const tradeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const executeAutoTrade = useCallback(() => {
-    setStatus("正在分析市场...");
-    const decision = decideTrade(priceHistory);
-    
-    if (decision) {
-        const tradeAmount = 10; // Fixed amount for auto-trade for now
-        if ((balances[quoteAsset]?.available || 0) < tradeAmount) {
-            setStatus(`余额不足，无法执行交易。`);
-            setIsAutoTrading(false);
-            if(tradeIntervalRef.current) clearInterval(tradeIntervalRef.current);
-            return;
-        }
-
-        placeContractTrade({
-            type: decision,
-            amount: tradeAmount, // Example: trade 10 USDT each time
-            period: 30, // Example: 30s contracts
-            profitRate: 0.85, // Example: 85% profit rate
-        }, tradingPair);
-        
-        setStatus(`趋势分析: ${decision === 'buy' ? '看涨' : '看跌'}。已自动下单 ${tradeAmount} ${quoteAsset}。`);
-    } else {
-        setStatus("无明显交易信号，跳过此次操作。");
-    }
-  }, [priceHistory, placeContractTrade, tradingPair, balances, quoteAsset]);
-
+  const [amount, setAmount] = useState("");
+  const [executionTime, setExecutionTime] = useState("");
+  const [scheduledTrades, setScheduledTrades] = useState<ScheduledTrade[]>([]);
 
   useEffect(() => {
-    if (isAutoTrading) {
-      setStatus("自动交易已启动，等待下一个决策点...");
-      tradeIntervalRef.current = setInterval(() => {
-        executeAutoTrade();
-      }, 10000); // Trade every 10 seconds
-    } else {
-      if (tradeIntervalRef.current) {
-        clearInterval(tradeIntervalRef.current);
-        tradeIntervalRef.current = null;
-      }
-      setStatus("未运行");
+    // Cleanup timeouts when component unmounts
+    return () => {
+      scheduledTrades.forEach(trade => clearTimeout(trade.timeoutId));
+    };
+  }, [scheduledTrades]);
+
+  const handleScheduleTrade = (type: 'buy' | 'sell') => {
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      toast({ variant: "destructive", title: "设置失败", description: "请输入有效的交易金额。" });
+      return;
     }
 
-    return () => {
-      if (tradeIntervalRef.current) {
-        clearInterval(tradeIntervalRef.current);
-      }
+    if (!executionTime) {
+      toast({ variant: "destructive", title: "设置失败", description: "请选择一个有效的执行时间。" });
+      return;
+    }
+    
+    const executionDate = new Date(executionTime);
+    if (executionDate <= new Date()) {
+      toast({ variant: "destructive", title: "设置失败", description: "执行时间必须在未来。" });
+      return;
+    }
+
+    if (numericAmount > (balances[quoteAsset]?.available || 0)) {
+        toast({ variant: "destructive", title: "设置失败", description: `您的可用${quoteAsset}余额不足。` });
+        return;
+    }
+    
+    const timeUntilExecution = executionDate.getTime() - new Date().getTime();
+    
+    const timeoutId = setTimeout(() => {
+        placeContractTrade({
+            type: type,
+            amount: numericAmount,
+            period: 30, // Default period for scheduled trade
+            profitRate: 0.85, // Default profit rate
+        }, tradingPair);
+        
+        toast({
+          title: "计划交易已执行",
+          description: `您设置的 ${numericAmount} ${quoteAsset} ${type === 'buy' ? '买涨' : '买跌'} 计划已在 ${executionDate.toLocaleString()} 执行。`
+        });
+
+        setScheduledTrades(prev => prev.filter(t => t.id !== newTrade.id));
+
+    }, timeUntilExecution);
+
+    const newTrade: ScheduledTrade = {
+        id: `trade-${Date.now()}`,
+        type,
+        amount: numericAmount,
+        executionTime: executionDate,
+        tradingPair,
+        timeoutId
     };
-  }, [isAutoTrading, executeAutoTrade]);
 
-  const handleStart = () => {
-    toast({ title: "启动成功", description: "AI自动交易已启动。" });
-    setIsAutoTrading(true);
-  }
+    setScheduledTrades(prev => [...prev, newTrade]);
 
-  const handleStop = () => {
-     toast({ title: "已停止", description: "AI自动交易已停止。" });
-    setIsAutoTrading(false);
+    toast({
+        title: "计划交易已设置",
+        description: `将在 ${executionDate.toLocaleString()} 为您执行一笔 ${type === 'buy' ? '买涨' : '买跌'} 交易。`
+    });
+
+    setAmount("");
+    setExecutionTime("");
+  };
+
+  const cancelScheduledTrade = (tradeId: string) => {
+    const tradeToCancel = scheduledTrades.find(t => t.id === tradeId);
+    if (tradeToCancel) {
+        clearTimeout(tradeToCancel.timeoutId);
+        setScheduledTrades(prev => prev.filter(t => t.id !== tradeId));
+        toast({ title: "已取消", description: "计划交易已成功取消。" });
+    }
   }
+  
+  // Set default time to 5 minutes in the future
+  const getdefaultTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    // Format for datetime-local input: YYYY-MM-DDTHH:mm
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  
+  useEffect(() => {
+      setExecutionTime(getdefaultTime());
+  }, []);
 
   return (
     <Card>
         <CardHeader>
-            <CardTitle>AI 交易助手 (自动策略)</CardTitle>
-            <CardDescription>启动后，系统将根据K线趋势自动执行秒合约交易。</CardDescription>
+            <CardTitle>计划交易</CardTitle>
+            <CardDescription>设定一个未来的精确时间点，系统将自动为您执行秒合约交易。</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+            <div>
+                <Label htmlFor="trade-amount">交易金额 ({quoteAsset})</Label>
+                <Input
+                    id="trade-amount"
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={`可用余额: ${(balances[quoteAsset]?.available || 0).toFixed(2)}`}
+                />
+            </div>
+            <div>
+                <Label htmlFor="execution-time">执行时间</Label>
+                <Input
+                    id="execution-time"
+                    type="datetime-local"
+                    value={executionTime}
+                    onChange={(e) => setExecutionTime(e.target.value)}
+                />
+            </div>
             <div className="grid grid-cols-2 gap-4">
-                 <Button onClick={handleStart} disabled={isAutoTrading}>
-                    <Play className="mr-2 h-4 w-4" />
-                    开始自动交易
+                 <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600 hover:bg-green-700">
+                    <Clock className="mr-2 h-4 w-4" />
+                    定时买涨
                 </Button>
-                <Button onClick={handleStop} disabled={!isAutoTrading} variant="destructive">
-                    <Square className="mr-2 h-4 w-4" />
-                    停止自动交易
+                <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600 hover:bg-red-700">
+                    <Clock className="mr-2 h-4 w-4" />
+                    定时买跌
                 </Button>
             </div>
-            <div className="mt-4 p-3 bg-muted rounded-md text-sm text-center">
-                <p className="flex items-center justify-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    <span className="font-semibold">当前状态:</span>
-                    <span className="text-muted-foreground">{status}</span>
-                </p>
-            </div>
+            {scheduledTrades.length > 0 && (
+                <div className="pt-4 space-y-2">
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><ListTodo className="h-4 w-4" /> 待执行计划</h4>
+                    <div className="p-2 border rounded-md max-h-40 overflow-y-auto space-y-2">
+                        {scheduledTrades.map(trade => (
+                            <div key={trade.id} className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm">
+                                <div>
+                                    <p>
+                                        <span className={`font-bold ${trade.type === 'buy' ? 'text-green-500' : 'text-red-500'}`}>
+                                            {trade.type === 'buy' ? '买涨' : '买跌'}
+                                        </span>
+                                        <span className="ml-2">{trade.amount} {trade.tradingPair.split('/')[1]}</span>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">{trade.executionTime.toLocaleString()}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => cancelScheduledTrade(trade.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </CardContent>
     </Card>
   );
