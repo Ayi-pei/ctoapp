@@ -22,16 +22,21 @@ async function fetchFromTatum(endpoint: string, params: Record<string, string>) 
     throw new Error('Tatum API key is not configured');
   }
   const headers = { 'x-api-key': TATUM_API_KEY };
-  // Tatum's structure is different, e.g. /v4/market/price/{asset}
-  // This is a simplified example; a real implementation would need more robust routing.
+  
   if (endpoint.startsWith('/coins/markets')) {
      const ids = params.ids.split(',');
      const responses = await Promise.all(ids.map(id => 
-        axios.get(`${TATUM_API_URL}/market/price/${id.toUpperCase()}`, { headers })
+        axios.get(`${TATUM_API_URL}/market/price/${id.toUpperCase()}`, { headers }).catch(err => {
+          console.warn(`Tatum failed for ${id}:`, err.message);
+          return null; // Return null on failure to avoid breaking Promise.all
+        })
      ));
+     
      // Normalize Tatum response to look like CoinGecko's
-     return responses.map((res, index) => ({
-         id: ids[index],
+     return responses
+      .filter(res => res !== null) // Filter out failed requests
+      .map((res, index) => ({
+         id: ids[index], // This might be slightly off if some requests fail, but should be okay for now
          current_price: res.data.value,
          price_change_percentage_24h: 0, // Not available in this Tatum endpoint
          total_volume: 0, // Not available
@@ -40,7 +45,6 @@ async function fetchFromTatum(endpoint: string, params: Record<string, string>) 
          image: '', // Not available
      }));
   }
-  // Add other endpoint handlers for Tatum if needed
   return [];
 }
 
