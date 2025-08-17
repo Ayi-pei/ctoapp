@@ -166,8 +166,7 @@ export const useMarketData = () => {
     const runUpdate = async () => {
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
+        
         let nextUpdateDelay = 5000; // Default day frequency
 
         setAllData(prevAllData => {
@@ -199,34 +198,44 @@ export const useMarketData = () => {
                     }
                 }
                 
+                // Check for timed presets next
+                let activePreset = null;
+                for (const preset of timedMarketPresets) {
+                    if (preset.pair !== pair) continue;
+                    const [startH, startM] = preset.startTime.split(':').map(Number);
+                    const [endH, endM] = preset.endTime.split(':').map(Number);
+                    const startMinutes = startH * 60 + startM;
+                    const endMinutes = endH * 60 + endM;
+
+                    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                        activePreset = preset;
+                        break;
+                    }
+                }
+
                 if (activeOverride) {
                     // We are in an override period
                     finalNewPrice = randomInRange(activeOverride.minPrice, activeOverride.maxPrice);
                     nextUpdateDelay = activeOverride.frequency === 'day' ? 5000 : 15000;
+                } else if (activePreset) {
+                    // We are in a timed market preset period
+                    finalNewPrice = randomInRange(activePreset.minPrice, activePreset.maxPrice);
                 } else {
-                    // No override, check for timed presets
-                    const activePreset = timedMarketPresets.find(p => p.pair === pair && p.time === currentTimeStr);
+                    // Regular price simulation
+                    const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
+                    let newPrice = lastDataPoint.price;
+                    
+                    const volatilityFactor = pairSettings.volatility;
+                    let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
 
-                    if (activePreset) {
-                        finalNewPrice = activePreset.price;
-                    } else {
-                        // Regular price simulation
-                        const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
-                        let newPrice = lastDataPoint.price;
-                        
-                        const volatilityFactor = pairSettings.volatility;
-                        let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
-
-                        if (pairSettings.trend === 'up') {
-                            priceMultiplier = 1 + (Math.random() * volatilityFactor); 
-                        } else if (pairSettings.trend === 'down') {
-                            priceMultiplier = 1 - (Math.random() * volatilityFactor);
-                        }
-                        
-                        finalNewPrice = newPrice * priceMultiplier;
+                    if (pairSettings.trend === 'up') {
+                        priceMultiplier = 1 + (Math.random() * volatilityFactor); 
+                    } else if (pairSettings.trend === 'down') {
+                        priceMultiplier = 1 - (Math.random() * volatilityFactor);
                     }
-
-                    // Standard day/night frequency
+                    
+                    finalNewPrice = newPrice * priceMultiplier;
+                     // Standard day/night frequency for regular simulation
                     const currentHour = now.getHours();
                     const isNight = currentHour >= 22 || currentHour < 6;
                     nextUpdateDelay = isNight ? 15000 : 5000;

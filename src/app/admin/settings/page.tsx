@@ -54,16 +54,6 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor={`preset-price-${preset.id}`} className="text-xs">价格 (USDT)</Label>
-                                    <Input 
-                                        id={`preset-price-${preset.id}`}
-                                        type="number"
-                                        value={preset.price}
-                                        onChange={(e) => updatePreset(preset.id, { price: parseFloat(e.target.value) || 0 })}
-                                        placeholder="输入目标价格"
-                                    />
-                                </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs">币种</Label>
                                      <Select 
@@ -79,6 +69,26 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
+                                    <Label htmlFor={`preset-min-price-${preset.id}`} className="text-xs">最低价 (USDT)</Label>
+                                    <Input 
+                                        id={`preset-min-price-${preset.id}`}
+                                        type="number"
+                                        value={preset.minPrice}
+                                        onChange={(e) => updatePreset(preset.id, { minPrice: parseFloat(e.target.value) || 0 })}
+                                        placeholder="输入最低价格"
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor={`preset-max-price-${preset.id}`} className="text-xs">最高价 (USDT)</Label>
+                                    <Input 
+                                        id={`preset-max-price-${preset.id}`}
+                                        type="number"
+                                        value={preset.maxPrice}
+                                        onChange={(e) => updatePreset(preset.id, { maxPrice: parseFloat(e.target.value) || 0 })}
+                                        placeholder="输入最高价格"
+                                    />
+                                </div>
+                                <div className="space-y-2 col-span-2">
                                     <Label className="text-xs">触发时间范围</Label>
                                     <div className="flex items-center gap-2">
                                         <Input 

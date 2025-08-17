@@ -14,9 +14,11 @@ export type SpecialTimeFrame = {
 export type TimedMarketPreset = {
     id: string;
     action: 'buy' | 'sell';
-    time: string;
+    startTime: string;
+    endTime: string;
     pair: string;
-    price: number;
+    minPrice: number;
+    maxPrice: number;
 }
 
 export type MarketOverridePreset = {
@@ -145,9 +147,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setTimedMarketPresets(prev => [...prev, {
             id: `preset_${Date.now()}`,
             action: 'buy',
-            time: '12:00',
+            startTime: '12:00',
+            endTime: '13:00',
             pair: availablePairs[0],
-            price: 0
+            minPrice: 65000,
+            maxPrice: 65100,
         }]);
     }, []);
 
