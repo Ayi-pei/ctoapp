@@ -3,25 +3,15 @@ import ReactECharts from "echarts-for-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
 import { useBalance } from "@/context/balance-context";
-import { useAdminSettings } from "@/context/admin-settings-context";
 import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
-import { MarketOverview } from "./market-overview";
 import { SmartTrade } from "./smart-trade";
-import { Button } from "./ui/button";
 import { useAuth } from "@/context/auth-context";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 
 export default function TradeBoard() {
   const { tradingPair, getLatestPrice, klineData: allKlineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
-  const { startOverride } = useAdminSettings();
   const { isAdmin } = useAuth();
 
   const klineData = allKlineData[tradingPair] || [];
@@ -105,17 +95,6 @@ export default function TradeBoard() {
           </TabsContent>
         </Tabs>
 
-        {/* Admin 控制示例按钮 */}
-        {isAdmin && (
-          <div className="mt-2">
-              <Button
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
-              >
-                Admin +100 临时干预 10 秒
-              </Button>
-          </div>
-        )}
       </div>
     </div>
   );
