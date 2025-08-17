@@ -1,12 +1,15 @@
 
-
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { availablePairs, TradeRaw } from "@/types";
 
-type TradesMap = Record<string, TradeRaw[]>;
-const MAX_TRADES_PER_SYMBOL = 50;
+type TradeInfo = {
+    price: number;
+    quantity: number;
+    timestamp: number;
+};
+type TradesMap = Record<string, TradeInfo>;
 
 export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<TradesMap>({});
@@ -29,28 +32,24 @@ export default function useTrades() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        const streamName = message.s; // Stream name is in 's' for multi-stream
+        // For multi-stream, the stream name is in `stream`, data is in `data`
+        const streamData = message.data;
+        const streamName = message.stream;
         
-        if (streamName && message.p && message.q && message.T) {
-            const newTrade: TradeRaw = {
-                stream: streamName,
-                price: parseFloat(message.p),
-                quantity: parseFloat(message.q),
-                timestamp: message.T,
-            };
-
-            setTradesMap(prev => {
-                const existingTrades = prev[streamName] || [];
-                const updatedTrades = [...existingTrades, newTrade];
-                // Keep only the last N trades
-                if (updatedTrades.length > MAX_TRADES_PER_SYMBOL) {
-                    updatedTrades.shift(); 
-                }
-                return {
-                    ...prev,
-                    [streamName]: updatedTrades,
+        if (streamData && streamData.s && streamData.p && streamData.q && streamData.T) {
+            const pairName = availablePairs.find(p => `${p.replace('/', '').toLowerCase()}@aggTrade` === streamName);
+            if (pairName) {
+                 const newTrade: TradeInfo = {
+                    price: parseFloat(streamData.p),
+                    quantity: parseFloat(streamData.q),
+                    timestamp: streamData.T,
                 };
-            });
+
+                setTradesMap(prev => ({
+                    ...prev,
+                    [pairName]: newTrade,
+                }));
+            }
         }
       } catch (err) {
         console.error("WS message parse error:", err);
@@ -61,12 +60,10 @@ export default function useTrades() {
         console.error("❌ WS error:", err);
     };
 
-    ws.onclose = (ev) => {
-      // Only log if the closure was unexpected (i.e., not initiated by the cleanup function)
+    ws.onclose = () => {
       if (wsRef.current) {
-        console.warn("⚠️ WS connection closed unexpectedly", ev.code, ev.reason);
-        // Optional: Implement reconnect logic here
-        // setTimeout(connect, 5000); // Reconnect after 5 seconds
+        console.warn("⚠️ WS connection closed unexpectedly. Reconnecting...");
+        setTimeout(connect, 5000); 
       }
     };
   }, []);

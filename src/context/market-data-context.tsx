@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { availablePairs, MarketSummary, KlineDataPoint, OHLC } from '@/types';
+import { availablePairs, MarketSummary, OHLC } from '@/types';
 import useTrades from '@/hooks/useTrades';
 import { useSettings } from './settings-context';
 import { useAdminSettings } from './admin-settings-context';
@@ -13,9 +13,6 @@ const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
 // Helper function to generate a random number within a range
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-// Helper to format time for the chart
-const formatTime = (date: Date) => date.toLocaleTimeString('en-GB');
 
 const getBasePrice = (pair: string) => {
     switch (pair) {
@@ -76,9 +73,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setTradingPair(pair);
         }
     };
-
+    
     const getLatestPrice = useCallback((pair: string): number => {
-        const streamName = `${pair.replace('/', '').toLowerCase()}@aggTrade`;
+        const streamName = `${pair.replace('/', '')}`;
         const lastKline = klineData[pair]?.[klineData[pair].length - 1];
         return lastKline?.close || tradesMap[streamName]?.price || getBasePrice(pair);
     }, [tradesMap, klineData]);
@@ -94,7 +91,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             initialKlineData[pair] = Array.from({ length: 60 }, (_, i) => {
                 const price = basePrice * randomInRange(0.99, 1.01);
                 return {
-                    time: Date.now() - (59 - i) * 1000,
+                    time: Date.now() - (59 - i) * 5000,
                     open: price,
                     high: price,
                     low: price,
@@ -129,12 +126,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
                     let finalNewPrice;
                     
-                    // --- Priority 1: Global Admin Override for this specific pair ---
+                    // --- Priority 1: Global Admin Override ---
                     const adminOverride = adminOverrides[pair];
                     if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
                         finalNewPrice = adminOverride.overridePrice;
                     } else {
-                         // --- Priority 2: Per-Pair Timed Market Override ---
+                         // --- Priority 2: Scheduled Market Override ---
                         let activeOverride = null;
                         for (const override of pairSettings.marketOverrides) {
                             const [startH, startM] = override.startTime.split(':').map(Number);
@@ -151,7 +148,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         if (activeOverride) {
                             finalNewPrice = randomInRange(activeOverride.minPrice, activeOverride.maxPrice);
                         } else {
-                            // --- Priority 3: Real-time Data or Simulation ---
+                             // --- Priority 3: Real-time Data or Simulation ---
                             const streamName = `${pair.replace('/', '').toLowerCase()}@aggTrade`;
                             const latestTrade = tradesMap[streamName];
                             
@@ -171,7 +168,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     const existingData = newKlineData[pair] || [];
                     const lastDataPoint = existingData[existingData.length - 1] || { open: finalNewPrice, high: finalNewPrice, low: finalNewPrice, close: finalNewPrice, time: Date.now() - 60000 };
                     
-                    const timeWindow = 60 * 1000; // 1 minute
+                    const timeWindow = 5 * 1000; // 5 seconds
                     
                     let newOHLCPoint: OHLC;
 
@@ -196,11 +193,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData(prevSummary => {
                 return prevSummary.map(summaryItem => {
                     const latestPrice = getLatestPrice(summaryItem.pair);
+                    const openingPrice = klineData[summaryItem.pair]?.[0]?.open || getBasePrice(summaryItem.pair);
+                    const changePercent = ((latestPrice - openingPrice) / openingPrice) * 100;
                     return {
                         ...summaryItem,
                         price: latestPrice,
-                        high: Math.max(summaryItem.high, latestPrice),
-                        low: Math.min(summaryItem.low, latestPrice),
+                        high: Math.max(...(klineData[summaryItem.pair]?.map(d => d.high) || [latestPrice])),
+                        low: Math.min(...(klineData[summaryItem.pair]?.map(d => d.low) || [latestPrice])),
+                        change: changePercent,
                     };
                 });
             });
@@ -208,7 +208,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }, 5000); // Update every 5 seconds
 
         return () => clearInterval(interval);
-    }, [tradesMap, settings, adminOverrides, getLatestPrice]);
+    }, [tradesMap, settings, adminOverrides, getLatestPrice, klineData]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
