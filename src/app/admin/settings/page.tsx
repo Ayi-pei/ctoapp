@@ -54,13 +54,14 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor={`preset-time-${preset.id}`} className="text-xs">触发时间</Label>
+                                 <div className="space-y-2">
+                                    <Label htmlFor={`preset-price-${preset.id}`} className="text-xs">价格 (USDT)</Label>
                                     <Input 
-                                        id={`preset-time-${preset.id}`}
-                                        type="time" 
-                                        value={preset.time}
-                                        onChange={(e) => updatePreset(preset.id, { time: e.target.value })}
+                                        id={`preset-price-${preset.id}`}
+                                        type="number"
+                                        value={preset.price}
+                                        onChange={(e) => updatePreset(preset.id, { price: parseFloat(e.target.value) || 0 })}
+                                        placeholder="输入目标价格"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -77,15 +78,21 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor={`preset-price-${preset.id}`} className="text-xs">价格 (USDT)</Label>
-                                    <Input 
-                                        id={`preset-price-${preset.id}`}
-                                        type="number"
-                                        value={preset.price}
-                                        onChange={(e) => updatePreset(preset.id, { price: parseFloat(e.target.value) || 0 })}
-                                        placeholder="输入目标价格"
-                                    />
+                                <div className="space-y-2">
+                                    <Label className="text-xs">触发时间范围</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="time" 
+                                            value={preset.startTime}
+                                            onChange={(e) => updatePreset(preset.id, { startTime: e.target.value })}
+                                        />
+                                        <span>-</span>
+                                        <Input 
+                                            type="time" 
+                                            value={preset.endTime}
+                                            onChange={(e) => updatePreset(preset.id, { endTime: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                              <Button 
@@ -585,5 +592,7 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
+
+    
 
     
