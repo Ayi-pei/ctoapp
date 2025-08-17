@@ -220,7 +220,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
             toast({
                 title: '理财订单已结算',
-                description: `您的 “${investmentToSettle.product_name}” 订单已到期，本金和收益共 ${totalReturn.toFixed(2)} USDT 已返还至您的余额。`
+                description: `您的 “${investmentToSettle.productName}” 订单已到期，本金和收益共 ${totalReturn.toFixed(2)} USDT 已返还至您的余额。`
             });
             
             return prev.map(inv => inv.id === investmentId ? { ...inv, status: 'settled', profit } : inv);
@@ -234,7 +234,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(() => {
         const now = new Date();
         investments.forEach(inv => {
-            if (inv.status === 'active' && new Date(inv.settlement_date) <= now) {
+            if (inv.status === 'active' && new Date(inv.date) <= now) {
                 settleInvestment(inv.id);
             }
         });
@@ -316,15 +316,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }));
 
     const now = new Date();
-    const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
+    const date = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
 
     const newInvestment: Investment = {
         id: `inv-d-${Date.now()}`,
         user_id: user.id,
-        product_name: params.productName,
+        productName: params.productName,
         amount: params.amount,
         created_at: now.toISOString(),
-        settlement_date: settlementDate.toISOString(),
+        date: date.toISOString(),
         daily_rate: params.dailyRate,
         period: params.period,
         status: 'active',
@@ -355,15 +355,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }));
 
     const now = new Date();
-    const settlementDate = new Date(now.getTime() + params.durationHours * 60 * 60 * 1000);
+    const date = new Date(now.getTime() + params.durationHours * 60 * 60 * 1000);
 
     const newInvestment: Investment = {
         id: `inv-h-${Date.now()}`,
         user_id: user.id,
-        product_name: params.productName,
+        productName: params.productName,
         amount: params.amount,
         created_at: now.toISOString(),
-        settlement_date: settlementDate.toISOString(),
+        date: date.toISOString(),
         status: 'active',
         productType: 'hourly',
         duration_hours: params.durationHours,

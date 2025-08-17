@@ -28,7 +28,7 @@ export function MarketBoard() {
     series: [
       {
         type: "line",
-        data: currentKlineData.map(d => d.price),
+        data: currentKlineData.map(d => d.close),
         smooth: true,
         showSymbol: false,
         lineStyle: { color: "#26a69a", width: 2 }
