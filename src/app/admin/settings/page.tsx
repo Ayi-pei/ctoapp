@@ -10,7 +10,7 @@ import { useSettings, TradingPairSettings, SpecialTimeFrame, TimedMarketPreset, 
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import { availablePairs } from "@/types";
-import { PlusCircle, Trash2, Upload, ChevronsRight } from "lucide-react";
+import { PlusCircle, Trash2, ChevronsRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
@@ -21,8 +21,6 @@ import { GlobalInterventionCard } from "@/components/global-intervention-card";
 
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
-const allAvailableAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
-
 
 
 const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset, onSave }: { 
@@ -36,7 +34,7 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
         <Card>
             <CardHeader>
                 <CardTitle>限定时间市场设置</CardTitle>
-                <CardDescription>预设在特定时间自动触发市场操作，用于智能交易和秒合约。</CardDescription>
+                <CardDescription>预设在特定时间自动影响市场价格，用于引导智能交易和秒合约的结果。</CardDescription>
             </CardHeader>
             <ScrollArea className="h-[200px] md:h-[calc(100vh-28rem)]">
                 <CardContent className="space-y-4 pr-6">
@@ -54,8 +52,8 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                                             <SelectValue placeholder="选择操作" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="buy">预设买入</SelectItem>
-                                            <SelectItem value="sell">预设抛售</SelectItem>
+                                            <SelectItem value="buy">预设买入 (拉升)</SelectItem>
+                                            <SelectItem value="sell">预设抛售 (下降)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

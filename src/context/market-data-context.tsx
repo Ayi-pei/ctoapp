@@ -57,20 +57,12 @@ interface MarketContextType {
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
-    const { settings } = useSettings();
+    const { settings, timedMarketPresets } = useSettings();
     const { overrides: adminOverrides } = useAdminSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>({});
-
-    const [apiSourceIndex, setApiSourceIndex] = useState(0);
-
-    const changeTradingPair = (pair: string) => {
-        if (availablePairs.includes(pair)) {
-            setTradingPair(pair);
-        }
-    };
     
     // THIS IS THE NEW SOURCE OF TRUTH FOR ALL TRADING LOGIC
     const getLatestPrice = useCallback((pair: string): number => {
@@ -140,7 +132,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const fetchKlineData = useCallback(async (pair: string) => {
         if (!CRYPTO_PAIRS.includes(pair)) return;
         
-        // Always use coingecko for OHLC as it's reliable and free
         const currentSource = 'coingecko';
         const coingeckoId = apiIdMap[pair]?.coingecko;
         
@@ -164,10 +155,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        const marketInterval = setInterval(fetchMarketData, 60000); // Fetch market summary every minute
+        const marketInterval = setInterval(fetchMarketData, 60000);
         const klineInterval = setInterval(() => {
              availablePairs.forEach(pair => fetchKlineData(pair));
-        }, 300000); // Fetch klines every 5 minutes is enough for visuals
+        }, 300000);
 
         fetchMarketData();
         availablePairs.forEach(pair => fetchKlineData(pair));
@@ -191,7 +182,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const adminOverride = adminOverrides[pair];
                 const pairSettings = settings[pair];
                 const lastSimulatedPrice = simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
-
+                
                 let nextPrice = lastSimulatedPrice;
                 let overrideApplied = false;
 
@@ -200,7 +191,26 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     nextPrice = adminOverride.overridePrice;
                     overrideApplied = true;
                 }
-                // 2. Second Priority: Scheduled market overrides from settings
+                // 2. Second Priority: Timed Market Presets
+                else if (timedMarketPresets?.length) {
+                    for (const preset of timedMarketPresets) {
+                        if (preset.pair !== pair) continue;
+
+                        const [startH, startM] = preset.startTime.split(':').map(Number);
+                        const [endH, endM] = preset.endTime.split(':').map(Number);
+                        const startMinutes = startH * 60 + startM;
+                        const endMinutes = endH * 60 + endM;
+                        
+                        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                             const targetPrice = preset.action === 'buy' ? preset.maxPrice : preset.minPrice;
+                             // Move price towards target
+                             nextPrice = lastSimulatedPrice + (targetPrice - lastSimulatedPrice) * 0.1;
+                             overrideApplied = true;
+                             break;
+                        }
+                    }
+                }
+                // 3. Third Priority: Scheduled market overrides from settings
                 else if (pairSettings?.marketOverrides?.length) {
                     for (const override of pairSettings.marketOverrides) {
                         const [startH, startM] = override.startTime.split(':').map(Number);
@@ -216,7 +226,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
                 }
                 
-                // 3. Default Simulation Logic (if no overrides are active)
+                // 4. Default Simulation Logic (if no overrides are active)
                 if (!overrideApplied) {
                     const volatility = pairSettings?.volatility || 0.0005;
                     const trendStrength = 0.0001;
@@ -229,7 +239,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     nextPrice = lastSimulatedPrice * (1 + trendEffect + randomFactor);
                 }
 
-                // For non-crypto pairs, ensure a baseline price if it's 0
                 if (!CRYPTO_PAIRS.includes(pair) && nextPrice === 0) {
                      nextPrice = pair.startsWith('XAU') ? 2300 : 1.1;
                 }
@@ -239,10 +248,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             
             setSimulatedPrices(prev => ({...prev, ...newPrices}));
 
-        }, 1000); // Run simulation every second
+        }, 1000);
 
         return () => clearInterval(simulationInterval);
-    }, [settings, adminOverrides, simulatedPrices, summaryData]);
+    }, [settings, adminOverrides, simulatedPrices, summaryData, timedMarketPresets]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
@@ -252,7 +261,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     const contextValue: MarketContextType = {
         tradingPair,
-        changeTradingPair,
+        changeTradingPair: setTradingPair,
         availablePairs,
         summaryData,
         cryptoSummaryData,
