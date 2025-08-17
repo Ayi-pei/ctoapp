@@ -41,8 +41,7 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      // The redirect logic is now inside the effect, 
-      // so we just need to trigger a re-render by successful login.
+      // Redirect logic will be handled by the effect below.
     } else {
       toast({
         variant: 'destructive',
@@ -53,6 +52,7 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    // If the user is authenticated, redirect them away from the login page.
     if (!isLoading && isAuthenticated) {
         if (isAdmin) {
             router.replace('/admin');
@@ -62,6 +62,22 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isAdmin, isLoading, router]);
 
+  // If the user is already authenticated, show a loader while redirecting.
+  // This prevents the login form from flashing on the screen for already logged-in users.
+  if (isAuthenticated) {
+     return (
+        <AuthLayout>
+            <Card className="w-full max-w-md">
+                <CardContent className="p-10 flex flex-col items-center justify-center">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-10 w-1/2 mt-4" />
+                </CardContent>
+            </Card>
+        </AuthLayout>
+     )
+  }
+
+  // If loading the auth state, show a skeleton.
   if (isLoading) {
      return (
         <AuthLayout>
@@ -85,6 +101,7 @@ export default function LoginPage() {
      )
   }
 
+  // Render the login form if not authenticated and not loading.
   return (
     <AuthLayout>
       <Card className="w-full max-w-md">
