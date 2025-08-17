@@ -192,8 +192,8 @@ export default function ProfilePage() {
                 
                 <div className="space-y-2">
                     {menuItems.map(item => (
-                        <Link href={item.href} key={item.label}>
-                            <ListItem label={item.label} icon={item.icon} />
+                        <Link href={item.href} key={item.label} passHref>
+                           <ListItem label={item.label} icon={item.icon} />
                         </Link>
                     ))}
                     {actionItems.map(item => (
