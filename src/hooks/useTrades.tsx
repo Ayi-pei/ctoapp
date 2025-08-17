@@ -35,11 +35,15 @@ export default function useTrades() {
     };
     
     ws.onclose = (event) => {
-      console.warn("⚠️ WS closed:", event.code, event.reason);
+      console.warn("⚠️ WS connection closed", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
     };
 
     ws.onerror = (event) => {
-      console.error("❌ WS error event:", event);
+      console.error("❌ WS error:", event);
     };
 
     return () => {

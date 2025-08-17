@@ -19,35 +19,9 @@ interface TradeDataContextType {
 
 const TradeDataContext = createContext<TradeDataContextType | undefined>(undefined);
 
-// Constants
-const STREAMS_TO_DISPLAY = [
-  "btcusdt@trade",
-  "ethusdt@trade",
-  "solusdt@trade",
-  "xrpusdt@trade",
-  "ltcusdt@trade",
-  "bnbusdt@trade",
-  "maticusdt@trade",
-  "dogeusdt@trade",
-  "adausdt@trade",
-  "shibusdt@trade",
-  "avaxusdt@trade",
-  "linkusdt@trade",
-  "dotusdt@trade",
-  "uniusdt@trade",
-  "trxusdt@trade",
-  "xlmusdt@trade",
-  "vetusdt@trade",
-  "eosusdt@trade",
-  "filusdt@trade",
-  "icpusdt@trade",
-];
-const INTERVAL_MS = 5000;
-const MAX_DATA_POINTS = 50;
-
 // Provider Component
 export function TradeDataProvider({ children }: { children: ReactNode }) {
-  const { tradesMap, klineData: rawKlineData } = useTrades(INTERVAL_MS, MAX_DATA_POINTS);
+  const tradesMap = useTrades();
   const { placeContractTrade, balances } = useBalance();
   const { toast } = useToast();
 
@@ -58,11 +32,6 @@ export function TradeDataProvider({ children }: { children: ReactNode }) {
     setDisplayedTrades(tradesMap)
   }, [tradesMap]);
   
-  useEffect(() => {
-    setKlineData(rawKlineData)
-  }, [rawKlineData]);
-
-
   const handleTrade = (type: 'buy' | 'sell', stream: string, amount: number) => {
     const fullStreamName = `${stream.toLowerCase()}@trade`;
     const candles = klineData[fullStreamName];
