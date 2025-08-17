@@ -87,7 +87,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData, klineData]);
 
 
-    const selectApiSource = () => {
+    const selectApiSource = useCallback(() => {
         // Find the API with the most remaining requests
         const availableApis = Object.entries(apiState).filter(([, state]) => state.remaining > 0);
         if (availableApis.length === 0) {
@@ -100,14 +100,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         });
 
         return bestApi[0];
-    };
+    }, [apiState]);
 
 
-    const fetchMarketData = useCallback(async () => {
+    const fetchMarketData = useCallback(async (isRetry = false) => {
         const currentSource = selectApiSource();
-        if (!currentSource) return;
+        if (!currentSource) {
+            if (!isRetry) console.error("All API sources are exhausted.");
+            return;
+        };
 
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
+        
         if (ids.length === 0) {
             return;
         }
@@ -121,7 +125,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 }
             });
 
-            // Decrement remaining requests count on success
             setApiState(prev => ({
                 ...prev,
                 [currentSource]: { remaining: prev[currentSource].remaining - 1 }
@@ -144,28 +147,32 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         } catch (error) {
             console.error(`Error fetching market summary from ${currentSource}:`, error);
-            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403 || error.response?.status === 402)) {
                 console.warn(`Quota likely exceeded for ${currentSource}. Setting remaining to 0.`);
                 setApiState(prev => ({
                     ...prev,
                     [currentSource]: { remaining: 0 }
                 }));
+
+                // If this wasn't already a retry, try again with the next available source.
+                if (!isRetry) {
+                    console.log("Retrying with next available API source...");
+                    fetchMarketData(true);
+                }
             }
         }
-    }, [apiState]);
+    }, [selectApiSource]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         if (!CRYPTO_PAIRS.includes(pair)) {
             return;
         }
         
-        const currentSource = selectApiSource();
-        if (!currentSource) return;
-
-        const apiId = apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']];
+        const currentSource = 'coingecko'; // OHLC data only from coingecko to avoid paid API issues
+        const coingeckoId = apiIdMap[pair]?.coingecko;
         
-        if (!apiId) {
-            console.warn(`No API ID found for ${pair} on source ${currentSource}.`);
+        if (!coingeckoId) {
+            console.warn(`No CoinGecko API ID found for ${pair}.`);
             return;
         };
 
@@ -174,29 +181,17 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 params: {
                     source: currentSource,
                     endpoint: 'ohlc',
-                    pairId: apiId,
+                    pairId: coingeckoId,
                 }
             });
-
-            setApiState(prev => ({
-                ...prev,
-                [currentSource]: { remaining: prev[currentSource].remaining - 1 }
-            }));
 
             const newOhlcData: OHLC[] = response.data;
             setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
 
         } catch (error) {
             console.error(`Error fetching k-line data for ${pair} via ${currentSource} proxy:`, error);
-             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
-                console.warn(`Quota likely exceeded for ${currentSource} on kline fetch. Setting remaining to 0.`);
-                setApiState(prev => ({
-                    ...prev,
-                    [currentSource]: { remaining: 0 }
-                }));
-            }
         }
-    }, [apiState]);
+    }, []);
 
     // Initial data fetch
     useEffect(() => {
