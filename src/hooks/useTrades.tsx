@@ -60,8 +60,8 @@ export default function useTrades() {
       ws.onclose = (ev) => {
         console.warn("⚠️ WS connection closed", ev);
         // Only try to reconnect if the closure was unexpected.
-        if (ev.code !== 1000) { 
-           setTimeout(initWS, 3000); // Attempt to reconnect after 3 seconds
+        if (!(wsRef.current as any)?.isClosedByCleanup) {
+          setTimeout(initWS, 3000); // Attempt to reconnect after 3 seconds
         }
       };
     };
