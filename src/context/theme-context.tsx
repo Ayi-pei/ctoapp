@@ -13,14 +13,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('dark');
+    const [theme, setThemeState] = useState<Theme>('light'); // Default to light theme
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        // Prefer stored theme, but fall back to light if nothing is stored.
         const storedTheme = localStorage.getItem('tradeflow-theme') as Theme | null;
-        if (storedTheme) {
-            setThemeState(storedTheme);
-        }
+        setThemeState(storedTheme || 'light');
         setIsMounted(true);
     }, []);
 
@@ -29,11 +28,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             const root = window.document.documentElement;
             root.classList.remove('light', 'dark');
             root.classList.add(theme);
+            localStorage.setItem('tradeflow-theme', theme);
         }
     }, [theme, isMounted]);
 
     const setTheme = useCallback((newTheme: Theme) => {
-        localStorage.setItem('tradeflow-theme', newTheme);
         setThemeState(newTheme);
     }, []);
 
