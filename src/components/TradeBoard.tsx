@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+
+"use client";
+import React from "react";
 import ReactECharts from "echarts-for-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
@@ -6,15 +8,16 @@ import { useBalance } from "@/context/balance-context";
 import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
 import { SmartTrade } from "./smart-trade";
-
+import { MarketOverview } from "./market-overview";
 
 export default function TradeBoard() {
-  const { tradingPair, getLatestPrice, klineData: allKlineData } = useMarket();
+  const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
 
   const klineData = allKlineData[tradingPair] || [];
+  const currentSummary = summaryData.find(s => s.pair === tradingPair);
+  
   const [baseAsset, quoteAsset] = tradingPair.split('/');
-  const latestPrice = getLatestPrice(tradingPair);
 
   if (klineData.length === 0) {
     return <div>Loading market data...</div>;
@@ -59,6 +62,7 @@ export default function TradeBoard() {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
       <div className="lg:col-span-5 space-y-4">
+        <MarketOverview summary={currentSummary} />
 
         <div className="h-[400px] w-full bg-card rounded-lg p-2">
           <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
