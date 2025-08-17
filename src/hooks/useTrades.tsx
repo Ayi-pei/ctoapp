@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from "react";
 import { availablePairs } from "@/types";
 
-const streams = availablePairs.map(p => `${p.replace('/', '').toLowerCase()}@trade`);
+const streams = availablePairs.map(p => `${p.replace('/', '').toLowerCase()}@aggTrade`);
 
 export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<Record<string, any>>({});
@@ -18,26 +18,35 @@ export default function useTrades() {
           return;
       }
       
+      // Connecting to a single aggregated trade stream is more stable than subscribing to many individual streams,
+      // which can result in a URL that is too long for the server to handle.
       const ws = new WebSocket(
-        `wss://stream.binance.com:9443/stream?streams=${streams.join("/")}`
+        `wss://stream.binance.com:9443/ws/!aggTrade@arr`
       );
       wsRef.current = ws;
 
       ws.onopen = () => {
-          console.log(`✅ WS connected to ${streams.length} streams.`);
+          console.log(`✅ WS connected to aggregate trade stream.`);
       };
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
-          if (msg.data && msg.stream) {
-            const { stream, data } = msg;
-            // The state update is lightweight, so it's fine to do it this often.
-            // The heavy UI updates will be throttled in the context.
-            setTradesMap(prev => ({
-              ...prev,
-              [stream]: { price: parseFloat(data.p), quantity: parseFloat(data.q), time: data.T }
-            }));
+          const trades = JSON.parse(event.data);
+          // For an array of trades from the aggregate stream
+          if (Array.isArray(trades)) {
+            setTradesMap(prev => {
+                const newMap = { ...prev };
+                trades.forEach(trade => {
+                    // stream name is based on symbol, e.g., btcusdt@aggTrade
+                    const streamName = `${trade.s.toLowerCase()}@aggtrade`;
+                    newMap[streamName] = { 
+                        price: parseFloat(trade.p), 
+                        quantity: parseFloat(trade.q), 
+                        time: trade.T 
+                    };
+                });
+                return newMap;
+            });
           }
         } catch (err) {
           console.error("WS message parse error:", err);
