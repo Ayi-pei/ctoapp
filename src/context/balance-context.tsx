@@ -20,20 +20,20 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
     DOGE: { available: 0, frozen: 0},
     ADA: { available: 0, frozen: 0},
     SHIB: { available: 0, frozen: 0},
+    AVAX: { available: 0, frozen: 0 },
+    LINK: { available: 0, frozen: 0 },
+    DOT: { available: 0, frozen: 0 },
+    UNI: { available: 0, frozen: 0 },
+    TRX: { available: 0, frozen: 0 },
+    XLM: { available: 0, frozen: 0 },
+    VET: { available: 0, frozen: 0 },
+    EOS: { available: 0, frozen: 0 },
+    FIL: { available: 0, frozen: 0 },
+    ICP: { available: 0, frozen: 0 },
     XAU: { available: 0, frozen: 0},
     USD: { available: 0, frozen: 0},
     EUR: { available: 0, frozen: 0},
     GBP: { available: 0, frozen: 0},
-    AVAX: { available: 0, frozen: 0},
-    LINK: { available: 0, frozen: 0},
-    DOT: { available: 0, frozen: 0},
-    UNI: { available: 0, frozen: 0},
-    TRX: { available: 0, frozen: 0},
-    XLM: { available: 0, frozen: 0},
-    VET: { available: 0, frozen: 0},
-    EOS: { available: 0, frozen: 0},
-    FIL: { available: 0, frozen: 0},
-    ICP: { available: 0, frozen: 0},
 };
 
 const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
@@ -78,9 +78,6 @@ interface BalanceContextType {
   adjustFrozenBalance: (asset: string, amount: number, userId?: string) => void;
   confirmWithdrawal: (asset: string, amount: number, userId?: string) => void;
   revertWithdrawal: (asset: string, amount: number, userId?: string) => void;
-  handleCheckIn: () => Promise<{ success: boolean; reward: number; message: string }>;
-  lastCheckInDate?: string;
-  consecutiveCheckIns?: number;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -95,8 +92,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [commissionLogs, setCommissionLogs] = useState<CommissionLog[]>([]);
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
-  const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
-  const [consecutiveCheckIns, setConsecutiveCheckIns] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load user data from storage
@@ -109,8 +104,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setActiveContractTrades(data.activeContractTrades);
         setHistoricalTrades(data.historicalTrades);
         setCommissionLogs(data.commissionLogs);
-        setLastCheckInDate(data.lastCheckInDate);
-        setConsecutiveCheckIns(data.consecutiveCheckIns || 0);
     } else {
         // Logged out, clear all data
         setBalances(INITIAL_BALANCES_USER);
@@ -118,8 +111,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setActiveContractTrades([]);
         setHistoricalTrades([]);
         setCommissionLogs([]);
-        setLastCheckInDate(undefined);
-        setConsecutiveCheckIns(0);
     }
     setIsLoading(false);
   }, [user]);
@@ -133,12 +124,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
               activeContractTrades,
               historicalTrades,
               commissionLogs,
-              lastCheckInDate,
-              consecutiveCheckIns
           };
           saveUserData(user.id, dataToStore);
       }
-  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs, lastCheckInDate, consecutiveCheckIns]);
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs]);
 
 
   const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
@@ -499,45 +488,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
     return getUserData(userId).balances;
   }, []);
-
-  const handleCheckIn = useCallback(async () => {
-    if (!user) return { success: false, reward: 0, message: "用户未登录" };
-
-    const today = new Date().toISOString().split('T')[0];
-
-    if (lastCheckInDate === today) {
-        return { success: false, reward: 0, message: "今天已经签到过了" };
-    }
-    
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
-    let currentConsecutive = consecutiveCheckIns || 0;
-    
-    if (lastCheckInDate === yesterday) {
-        // Continuous check-in
-        currentConsecutive++;
-    } else {
-        // Interrupted, reset
-        currentConsecutive = 1;
-    }
-    
-    if (currentConsecutive > 7) {
-        currentConsecutive = 1;
-    }
-    
-    // Calculate reward
-    const baseReward = 0.5;
-    const reward = baseReward * Math.pow(1.5, currentConsecutive - 1);
-    
-    // Update balance
-    adjustBalance(user.id, 'USDT', reward);
-    
-    // Update check-in state
-    setLastCheckInDate(today);
-    setConsecutiveCheckIns(currentConsecutive);
-    
-    return { success: true, reward, message: `签到成功！获得 ${reward.toFixed(2)} USDT` };
-  }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance]);
   
   const value = { 
       balances, 
@@ -554,10 +504,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       adjustBalance,
       adjustFrozenBalance,
       confirmWithdrawal,
-      revertWithdrawal,
-      handleCheckIn,
-      lastCheckInDate,
-      consecutiveCheckIns,
+      revertWithdrawal
     };
 
   return (
