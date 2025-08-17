@@ -40,7 +40,7 @@ const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
 };
 
 type ApiState = {
-    [key: string]: { remaining: number };
+    [key: string]: { remaining: number, weight: number };
 }
 
 interface MarketContextType {
@@ -66,8 +66,8 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     
     // State to track API usage
     const [apiState, setApiState] = useState<ApiState>({
-        coingecko: { remaining: 10000 },
-        coinpaprika: { remaining: 20000 },
+        coingecko: { remaining: 10000, weight: 0.3 },
+        coinpaprika: { remaining: 20000, weight: 0.7 },
     });
 
     const changeTradingPair = (pair: string) => {
@@ -88,11 +88,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
 
     const selectApiSource = useCallback(() => {
-        // Find the API with the most remaining requests
         const availableApis = Object.entries(apiState).filter(([, state]) => state.remaining > 0);
         if (availableApis.length === 0) {
             console.warn("All API quotas exceeded.");
-            return null; // No available APIs
+            return null; 
         }
         
         const bestApi = availableApis.reduce((best, current) => {
@@ -124,10 +123,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     ids: ids.join(','),
                 }
             });
-
-            setApiState(prev => ({
+            
+             setApiState(prev => ({
                 ...prev,
-                [currentSource]: { remaining: prev[currentSource].remaining - 1 }
+                [currentSource]: { ...prev[currentSource], remaining: prev[currentSource].remaining - 1 }
             }));
 
             const newSummaryData = response.data as MarketSummary[];
@@ -151,7 +150,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 console.warn(`Quota likely exceeded for ${currentSource}. Setting remaining to 0.`);
                 setApiState(prev => ({
                     ...prev,
-                    [currentSource]: { remaining: 0 }
+                    [currentSource]: { ...prev[currentSource], remaining: 0 }
                 }));
 
                 // If this wasn't already a retry, try again with the next available source.
@@ -223,11 +222,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
             setSummaryData(prevSummary => 
                 prevSummary.map(item => {
+                    // 1. Check for immediate admin override (highest priority)
                     const adminOverride = adminOverrides[item.pair];
                     if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
+                        console.log(`[ADMIN OVERRIDE] Price for ${item.pair} set to ${adminOverride.overridePrice}`);
                         return { ...item, price: adminOverride.overridePrice };
                     }
                     
+                    // 2. Check for scheduled market overrides from settings
                     const pairSettings = settings[item.pair];
                     if (pairSettings?.marketOverrides) {
                          for (const override of pairSettings.marketOverrides) {
@@ -237,12 +239,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                             const endMinutes = endH * 60 + endM;
 
                             if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                                return { ...item, price: randomInRange(override.minPrice, override.maxPrice) };
+                                const newPrice = randomInRange(override.minPrice, override.maxPrice);
+                                console.log(`[SCHEDULED OVERRIDE] Price for ${item.pair} set to ${newPrice} (Range: ${override.minPrice}-${override.maxPrice})`);
+                                return { ...item, price: newPrice };
                             }
                         }
                     }
                     
-                    // Mock data generation only for non-crypto pairs
+                    // 3. For non-crypto pairs, generate mock data if no override is active
                     if (!CRYPTO_PAIRS.includes(item.pair)) {
                         const lastPrice = item.price || (item.pair.startsWith('XAU') ? 2300 : 1.1);
                         const volatility = item.pair.startsWith('XAU') ? 0.0005 : 0.0001;
@@ -258,11 +262,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         return { ...item, price: newPrice };
                     }
                     
+                    // 4. If it's a crypto pair and no overrides are active, return the item as is (fetched from API)
                     return item;
                 })
             );
 
-        }, 5000); // K-line simulation runs every 5 seconds
+        }, 5000); // This simulation/override check runs every 5 seconds
 
         return () => clearInterval(interval);
     }, [settings, adminOverrides]);
