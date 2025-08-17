@@ -105,12 +105,13 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     }, [addRequest]);
 
     const addWithdrawalRequest = useCallback((params: WithdrawalRequestParams) => {
+        if (!user) return;
         addRequest({
             type: 'withdrawal',
             ...params,
         });
-        adjustFrozenBalance(params.asset, params.amount);
-    }, [addRequest, adjustFrozenBalance]);
+        adjustFrozenBalance(params.asset, params.amount, user.id);
+    }, [user, addRequest, adjustFrozenBalance]);
 
     const addPasswordResetRequest = useCallback(async (newPassword: string) => {
         return new Promise<void>((resolve, reject) => {
@@ -200,3 +201,5 @@ export function useRequests() {
     }
     return context;
 }
+
+    

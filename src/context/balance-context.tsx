@@ -87,7 +87,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById } = useAuth();
-  const { data: marketData } = useMarket();
+  const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
@@ -246,9 +246,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const settleContractTrade = useCallback((tradeId: string) => {
     const trade = activeContractTrades.find(t => t.id === tradeId);
-    if (!trade || !marketData) return;
+    if (!trade) return;
 
-    const settlementPrice = marketData.summary.price;
+    const settlementPrice = getLatestPrice(trade.trading_pair);
     let outcome: 'win' | 'loss';
     
     if (trade.type === 'buy') { 
@@ -284,7 +284,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         title: `合约结算: ${outcome === 'win' ? '盈利' : '亏损'}`,
         description: `${trade.trading_pair} 合约已结算，盈亏: ${profit.toFixed(2)} ${quoteAsset}`
     });
-  }, [activeContractTrades, marketData, toast]);
+  }, [activeContractTrades, getLatestPrice, toast]);
 
   // Effect to handle contract trade settlement
   useEffect(() => {
@@ -375,7 +375,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }
 
   const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
-    if (!user || !marketData) return;
+    if (!user) return;
 
     if (user.is_frozen) {
         toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
@@ -383,6 +383,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
     
     const quoteAsset = tradingPair.split('/')[1];
+    const currentPrice = getLatestPrice(tradingPair);
 
      if (balances[quoteAsset].available < trade.amount) {
         toast({ variant: 'destructive', title: '下单失败', description: `可用 ${quoteAsset} 余额不足。` });
@@ -395,7 +396,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       trading_pair: tradingPair,
       type: trade.type,
       amount: trade.amount,
-      entry_price: marketData.summary.price,
+      entry_price: currentPrice,
       settlement_time: new Date(Date.now() + (trade.period * 1000)).toISOString(),
       period: trade.period,
       profit_rate: trade.profitRate,
@@ -419,7 +420,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   };
   
   const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
-     if (!user || !marketData) return;
+     if (!user) return;
     
      if (user.is_frozen) {
         toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
@@ -427,10 +428,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 
     const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
+    const currentPrice = getLatestPrice(trade.trading_pair);
     const fullTrade: SpotTrade = {
         id: `st-${Date.now()}`,
         type: trade.type,
         amount: trade.amount,
+        price: currentPrice,
         total: trade.total,
         user_id: user.id,
         trading_pair: trade.trading_pair,
@@ -493,40 +496,54 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
-      if (userId && user?.id !== userId) return; 
-      setBalances(prev => {
-        const newBalances = { ...prev };
-        newBalances[asset] = {
-            available: (newBalances[asset]?.available || 0) - amount,
-            frozen: (newBalances[asset]?.frozen || 0) + amount,
-        };
-        return newBalances;
-      })
+      const targetUserId = userId || user?.id;
+      if (!targetUserId) return;
 
+      const userData = getUserData(targetUserId);
+      const userBalances = userData.balances;
+      userBalances[asset] = {
+          available: (userBalances[asset]?.available || 0) - amount,
+          frozen: (userBalances[asset]?.frozen || 0) + amount,
+      };
+      saveUserData(targetUserId, { ...userData, balances: userBalances });
+      
+      if (user?.id === targetUserId) {
+          setBalances(userBalances);
+      }
   }, [user]);
   
   const confirmWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
-      if (userId && user?.id !== userId) return;
-      setBalances(prev => {
-        const newBalances = { ...prev };
-        newBalances[asset] = {
-            ...newBalances[asset],
-            frozen: (newBalances[asset]?.frozen || 0) - amount,
-        };
-        return newBalances;
-      });
+      const targetUserId = userId || user?.id;
+      if (!targetUserId) return;
+
+      const userData = getUserData(targetUserId);
+      const userBalances = userData.balances;
+      userBalances[asset] = {
+          ...userBalances[asset],
+          frozen: (userBalances[asset]?.frozen || 0) - amount,
+      };
+      saveUserData(targetUserId, { ...userData, balances: userBalances });
+
+      if (user?.id === targetUserId) {
+          setBalances(userBalances);
+      }
   }, [user]);
 
   const revertWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
-      if (userId && user?.id !== userId) return;
-      setBalances(prev => {
-        const newBalances = { ...prev };
-        newBalances[asset] = {
-            available: (newBalances[asset]?.available || 0) + amount,
-            frozen: (newBalances[asset]?.frozen || 0) - amount,
-        };
-        return newBalances;
-      });
+      const targetUserId = userId || user?.id;
+      if (!targetUserId) return;
+
+      const userData = getUserData(targetUserId);
+      const userBalances = userData.balances;
+      userBalances[asset] = {
+          available: (userBalances[asset]?.available || 0) + amount,
+          frozen: (userBalances[asset]?.frozen || 0) - amount,
+      };
+      saveUserData(targetUserId, { ...userData, balances: userBalances });
+
+      if (user?.id === targetUserId) {
+          setBalances(userBalances);
+      }
   }, [user]);
 
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
@@ -568,3 +585,5 @@ export function useBalance() {
   }
   return context;
 }
+
+    
