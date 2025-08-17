@@ -17,6 +17,22 @@ import { useMarket } from "@/context/market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
 
+const TreasureBowlIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-gem">
+      <path d="M3.85 8.62a4 4 0 0 1 4.78-4.78L8.94 4a1 1 0 0 1 .53.14l.82.55a1 1 0 0 0 .82 0l.82-.55a1 1 0 0 1 .53-.14l.31-.31a4 4 0 0 1 4.78 4.78l-.31.31a1 1 0 0 1-.14.53l-.55.82a1 1 0 0 0 0 .82l.55.82a1 1 0 0 1 .14.53l.31.31a4 4 0 0 1-4.78 4.78l-.31-.31a1 1 0 0 1-.53-.14l-.82-.55a1 1 0 0 0-.82 0l-.82.55a1 1 0 0 1-.53.14l-.31.31a4 4 0 0 1-4.78-4.78l.31-.31a1 1 0 0 1 .14-.53l.55-.82a1 1 0 0 0 0-.82l-.55-.82a1 1 0 0 1-.14-.53Z"/>
+      <path d="M12 22v-2.5"/>
+      <path d="m3.5 18.5 1.41-1.41"/>
+      <path d="M20.5 18.5-1.41-1.41"/>
+      <path d="m12 8.5 1.1-1.1"/>
+      <path d="M6.5 12.5 1.1 1.1"/>
+      <path d="m17.5 12.5 1.1-1.1"/>
+      <path d="M2 12h2.5"/>
+      <path d="M19.5 12H22"/>
+      <path d="m3.5 5.5 1.41 1.41"/>
+      <path d="M20.5 5.5-1.41 1.41"/>
+    </svg>
+  );
+
 
 export default function DashboardPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
@@ -34,7 +50,7 @@ export default function DashboardPage() {
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
-        { name: '富投宝', icon: Package, href: '/finance' },
+        { name: '富投宝', icon: TreasureBowlIcon, href: '/finance' },
     ];
     
     const getUsdtValue = (assetName: string, amount: number) => {
