@@ -184,15 +184,16 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const lastSimulatedPrice = simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
 
                 let nextPrice = lastSimulatedPrice;
+                let overrideApplied = false;
 
                 // 1. Highest Priority: Admin real-time override
                 if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
                     nextPrice = adminOverride.overridePrice;
+                    overrideApplied = true;
                     console.log(`[ADMIN OVERRIDE] Price for ${pair} set to ${nextPrice}`);
                 }
                 // 2. Second Priority: Scheduled market overrides from settings
                 else if (pairSettings?.marketOverrides?.length) {
-                    let isInOverride = false;
                     for (const override of pairSettings.marketOverrides) {
                         const [startH, startM] = override.startTime.split(':').map(Number);
                         const [endH, endM] = override.endTime.split(':').map(Number);
@@ -201,18 +202,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
                         if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
                             nextPrice = randomInRange(override.minPrice, override.maxPrice);
+                            overrideApplied = true;
                             console.log(`[SCHEDULED OVERRIDE] Price for ${pair} set to ${nextPrice} (Range: ${override.minPrice}-${override.maxPrice})`);
-                            isInOverride = true;
                             break;
                         }
-                    }
-                    if (isInOverride) {
-                       // Price is set, do nothing more
                     }
                 }
                 
                 // 3. Default Simulation Logic (if no overrides are active)
-                if (nextPrice === lastSimulatedPrice) {
+                if (!overrideApplied) {
                     const volatility = pairSettings?.volatility || 0.0005;
                     const trendStrength = 0.0001;
                     
