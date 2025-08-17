@@ -1,65 +1,44 @@
 
 "use client";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+export type AdminSettings = {
+  overrideActive: boolean;
+  overridePrice?: number;
+  overrideVolume?: number;
+  overrideDuration?: number; // 秒
+};
 
-interface AdminSettings {
-  adminOverrideActive: boolean;
-  overridePrice: number;
-  overrideDuration: number;
-}
-
-interface AdminSettingsContextType extends AdminSettings {
-  setAdminOverride: (price: number, duration: number) => void;
-  clearAdminOverride: () => void;
-}
+type AdminSettingsContextType = {
+  settings: AdminSettings;
+  setSettings: (settings: AdminSettings) => void;
+  startOverride: (price: number, volume: number, duration: number) => void;
+};
 
 const AdminSettingsContext = createContext<AdminSettingsContextType | undefined>(undefined);
 
+export const useAdminSettings = () => {
+  const ctx = useContext(AdminSettingsContext);
+  if (!ctx) throw new Error("useAdminSettings must be used within AdminSettingsProvider");
+  return ctx;
+};
+
 export const AdminSettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<AdminSettings>({
-    adminOverrideActive: false,
-    overridePrice: 0,
-    overrideDuration: 0,
+    overrideActive: false,
   });
 
-  const setAdminOverride = useCallback((price: number, duration: number) => {
-    setSettings({
-      adminOverrideActive: true,
-      overridePrice: price,
-      overrideDuration: duration,
-    });
-
+  // 启动临时干预
+  const startOverride = (price: number, volume: number, duration: number) => {
+    setSettings({ overrideActive: true, overridePrice: price, overrideVolume: volume, overrideDuration: duration });
     setTimeout(() => {
-      clearAdminOverride();
+      setSettings({ overrideActive: false });
     }, duration * 1000);
-  }, []);
-
-  const clearAdminOverride = useCallback(() => {
-    setSettings({
-      adminOverrideActive: false,
-      overridePrice: 0,
-      overrideDuration: 0,
-    });
-  }, []);
-
-  const value = {
-    ...settings,
-    setAdminOverride,
-    clearAdminOverride,
   };
 
   return (
-    <AdminSettingsContext.Provider value={value}>
+    <AdminSettingsContext.Provider value={{ settings, setSettings, startOverride }}>
       {children}
     </AdminSettingsContext.Provider>
   );
-};
-
-export const useAdminSettings = () => {
-  const context = useContext(AdminSettingsContext);
-  if (!context) {
-    throw new Error('useAdminSettings must be used within an AdminSettingsProvider');
-  }
-  return context;
 };

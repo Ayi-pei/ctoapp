@@ -5,6 +5,12 @@ export type PriceDataPoint = {
     price: number;
 };
 
+// Represents a single point for a K-line chart (closing price)
+export type KlineDataPoint = {
+    time: string;
+    price: number;
+};
+
 // Represents a single point for a candlestick chart (OHLC)
 export type OHLC = {
   time: number;
