@@ -1,47 +1,47 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import { useSettings } from './settings-context';
 import { useAdminSettings } from './admin-settings-context';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
-const API_SOURCES = ['coingecko'];
+const API_SOURCES = ['coingecko', 'coinpaprika'];
 
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-// Unified ID mapping for CoinGecko
-const apiIdMap: Record<string, { coingecko: string }> = {
-    'BTC/USDT': { coingecko: 'bitcoin' },
-    'ETH/USDT': { coingecko: 'ethereum' },
-    'SOL/USDT': { coingecko: 'solana' },
-    'XRP/USDT': { coingecko: 'ripple' },
-    'LTC/USDT': { coingecko: 'litecoin' },
-    'BNB/USDT': { coingecko: 'binancecoin' },
-    'MATIC/USDT': { coingecko: 'matic-network' },
-    'DOGE/USDT': { coingecko: 'dogecoin' },
-    'ADA/USDT': { coingecko: 'cardano' },
-    'SHIB/USDT': { coingecko: 'shiba-inu' },
-    'AVAX/USDT': { coingecko: 'avalanche-2' },
-    'LINK/USDT': { coingecko: 'chainlink' },
-    'DOT/USDT': { coingecko: 'polkadot' },
-    'UNI/USDT': { coingecko: 'uniswap' },
-    'TRX/USDT': { coingecko: 'tron' },
-    'XLM/USDT': { coingecko: 'stellar' },
-    'VET/USDT': { coingecko: 'vechain' },
-    'EOS/USDT': { coingecko: 'eos' },
-    'FIL/USDT': { coingecko: 'filecoin' },
-    'ICP/USDT': { coingecko: 'internet-computer' },
-    'XAU/USD': { coingecko: 'gold' },
-    'EUR/USD': { coingecko: 'eur' },
-    'GBP/USD': { coingecko: 'gbp' },
+// Unified ID mapping for different APIs
+const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
+    'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin' },
+    'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum' },
+    'SOL/USDT': { coingecko: 'solana', coinpaprika: 'sol-solana' },
+    'XRP/USDT': { coingecko: 'ripple', coinpaprika: 'xrp-xrp' },
+    'LTC/USDT': { coingecko: 'litecoin', coinpaprika: 'ltc-litecoin' },
+    'BNB/USDT': { coingecko: 'binancecoin', coinpaprika: 'bnb-binance-coin' },
+    'MATIC/USDT': { coingecko: 'matic-network', coinpaprika: 'matic-polygon' },
+    'DOGE/USDT': { coingecko: 'dogecoin', coinpaprika: 'doge-dogecoin' },
+    'ADA/USDT': { coingecko: 'cardano', coinpaprika: 'ada-cardano' },
+    'SHIB/USDT': { coingecko: 'shiba-inu', coinpaprika: 'shib-shiba-inu' },
+    'AVAX/USDT': { coingecko: 'avalanche-2', coinpaprika: 'avax-avalanche' },
+    'LINK/USDT': { coingecko: 'chainlink', coinpaprika: 'link-chainlink' },
+    'DOT/USDT': { coingecko: 'polkadot', coinpaprika: 'dot-polkadot' },
+    'UNI/USDT': { coingecko: 'uniswap', coinpaprika: 'uni-uniswap' },
+    'TRX/USDT': { coingecko: 'tron', coinpaprika: 'trx-tron' },
+    'XLM/USDT': { coingecko: 'stellar', coinpaprika: 'xlm-stellar' },
+    'VET/USDT': { coingecko: 'vechain', coinpaprika: 'vet-vechain' },
+    'EOS/USDT': { coingecko: 'eos', coinpaprika: 'eos-eos' },
+    'FIL/USDT': { coingecko: 'filecoin', coinpaprika: 'fil-filecoin' },
+    'ICP/USDT': { coingecko: 'internet-computer', coinpaprika: 'icp-internet-computer' },
 };
 
+type ApiState = {
+    [key: string]: { remaining: number };
+}
 
 interface MarketContextType {
     tradingPair: string;
@@ -55,9 +55,7 @@ interface MarketContextType {
     getLatestPrice: (pair: string) => number;
 }
 
-
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
-
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { settings } = useSettings();
@@ -66,12 +64,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     
+    // State to track API usage
+    const [apiState, setApiState] = useState<ApiState>({
+        coingecko: { remaining: 10000 },
+        coinpaprika: { remaining: 20000 },
+    });
+
     const changeTradingPair = (pair: string) => {
         if (availablePairs.includes(pair)) {
             setTradingPair(pair);
         }
     };
-    
+
     const getLatestPrice = useCallback((pair: string): number => {
         const kline = klineData[pair];
         if (kline && kline.length > 0) {
@@ -83,11 +87,30 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData, klineData]);
 
 
-    const fetchMarketData = useCallback(async (isRetry = false) => {
-        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
-        if (ids.length === 0) return;
+    const selectApiSource = () => {
+        // Find the API with the most remaining requests
+        const availableApis = Object.entries(apiState).filter(([, state]) => state.remaining > 0);
+        if (availableApis.length === 0) {
+            console.warn("All API quotas exceeded.");
+            return null; // No available APIs
+        }
         
-        const currentSource = API_SOURCES[0];
+        const bestApi = availableApis.reduce((best, current) => {
+            return current[1].remaining > best[1].remaining ? current : best;
+        });
+
+        return bestApi[0];
+    };
+
+
+    const fetchMarketData = useCallback(async () => {
+        const currentSource = selectApiSource();
+        if (!currentSource) return;
+
+        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
+        if (ids.length === 0) {
+            return;
+        }
 
         try {
             const response = await axios.get('/api/market-data', {
@@ -97,87 +120,108 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     ids: ids.join(','),
                 }
             });
-            
-            const newSummaryData = CRYPTO_PAIRS.map(pair => {
-                const id = apiIdMap[pair]?.coingecko;
-                const data = response.data.find((d: any) => d.id === id);
-                if (data) {
-                    return {
-                        pair: pair,
-                        price: data.current_price,
-                        change: data.price_change_percentage_24h,
-                        volume: data.total_volume,
-                        high: data.high_24h,
-                        low: data.low_24h,
-                        icon: data.image,
-                    };
-                }
-                return null;
-            }).filter(Boolean) as MarketSummary[];
-            
-            const nonCryptoSummary = [...GOLD_PAIRS, ...FOREX_PAIRS].map(pair => {
-                 const existing = summaryData.find(s => s.pair === pair);
-                 return existing || { pair, price: 0, change: 0, volume: 0, high: 0, low: 0, icon: '' };
-            });
 
-            setSummaryData([...newSummaryData, ...nonCryptoSummary]);
+            // Decrement remaining requests count on success
+            setApiState(prev => ({
+                ...prev,
+                [currentSource]: { remaining: prev[currentSource].remaining - 1 }
+            }));
+
+            const newSummaryData = response.data as MarketSummary[];
+            
+            setSummaryData(prev => {
+                const updatedData = [...prev];
+                newSummaryData.forEach(newItem => {
+                    const index = updatedData.findIndex(item => item.pair === newItem.pair);
+                    if (index !== -1) {
+                        updatedData[index] = newItem;
+                    } else {
+                        updatedData.push(newItem);
+                    }
+                });
+                return updatedData;
+            });
 
         } catch (error) {
             console.error(`Error fetching market summary from ${currentSource}:`, error);
+            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+                console.warn(`Quota likely exceeded for ${currentSource}. Setting remaining to 0.`);
+                setApiState(prev => ({
+                    ...prev,
+                    [currentSource]: { remaining: 0 }
+                }));
+            }
         }
-    }, [summaryData]);
+    }, [apiState]);
 
+    const fetchKlineData = useCallback(async (pair: string) => {
+        if (!CRYPTO_PAIRS.includes(pair)) {
+            return;
+        }
+        
+        const currentSource = selectApiSource();
+        if (!currentSource) return;
 
-     const fetchKlineData = useCallback(async (pair: string) => {
-        const coingeckoId = apiIdMap[pair]?.coingecko;
-        if (!coingeckoId) {
-            const lastPrice = getLatestPrice(pair) || randomInRange(1, 100);
-            const newData: OHLC[] = Array.from({ length: 50 }).map(() => {
-                const price = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
-                return { time: Date.now(), open: price, high: price, low: price, close: price };
-            });
-            setKlineData(prev => ({ ...prev, [pair]: newData }));
+        const apiId = apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']];
+        
+        if (!apiId) {
+            console.warn(`No API ID found for ${pair} on source ${currentSource}.`);
             return;
         };
 
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
-                    source: 'coingecko',
+                    source: currentSource,
                     endpoint: 'ohlc',
-                    pairId: coingeckoId,
+                    pairId: apiId,
                 }
             });
 
-            const newOhlcData: OHLC[] = response.data.map((d: number[]) => ({
-                time: d[0],
-                open: d[1],
-                high: d[2],
-                low: d[3],
-                close: d[4],
+            setApiState(prev => ({
+                ...prev,
+                [currentSource]: { remaining: prev[currentSource].remaining - 1 }
             }));
-            
+
+            const newOhlcData: OHLC[] = response.data;
             setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
 
         } catch (error) {
-            console.error(`Error fetching k-line data for ${pair} via proxy:`, error);
+            console.error(`Error fetching k-line data for ${pair} via ${currentSource} proxy:`, error);
+             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+                console.warn(`Quota likely exceeded for ${currentSource} on kline fetch. Setting remaining to 0.`);
+                setApiState(prev => ({
+                    ...prev,
+                    [currentSource]: { remaining: 0 }
+                }));
+            }
         }
-    }, [getLatestPrice]);
+    }, [apiState]);
 
+    // Initial data fetch
     useEffect(() => {
         fetchMarketData();
-        const marketInterval = setInterval(fetchMarketData, 300000); 
-        return () => clearInterval(marketInterval);
-    }, [fetchMarketData]);
-    
-    useEffect(() => {
-        availablePairs.forEach(pair => {
-            fetchKlineData(pair);
-        });
-    }, [fetchKlineData]);
+        availablePairs.forEach(pair => fetchKlineData(pair));
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
     useEffect(() => {
+        const marketInterval = setInterval(fetchMarketData, 60000); // Fetch market summary every minute
+        const klineInterval = setInterval(() => {
+             availablePairs.forEach(pair => {
+                fetchKlineData(pair);
+            });
+        }, 60000); // Fetch klines every minute
+
+        return () => {
+            clearInterval(marketInterval);
+            clearInterval(klineInterval);
+        };
+    }, [fetchMarketData, fetchKlineData]);
+
+
+    useEffect(() => {
+        // This effect generates mock data for non-crypto pairs and applies admin overrides
         const interval = setInterval(() => {
             const now = new Date();
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -203,14 +247,16 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         }
                     }
                     
+                    // Mock data generation only for non-crypto pairs
                     if (!CRYPTO_PAIRS.includes(item.pair)) {
-                        const lastPrice = item.price || randomInRange(1, 2000);
-                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.0005); 
+                        const lastPrice = item.price || (item.pair.startsWith('XAU') ? 2300 : 1.1);
+                        const volatility = item.pair.startsWith('XAU') ? 0.0005 : 0.0001;
+                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * volatility);
                         
                         setKlineData(prevKline => {
                             const pairKline = prevKline[item.pair] || [];
                             const newPoint = { time: Date.now(), open: lastPrice, high: Math.max(lastPrice, newPrice), low: Math.min(lastPrice, newPrice), close: newPrice };
-                            const updatedKline = [...pairKline.slice(-49), newPoint];
+                            const updatedKline = [...pairKline.slice(-99), newPoint];
                             return { ...prevKline, [item.pair]: updatedKline };
                         });
                         
@@ -221,7 +267,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 })
             );
 
-        }, 5000);
+        }, 5000); // K-line simulation runs every 5 seconds
 
         return () => clearInterval(interval);
     }, [settings, adminOverrides]);
