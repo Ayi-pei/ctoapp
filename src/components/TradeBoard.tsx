@@ -13,14 +13,14 @@ import { MarketOverview } from "./market-overview";
 import { Skeleton } from "./ui/skeleton";
 
 // Helper function to get computed style of a CSS variable
-const getCssVar = (variable: string) => {
-  if (typeof window === 'undefined') return '';
-  // Remove 'hsl(' and ')' and any spaces
-  const hslValues = getComputedStyle(document.documentElement)
-    .getPropertyValue(variable)
-    .replace(/hsl\(|\)|\s/g, '');
-  return hslValues;
-}
+const getCssVar = (variable: string): string[] => {
+    if (typeof window === 'undefined') return ['0', '0', '0'];
+    const style = getComputedStyle(document.documentElement);
+    const value = style.getPropertyValue(variable).trim();
+    // Assuming HSL format "H S% L%"
+    return value.replace(/%/g, '').split(' ');
+};
+
 
 export default function TradeBoard() {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
@@ -30,11 +30,12 @@ export default function TradeBoard() {
   const currentSummary = summaryData.find(s => s.pair === tradingPair);
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
-
-  const chartColorHsl = getCssVar('--chart-2');
-  const chartColorRgbaStart = `hsla(${chartColorHsl}, 0.3)`;
-  const chartColorRgbaEnd = `hsla(${chartColorHsl}, 0)`;
   
+  const [h, s, l] = getCssVar('--primary');
+  const chartColor = `hsl(${h}, ${s}%, ${l}%)`;
+  const chartAreaColorStart = `hsla(${h}, ${s}%, ${l}%, 0.3)`;
+  const chartAreaColorEnd = `hsla(${h}, ${s}%, ${l}%, 0)`;
+
   const klineOption = {
       backgroundColor: "transparent",
       tooltip: {
@@ -67,7 +68,7 @@ export default function TradeBoard() {
         smooth: true,
         showSymbol: false,
         lineStyle: {
-          color: `hsl(${chartColorHsl})`,
+          color: chartColor,
           width: 2,
         },
         areaStyle: {
@@ -78,9 +79,9 @@ export default function TradeBoard() {
             x2: 0,
             y2: 1,
             colorStops: [{
-                offset: 0, color: chartColorRgbaStart
+                offset: 0, color: chartAreaColorStart
             }, {
-                offset: 1, color: chartColorRgbaEnd
+                offset: 1, color: chartAreaColorEnd
             }]
           }
         },
