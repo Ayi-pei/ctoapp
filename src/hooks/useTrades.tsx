@@ -28,30 +28,32 @@ const STREAMS = [
 
 type TradeRaw = { price: number; quantity: number; time: number };
 
-export default function useTrades(intervalMs = 5000) {
+export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<Record<string, TradeRaw>>({});
-  const [displayedTrades, setDisplayedTrades] = useState<Record<string, TradeRaw>>({});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${STREAMS.join("/")}`);
+    const ws = new WebSocket(
+      `wss://stream.binance.com:9443/stream?streams=${STREAMS.join("/")}`
+    );
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
       try {
-        const { s: symbol, p: priceStr, q: qtyStr, T: time } = JSON.parse(event.data);
-        const stream = `${symbol.toLowerCase()}@trade`;
-        const price = parseFloat(priceStr);
-        const qty = parseFloat(qtyStr);
-        
-        // Update raw tradesMap (for real-time price list)
-        setTradesMap(prev => ({ ...prev, [stream]: { price, quantity: qty, time } }));
-
+        const { stream, data } = JSON.parse(event.data);
+        setTradesMap((prev) => ({
+          ...prev,
+          [stream]: {
+            price: parseFloat(data.p),
+            quantity: parseFloat(data.q),
+            time: data.T,
+          },
+        }));
       } catch (e) {
         console.warn("ws parse error", e);
       }
     };
-
+    
     ws.onopen = () => console.log("Binance WS connected");
     ws.onclose = () => console.log("Binance WS closed");
     ws.onerror = (err) => console.error("Binance WS err", err);
@@ -63,16 +65,5 @@ export default function useTrades(intervalMs = 5000) {
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-        setDisplayedTrades(tradesMap);
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [tradesMap, intervalMs]);
-
-
-  return {
-    displayedTrades,
-  };
+  return tradesMap;
 }

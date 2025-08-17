@@ -3,25 +3,29 @@ import useTrades from "../hooks/useTrades";
 import ReactECharts from "echarts-for-react";
 
 export default function TradeBoard() {
-  const { displayedTrades } = useTrades(5000); // 5s window
+  const tradesMap = useTrades(); // Raw, real-time data
+  const [displayedTrades, setDisplayedTrades] = useState<Record<string, any>>({});
+  const [klineData, setKlineData] = useState<Record<string, number[]>>({});
   const [balance, setBalance] = useState({ USDT: 1000 });
   const [holdings, setHoldings] = useState<Record<string, number>>({});
-  const [klineData, setKlineData] = useState<Record<string, number[]>>({});
 
-  const streams = Object.keys(displayedTrades).length ? Object.keys(displayedTrades) : ["btcusdt@trade"];
-
+  // 5-second interval timer to update UI data
   useEffect(() => {
     const timer = setInterval(() => {
-      Object.entries(displayedTrades).forEach(([stream, trade]) => {
-        setKlineData((prev) => ({
-          ...prev,
-          [stream]: [...(prev[stream]?.slice(-49) || []), trade.price], // Keep last 50
-        }));
+      setDisplayedTrades(tradesMap);
+      
+      Object.entries(tradesMap).forEach(([stream, trade]) => {
+        if (trade.price) {
+            setKlineData((prev) => ({
+                ...prev,
+                [stream]: [...(prev[stream]?.slice(-49) || []), trade.price], // Keep last 50
+            }));
+        }
       });
     }, 5000);
 
     return () => clearInterval(timer);
-  }, [displayedTrades]);
+  }, [tradesMap]);
 
 
   function klineOption(stream: string) {
@@ -56,9 +60,10 @@ export default function TradeBoard() {
     };
   }
 
+  // Buy logic uses the displayedTrades (5s snapshot)
   const handleBuy = (stream: string, amount: number) => {
     const trade = displayedTrades[stream];
-    if (!trade) {
+    if (!trade || !trade.price) {
         console.warn("No trade data for this stream yet");
         return;
     }
@@ -74,6 +79,8 @@ export default function TradeBoard() {
     }
   };
 
+  const streams = Object.keys(displayedTrades).length > 0 ? Object.keys(displayedTrades) : ["btcusdt@trade"];
+
   return (
     <div style={{ display: "flex", gap: 20, color: 'white', padding: '20px' }}>
       <div style={{ width: 420 }}>
@@ -85,7 +92,7 @@ export default function TradeBoard() {
             <div key={stream} style={{ display: "flex", justifyContent: "space-between", padding: 8, borderBottom: "1px solid #222" }}>
               <div>
                 <div style={{ fontWeight: 700 }}>{coin}</div>
-                <div style={{ color: "#aaa", fontSize: 12 }}>{trade ? new Date(trade.time).toLocaleTimeString() : "-"}</div>
+                <div style={{ color: "#aaa", fontSize: 12 }}>{trade?.time ? new Date(trade.time).toLocaleTimeString() : "-"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div>价格: {trade?.price ?? "-"}</div>
@@ -103,7 +110,7 @@ export default function TradeBoard() {
       </div>
 
       <div style={{ flex: 1 }}>
-        <h3>K 线图</h3>
+        <h3>K 线图（价格每 5s 更新）</h3>
         <div style={{ height: 360, width: '100%' }}>
           <ReactECharts option={klineOption("btcusdt@trade")} style={{ height: "100%" }} />
         </div>
