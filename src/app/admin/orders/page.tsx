@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon } from "lucide-react"
+import { Calendar as CalendarIcon, ArrowRight } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Popover,
@@ -180,8 +181,8 @@ export default function AdminOrdersPage() {
         if (order.orderTypeText === 'contract') {
             const contract = order as ContractTrade;
             if (contract.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
-            if (contract.outcome === 'win') return <Badge variant="outline" className="text-green-500">盈利</Badge>;
-            if (contract.outcome === 'loss') return <Badge variant="outline" className="text-red-500">亏损</Badge>;
+            if (contract.outcome === 'win') return <Badge variant="outline" className="text-green-500">盈利 (+{(contract.profit || 0).toFixed(2)})</Badge>;
+            if (contract.outcome === 'loss') return <Badge variant="outline" className="text-red-500">亏损 ({(contract.profit || 0).toFixed(2)})</Badge>;
         }
         if (order.orderTypeText === 'investment') {
             const investment = order as Investment;
@@ -204,6 +205,29 @@ export default function AdminOrdersPage() {
         if ('product_name' in order) return order.product_name;
         return 'N/A';
     }
+
+    const getPriceInfo = (order: FormattedOrder) => {
+        if (order.orderTypeText === 'spot') {
+            const spotTrade = order as SpotTrade;
+            return <span>{spotTrade.price.toFixed(4)}</span>;
+        }
+        if (order.orderTypeText === 'contract') {
+            const contractTrade = order as ContractTrade;
+            if (contractTrade.status === 'settled' && contractTrade.settlement_price) {
+                return (
+                    <div className="flex items-center gap-1">
+                        <span>{contractTrade.entry_price.toFixed(4)}</span>
+                        <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                        <span className={contractTrade.outcome === 'win' ? 'text-green-500' : 'text-red-500'}>
+                            {contractTrade.settlement_price.toFixed(4)}
+                        </span>
+                    </div>
+                );
+            }
+            return <span>{contractTrade.entry_price.toFixed(4)}</span>;
+        }
+        return <span className="text-muted-foreground">-</span>;
+    };
 
 
     return (
@@ -291,6 +315,7 @@ export default function AdminOrdersPage() {
                                     <TableHead>产品/交易对</TableHead>
                                     <TableHead>类型</TableHead>
                                     <TableHead>方向</TableHead>
+                                    <TableHead>价格 (入场/出场)</TableHead>
                                     <TableHead>金额 (USDT)</TableHead>
                                     <TableHead>状态/结果</TableHead>
                                     <TableHead>时间</TableHead>
@@ -313,13 +338,14 @@ export default function AdminOrdersPage() {
                                         <TableCell>
                                             {getOrderDirection(order)}
                                         </TableCell>
+                                        <TableCell className="text-xs">{getPriceInfo(order)}</TableCell>
                                         <TableCell>{getOrderAmount(order)}</TableCell>
                                         <TableCell>{getStatusBadge(order)}</TableCell>
                                         <TableCell>{new Date(order.created_at).toLocaleString()}</TableCell>
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center text-muted-foreground h-24">
+                                        <TableCell colSpan={8} className="text-center text-muted-foreground h-24">
                                             没有找到符合条件的订单记录。
                                         </TableCell>
                                     </TableRow>
@@ -332,3 +358,4 @@ export default function AdminOrdersPage() {
         </DashboardLayout>
     );
 }
+
