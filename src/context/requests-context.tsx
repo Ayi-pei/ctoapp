@@ -118,7 +118,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
                 reject(new Error("User not logged in."));
                 return;
             }
-            const request: Omit<PasswordResetRequest, 'id' | 'status' | 'created_at' | 'user_id'> = {
+            const request: Omit<PasswordResetRequest, 'id' | 'status' | 'created_at' | 'user_id' | 'user'> = {
                 type: 'password_reset',
                 new_password: newPassword,
             };

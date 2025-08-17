@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -105,7 +106,7 @@ export default function AdminRequestsPage() {
                                         <TableCell className="text-xs">
                                             {'amount' in r && r.amount ? (
                                                 `金额: ${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}`
-                                            ) : ('new_password' in r ? '新密码: ***' : '')}
+                                            ) : ('new_password' in r ? '请求重置密码' : '')}
                                             {'address' in r && r.address && <p className='truncate max-w-[150px]'>地址: {r.address}</p>}
                                             {'transaction_hash' in r && r.transaction_hash && <p className='truncate max-w-[150px]'>凭证: {r.transaction_hash}</p>}
                                         </TableCell>

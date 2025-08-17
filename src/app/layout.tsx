@@ -12,6 +12,7 @@ import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
 import { TradeDataProvider } from '@/context/trade-data-context';
+import { ThemeProvider } from '@/context/theme-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -29,28 +30,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased bg-background text-foreground">
-        <AuthProvider>
-          <SystemSettingsProvider>
-            <SettingsProvider>
-              <InvestmentSettingsProvider>
-                <TradeDataProvider>
-                  <MarketDataProvider>
-                    <BalanceProvider>
-                      <RequestsProvider>
-                        <AnnouncementsProvider>
-                          {children}
-                        </AnnouncementsProvider>
-                      </RequestsProvider>
-                    </BalanceProvider>
-                  </MarketDataProvider>
-                </TradeDataProvider>
-              </InvestmentSettingsProvider>
-            </SettingsProvider>
-          </SystemSettingsProvider>
-        </AuthProvider>
-        <Toaster />
+        <ThemeProvider>
+          <AuthProvider>
+            <SystemSettingsProvider>
+              <SettingsProvider>
+                <InvestmentSettingsProvider>
+                  <TradeDataProvider>
+                    <MarketDataProvider>
+                      <BalanceProvider>
+                        <RequestsProvider>
+                          <AnnouncementsProvider>
+                            {children}
+                          </AnnouncementsProvider>
+                        </RequestsProvider>
+                      </BalanceProvider>
+                    </MarketDataProvider>
+                  </TradeDataProvider>
+                </InvestmentSettingsProvider>
+              </SettingsProvider>
+            </SystemSettingsProvider>
+          </AuthProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
