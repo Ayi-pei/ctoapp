@@ -6,13 +6,14 @@ import { useEffect, useState, useRef } from "react";
 export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<Record<string, any>>({});
   const wsRef = useRef<WebSocket | null>(null);
+  const isUnmounting = useRef(false);
 
   useEffect(() => {
     // If a connection already exists, do nothing.
-    // This prevents the effect from creating a new connection on every re-render in Strict Mode.
     if (wsRef.current) {
         return;
     }
+    isUnmounting.current = false;
 
     const ws = new WebSocket(
       `wss://stream.binance.com:9443/ws/!aggTrade@arr`
@@ -50,22 +51,24 @@ export default function useTrades() {
     };
 
     ws.onclose = (ev) => {
-      // We only log the closure, but we don't attempt to reconnect here.
-      // The useEffect cleanup and setup will handle creating a new connection if needed.
+      if (isUnmounting.current) {
+        console.log("WebSocket connection closed intentionally on component unmount.");
+        return;
+      }
       if (!ev.wasClean) {
           console.warn("⚠️ WS connection closed unexpectedly", ev);
       }
     };
 
-    // The cleanup function, called when the component unmounts or before the effect re-runs.
     return () => {
+      isUnmounting.current = true;
       if (wsRef.current) {
         wsRef.current.close(1000, "Component unmounted");
-        wsRef.current = null; // Ensure the ref is cleared on cleanup.
+        wsRef.current = null;
         console.log("WebSocket connection closed on component cleanup.");
       }
     };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount.
+  }, []);
 
   return tradesMap;
 }

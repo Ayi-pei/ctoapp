@@ -89,12 +89,51 @@ export default function AdminUsersPage() {
         setGeneratedCode(`${timestamp}${randomNumbers}`);
     };
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
-        toast({
-            title: "已复制",
-            description: "邀请码已成功复制到剪贴板。",
-        });
+    const copyToClipboard = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast({
+                title: "已复制",
+                description: "邀请码已成功复制到剪贴板。",
+            });
+        } catch (err) {
+            // Fallback for browsers that don't support the Clipboard API or when it's blocked.
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Avoid scrolling to bottom
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    toast({
+                        title: "已复制",
+                        description: "邀请码已成功复制到剪贴板。",
+                    });
+                } else {
+                     toast({
+                        variant: "destructive",
+                        title: "复制失败",
+                        description: "无法将邀请码复制到剪贴板。",
+                    });
+                }
+            } catch (err) {
+                 toast({
+                    variant: "destructive",
+                    title: "复制失败",
+                    description: "无法将邀请码复制到剪贴板。",
+                });
+            }
+
+            document.body.removeChild(textArea);
+        }
     };
 
 

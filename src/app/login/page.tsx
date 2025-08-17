@@ -13,13 +13,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import AuthLayout from '@/components/auth-layout';
 
 const loginSchema = z.object({
   username: z.string().min(1, '请输入用户名'),
   password: z.string().min(1, '请输入密码'),
 });
 
-export function LoginForm() {
+export default function LoginPage() {
   const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -64,6 +65,7 @@ export function LoginForm() {
   // This prevents the login form from flashing on the screen for already logged-in users.
   if (isLoading || isAuthenticated) {
      return (
+        <AuthLayout>
         <Card className="w-full max-w-md">
             <CardHeader>
                 <Skeleton className="h-8 w-24 mx-auto" />
@@ -80,11 +82,13 @@ export function LoginForm() {
                 <Skeleton className="h-10 w-full" />
             </CardContent>
         </Card>
+        </AuthLayout>
      )
   }
 
   // Render the login form if not authenticated and not loading.
   return (
+      <AuthLayout>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">登录</CardTitle>
@@ -131,5 +135,6 @@ export function LoginForm() {
           </div>
         </CardContent>
       </Card>
+      </AuthLayout>
   );
 }
