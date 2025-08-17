@@ -93,10 +93,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData, klineData]);
 
 
-    const fetchMarketData = useCallback(async () => {
-        let currentIndex = apiSourceIndex;
+    const fetchMarketData = useCallback(async (isRetry = false) => {
+        let currentIndex = 0;
+        if (typeof window !== 'undefined') {
+            const savedIndex = localStorage.getItem(API_SOURCE_KEY);
+            currentIndex = savedIndex ? parseInt(savedIndex, 10) : 0;
+        }
+
         const currentSource = API_SOURCES[currentIndex];
-        
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource]).filter(Boolean);
         if (ids.length === 0) return;
 
@@ -137,14 +141,19 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             console.error(`Error fetching market summary from ${currentSource}:`, error);
 
             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+                if(isRetry) {
+                     console.error(`All API sources failed. Waiting for next interval.`);
+                     return;
+                }
                 console.warn(`API quota likely exceeded for ${currentSource}. Switching to next source.`);
                 const nextIndex = (currentIndex + 1) % API_SOURCES.length;
                 setApiSourceIndex(nextIndex);
-                // Save the new index to localStorage
                 localStorage.setItem(API_SOURCE_KEY, nextIndex.toString());
+                // Immediately retry with the new source
+                fetchMarketData(true); 
             }
         }
-    }, [apiSourceIndex, summaryData]);
+    }, [summaryData]);
 
 
      const fetchKlineData = useCallback(async (pair: string) => {
@@ -277,5 +286,3 @@ export function useMarket() {
     }
     return context;
 }
-
-    
