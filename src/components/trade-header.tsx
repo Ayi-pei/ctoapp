@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Home } from "lucide-react";
+import { User, LogOut, Home, CandlestickChart } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
@@ -28,15 +28,10 @@ import { useState, useEffect } from 'react';
 
 // Simple SVG Logo component
 const Logo = () => (
-    <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{stopColor: 'hsl(var(--primary))', stopOpacity:1}} />
-            <stop offset="100%" style={{stopColor: 'hsl(var(--accent))', stopOpacity:1}} />
-            </linearGradient>
-        </defs>
-        <path d="M50 0C22.38 0 0 22.38 0 50C0 77.62 22.38 100 50 100C77.62 100 100 77.62 100 50C100 22.38 77.62 0 50 0ZM72.5 65.5C70.36 65.5 68.5 67.36 68.5 69.5C68.5 71.64 70.36 73.5 72.5 73.5C74.64 73.5 76.5 71.64 76.5 69.5C76.5 67.36 74.64 65.5 72.5 65.5ZM50 24C41.16 24 34 31.16 34 40C34 48.84 41.16 56 50 56C58.84 56 66 48.84 66 40C66 31.16 58.84 24 50 24Z" fill="url(#grad1)"/>
-    </svg>
+    <div className="flex items-center gap-2 text-primary">
+       <CandlestickChart className="h-7 w-7" />
+       <span className="font-semibold text-lg text-foreground">TradeFlow</span>
+    </div>
 )
 
 
@@ -54,7 +49,7 @@ export function TradeHeader() {
   }, [user]);
 
   const isTradePage = pathname === '/trade';
-  const showLogo = ['/dashboard', '/market', '/finance', '/promotion', '/download'].includes(pathname);
+  const showLogo = ['/dashboard', '/market', '/finance', '/promotion', '/download', '/staking', '/announcements', '/coming-soon'].some(p => pathname.startsWith(p));
   const showTitle = !isTradePage && !showLogo;
   
   const getTitle = () => {
@@ -70,7 +65,7 @@ export function TradeHeader() {
   return (
     <header className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 h-16">
       <div className="flex items-center gap-3 w-1/3">
-         {showLogo ? <Logo /> : <div className="md:hidden w-6 h-6" />}
+         {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
       
       <div className="flex-grow flex justify-center w-1/3">
