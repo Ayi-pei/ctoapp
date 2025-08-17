@@ -4,15 +4,13 @@ import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { InvestmentDialog } from "@/components/investment-dialog";
 import { HourlyInvestmentDialog } from "@/components/hourly-investment-dialog"; 
 import { useBalance } from "@/context/balance-context";
 import type { Investment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Archive, Clock, Calendar, Percent, CreditCard } from "lucide-react";
+import { ChevronLeft, Archive, Clock, Percent, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +22,10 @@ const Header = () => {
     const router = useRouter();
     const { investments } = useBalance();
 
-    const activeInvestments = investments.filter(inv => inv.status === 'active');
+    const activeInvestments = investments.filter(inv => inv.status === 'active' && inv.category === 'finance');
     const totalActiveAmount = activeInvestments.reduce((acc, inv) => acc + inv.amount, 0);
 
-    const settledInvestments = investments.filter(inv => inv.status === 'settled');
+    const settledInvestments = investments.filter(inv => inv.status === 'settled' && inv.category === 'finance');
     const totalProfit = settledInvestments.reduce((acc, inv) => acc + (inv.profit || 0), 0);
     
     return (
@@ -37,7 +35,7 @@ const Header = () => {
                     <ChevronLeft />
                 </Button>
                 <div className="text-center">
-                    <p className="text-lg font-bold">托管订单</p>
+                    <p className="text-lg font-bold">理财订单</p>
                 </div>
                 <div className="absolute right-0 flex gap-2 text-sm">
                     <Button variant="link" className="text-foreground p-0 h-auto">规则</Button>
@@ -45,7 +43,7 @@ const Header = () => {
             </div>
             <div className="grid grid-cols-3 text-center pt-4">
                 <div>
-                    <p className="text-muted-foreground text-sm">正在托管订单</p>
+                    <p className="text-muted-foreground text-sm">托管中订单</p>
                     <p className="font-semibold">{activeInvestments.length}</p>
                 </div>
                 <div>
@@ -62,13 +60,10 @@ const Header = () => {
 };
 
 
-const MiningProductCard = ({ product, purchasedCount, onInvest }: { 
+const FinanceProductCard = ({ product, onInvest }: { 
     product: InvestmentProduct, 
-    purchasedCount: number,
     onInvest: (product: InvestmentProduct) => void 
 }) => {
-    const isDaily = product.productType === 'daily';
-
     return (
         <Card className="bg-card/80">
             <CardContent className="p-4">
@@ -77,9 +72,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                         <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
                         <div>
                             <h4 className="font-semibold">{product.name}</h4>
-                            {product.productType === 'hourly' && (
-                                <p className="text-xs text-yellow-400">限时开放: {product.activeStartTime} - {product.activeEndTime}</p>
-                            )}
+                            <p className="text-xs text-yellow-400">限时开放: {product.activeStartTime} - {product.activeEndTime}</p>
                         </div>
                     </div>
                     <Button 
@@ -92,34 +85,17 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                 <div className="grid grid-cols-3 text-center mt-4 text-sm">
                     <div>
                         <p className="text-muted-foreground flex items-center justify-center gap-1"><CreditCard className="w-3 h-3" /> 每份金额</p>
-                        <p className="font-semibold">{product.price}</p>
+                        <p className="font-semibold">{product.price} USDT起</p>
                     </div>
                     <div>
-                        <p className="text-muted-foreground flex items-center justify-center gap-1">{isDaily ? <Calendar className="w-3 h-3"/> : <Clock className="w-3 h-3"/>} 周期</p>
-                        {isDaily ? (
-                             <p className="font-semibold">{product.period} 天</p>
-                        ) : (
-                             <p className="font-semibold">{product.hourlyTiers?.map(t => t.hours).join('/')} 小时</p>
-                        )}
+                        <p className="text-muted-foreground flex items-center justify-center gap-1"><Clock className="w-3 h-3"/> 周期</p>
+                        <p className="font-semibold">{product.hourlyTiers?.map(t => t.hours).join('/')} 小时</p>
                     </div>
                      <div>
                         <p className="text-muted-foreground flex items-center justify-center gap-1"><Percent className="w-3 h-3"/> 收益率</p>
-                         {isDaily ? (
-                            <p className="font-semibold">{(product.dailyRate ?? 0) * 100}% / 天</p>
-                         ): (
-                            <p className="font-semibold">{product.hourlyTiers?.map(t => `${(t.rate * 100).toFixed(1)}%`).join('/')}</p>
-                         )}
-                    </div>
+                        <p className="font-semibold">{product.hourlyTiers?.map(t => `${(t.rate * 100).toFixed(1)}%`).join('/')}</p>
+                     </div>
                 </div>
-                {isDaily && (
-                    <div className="mt-4">
-                        <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                            <span>已购买次数: {purchasedCount}</span>
-                            <span>最大购买次数: {product.maxPurchase}</span>
-                        </div>
-                    </div>
-                )}
             </CardContent>
         </Card>
     )
@@ -169,47 +145,18 @@ const InvestmentList = ({ investments }: { investments: Investment[] }) => (
 
 export default function FinancePage() {
     const { toast } = useToast();
-    const { balances, addDailyInvestment, addHourlyInvestment, investments } = useBalance();
+    const { balances, addHourlyInvestment, investments } = useBalance();
     const { investmentProducts } = useInvestmentSettings();
     const [selectedProduct, setSelectedProduct] = useState<InvestmentProduct | null>(null);
-    const [isDailyInvestmentDialogOpen, setIsDailyInvestmentDialogOpen] = useState(false);
     const [isHourlyInvestmentDialogOpen, setIsHourlyInvestmentDialogOpen] = useState(false);
+    
+    const financeProducts = investmentProducts.filter(p => p.category === 'finance');
     
     const handleInvestClick = (product: InvestmentProduct) => {
         setSelectedProduct(product);
-        if (product.productType === 'hourly') {
-            setIsHourlyInvestmentDialogOpen(true);
-        } else {
-            setIsDailyInvestmentDialogOpen(true);
-        }
+        setIsHourlyInvestmentDialogOpen(true);
     }
-    
-    const handleConfirmDailyInvestment = async () => {
-        if (!selectedProduct || !selectedProduct.dailyRate || !selectedProduct.period) return;
-        
-        const success = await addDailyInvestment({
-            productName: selectedProduct.name,
-            amount: selectedProduct.price,
-            dailyRate: selectedProduct.dailyRate,
-            period: selectedProduct.period
-        });
-        
-        if (success) {
-            toast({
-                title: "购买成功",
-                description: `您已成功购买 ${selectedProduct.name}。`
-            });
-        } else {
-             toast({
-                variant: "destructive",
-                title: "购买失败",
-                description: "您的余额不足。"
-            });
-        }
-        setIsDailyInvestmentDialogOpen(false);
-        setSelectedProduct(null);
-    }
-    
+
     const handleConfirmHourlyInvestment = async (amount: number, duration: number) => {
         if (!selectedProduct || !selectedProduct.hourlyTiers) return;
 
@@ -217,7 +164,8 @@ export default function FinancePage() {
             productName: selectedProduct.name,
             amount,
             durationHours: duration,
-            tiers: selectedProduct.hourlyTiers
+            tiers: selectedProduct.hourlyTiers,
+            category: 'finance'
         });
          if (success) {
             toast({
@@ -234,13 +182,9 @@ export default function FinancePage() {
         setIsHourlyInvestmentDialogOpen(false);
         setSelectedProduct(null);
     }
-
-    const getPurchasedCount = (productName: string) => {
-        return investments.filter(inv => inv.product_name === productName).length;
-    }
-
-    const activeInvestments = investments.filter(i => i.status === 'active');
-    const settledInvestments = investments.filter(i => i.status === 'settled');
+    
+    const activeInvestments = investments.filter(i => i.status === 'active' && i.category === 'finance');
+    const settledInvestments = investments.filter(i => i.status === 'settled' && i.category === 'finance');
 
     return (
         <DashboardLayout>
@@ -253,11 +197,10 @@ export default function FinancePage() {
                         <TabsTrigger value="settled">已完成订单 ({settledInvestments.length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value="products" className="space-y-4 mt-4">
-                       {investmentProducts.map(product => (
-                            <MiningProductCard 
+                       {financeProducts.map(product => (
+                            <FinanceProductCard 
                                 key={product.id} 
                                 product={product}
-                                purchasedCount={getPurchasedCount(product.name)}
                                 onInvest={handleInvestClick}
                             />
                         ))}
@@ -278,20 +221,7 @@ export default function FinancePage() {
                     </TabsContent>
                 </Tabs>
             </div>
-             {selectedProduct && selectedProduct.productType === 'daily' && (
-                <InvestmentDialog
-                    isOpen={isDailyInvestmentDialogOpen}
-                    onOpenChange={setIsDailyInvestmentDialogOpen}
-                    product={{
-                        name: selectedProduct.name,
-                        minInvestment: selectedProduct.price,
-                        maxInvestment: selectedProduct.price, // Each purchase is one unit
-                    }}
-                    balance={balances['USDT']?.available || 0}
-                    onConfirm={handleConfirmDailyInvestment}
-                />
-            )}
-            {selectedProduct && selectedProduct.productType === 'hourly' && (
+            {selectedProduct && (
                 <HourlyInvestmentDialog
                     isOpen={isHourlyInvestmentDialogOpen}
                     onOpenChange={setIsHourlyInvestmentDialogOpen}

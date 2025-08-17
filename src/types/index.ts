@@ -1,5 +1,4 @@
 
-
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -159,6 +158,7 @@ export type Investment = {
     created_at: string;
     settlement_date: string;
     status: 'active' | 'settled';
+    category: 'staking' | 'finance';
     profit?: number;
     // For different product types
     productType?: 'daily' | 'hourly';

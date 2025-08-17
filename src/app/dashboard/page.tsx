@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRightLeft, Download, Landmark, Gift, Share2, Megaphone, Repeat, Scale, User, BarChart, Users, Gem } from "lucide-react";
+import { ArrowRightLeft, Download, Landmark, Gift, Users, Megaphone, Repeat, Scale, User, BarChart, Gem } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -34,7 +34,7 @@ export default function DashboardPage() {
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
-        { name: '质押挖矿', icon: Gem, href: '/finance' },
+        { name: '质押挖矿', icon: Gem, href: '/staking' },
     ];
     
     const getUsdtValue = (assetName: string, amount: number) => {

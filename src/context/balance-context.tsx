@@ -50,6 +50,7 @@ type DailyInvestmentParams = {
     amount: number;
     dailyRate: number;
     period: number;
+    category: 'staking' | 'finance';
 }
 
 type HourlyInvestmentParams = {
@@ -57,6 +58,7 @@ type HourlyInvestmentParams = {
     amount: number;
     durationHours: number;
     tiers: InvestmentTier[];
+    category: 'staking' | 'finance';
 }
 
 
@@ -316,7 +318,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
 
     const newInvestment: Investment = {
-        id: `inv-${Date.now()}`,
+        id: `inv-d-${Date.now()}`,
         user_id: user.id,
         product_name: params.productName,
         amount: params.amount,
@@ -325,7 +327,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         daily_rate: params.dailyRate,
         period: params.period,
         status: 'active',
-        productType: 'daily'
+        productType: 'daily',
+        category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;
@@ -364,6 +367,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         productType: 'hourly',
         duration_hours: params.durationHours,
         hourly_rate: selectedTier.rate,
+        category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;

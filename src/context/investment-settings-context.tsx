@@ -18,6 +18,7 @@ export type InvestmentProduct = {
     period?: number; // Optional for daily products
     maxPurchase: number;
     imgSrc: string;
+    category: 'staking' | 'finance'; // Added category
     // New fields for hourly products
     productType?: 'daily' | 'hourly';
     activeStartTime?: string; // e.g., "18:00"
@@ -34,6 +35,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
         price: 1, // Min investment amount
         maxPurchase: 999, 
         imgSrc: "/images/futoubao.png",
+        category: 'finance',
         productType: 'hourly',
         activeStartTime: '18:00',
         activeEndTime: '06:00',
@@ -43,11 +45,11 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
             { hours: 6, rate: 0.025 }, // 2.5%
         ]
     },
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png", productType: 'daily' },
-    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png", productType: 'daily' },
-    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png", productType: 'daily' },
-    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/canaan-miner.png", productType: 'daily' },
-    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png", productType: 'daily' },
+    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/asic-miner.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/avalon-miner.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/microbt-miner.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/canaan-miner.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/bitmain-miner.png", category: 'staking', productType: 'daily' },
 ];
 
 
@@ -114,7 +116,8 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             period: 30,
             maxPurchase: 1,
             imgSrc: '/images/placeholder-miner.png',
-            productType: 'daily'
+            productType: 'daily',
+            category: 'staking', // Default to staking, admin can change it
         };
         setInvestmentProducts(prev => [...prev, newProduct]);
     }, []);
