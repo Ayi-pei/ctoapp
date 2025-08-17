@@ -39,6 +39,7 @@ const getBasePrice = (pair: string) => {
 }
 
 // ----- MOCK DATA GENERATION (for development and admin override) -----
+// This function is updated to generate data that more closely matches the Binance API structure.
 const generateInitialDataForPair = (pair: string) => {
   const basePrice = getBasePrice(pair);
   const now = new Date();
@@ -57,43 +58,52 @@ const generateInitialDataForPair = (pair: string) => {
   
   const currentPrice = lastPrice;
 
-  // Order book data
+  // Order book data, structured like the API response
   const asks: Order[] = [];
   const bids: Order[] = [];
   let askPrice = currentPrice * 1.0005;
   let bidPrice = currentPrice * 0.9995;
-  let cumulativeAskSize = 0;
-  let cumulativeBidSize = 0;
-
+  
+  // The API response sorts asks from lowest to highest price
   for (let i = 0; i < 20; i++) {
-    const askSize = randomInRange(0.01, 2);
-    cumulativeAskSize += askSize;
-    asks.push({ price: askPrice, size: askSize, total: cumulativeAskSize });
+    const size = randomInRange(0.01, 2);
+    asks.push({ price: askPrice, size: size, total: 0 }); // total will be calculated later
     askPrice *= randomInRange(1.0001, 1.0003);
+  }
 
-    const bidSize = randomInRange(0.01, 2);
-    cumulativeBidSize += bidSize;
-    bids.push({ price: bidPrice, size: bidSize, total: cumulativeBidSize });
+  // The API response sorts bids from highest to lowest price
+  for (let i = 0; i < 20; i++) {
+    const size = randomInRange(0.01, 2);
+    bids.push({ price: bidPrice, size: size, total: 0 }); // total will be calculated later
     bidPrice *= randomInRange(0.9997, 0.9999);
   }
-   bids.sort((a: Order, b: Order) => b.price - a.price);
-   asks.sort((a: Order, b: Order) => a.price - b.price);
+  
+  // Calculate cumulative total for UI display
+  let cumulativeAskSize = 0;
+  const finalAsks = asks.map(o => {
+      cumulativeAskSize += o.size;
+      return { ...o, total: cumulativeAskSize };
+  });
+
+  let cumulativeBidSize = 0;
+  const finalBids = bids.map(o => {
+      cumulativeBidSize += o.size;
+      return { ...o, total: cumulativeBidSize };
+  });
 
 
-  // Trade history data
+  // Trade history data, structured like the API response
   const trades: MarketTrade[] = [];
   for (let i = 0; i < 30; i++) {
-    const type = Math.random() > 0.5 ? 'buy' : 'sell';
-    const price = currentPrice * randomInRange(0.999, 1.001);
-    const amount = randomInRange(0.01, 1.5);
     trades.push({
       id: `trade-${Date.now()}-${i}`,
-      type,
-      price,
-      amount,
+      type: Math.random() > 0.5 ? 'buy' : 'sell', // isBuyerMaker equivalent
+      price: currentPrice * randomInRange(0.999, 1.001),
+      amount: randomInRange(0.01, 1.5), // qty
       time: formatTime(new Date(now.getTime() - randomInRange(1, 600) * 1000)),
     });
   }
+  // Sort by time, most recent first
   trades.sort((a, b) => new Date(`1970-01-01T${b.time}Z`).getTime() - new Date(`1970-01-01T${a.time}Z`).getTime());
   
   const price24hAgo = basePrice * randomInRange(0.95, 1.05);
@@ -106,7 +116,7 @@ const generateInitialDataForPair = (pair: string) => {
 
   return { 
       priceData, 
-      orderBook: { asks, bids }, 
+      orderBook: { asks: finalAsks, bids: finalBids }, 
       trades,
       summary: {
           pair,
