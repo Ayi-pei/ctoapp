@@ -19,6 +19,7 @@ import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
+const availableAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 
 const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset, onSave }: { 
