@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import { useSettings } from './settings-context';
 import { useAdminSettings } from './admin-settings-context';
@@ -15,7 +15,6 @@ const API_SOURCES = ['coingecko', 'coinpaprika'];
 
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-// Unified ID mapping for different APIs
 const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
     'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin' },
     'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum' },
@@ -40,7 +39,7 @@ const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
 };
 
 type ApiState = {
-    [key: string]: { remaining: number, weight: number };
+    [key: string]: { remaining: number; weight: number };
 }
 
 interface MarketContextType {
@@ -63,57 +62,27 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    
-    // State to track API usage
-    const [apiState, setApiState] = useState<ApiState>({
-        coingecko: { remaining: 10000, weight: 0.3 },
-        coinpaprika: { remaining: 20000, weight: 0.7 },
-    });
+    const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>({});
+
+    const [apiSourceIndex, setApiSourceIndex] = useState(0);
 
     const changeTradingPair = (pair: string) => {
         if (availablePairs.includes(pair)) {
             setTradingPair(pair);
         }
     };
-
+    
+    // THIS IS THE NEW SOURCE OF TRUTH FOR ALL TRADING LOGIC
     const getLatestPrice = useCallback((pair: string): number => {
-        const kline = klineData[pair];
-        if (kline && kline.length > 0) {
-            return kline[kline.length - 1].close;
-        }
-
-        const summary = summaryData.find(s => s.pair === pair);
-        return summary?.price || 0;
-    }, [summaryData, klineData]);
-
-
-    const selectApiSource = useCallback(() => {
-        const availableApis = Object.entries(apiState).filter(([, state]) => state.remaining > 0);
-        if (availableApis.length === 0) {
-            console.warn("All API quotas exceeded.");
-            return null; 
-        }
-        
-        const bestApi = availableApis.reduce((best, current) => {
-            return current[1].remaining > best[1].remaining ? current : best;
-        });
-
-        return bestApi[0];
-    }, [apiState]);
+        return simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
+    }, [simulatedPrices, summaryData]);
 
 
     const fetchMarketData = useCallback(async (isRetry = false) => {
-        const currentSource = selectApiSource();
-        if (!currentSource) {
-            if (!isRetry) console.error("All API sources are exhausted.");
-            return;
-        };
-
+        const currentSource = API_SOURCES[apiSourceIndex];
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
         
-        if (ids.length === 0) {
-            return;
-        }
+        if (ids.length === 0) return;
 
         try {
             const response = await axios.get('/api/market-data', {
@@ -123,11 +92,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     ids: ids.join(','),
                 }
             });
-            
-             setApiState(prev => ({
-                ...prev,
-                [currentSource]: { ...prev[currentSource], remaining: prev[currentSource].remaining - 1 }
-            }));
 
             const newSummaryData = response.data as MarketSummary[];
             
@@ -135,8 +99,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const updatedData = [...prev];
                 newSummaryData.forEach(newItem => {
                     const index = updatedData.findIndex(item => item.pair === newItem.pair);
+                    const existingItem = updatedData[index];
+
+                    // Initialize simulated price if it doesn't exist
+                    setSimulatedPrices(prevPrices => {
+                        if (!prevPrices[newItem.pair]) {
+                            return { ...prevPrices, [newItem.pair]: newItem.price };
+                        }
+                        return prevPrices;
+                    });
+                    
                     if (index !== -1) {
-                        updatedData[index] = newItem;
+                        updatedData[index] = { ...existingItem, ...newItem};
                     } else {
                         updatedData.push(newItem);
                     }
@@ -146,34 +120,22 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         } catch (error) {
             console.error(`Error fetching market summary from ${currentSource}:`, error);
-            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403 || error.response?.status === 402)) {
-                console.warn(`Quota likely exceeded for ${currentSource}. Setting remaining to 0.`);
-                setApiState(prev => ({
-                    ...prev,
-                    [currentSource]: { ...prev[currentSource], remaining: 0 }
-                }));
-
-                // If this wasn't already a retry, try again with the next available source.
+            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
                 if (!isRetry) {
-                    console.log("Retrying with next available API source...");
-                    fetchMarketData(true);
+                    setApiSourceIndex(prev => (prev + 1) % API_SOURCES.length);
+                    setTimeout(() => fetchMarketData(true), 1000); 
                 }
             }
         }
-    }, [selectApiSource]);
+    }, [apiSourceIndex]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
-        if (!CRYPTO_PAIRS.includes(pair)) {
-            return;
-        }
+        if (!CRYPTO_PAIRS.includes(pair)) return;
         
-        const currentSource = 'coingecko'; // OHLC data only from coingecko to avoid paid API issues
+        const currentSource = 'coingecko';
         const coingeckoId = apiIdMap[pair]?.coingecko;
         
-        if (!coingeckoId) {
-            console.warn(`No CoinGecko API ID found for ${pair}.`);
-            return;
-        };
+        if (!coingeckoId) return;
 
         try {
             const response = await axios.get('/api/market-data', {
@@ -192,20 +154,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // Initial data fetch
-    useEffect(() => {
-        fetchMarketData();
-        availablePairs.forEach(pair => fetchKlineData(pair));
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-
     useEffect(() => {
         const marketInterval = setInterval(fetchMarketData, 60000); // Fetch market summary every minute
         const klineInterval = setInterval(() => {
-             availablePairs.forEach(pair => {
-                fetchKlineData(pair);
-            });
-        }, 60000); // Fetch klines every minute
+             availablePairs.forEach(pair => fetchKlineData(pair));
+        }, 300000); // Fetch klines every 5 minutes is enough for visuals
+
+        fetchMarketData();
+        availablePairs.forEach(pair => fetchKlineData(pair));
 
         return () => {
             clearInterval(marketInterval);
@@ -214,63 +170,74 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [fetchMarketData, fetchKlineData]);
 
 
+    // Second-by-second simulation engine
     useEffect(() => {
-        // This effect generates mock data for non-crypto pairs and applies admin overrides
-        const interval = setInterval(() => {
+        const simulationInterval = setInterval(() => {
             const now = new Date();
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-            setSummaryData(prevSummary => 
-                prevSummary.map(item => {
-                    // 1. Check for immediate admin override (highest priority)
-                    const adminOverride = adminOverrides[item.pair];
-                    if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
-                        console.log(`[ADMIN OVERRIDE] Price for ${item.pair} set to ${adminOverride.overridePrice}`);
-                        return { ...item, price: adminOverride.overridePrice };
-                    }
-                    
-                    // 2. Check for scheduled market overrides from settings
-                    const pairSettings = settings[item.pair];
-                    if (pairSettings?.marketOverrides) {
-                         for (const override of pairSettings.marketOverrides) {
-                            const [startH, startM] = override.startTime.split(':').map(Number);
-                            const [endH, endM] = override.endTime.split(':').map(Number);
-                            const startMinutes = startH * 60 + startM;
-                            const endMinutes = endH * 60 + endM;
+            const newPrices: Record<string, number> = {};
 
-                            if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                                const newPrice = randomInRange(override.minPrice, override.maxPrice);
-                                console.log(`[SCHEDULED OVERRIDE] Price for ${item.pair} set to ${newPrice} (Range: ${override.minPrice}-${override.maxPrice})`);
-                                return { ...item, price: newPrice };
-                            }
+            availablePairs.forEach(pair => {
+                const adminOverride = adminOverrides[pair];
+                const pairSettings = settings[pair];
+                const lastSimulatedPrice = simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
+
+                let nextPrice = lastSimulatedPrice;
+
+                // 1. Highest Priority: Admin real-time override
+                if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
+                    nextPrice = adminOverride.overridePrice;
+                    console.log(`[ADMIN OVERRIDE] Price for ${pair} set to ${nextPrice}`);
+                }
+                // 2. Second Priority: Scheduled market overrides from settings
+                else if (pairSettings?.marketOverrides?.length) {
+                    let isInOverride = false;
+                    for (const override of pairSettings.marketOverrides) {
+                        const [startH, startM] = override.startTime.split(':').map(Number);
+                        const [endH, endM] = override.endTime.split(':').map(Number);
+                        const startMinutes = startH * 60 + startM;
+                        const endMinutes = endH * 60 + endM;
+
+                        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                            nextPrice = randomInRange(override.minPrice, override.maxPrice);
+                            console.log(`[SCHEDULED OVERRIDE] Price for ${pair} set to ${nextPrice} (Range: ${override.minPrice}-${override.maxPrice})`);
+                            isInOverride = true;
+                            break;
                         }
                     }
-                    
-                    // 3. For non-crypto pairs, generate mock data if no override is active
-                    if (!CRYPTO_PAIRS.includes(item.pair)) {
-                        const lastPrice = item.price || (item.pair.startsWith('XAU') ? 2300 : 1.1);
-                        const volatility = item.pair.startsWith('XAU') ? 0.0005 : 0.0001;
-                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * volatility);
-                        
-                        setKlineData(prevKline => {
-                            const pairKline = prevKline[item.pair] || [];
-                            const newPoint = { time: Date.now(), open: lastPrice, high: Math.max(lastPrice, newPrice), low: Math.min(lastPrice, newPrice), close: newPrice };
-                            const updatedKline = [...pairKline.slice(-99), newPoint];
-                            return { ...prevKline, [item.pair]: updatedKline };
-                        });
-                        
-                        return { ...item, price: newPrice };
+                    if (isInOverride) {
+                       // Price is set, do nothing more
                     }
+                }
+                
+                // 3. Default Simulation Logic (if no overrides are active)
+                if (nextPrice === lastSimulatedPrice) {
+                    const volatility = pairSettings?.volatility || 0.0005;
+                    const trendStrength = 0.0001;
                     
-                    // 4. If it's a crypto pair and no overrides are active, return the item as is (fetched from API)
-                    return item;
-                })
-            );
+                    let trendEffect = 0;
+                    if (pairSettings?.trend === 'up') trendEffect = trendStrength;
+                    if (pairSettings?.trend === 'down') trendEffect = -trendStrength;
+                    
+                    const randomFactor = (Math.random() - 0.5) * volatility;
+                    nextPrice = lastSimulatedPrice * (1 + trendEffect + randomFactor);
+                }
 
-        }, 5000); // This simulation/override check runs every 5 seconds
+                // For non-crypto pairs, ensure a baseline price if it's 0
+                if (!CRYPTO_PAIRS.includes(pair) && nextPrice === 0) {
+                     nextPrice = pair.startsWith('XAU') ? 2300 : 1.1;
+                }
+                
+                newPrices[pair] = nextPrice;
+            });
+            
+            setSimulatedPrices(prev => ({...prev, ...newPrices}));
 
-        return () => clearInterval(interval);
-    }, [settings, adminOverrides]);
+        }, 1000); // Run simulation every second
+
+        return () => clearInterval(simulationInterval);
+    }, [settings, adminOverrides, simulatedPrices, summaryData]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
