@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
+import { useTradeData } from "@/context/trade-data-context";
 import { Clock, ListTodo, Trash2 } from "lucide-react";
 
 type ScheduledTrade = {
@@ -19,13 +20,14 @@ type ScheduledTrade = {
     timeoutId: NodeJS.Timeout;
 };
 
-type AIAssistantProps = {
+type SmartTradeProps = {
     tradingPair: string;
 };
 
-export function AIAssistant({ tradingPair }: AIAssistantProps) {
+export function SmartTrade({ tradingPair }: SmartTradeProps) {
   const { toast } = useToast();
-  const { placeContractTrade, balances } = useBalance();
+  const { balances } = useBalance();
+  const { handleTrade } = useTradeData();
   const quoteAsset = tradingPair.split('/')[1];
 
   const [amount, setAmount] = useState("");
@@ -33,7 +35,6 @@ export function AIAssistant({ tradingPair }: AIAssistantProps) {
   const [scheduledTrades, setScheduledTrades] = useState<ScheduledTrade[]>([]);
 
   useEffect(() => {
-    // Cleanup timeouts when component unmounts
     return () => {
       scheduledTrades.forEach(trade => clearTimeout(trade.timeoutId));
     };
@@ -57,20 +58,10 @@ export function AIAssistant({ tradingPair }: AIAssistantProps) {
       return;
     }
 
-    if (numericAmount > (balances[quoteAsset]?.available || 0)) {
-        toast({ variant: "destructive", title: "设置失败", description: `您的可用${quoteAsset}余额不足。` });
-        return;
-    }
-    
     const timeUntilExecution = executionDate.getTime() - new Date().getTime();
     
     const timeoutId = setTimeout(() => {
-        placeContractTrade({
-            type: type,
-            amount: numericAmount,
-            period: 30, // Default period for scheduled trade
-            profitRate: 0.85, // Default profit rate
-        }, tradingPair);
+        handleTrade(type, tradingPair.split('/')[0], numericAmount);
         
         toast({
           title: "计划交易已执行",
@@ -110,11 +101,9 @@ export function AIAssistant({ tradingPair }: AIAssistantProps) {
     }
   }
   
-  // Set default time to 5 minutes in the future
   const getdefaultTime = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() + 5);
-    // Format for datetime-local input: YYYY-MM-DDTHH:mm
     const year = now.getFullYear();
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     const day = now.getDate().toString().padStart(2, '0');
@@ -130,8 +119,8 @@ export function AIAssistant({ tradingPair }: AIAssistantProps) {
   return (
     <Card>
         <CardHeader>
-            <CardTitle>计划交易</CardTitle>
-            <CardDescription>设定一个未来的精确时间点，系统将自动为您执行秒合约交易。</CardDescription>
+            <CardTitle>智能交易</CardTitle>
+            <CardDescription>以用户当前时间为基准至24小时内，可预设买入数量，预选币种，定时自动买入，也支持相应的定时抛售。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div>
@@ -156,11 +145,11 @@ export function AIAssistant({ tradingPair }: AIAssistantProps) {
             <div className="grid grid-cols-2 gap-4">
                  <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600 hover:bg-green-700">
                     <Clock className="mr-2 h-4 w-4" />
-                    定时买涨
+                    智投预购
                 </Button>
                 <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600 hover:bg-red-700">
                     <Clock className="mr-2 h-4 w-4" />
-                    定时买跌
+                    审时抛售
                 </Button>
             </div>
             {scheduledTrades.length > 0 && (

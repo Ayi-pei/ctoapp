@@ -24,6 +24,16 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
     USD: { available: 0, frozen: 0},
     EUR: { available: 0, frozen: 0},
     GBP: { available: 0, frozen: 0},
+    AVAX: { available: 0, frozen: 0},
+    LINK: { available: 0, frozen: 0},
+    DOT: { available: 0, frozen: 0},
+    UNI: { available: 0, frozen: 0},
+    TRX: { available: 0, frozen: 0},
+    XLM: { available: 0, frozen: 0},
+    VET: { available: 0, frozen: 0},
+    EOS: { available: 0, frozen: 0},
+    FIL: { available: 0, frozen: 0},
+    ICP: { available: 0, frozen: 0},
 };
 
 const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
