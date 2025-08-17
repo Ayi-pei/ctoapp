@@ -358,7 +358,7 @@ export default function AdminSettingsPage() {
         updateTimedMarketPreset
     } = useSettings();
 
-    const { systemSettings, updateDepositAddress, toggleContractTrading } = useSystemSettings();
+    const { systemSettings, updateDepositAddress } = useSystemSettings();
     const { investmentProducts, addProduct, removeProduct, updateProduct } = useInvestmentSettings();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
@@ -391,21 +391,6 @@ export default function AdminSettingsPage() {
                                 <CardDescription>影响整个平台的全局配置</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="space-y-4 p-4 border rounded-lg">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="global-contract-trading" className="font-semibold">秒合约总开关</Label>
-                                         <Switch
-                                            id="global-contract-trading"
-                                            checked={systemSettings.isContractTradingEnabled}
-                                            onCheckedChange={toggleContractTrading}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        关闭后，整个平台将无法进行新的秒合约交易。
-                                    </p>
-                                </div>
-                                
-                                <Separator />
                                 
                                 {supportedAssets.map((asset) => (
                                     <div className="space-y-2" key={asset}>
