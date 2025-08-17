@@ -7,7 +7,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Users, BarChart2, Download, Archive } from "lucide-react";
+import { Copy, Users, Download, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest } from "@/types";

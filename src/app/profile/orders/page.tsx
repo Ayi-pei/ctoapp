@@ -24,7 +24,7 @@ export default function ProfileOrdersPage() {
     const { historicalTrades } = useBalance();
     const { requests } = useRequests();
 
-    const userRequests = requests.filter(r => r.user_id === user?.id && (r.type === 'deposit' || r.type === 'withdrawal'));
+    const userRequests = requests.filter(r => r.user_id === user?.id && (r.type === 'deposit' || r.type === 'withdrawal')) as Transaction[];
 
     const allHistory: OrderHistoryItem[] = [...historicalTrades, ...userRequests].sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

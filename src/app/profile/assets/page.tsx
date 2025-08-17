@@ -1,15 +1,13 @@
 
 "use client";
 
-import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBalance } from "@/context/balance-context";
-import type { Investment } from "@/context/balance-context";
-import Image from "next/image";
+import type { Investment } from "@/types";
 import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -53,15 +51,15 @@ const InvestmentList = ({ investments }: { investments: Investment[] }) => (
                     <TableRow>
                         <TableHead>产品名称</TableHead>
                         <TableHead className="text-right">投资金额 (USDT)</TableHead>
-                        <TableHead className="text-right">投资日期</TableHead>
+                        <TableHead className="text-right">状态</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {investments.map(inv => (
                         <TableRow key={inv.id}>
-                            <TableCell className="font-medium">{inv.productName}</TableCell>
+                            <TableCell className="font-medium">{inv.product_name}</TableCell>
                             <TableCell className="text-right">{inv.amount.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{inv.date}</TableCell>
+                             <TableCell className="text-right">{inv.status}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -120,5 +118,3 @@ export default function AssetsPage() {
         </DashboardLayout>
     );
 }
-
-
