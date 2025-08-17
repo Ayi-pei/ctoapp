@@ -8,6 +8,7 @@ export default function useTrades() {
   const streamName = "btcusdt@trade";
 
   useEffect(() => {
+    // This is the correct, simplified URL for a single stream.
     const url = `wss://stream.binance.com:9443/ws/${streamName}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
