@@ -9,6 +9,7 @@ import { SpotOrderForm } from "./spot-order-form";
 import { MarketOverview } from "./market-overview";
 import { SmartTrade } from "./smart-trade";
 import { Button } from "./ui/button";
+import { useAuth } from "@/context/auth-context";
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +22,7 @@ export default function TradeBoard() {
   const { tradingPair, getLatestPrice, klineData: allKlineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
   const { startOverride } = useAdminSettings();
+  const { isAdmin } = useAuth();
 
   const klineData = allKlineData[tradingPair] || [];
   const [baseAsset, quoteAsset] = tradingPair.split('/');
@@ -104,14 +106,16 @@ export default function TradeBoard() {
         </Tabs>
 
         {/* Admin 控制示例按钮 */}
-        <div className="mt-2">
-          <Button
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-            onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
-          >
-            Admin +100 临时干预 10 秒
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="mt-2">
+              <Button
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
+              >
+                Admin +100 临时干预 10 秒
+              </Button>
+          </div>
+        )}
       </div>
     </div>
   );
