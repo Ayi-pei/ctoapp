@@ -105,21 +105,12 @@ export default function TradeBoard() {
 
         {/* Admin 控制示例按钮 */}
         <div className="mt-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                  onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
-                >
-                  Admin +100 临时干预 10 秒
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>这是一个管理员测试功能。点击后，此交易对的价格将在10秒内被强制固定为 "当前价格 + 100"，用于模拟市场干预。</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+            onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
+          >
+            Admin +100 临时干预 10 秒
+          </Button>
         </div>
       </div>
     </div>
