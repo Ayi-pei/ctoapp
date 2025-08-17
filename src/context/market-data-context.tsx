@@ -35,13 +35,13 @@ const apiIdMap: Record<string, { coingecko: string, tatum: string }> = {
     'EOS/USDT': { coingecko: 'eos', tatum: 'EOS' },
     'FIL/USDT': { coingecko: 'filecoin', tatum: 'FIL' },
     'ICP/USDT': { coingecko: 'internet-computer', tatum: 'ICP' },
-    // Non-crypto pairs might not have tatum ids
     'XAU/USD': { coingecko: 'gold', tatum: '' },
     'EUR/USD': { coingecko: 'eur', tatum: '' },
     'GBP/USD': { coingecko: 'gbp', tatum: '' },
 };
 
-const API_SOURCES = ['coingecko', 'tatum'];
+const API_SOURCES: ('coingecko' | 'tatum')[] = ['coingecko', 'tatum'];
+const API_SOURCE_KEY = 'tradeflow_api_source_index';
 
 
 interface MarketContextType {
@@ -67,6 +67,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     const [apiSourceIndex, setApiSourceIndex] = useState(0);
+
+    useEffect(() => {
+        // On initial load, get the saved API index from localStorage
+        const savedIndex = localStorage.getItem(API_SOURCE_KEY);
+        if (savedIndex) {
+            setApiSourceIndex(parseInt(savedIndex, 10));
+        }
+    }, []);
     
     const changeTradingPair = (pair: string) => {
         if (availablePairs.includes(pair)) {
@@ -86,9 +94,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
 
     const fetchMarketData = useCallback(async () => {
-        const currentSource = API_SOURCES[apiSourceIndex];
+        let currentIndex = apiSourceIndex;
+        const currentSource = API_SOURCES[currentIndex];
         
-        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap[typeof pair]]).filter(Boolean);
+        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource]).filter(Boolean);
         if (ids.length === 0) return;
 
         try {
@@ -101,8 +110,8 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             });
             
             const newSummaryData = CRYPTO_PAIRS.map(pair => {
-                const id = apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap[typeof pair]];
-                const data = response.data.find((d: any) => d.id === id);
+                const id = apiIdMap[pair]?.[currentSource];
+                const data = response.data.find((d: any) => d.id === id || d.symbol?.toLowerCase() === id.toLowerCase());
                 if (data) {
                     return {
                         pair: pair,
@@ -125,10 +134,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData([...newSummaryData, ...nonCryptoSummary]);
 
         } catch (error) {
-            console.error(`Error fetching market summary via proxy from ${currentSource}:`, error);
-        } finally {
-             // Rotate to the next API source for the next fetch
-            setApiSourceIndex((prevIndex) => (prevIndex + 1) % API_SOURCES.length);
+            console.error(`Error fetching market summary from ${currentSource}:`, error);
+
+            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+                console.warn(`API quota likely exceeded for ${currentSource}. Switching to next source.`);
+                const nextIndex = (currentIndex + 1) % API_SOURCES.length;
+                setApiSourceIndex(nextIndex);
+                // Save the new index to localStorage
+                localStorage.setItem(API_SOURCE_KEY, nextIndex.toString());
+            }
         }
     }, [apiSourceIndex, summaryData]);
 
@@ -148,7 +162,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
-                    source: 'coingecko', // OHLC data is more consistent from a single source
+                    source: 'coingecko',
                     endpoint: 'ohlc',
                     pairId: coingeckoId,
                 }
@@ -171,14 +185,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         fetchMarketData();
-        // Fetch every 1 minute
-        const marketInterval = setInterval(fetchMarketData, 60000); 
+        const marketInterval = setInterval(fetchMarketData, 300000); 
         return () => clearInterval(marketInterval);
     }, [fetchMarketData]);
     
     useEffect(() => {
-        fetchKlineData(tradingPair);
-    }, [tradingPair, fetchKlineData]);
+        availablePairs.forEach(pair => {
+            fetchKlineData(pair);
+        });
+    }, [fetchKlineData]);
 
 
     useEffect(() => {
@@ -206,11 +221,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                             }
                         }
                     }
-
-                    // Simulate real-time ticks for non-crypto pairs as they aren't fetched frequently
+                    
                     if (!CRYPTO_PAIRS.includes(item.pair)) {
                         const lastPrice = item.price || randomInRange(1, 2000);
-                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.0005); // Smaller volatility for forex/gold
+                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.0005); 
                         
                         setKlineData(prevKline => {
                             const pairKline = prevKline[item.pair] || [];
@@ -226,7 +240,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 })
             );
 
-        }, 5000); // 5-second interval for smooth UI updates
+        }, 5000);
 
         return () => clearInterval(interval);
     }, [settings, adminOverrides]);
@@ -263,3 +277,5 @@ export function useMarket() {
     }
     return context;
 }
+
+    
