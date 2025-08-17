@@ -31,6 +31,16 @@ const getBasePrice = (pair: string) => {
         case 'DOGE/USDT': return 0.15;
         case 'ADA/USDT': return 0.45;
         case 'SHIB/USDT': return 0.000025;
+        case 'AVAX/USDT': return 35;
+        case 'LINK/USDT': return 18;
+        case 'DOT/USDT': return 7;
+        case 'UNI/USDT': return 10;
+        case 'TRX/USDT': return 0.12;
+        case 'XLM/USDT': return 0.11;
+        case 'VET/USDT': return 0.035;
+        case 'EOS/USDT': return 0.8;
+        case 'FIL/USDT': return 6;
+        case 'ICP/USDT': return 12;
         case 'XAU/USD': return 2330;
         case 'EUR/USD': return 1.07;
         case 'GBP/USD': return 1.25;
@@ -157,7 +167,9 @@ export const useMarketData = () => {
   useEffect(() => {
     if (!isInitialised || !Object.keys(settings).length) return;
 
-    const interval = setInterval(async () => {
+    let timeoutId: NodeJS.Timeout;
+
+    const runUpdate = async () => {
         const now = new Date();
         const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -239,10 +251,19 @@ export const useMarketData = () => {
             });
             return newAllData;
         });
+        
+        // Schedule the next update
+        const currentHour = new Date().getHours();
+        // Night time is 22:00 (10 PM) to 05:59 (5:59 AM)
+        const isNight = currentHour >= 22 || currentHour < 6;
+        const delay = isNight ? 15000 : 5000; // 15 seconds at night, 5 seconds during the day
+        
+        timeoutId = setTimeout(runUpdate, delay);
+    };
 
-    }, 5000); 
+    runUpdate();
 
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeoutId);
   }, [isInitialised, tradingPair, settings, timedMarketPresets]);
 
   const data = allData.get(tradingPair) || null;
@@ -264,4 +285,3 @@ export const useMarketData = () => {
       forexSummaryData,
     };
 };
-
