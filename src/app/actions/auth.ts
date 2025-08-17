@@ -2,7 +2,6 @@
 
 import type { User } from '@/types';
 
-const USERS_STORAGE_KEY = 'tradeflow_users';
 const ADMIN_USER_ID = 'admin_user_001';
 
 // This is a server-only function to securely check admin credentials

@@ -1,83 +1,78 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import useTrades from '@/hooks/useTrades';
-import { useBalance } from '@/context/balance-context';
-import { useToast } from '@/hooks/use-toast';
+import { OHLC, TradeRaw } from '@/types';
 
-// Type definitions
-type TradeRaw = { price: number; quantity: number; time: number };
-type OHLC = { open: number; high: number; low: number; close: number; time: number };
-
-// Context Type
 interface TradeDataContextType {
-  displayedTrades: Record<string, TradeRaw>;
-  klineData: Record<string, OHLC[]>;
-  handleTrade: (type: 'buy' | 'sell', stream: string, amount: number) => void;
+    displayedTrades: Record<string, TradeRaw>;
+    klineData: Record<string, OHLC[]>;
+    getLatestPrice: (tradingPair: string) => number | undefined;
 }
 
 const TradeDataContext = createContext<TradeDataContextType | undefined>(undefined);
 
-// Provider Component
 export function TradeDataProvider({ children }: { children: ReactNode }) {
-  const tradesMap = useTrades();
-  const { placeContractTrade, balances } = useBalance();
-  const { toast } = useToast();
+    const tradesMap = useTrades();
+    const [displayedTrades, setDisplayedTrades] = useState<Record<string, TradeRaw>>({});
+    const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
 
-  const [displayedTrades, setDisplayedTrades] = useState<Record<string, TradeRaw>>({});
-  const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
-  
-  useEffect(() => {
-    setDisplayedTrades(tradesMap)
-  }, [tradesMap]);
-  
-  const handleTrade = (type: 'buy' | 'sell', stream: string, amount: number) => {
-    const fullStreamName = `${stream.toLowerCase()}@trade`;
-    const candles = klineData[fullStreamName];
-    const price = candles?.length ? candles[candles.length - 1].close : displayedTrades[fullStreamName]?.price;
+    // 每 5 秒从 tradesMap 刷新一次 displayedTrades
+    useEffect(() => {
+        const timer = setInterval(() => {
+            // By passing a function to setState, we ensure we always get the latest tradesMap
+            // without needing it in the dependency array, avoiding re-setting the interval.
+            setDisplayedTrades(tradesMap);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [tradesMap]);
 
-    if (!price) {
-      toast({ variant: "destructive", title: "交易失败", description: "未能获取当前交易对价格。" });
-      return;
-    }
-    const quoteAsset = 'USDT';
-    if (balances[quoteAsset]?.available < (amount * price)) {
-      toast({ variant: "destructive", title: "交易失败", description: `${quoteAsset} 余额不足。` });
-      return;
-    }
+    // 每 5 秒根据 displayedTrades 更新 klineData
+    useEffect(() => {
+        if (Object.keys(displayedTrades).length === 0) return;
 
-    placeContractTrade({
-        type: type,
-        amount: amount * price, // Pass total cost for contract trade
-        period: 30, // Default to 30s contract trade
-        profitRate: 0.85,
-    }, `${stream.toUpperCase()}/USDT`);
+        const timer = setInterval(() => {
+            setKlineData(prev => {
+                const updatedKlineData = { ...prev };
+                Object.entries(displayedTrades).forEach(([stream, trade]) => {
+                    const currentTime = Date.now();
+                    const newKlinePoint: OHLC = {
+                        open: trade.price,
+                        high: trade.price,
+                        low: trade.price,
+                        close: trade.price,
+                        time: currentTime,
+                    };
+                    const existingData = updatedKlineData[stream] || [];
+                    updatedKlineData[stream] = [...existingData.slice(-49), newKlinePoint];
+                });
+                return updatedKlineData;
+            });
+        }, 5000); 
+        return () => clearInterval(timer);
+    }, [displayedTrades]);
 
-    toast({
-        title: "交易成功",
-        description: `${type === 'buy' ? '买入' : '卖出'} ${amount} ${stream} @ ${price.toFixed(2)}`
-    });
-  };
+    // Helper function to get the latest price for a given trading pair
+    const getLatestPrice = (tradingPair: string): number | undefined => {
+        const streamName = `${tradingPair.replace('/', '').toLowerCase()}@aggtrade`;
+        const trade = displayedTrades[streamName];
+        return trade?.price;
+    };
 
-  const value = {
-    displayedTrades,
-    klineData,
-    handleTrade,
-  };
+    const value = { displayedTrades, klineData, getLatestPrice };
 
-  return (
-    <TradeDataContext.Provider value={value}>
-      {children}
-    </TradeDataContext.Provider>
-  );
+    return (
+        <TradeDataContext.Provider value={value}>
+            {children}
+        </TradeDataContext.Provider>
+    );
 }
 
-// Custom Hook
 export function useTradeData() {
-  const context = useContext(TradeDataContext);
-  if (context === undefined) {
-    throw new Error('useTradeData must be used within a TradeDataProvider');
-  }
-  return context;
+    const context = useContext(TradeDataContext);
+    if (context === undefined) {
+        throw new Error('useTradeData must be used within a TradeDataProvider');
+    }
+    return context;
 }

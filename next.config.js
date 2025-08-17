@@ -22,4 +22,5 @@ const nextConfig = {
   },
 };
 
+// Trigger rebuild to fix missing routes-manifest.json
 module.exports = nextConfig;

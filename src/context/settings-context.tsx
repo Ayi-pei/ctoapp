@@ -6,16 +6,24 @@ import { availablePairs } from '@/types';
 
 export type SpecialTimeFrame = {
     id: string;
-    startTime: string; // Restored
-    endTime: string;   // Restored
-    profitRate: number; // Restored
+    startTime: string; 
+    endTime: string;   
+    profitRate: number; 
 };
+
+export type TimedMarketPreset = {
+    id: string;
+    action: 'buy' | 'sell';
+    time: string;
+    pair: string;
+    price: number;
+}
 
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
-    tradingDisabled: boolean; // For special time frames
-    isTradingHalted: boolean; // To completely halt trading for this pair
-    volatility: number; // 0.01 (calm) to 0.2 (volatile)
+    tradingDisabled: boolean; 
+    isTradingHalted: boolean; 
+    volatility: number; 
     baseProfitRate: number;
     specialTimeFrames: SpecialTimeFrame[];
 };
@@ -26,10 +34,14 @@ type AllSettings = {
 
 interface SettingsContextType {
     settings: AllSettings;
+    timedMarketPresets: TimedMarketPreset[];
     updateSettings: (pair: string, newSettings: Partial<TradingPairSettings>) => void;
     addSpecialTimeFrame: (pair: string) => void;
     removeSpecialTimeFrame: (pair: string, frameId: string) => void;
     updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => void;
+    addTimedMarketPreset: () => void;
+    removeTimedMarketPreset: (presetId: string) => void;
+    updateTimedMarketPreset: (presetId: string, updates: Partial<TimedMarketPreset>) => void;
 }
 
 const getDefaultPairSettings = (): TradingPairSettings => ({
@@ -50,6 +62,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>(defaultSettings);
+    const [timedMarketPresets, setTimedMarketPresets] = useState<TimedMarketPreset[]>([]);
     
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
@@ -71,7 +84,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 id: `frame_${Date.now()}`,
                 startTime: "10:00",
                 endTime: "11:00",
-                profitRate: 0.90, // Default special profit rate
+                profitRate: 0.90,
             };
             const pairSettings = prevSettings[pair] || getDefaultPairSettings();
             const updatedFrames = [...pairSettings.specialTimeFrames, newFrame];
@@ -114,9 +127,37 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
+    const addTimedMarketPreset = useCallback(() => {
+        setTimedMarketPresets(prev => [...prev, {
+            id: `preset_${Date.now()}`,
+            action: 'buy',
+            time: '12:00',
+            pair: availablePairs[0],
+            price: 0
+        }]);
+    }, []);
+
+    const removeTimedMarketPreset = useCallback((presetId: string) => {
+        setTimedMarketPresets(prev => prev.filter(p => p.id !== presetId));
+    }, []);
+
+    const updateTimedMarketPreset = useCallback((presetId: string, updates: Partial<TimedMarketPreset>) => {
+        setTimedMarketPresets(prev => prev.map(p => p.id === presetId ? { ...p, ...updates } : p));
+    }, []);
+
 
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings, addSpecialTimeFrame, removeSpecialTimeFrame, updateSpecialTimeFrame }}>
+        <SettingsContext.Provider value={{ 
+            settings, 
+            timedMarketPresets,
+            updateSettings, 
+            addSpecialTimeFrame, 
+            removeSpecialTimeFrame, 
+            updateSpecialTimeFrame,
+            addTimedMarketPreset,
+            removeTimedMarketPreset,
+            updateTimedMarketPreset
+        }}>
             {children}
         </SettingsContext.Provider>
     );

@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
-import { useSettings, TradingPairSettings, SpecialTimeFrame } from "@/context/settings-context";
+import { useSettings, TradingPairSettings, SpecialTimeFrame, TimedMarketPreset } from "@/context/settings-context";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import { availablePairs } from "@/types";
@@ -17,8 +16,98 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import Image from "next/image";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
+
+
+const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset }: { 
+    presets: TimedMarketPreset[],
+    addPreset: () => void,
+    removePreset: (id: string) => void,
+    updatePreset: (id: string, updates: Partial<TimedMarketPreset>) => void
+}) => {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>限定时间市场设置</CardTitle>
+                <CardDescription>预设在特定时间自动触发市场操作，用于智能交易和秒合约。</CardDescription>
+            </CardHeader>
+            <ScrollArea className="h-[200px] md:h-[calc(100vh-28rem)]">
+                <CardContent className="space-y-4 pr-6">
+                    {presets.map((preset, index) => (
+                        <div key={preset.id} className="p-4 border rounded-lg space-y-3 relative bg-muted/30">
+                            <h4 className="text-sm font-semibold">预设 {index + 1}</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs">操作类型</Label>
+                                    <Select 
+                                        value={preset.action} 
+                                        onValueChange={(value: 'buy' | 'sell') => updatePreset(preset.id, { action: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="选择操作" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="buy">预设买入</SelectItem>
+                                            <SelectItem value="sell">预设抛售</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor={`preset-time-${preset.id}`} className="text-xs">触发时间</Label>
+                                    <Input 
+                                        id={`preset-time-${preset.id}`}
+                                        type="time" 
+                                        value={preset.time}
+                                        onChange={(e) => updatePreset(preset.id, { time: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs">币种</Label>
+                                     <Select 
+                                        value={preset.pair}
+                                        onValueChange={(value: string) => updatePreset(preset.id, { pair: value })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="选择币种" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availablePairs.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor={`preset-price-${preset.id}`} className="text-xs">价格 (USDT)</Label>
+                                    <Input 
+                                        id={`preset-price-${preset.id}`}
+                                        type="number"
+                                        value={preset.price}
+                                        onChange={(e) => updatePreset(preset.id, { price: parseFloat(e.target.value) || 0 })}
+                                        placeholder="输入目标价格"
+                                    />
+                                </div>
+                            </div>
+                             <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => removePreset(preset.id)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </CardContent>
+            </ScrollArea>
+            <CardFooter className="flex flex-col items-start gap-4">
+                 <Button variant="outline" size="sm" onClick={addPreset}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    添加新预设
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
 
 
 const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChange, handleVolatilityChange, updateSpecialTimeFrame, addSpecialTimeFrame, removeSpecialTimeFrame }: { 
@@ -42,7 +131,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                 <Switch
                     id={`halt-trading-${pair}`}
                     checked={settings.isTradingHalted}
-                    onCheckedChange={(checked) => handleSettingChange(pair, 'isTradingHalted', checked)}
+                    onCheckedChange={(checked: boolean) => handleSettingChange(pair, 'isTradingHalted', checked)}
                 />
             </div>
             
@@ -86,8 +175,8 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     max={0.2}
                     min={0.01}
                     step={0.01}
-                    onValueChange={(value) => setVolatilityValue(value[0])}
-                    onValueCommit={(value) => handleVolatilityChange(pair, value)}
+                    onValueChange={(value: number[]) => setVolatilityValue(value[0])}
+                    onValueCommit={(value: number[]) => handleVolatilityChange(pair, value)}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                     <span>平稳</span>
@@ -116,7 +205,7 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     <Switch
                         id={`limit-buy-${pair}`}
                         checked={settings.tradingDisabled}
-                        onCheckedChange={(checked) => handleSettingChange(pair, 'tradingDisabled', checked)}
+                        onCheckedChange={(checked: boolean) => handleSettingChange(pair, 'tradingDisabled', checked)}
                     />
                 </div>
 
@@ -218,7 +307,7 @@ const InvestmentProductCard = ({ product, updateProduct, removeProduct }: {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor={`product-rate-${product.id}`}>日收益率 (%)</Label>
-                        <Input id={`product-rate-${product.id}`} type="number" value={product.dailyRate * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} />
+                        <Input id={`product-rate-${product.id}`} type="number" value={(product.dailyRate || 0) * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} />
                     </div>
                 </div>
                 <div className="space-y-4">
@@ -262,13 +351,15 @@ export default function AdminSettingsPage() {
         updateSettings, 
         addSpecialTimeFrame, 
         removeSpecialTimeFrame,
-        updateSpecialTimeFrame
+        updateSpecialTimeFrame,
+        timedMarketPresets,
+        addTimedMarketPreset,
+        removeTimedMarketPreset,
+        updateTimedMarketPreset
     } = useSettings();
 
     const { systemSettings, updateDepositAddress, toggleContractTrading } = useSystemSettings();
     const { investmentProducts, addProduct, removeProduct, updateProduct } = useInvestmentSettings();
-
-    const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
         const currentTrend = settings[pair]?.trend;
@@ -285,10 +376,7 @@ export default function AdminSettingsPage() {
     }
     
     const handleSaveSettings = (section: string) => {
-        toast({
-            title: "设置已保存",
-            description: `所有${section}设置已更新。`,
-        });
+        alert(`${section} settings saved!`);
     };
 
     return (
@@ -336,6 +424,13 @@ export default function AdminSettingsPage() {
                                 <Button onClick={() => handleSaveSettings('通用')}>保存通用设置</Button>
                             </CardFooter>
                         </Card>
+                        
+                        <TimedMarketSettingsCard
+                            presets={timedMarketPresets}
+                            addPreset={addTimedMarketPreset}
+                            removePreset={removeTimedMarketPreset}
+                            updatePreset={updateTimedMarketPreset}
+                        />
                         
                         <Card>
                              <CardHeader>

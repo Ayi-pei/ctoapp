@@ -122,7 +122,7 @@ const generateInitialDataForPair = (pair: string) => {
 
 
 export const useMarketData = () => {
-  const { settings } = useSettings();
+  const { settings, timedMarketPresets } = useSettings();
   const [tradingPair, setTradingPair] = useState(availablePairs[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
@@ -148,6 +148,9 @@ export const useMarketData = () => {
     if (!isInitialised || !Object.keys(settings).length) return;
 
     const interval = setInterval(async () => {
+        const now = new Date();
+        const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
         setAllData(prevAllData => {
             const newAllData = new Map(prevAllData);
 
@@ -161,37 +164,25 @@ export const useMarketData = () => {
                     return;
                 }
                 
-                const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
-                let newPrice = lastDataPoint.price;
-                
-                const volatilityFactor = pairSettings.volatility;
-                let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
+                let finalNewPrice;
+                const activePreset = timedMarketPresets.find(p => p.pair === pair && p.time === currentTimeStr);
 
-                if (pairSettings.trend === 'up') {
-                    priceMultiplier = 1 + (Math.random() * volatilityFactor); 
-                } else if (pairSettings.trend === 'down') {
-                    priceMultiplier = 1 - (Math.random() * volatilityFactor);
-                }
-                
-                let finalNewPrice = newPrice * priceMultiplier;
+                if (activePreset) {
+                    finalNewPrice = activePreset.price;
+                } else {
+                    const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
+                    let newPrice = lastDataPoint.price;
+                    
+                    const volatilityFactor = pairSettings.volatility;
+                    let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
 
-                if (pairSettings.tradingDisabled && pairSettings.specialTimeFrames.length > 0) {
-                    const now = new Date();
-                    const currentTotalSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-
-                    for (const frame of pairSettings.specialTimeFrames) {
-                        const [startH, startM, startS] = frame.startTime.split(':').map(Number);
-                        const startTotalSeconds = startH * 3600 + startM * 60 + (startS || 0);
-                        const [endH, endM, endS] = frame.endTime.split(':').map(Number);
-                        const endTotalSeconds = endH * 3600 + endM * 60 + (endS || 0);
-
-                        if (currentTotalSeconds >= startTotalSeconds && currentTotalSeconds <= endTotalSeconds) {
-                           if (frame.buyPrice && frame.sellPrice) {
-                                finalNewPrice = (frame.buyPrice + frame.sellPrice) / 2;
-                           }
-                           break; 
-                        }
+                    if (pairSettings.trend === 'up') {
+                        priceMultiplier = 1 + (Math.random() * volatilityFactor); 
+                    } else if (pairSettings.trend === 'down') {
+                        priceMultiplier = 1 - (Math.random() * volatilityFactor);
                     }
+                    
+                    finalNewPrice = newPrice * priceMultiplier;
                 }
 
 
@@ -223,7 +214,7 @@ export const useMarketData = () => {
                     if (Math.random() > 0.7) {
                         newTrades.unshift({
                             id: `trade-${Date.now()}`,
-                            type: Math.random() > 0.5 ? 'buy' : 'sell',
+                            type: activePreset ? activePreset.action : (Math.random() > 0.5 ? 'buy' : 'sell'),
                             price: newSummary.price * randomInRange(0.9998, 1.0002),
                             amount: randomInRange(0.01, 1.5),
                             time: formatTime(new Date()),
@@ -239,10 +230,10 @@ export const useMarketData = () => {
             return newAllData;
         });
 
-    }, 5000); // Update every 5 seconds
+    }, 5000); 
 
     return () => clearInterval(interval);
-  }, [isInitialised, tradingPair, settings]);
+  }, [isInitialised, tradingPair, settings, timedMarketPresets]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
