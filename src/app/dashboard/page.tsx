@@ -31,7 +31,7 @@ export default function DashboardPage() {
         { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '下载中心', icon: Download, href: '/download' },
-        { name: '推广中心', icon: Share2, href: '/promotion' },
+        { name: '推广中心', icon: Share2, href: '/profile/promotion' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
         { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
         { name: '行情中心', icon: BarChart, href: '/market' },

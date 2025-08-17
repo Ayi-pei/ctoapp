@@ -174,7 +174,7 @@ export default function ProfilePage() {
         { label: "交易订单", icon: FileText, href: "/profile/orders" },
         { label: "资产", icon: Landmark, href: "/profile/assets"},
         { label: "支付方式", icon: CreditCard, href: "/profile/payment" },
-        { label: "推广分享海报", icon: Share2, href: "/promotion" },
+        { label: "推广分享海报", icon: Share2, href: "/profile/promotion" },
         { label: "安全设置", icon: Shield, href: "/profile/settings" },
         { label: "平台公告", icon: Bell, href: "/announcements" },
     ];
