@@ -1,16 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Supported streams (add or remove as needed)
- */
-const STREAMS = [
-  "btcusdt@trade",
-  "ethusdt@trade",
-  "solusdt@trade",
-  // ... can add more here
-];
-
 type TradeRaw = { price: number; quantity: number; time: number };
 
 export default function useTrades() {
@@ -18,25 +8,31 @@ export default function useTrades() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Prevent creating a new WebSocket if one already exists.
-    if (wsRef.current) {
-        return;
-    }
-    
+    // This function initializes the WebSocket connection.
     const initWS = () => {
-      const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${STREAMS.join("/")}`);
+      // Use the reliable single stream URL.
+      const url = "wss://stream.binance.com:9443/ws/btcusdt@trade";
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
-      ws.onopen = () => console.log("✅ WS connected");
+      ws.onopen = () => {
+        console.log("✅ Connected to Binance WS:", url);
+      };
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
-          if (msg.data && msg.stream) {
-            const { stream, data } = msg;
-            setTradesMap(prev => ({
+          // Data from a single stream is not wrapped in a "stream" object.
+          const trade = JSON.parse(event.data);
+          const streamName = "btcusdt@trade"; // Manually set the stream name
+          
+          if (trade.p && trade.q) {
+            setTradesMap((prev) => ({
               ...prev,
-              [stream]: { price: parseFloat(data.p), quantity: parseFloat(data.q), time: data.T }
+              [streamName]: {
+                price: parseFloat(trade.p),
+                quantity: parseFloat(trade.q),
+                time: trade.T,
+              },
             }));
           }
         } catch (err) {
@@ -44,28 +40,36 @@ export default function useTrades() {
         }
       };
 
-      ws.onerror = (err) => console.error("❌ WS error:", err);
+      ws.onerror = (event) => {
+        console.error("❌ WS error:", event);
+      };
 
-      ws.onclose = (ev) => {
-        console.warn("⚠️ WS connection closed", ev);
-        wsRef.current = null; // Clear the ref to allow re-initialization
-        // Automatic reconnection
-        setTimeout(initWS, 1000); 
+      ws.onclose = (event) => {
+        console.warn("⚠️ WS connection closed", event.code, event.reason);
+        // Clear the ref to allow re-initialization on next attempt
+        if (wsRef.current === ws) {
+            wsRef.current = null;
+        }
+        // Attempt to reconnect after a delay.
+        setTimeout(initWS, 3000);
       };
     };
 
-    initWS();
+    // Initialize the connection only if it doesn't already exist.
+    if (!wsRef.current) {
+        initWS();
+    }
 
-    // Cleanup on component unmount
+    // Cleanup function to close the WebSocket when the component unmounts.
     return () => {
       if (wsRef.current) {
-        // Prevent reconnection attempts on unmount
-        wsRef.current.onclose = null; 
+        // Remove the onclose handler to prevent reconnection attempts on unmount.
+        wsRef.current.onclose = null;
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []); // Empty dependency array ensures this runs only once.
 
   return tradesMap;
 }
