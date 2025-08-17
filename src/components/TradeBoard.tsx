@@ -1,26 +1,29 @@
 import React, { useState, useEffect } from "react";
 import ReactECharts from "echarts-for-react";
-import { availablePairs, KlineDataPoint } from "@/types";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
 import { useBalance } from "@/context/balance-context";
+import { useAdminSettings } from "@/context/admin-settings-context";
 import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
 import { MarketOverview } from "./market-overview";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmartTrade } from "./smart-trade";
+import { Button } from "./ui/button";
 
 
 export default function TradeBoard() {
   const { tradingPair, getLatestPrice, klineData: allKlineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
+  const { startOverride } = useAdminSettings();
 
   const klineData = allKlineData[tradingPair] || [];
   const [baseAsset, quoteAsset] = tradingPair.split('/');
+  const latestPrice = getLatestPrice(tradingPair);
 
   if (klineData.length === 0) {
     return <div>Loading market data...</div>;
   }
-
+  
   const klineOption = {
       backgroundColor: "transparent",
       tooltip: {
@@ -29,7 +32,7 @@ export default function TradeBoard() {
       },
       xAxis: {
         type: "category",
-        data: klineData.map((d) => d.time),
+        data: klineData.map((d) => new Date(d.time).toLocaleTimeString()),
         axisLine: { lineStyle: { color: "#8392A5" } }
       },
       yAxis: {
@@ -45,11 +48,14 @@ export default function TradeBoard() {
       },
       series: [{
         name: tradingPair,
-        type: "line",
-        data: klineData.map((d) => d.price),
-        smooth: true,
-        showSymbol: false,
-        lineStyle: { color: "#26a69a", width: 2 }
+        type: "candlestick",
+        data: klineData.map(d => [d.open, d.close, d.low, d.high]),
+        itemStyle: {
+          color: '#26a69a',
+          color0: '#ef5350',
+          borderColor: '#26a69a',
+          borderColor0: '#ef5350'
+        }
       }]
     };
 
@@ -57,7 +63,6 @@ export default function TradeBoard() {
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
       <div className="lg:col-span-5 space-y-4">
-        {/*<MarketOverview summary={summary} />*/}
 
         <div className="h-[400px] w-full bg-card rounded-lg p-2">
           <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
@@ -91,6 +96,16 @@ export default function TradeBoard() {
             <SmartTrade tradingPair={tradingPair} />
           </TabsContent>
         </Tabs>
+
+        {/* Admin 控制示例按钮 */}
+        <div className="mt-2">
+          <Button
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+            onClick={() => startOverride(latestPrice + 100, 10, 10)} // 10秒内固定价格
+          >
+            Admin +100 临时干预 10 秒
+          </Button>
+        </div>
       </div>
     </div>
   );

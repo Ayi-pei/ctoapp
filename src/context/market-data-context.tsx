@@ -129,11 +129,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
                     let finalNewPrice;
                     
-                    // --- START OF ADMIN OVERRIDE LOGIC ---
-                    if (adminSettings.overrideActive) {
-                        finalNewPrice = adminSettings.overridePrice ?? getBasePrice(pair);
+                    // --- Priority 1: Global Admin Override ---
+                    if (adminSettings.overrideActive && adminSettings.overridePrice !== undefined) {
+                        finalNewPrice = adminSettings.overridePrice;
                     } else {
-                        // Check for per-pair market override first
+                         // --- Priority 2: Per-Pair Timed Market Override ---
                         let activeOverride = null;
                         for (const override of pairSettings.marketOverrides) {
                             const [startH, startM] = override.startTime.split(':').map(Number);
@@ -150,7 +150,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         if (activeOverride) {
                             finalNewPrice = randomInRange(activeOverride.minPrice, activeOverride.maxPrice);
                         } else {
-                            // Use real data if available, otherwise simulate
+                            // --- Priority 3: Real-time Data or Simulation ---
                             const streamName = `${pair.replace('/', '').toLowerCase()}@aggTrade`;
                             const latestTrade = tradesMap[streamName];
                             
@@ -166,7 +166,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                             }
                         }
                     }
-                     // --- END OF ADMIN OVERRIDE LOGIC ---
 
                     const existingData = newKlineData[pair] || [];
                     const lastDataPoint = existingData[existingData.length - 1] || { open: finalNewPrice, high: finalNewPrice, low: finalNewPrice, close: finalNewPrice, time: Date.now() - 60000 };
@@ -208,7 +207,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }, 5000); // Update every 5 seconds
 
         return () => clearInterval(interval);
-    }, [tradesMap, settings, adminSettings]);
+    }, [tradesMap, settings, adminSettings, getLatestPrice]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
