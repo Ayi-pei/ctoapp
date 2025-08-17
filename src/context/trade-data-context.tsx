@@ -21,8 +21,6 @@ export function TradeDataProvider({ children }: { children: ReactNode }) {
     // 每 5 秒从 tradesMap 刷新一次 displayedTrades
     useEffect(() => {
         const timer = setInterval(() => {
-            // By passing a function to setState, we ensure we always get the latest tradesMap
-            // without needing it in the dependency array, avoiding re-setting the interval.
             setDisplayedTrades(tradesMap);
         }, 5000);
         return () => clearInterval(timer);

@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
-import { useTradeData } from "@/context/trade-data-context";
 import { Clock, ListTodo, Trash2 } from "lucide-react";
+import { useSettings } from "@/context/settings-context";
 
 type ScheduledTrade = {
     id: string;
@@ -26,15 +26,17 @@ type SmartTradeProps = {
 
 export function SmartTrade({ tradingPair }: SmartTradeProps) {
   const { toast } = useToast();
-  const { balances } = useBalance();
-  const { handleTrade } = useTradeData();
+  const { balances, placeContractTrade } = useBalance();
+  const { settings } = useSettings();
   const quoteAsset = tradingPair.split('/')[1];
+  const pairSettings = settings[tradingPair];
 
   const [amount, setAmount] = useState("");
   const [executionTime, setExecutionTime] = useState("");
   const [scheduledTrades, setScheduledTrades] = useState<ScheduledTrade[]>([]);
 
   useEffect(() => {
+    // Cleanup timeouts when component unmounts
     return () => {
       scheduledTrades.forEach(trade => clearTimeout(trade.timeoutId));
     };
@@ -45,6 +47,11 @@ export function SmartTrade({ tradingPair }: SmartTradeProps) {
     if (isNaN(numericAmount) || numericAmount <= 0) {
       toast({ variant: "destructive", title: "设置失败", description: "请输入有效的交易金额。" });
       return;
+    }
+
+    if (numericAmount > (balances[quoteAsset]?.available || 0)) {
+        toast({ variant: "destructive", title: "余额不足", description: `您的${quoteAsset}可用余额不足。` });
+        return;
     }
 
     if (!executionTime) {
@@ -61,14 +68,25 @@ export function SmartTrade({ tradingPair }: SmartTradeProps) {
     const timeUntilExecution = executionDate.getTime() - new Date().getTime();
     
     const timeoutId = setTimeout(() => {
-        handleTrade(type, tradingPair.split('/')[0], numericAmount);
+        // Use the placeContractTrade function from balance context
+        // We will use a default period (e.g., 30s) and the current base profit rate for the pair.
+        const defaultPeriod = 30; // 30 seconds
+        const profitRate = pairSettings?.baseProfitRate || 0.85;
+
+        placeContractTrade({
+            type,
+            amount: numericAmount,
+            period: defaultPeriod,
+            profitRate: profitRate
+        }, tradingPair);
         
         toast({
-          title: "计划交易已执行",
-          description: `您设置的 ${numericAmount} ${quoteAsset} ${type === 'buy' ? '买涨' : '买跌'} 计划已在 ${executionDate.toLocaleString()} 执行。`
+          title: "智能交易已执行",
+          description: `您设置的 ${numericAmount} ${quoteAsset} ${type === 'buy' ? '买涨' : '买跌'} 计划已在 ${executionDate.toLocaleString()} 成功下单。`
         });
 
-        setScheduledTrades(prev => prev.filter(t => t.id !== newTrade.id));
+        // Remove the trade from the scheduled list after execution
+        setScheduledTrades(prev => prev.filter(t => t.timeoutId !== timeoutId));
 
     }, timeUntilExecution);
 
@@ -84,12 +102,12 @@ export function SmartTrade({ tradingPair }: SmartTradeProps) {
     setScheduledTrades(prev => [...prev, newTrade]);
 
     toast({
-        title: "计划交易已设置",
+        title: "智能交易已设置",
         description: `将在 ${executionDate.toLocaleString()} 为您执行一笔 ${type === 'buy' ? '买涨' : '买跌'} 交易。`
     });
 
     setAmount("");
-    setExecutionTime("");
+    setExecutionTime(getdefaultTime());
   };
 
   const cancelScheduledTrade = (tradeId: string) => {
