@@ -121,12 +121,16 @@ export function SmartTrade({ tradingPair }: SmartTradeProps) {
   
   const getdefaultTime = () => {
     const now = new Date();
+    // Set time 5 minutes into the future
     now.setMinutes(now.getMinutes() + 5);
+    
+    // Format to YYYY-MM-DDTHH:mm, which is required by datetime-local input
     const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
   
