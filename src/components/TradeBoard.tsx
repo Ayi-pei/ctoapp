@@ -1,5 +1,6 @@
 
 "use client";
+
 import React from "react";
 import ReactECharts from "echarts-for-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -9,10 +10,15 @@ import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
 import { SmartTrade } from "./smart-trade";
 import { MarketOverview } from "./market-overview";
+import { useAuth } from "@/context/auth-context";
+import { Button } from "./ui/button";
+import { useAdminSettings } from "@/context/admin-settings-context";
 
 export default function TradeBoard() {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
+  const { isAdmin } = useAuth();
+  const { startOverride } = useAdminSettings();
 
   const klineData = allKlineData[tradingPair] || [];
   const currentSummary = summaryData.find(s => s.pair === tradingPair);
@@ -31,30 +37,47 @@ export default function TradeBoard() {
       },
       xAxis: {
         type: "category",
-        data: klineData.map((d) => new Date(d.time).toLocaleTimeString()),
-        axisLine: { lineStyle: { color: "#8392A5" } }
+        data: klineData.map((d) => new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
+        axisLine: { lineStyle: { color: "hsl(var(--muted-foreground))" } },
+        axisLabel: { color: "hsl(var(--muted-foreground))" },
+        boundaryGap: false,
       },
       yAxis: {
         scale: true,
-        axisLine: { lineStyle: { color: "#8392A5" } },
-        splitLine: { show: false }
+        axisLine: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: true, lineStyle: { color: "hsl(var(--border))", type: 'dashed' } }
       },
       grid: {
-        left: "10%",
-        right: "5%",
-        bottom: "15%",
-        top: "5%",
+        left: "5",
+        right: "5",
+        bottom: "25",
+        top: "10",
       },
       series: [{
         name: tradingPair,
-        type: "candlestick",
-        data: klineData.map(d => [d.open, d.close, d.low, d.high]),
-        itemStyle: {
-          color: '#26a69a',
-          color0: '#ef5350',
-          borderColor: '#26a69a',
-          borderColor0: '#ef5350'
-        }
+        type: "line",
+        data: klineData.map(d => d.close),
+        smooth: true,
+        showSymbol: false,
+        lineStyle: {
+          color: 'hsl(var(--chart-2))',
+          width: 2,
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+                offset: 0, color: 'hsla(var(--chart-2), 0.3)'
+            }, {
+                offset: 1, color: 'hsla(var(--chart-2), 0)'
+            }]
+          }
+        },
       }]
     };
 
