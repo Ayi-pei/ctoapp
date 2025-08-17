@@ -12,8 +12,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
 
-  const isUserSection = !pathname.startsWith('/admin');
-  const navItems = isAdmin && !isUserSection ? adminNavItems : userNavItems;
+  // Determine which nav items to display.
+  // If the user is an admin AND they are on a path that starts with /admin, show admin items.
+  // Otherwise, show the regular user items. This ensures that when an admin navigates to
+  // a shared page like /coming-soon from an admin page, the correct admin sidebar persists.
+  const navItems = isAdmin && pathname.startsWith('/admin') ? adminNavItems : userNavItems;
   
   return (
     <aside className="w-64 flex-shrink-0 border-r border-border p-4 hidden md:block">
@@ -21,9 +24,9 @@ export function Sidebar() {
         <ul>
           {navItems.map((item) => {
             // More robust active link logic
-            const isActive = item.href === '/dashboard' 
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
+             const isActive = (item.href === '/dashboard' && pathname === item.href) ||
+                             (item.href === '/admin/users' && pathname === item.href) ||
+                             (item.href !== '/dashboard' && item.href !== '/admin/users' && pathname.startsWith(item.href));
 
             return (
                  <li key={item.label}>
