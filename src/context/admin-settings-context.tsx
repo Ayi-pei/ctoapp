@@ -2,17 +2,17 @@
 "use client";
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-export type AdminSettings = {
-  overrideActive: boolean;
+// Describes the override state for a single trading pair
+export type AdminOverride = {
+  active: boolean;
   overridePrice?: number;
   overrideVolume?: number;
-  overrideDuration?: number; // 秒
+  duration?: number; // duration in seconds
 };
 
 type AdminSettingsContextType = {
-  settings: AdminSettings;
-  setSettings: (settings: AdminSettings) => void;
-  startOverride: (price: number, volume: number, duration: number) => void;
+  overrides: Record<string, AdminOverride>;
+  startOverride: (symbol: string, price: number, volume: number, duration: number) => void;
 };
 
 const AdminSettingsContext = createContext<AdminSettingsContextType | undefined>(undefined);
@@ -24,20 +24,30 @@ export const useAdminSettings = () => {
 };
 
 export const AdminSettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [settings, setSettings] = useState<AdminSettings>({
-    overrideActive: false,
-  });
+  const [overrides, setOverrides] = useState<Record<string, AdminOverride>>({});
 
-  // 启动临时干预
-  const startOverride = (price: number, volume: number, duration: number) => {
-    setSettings({ overrideActive: true, overridePrice: price, overrideVolume: volume, overrideDuration: duration });
+  // Starts a temporary override for a specific symbol
+  const startOverride = (symbol: string, price: number, volume: number, duration: number) => {
+    // Set the override for the specific symbol
+    setOverrides((prev) => ({
+      ...prev,
+      [symbol]: { active: true, overridePrice: price, overrideVolume: volume, duration },
+    }));
+
+    // Automatically cancel the override after the specified duration
     setTimeout(() => {
-      setSettings({ overrideActive: false });
+      setOverrides((prev) => {
+        const newOverrides = { ...prev };
+        if (newOverrides[symbol]) {
+          newOverrides[symbol] = { ...newOverrides[symbol], active: false };
+        }
+        return newOverrides;
+      });
     }, duration * 1000);
   };
 
   return (
-    <AdminSettingsContext.Provider value={{ settings, setSettings, startOverride }}>
+    <AdminSettingsContext.Provider value={{ overrides, startOverride }}>
       {children}
     </AdminSettingsContext.Provider>
   );

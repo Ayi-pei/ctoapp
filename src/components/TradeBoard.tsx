@@ -101,7 +101,7 @@ export default function TradeBoard() {
         <div className="mt-2">
           <Button
             className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-            onClick={() => startOverride(latestPrice + 100, 10, 10)} // 10秒内固定价格
+            onClick={() => startOverride(tradingPair, latestPrice + 100, 10, 10)} // 10秒内固定价格
           >
             Admin +100 临时干预 10 秒
           </Button>

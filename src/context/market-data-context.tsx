@@ -65,7 +65,7 @@ const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { settings } = useSettings();
-    const { settings: adminSettings } = useAdminSettings();
+    const { overrides: adminOverrides } = useAdminSettings();
     const tradesMap = useTrades();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
@@ -129,9 +129,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
                     let finalNewPrice;
                     
-                    // --- Priority 1: Global Admin Override ---
-                    if (adminSettings.overrideActive && adminSettings.overridePrice !== undefined) {
-                        finalNewPrice = adminSettings.overridePrice;
+                    // --- Priority 1: Global Admin Override for this specific pair ---
+                    const adminOverride = adminOverrides[pair];
+                    if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
+                        finalNewPrice = adminOverride.overridePrice;
                     } else {
                          // --- Priority 2: Per-Pair Timed Market Override ---
                         let activeOverride = null;
@@ -207,7 +208,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }, 5000); // Update every 5 seconds
 
         return () => clearInterval(interval);
-    }, [tradesMap, settings, adminSettings, getLatestPrice]);
+    }, [tradesMap, settings, adminOverrides, getLatestPrice]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
