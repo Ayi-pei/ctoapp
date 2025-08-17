@@ -6,13 +6,11 @@ import { useBalance } from "@/context/balance-context";
 import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
 import { SmartTrade } from "./smart-trade";
-import { useAuth } from "@/context/auth-context";
 
 
 export default function TradeBoard() {
   const { tradingPair, getLatestPrice, klineData: allKlineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
-  const { isAdmin } = useAuth();
 
   const klineData = allKlineData[tradingPair] || [];
   const [baseAsset, quoteAsset] = tradingPair.split('/');
