@@ -57,7 +57,7 @@
     --chart-5: 27 87% 67%;
   }
   .light {
-    --background: 0 0% 98%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -90,5 +90,8 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  body.light {
+    background-image: linear-gradient(to bottom right, #FFFBEB, #FEFBF6);
   }
 }
