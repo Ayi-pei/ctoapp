@@ -22,10 +22,6 @@ export async function GET(request: Request) {
   const ids = searchParams.get('ids');
   const pairId = searchParams.get('pairId');
 
-  const params: Record<string, string> = {};
-  if (ids) params.ids = ids;
-  if (pairId) params.pairId = pairId;
-
   if (source !== 'coingecko') {
     return NextResponse.json({ error: 'Invalid or unsupported data source' }, { status: 400 });
   }
@@ -48,7 +44,7 @@ export async function GET(request: Request) {
             days: '1',
         });
     } else {
-        return NextResponse.json({ error: 'Invalid endpoint for coingecko' }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid endpoint or missing parameters for coingecko' }, { status: 400 });
     }
     
     return NextResponse.json(data);
