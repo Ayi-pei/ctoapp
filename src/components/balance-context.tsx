@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, PriceDataPoint, MarketTrade } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -236,101 +236,92 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const newInvestment: Investment = {
         id: `inv-${Date.now()}`,
         user_id: user.id,
-        product_name: productName,
+        productName: productName,
         amount,
         created_at: new Date().toISOString(),
-        productName: productName,
         date: new Date().toLocaleDateString(),
+        status: 'active',
+        category: 'finance',
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;
   }
   
-  const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
-    if (!user || !marketData) return;
+const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
+  if (!user || !marketData) return;
 
-    if (user.is_frozen) {
-        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
-        return;
-    }
-    
-    const quoteAsset = tradingPair.split('/')[1];
+  const quoteAsset = tradingPair.split('/')[1];
+  const latestPrice = marketData.summary.price; 
 
-     if (balances[quoteAsset].available < trade.amount) {
-        toast({ variant: 'destructive', title: '下单失败', description: `可用 ${quoteAsset} 余额不足。` });
-        return;
-    }
-    
-    const newTrade: ContractTrade = {
-      id: `ct-${Date.now()}`,
-      user_id: user.id,
-      trading_pair: tradingPair,
-      type: trade.type,
-      amount: trade.amount,
-      entry_price: marketData.summary.price,
-      settlement_time: new Date(Date.now() + (trade.period * 1000)).toISOString(),
-      period: trade.period,
-      profit_rate: trade.profitRate,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      orderType: 'contract',
-    }
+  if (balances[quoteAsset].available < trade.amount) {
+    toast({ variant: 'destructive', title: '下单失败', description: `可用 ${quoteAsset} 余额不足。` });
+    return;
+  }
 
-    setActiveContractTrades(prev => [...prev, newTrade]);
-    setBalances(prev => ({
-      ...prev,
-      [quoteAsset]: { 
-        available: prev[quoteAsset].available - trade.amount,
-        frozen: prev[quoteAsset].frozen + trade.amount
-      }
-    }));
-
-    if(quoteAsset === 'USDT') {
-      distributeCommissions(user, trade.amount);
-    }
+  const newTrade: ContractTrade = {
+    id: `ct-${Date.now()}`,
+    user_id: user.id,
+    trading_pair: tradingPair,
+    type: trade.type,
+    amount: trade.amount,
+    entry_price: latestPrice,
+    settlement_time: new Date(Date.now() + trade.period * 1000).toISOString(),
+    period: trade.period,
+    profit_rate: trade.profitRate,
+    status: 'active',
+    created_at: new Date().toISOString(),
+    orderType: 'contract',
   };
-  
-  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
-     if (!user || !marketData) return;
-    
-     if (user.is_frozen) {
-        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
-        return;
+
+  setActiveContractTrades(prev => [...prev, newTrade]);
+  setBalances(prev => ({
+    ...prev,
+    [quoteAsset]: {
+      available: prev[quoteAsset].available - trade.amount,
+      frozen: prev[quoteAsset].frozen + trade.amount
     }
+  }));
 
-    const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
-    const fullTrade: SpotTrade = {
-        id: `st-${Date.now()}`,
-        type: trade.type,
-        amount: trade.amount,
-        total: trade.total,
-        user_id: user.id,
-        trading_pair: trade.trading_pair,
-        base_asset: baseAsset,
-        quote_asset: quoteAsset,
-        status: 'filled',
-        created_at: new Date().toISOString(),
-        orderType: 'spot'
-    }
+  if (quoteAsset === 'USDT') distributeCommissions(user, trade.amount);
+};
 
-    setHistoricalTrades(prev => [fullTrade, ...prev]);
-    
-    setBalances(prev => {
-      const newBalances = {...prev};
-      if (trade.type === 'buy') {
-        newBalances[quoteAsset].available -= trade.total;
-        newBalances[baseAsset].available += trade.amount;
-      } else {
-        newBalances[baseAsset].available -= trade.amount;
-        newBalances[quoteAsset].available += trade.total;
-      }
-      return newBalances;
-    });
+const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
+  if (!user || !marketData) return;
 
-     if(quoteAsset === 'USDT') {
-        distributeCommissions(user, trade.total);
-     }
+  const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
+  const latestPrice = marketData.summary.price;
+
+  const fullTrade: SpotTrade = {
+    id: `st-${Date.now()}`,
+    type: trade.type,
+    amount: trade.amount,
+    total: trade.total,
+    price: latestPrice,
+    user_id: user.id,
+    trading_pair: trade.trading_pair,
+    base_asset: baseAsset,
+    quote_asset: quoteAsset,
+    status: 'filled',
+    created_at: new Date().toISOString(),
+    orderType: 'spot'
   };
+
+  setHistoricalTrades(prev => [fullTrade, ...prev]);
+
+  setBalances(prev => {
+    const newBalances = { ...prev };
+    if (trade.type === 'buy') {
+      newBalances[quoteAsset].available -= trade.total;
+      newBalances[baseAsset].available += trade.amount;
+    } else {
+      newBalances[baseAsset].available -= trade.amount;
+      newBalances[quoteAsset].available += trade.total;
+    }
+    return newBalances;
+  });
+
+  if (quoteAsset === 'USDT') distributeCommissions(user, trade.total);
+};
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
       if (userId && user?.id !== userId) return; 

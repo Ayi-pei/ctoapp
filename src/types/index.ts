@@ -28,7 +28,7 @@ export type MarketSummary = {
 
 // Main set of available trading pairs
 export const availablePairs = [
-    'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 
+    'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT',
     'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT',
     'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT',
     'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT',
@@ -76,6 +76,7 @@ export type MarketTrade = {
   price: number;
   amount: number;
   time: string;
+  trading_pair: string;
 };
 
 // Represents a raw trade event from a WebSocket stream
@@ -92,16 +93,16 @@ export type ContractTrade = {
   id: string;
   user_id: string;
   trading_pair: string;
-  type: 'buy' | 'sell'; 
-  amount: number; 
+  type: 'buy' | 'sell';
+  amount: number;
   entry_price: number;
   settlement_time: string;
-  period: number; 
+  period: number;
   profit_rate: number;
   status: 'active' | 'settled';
   settlement_price?: number;
   outcome?: 'win' | 'loss';
-  profit?: number; 
+  profit?: number;
   created_at: string;
   orderType: 'contract'; // Frontend property
 };
@@ -114,8 +115,9 @@ export type SpotTrade = {
     type: 'buy' | 'sell';
     base_asset: string;
     quote_asset: string;
-    amount: number; 
-    total: number; 
+    amount: number;
+    total: number;
+    price: number;
     status: 'filled' | 'cancelled';
     created_at: string;
     orderType: 'spot'; // Frontend property
@@ -125,13 +127,13 @@ export type SpotTrade = {
 // Represents a user's deposit, withdrawal, or admin adjustment
 export type Transaction = {
   id: string;
-  user_id: string; 
+  user_id: string;
   type: 'deposit' | 'withdrawal' | 'adjustment';
   asset: string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
-  created_at: string; 
-  address?: string; 
+  created_at: string;
+  address?: string;
   transaction_hash?: string;
   // Properties for frontend rendering, optional
   user?: { username: string };
@@ -161,10 +163,10 @@ export type InvestmentTier = {
 export type Investment = {
     id: string;
     user_id: string;
-    product_name: string;
+    productName: string;
     amount: number; // principal
     created_at: string;
-    settlement_date: string;
+    date: string;
     status: 'active' | 'settled';
     category: 'staking' | 'finance';
     profit?: number;

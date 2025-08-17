@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order, MarketTrade, PriceDataPoint, KlineDataPoint, MarketSummary, availablePairs } from '@/types';
 import { useSettings } from '@/context/settings-context';
+import { useAdminSettings } from '@/context/admin-settings-context'; // Import the new hook
 import { getMarketData, GetMarketDataOutput } from '@/ai/flows/get-market-data';
 
 
@@ -108,6 +109,7 @@ const generateInitialDataForPair = (pair: string) => {
       price: currentPrice * randomInRange(0.999, 1.001),
       amount: randomInRange(0.01, 1.5), 
       time: formatTime(new Date(now.getTime() - randomInRange(1, 600) * 1000)),
+      trading_pair: pair,
     });
   }
   trades.sort((a, b) => new Date(`1970-01-01T${b.time}Z`).getTime() - new Date(`1970-01-01T${a.time}Z`).getTime());
@@ -137,6 +139,7 @@ const generateInitialDataForPair = (pair: string) => {
 
 export const useMarketData = () => {
   const { settings, timedMarketPresets } = useSettings();
+  const { adminOverrideActive, overridePrice } = useAdminSettings();
   const [tradingPair, setTradingPair] = useState(availablePairs[0]);
   const [allData, setAllData] = useState<Map<string, any>>(new Map());
   const [isInitialised, setIsInitialised] = useState(false);
@@ -185,60 +188,67 @@ export const useMarketData = () => {
                 let finalNewPrice;
                 let activeOverride = null;
 
-                // Check for market override first, as it has the highest priority
-                for (const override of pairSettings.marketOverrides) {
-                    const [startH, startM] = override.startTime.split(':').map(Number);
-                    const [endH, endM] = override.endTime.split(':').map(Number);
-                    const startMinutes = startH * 60 + startM;
-                    const endMinutes = endH * 60 + endM;
-
-                    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                        activeOverride = override;
-                        break;
-                    }
-                }
-                
-                // Check for timed presets next
-                let activePreset = null;
-                for (const preset of timedMarketPresets) {
-                    if (preset.pair !== pair) continue;
-                    const [startH, startM] = preset.startTime.split(':').map(Number);
-                    const [endH, endM] = preset.endTime.split(':').map(Number);
-                    const startMinutes = startH * 60 + startM;
-                    const endMinutes = endH * 60 + endM;
-
-                    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                        activePreset = preset;
-                        break;
-                    }
-                }
-
-                if (activeOverride) {
-                    // We are in an override period
-                    finalNewPrice = randomInRange(activeOverride.minPrice, activeOverride.maxPrice);
-                    nextUpdateDelay = activeOverride.frequency === 'day' ? 5000 : 15000;
-                } else if (activePreset) {
-                    // We are in a timed market preset period
-                    finalNewPrice = randomInRange(activePreset.minPrice, activePreset.maxPrice);
+                // Priority 1: Global Admin Override
+                if (adminOverrideActive) {
+                    finalNewPrice = overridePrice;
                 } else {
-                    // Regular price simulation
-                    const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
-                    let newPrice = lastDataPoint.price;
-                    
-                    const volatilityFactor = pairSettings.volatility;
-                    let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
+                    // Priority 2: Pair-specific market override
+                    for (const override of pairSettings.marketOverrides) {
+                        const [startH, startM] = override.startTime.split(':').map(Number);
+                        const [endH, endM] = override.endTime.split(':').map(Number);
+                        const startMinutes = startH * 60 + startM;
+                        const endMinutes = endH * 60 + endM;
 
-                    if (pairSettings.trend === 'up') {
-                        priceMultiplier = 1 + (Math.random() * volatilityFactor); 
-                    } else if (pairSettings.trend === 'down') {
-                        priceMultiplier = 1 - (Math.random() * volatilityFactor);
+                        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                            activeOverride = override;
+                            break;
+                        }
                     }
                     
-                    finalNewPrice = newPrice * priceMultiplier;
-                     // Standard day/night frequency for regular simulation
-                    const currentHour = now.getHours();
-                    const isNight = currentHour >= 22 || currentHour < 6;
-                    nextUpdateDelay = isNight ? 15000 : 5000;
+                    // Priority 3: Timed presets
+                    let activePreset = null;
+                    if (!activeOverride) {
+                        for (const preset of timedMarketPresets) {
+                            if (preset.pair !== pair) continue;
+                            const [startH, startM] = preset.startTime.split(':').map(Number);
+                            const [endH, endM] = preset.endTime.split(':').map(Number);
+                            const startMinutes = startH * 60 + startM;
+                            const endMinutes = endH * 60 + endM;
+
+                            if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+                                activePreset = preset;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (activeOverride) {
+                        // We are in a pair-specific override period
+                        finalNewPrice = randomInRange(activeOverride.minPrice, activeOverride.maxPrice);
+                        nextUpdateDelay = activeOverride.frequency === 'day' ? 5000 : 15000;
+                    } else if (activePreset) {
+                        // We are in a timed market preset period
+                        finalNewPrice = randomInRange(activePreset.minPrice, activePreset.maxPrice);
+                    } else {
+                        // Priority 4: Regular price simulation
+                        const lastDataPoint = prevData.priceData[prevData.priceData.length - 1];
+                        let newPrice = lastDataPoint.price;
+                        
+                        const volatilityFactor = pairSettings.volatility;
+                        let priceMultiplier = 1 + (Math.random() - 0.5) * volatilityFactor;
+
+                        if (pairSettings.trend === 'up') {
+                            priceMultiplier = 1 + (Math.random() * volatilityFactor); 
+                        } else if (pairSettings.trend === 'down') {
+                            priceMultiplier = 1 - (Math.random() * volatilityFactor);
+                        }
+                        
+                        finalNewPrice = newPrice * priceMultiplier;
+                         // Standard day/night frequency for regular simulation
+                        const currentHour = now.getHours();
+                        const isNight = currentHour >= 22 || currentHour < 6;
+                        nextUpdateDelay = isNight ? 15000 : 5000;
+                    }
                 }
 
 
@@ -274,6 +284,7 @@ export const useMarketData = () => {
                             price: newSummary.price * randomInRange(0.9998, 1.0002),
                             amount: randomInRange(0.01, 1.5),
                             time: formatTime(new Date()),
+                            trading_pair: pair,
                         });
                         if (newTrades.length > 50) newTrades.pop();
                     }
@@ -292,7 +303,7 @@ export const useMarketData = () => {
     runUpdate();
 
     return () => clearTimeout(timeoutId);
-  }, [isInitialised, tradingPair, settings, timedMarketPresets]);
+  }, [isInitialised, tradingPair, settings, timedMarketPresets, adminOverrideActive, overridePrice]);
 
   const data = allData.get(tradingPair) || null;
   const summaryData = allData.size > 0 ? Array.from(allData.values()).map(d => d.summary) : [];
@@ -313,5 +324,3 @@ export const useMarketData = () => {
       forexSummaryData,
     };
 };
-
-    

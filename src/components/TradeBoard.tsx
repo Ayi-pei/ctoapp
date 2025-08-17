@@ -76,7 +76,7 @@ export default function TradeBoard() {
                 <OrderForm
                     tradingPair={tradingPair}
                     balance={balances[quoteAsset]?.available || 0}
-                    onPlaceTrade={placeContractTrade}
+                    onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
                     quoteAsset={quoteAsset}
                 />
             </TabsContent>
@@ -84,7 +84,7 @@ export default function TradeBoard() {
                  <SpotOrderForm
                     tradingPair={tradingPair}
                     balances={balances}
-                    onPlaceTrade={placeSpotTrade}
+                    onPlaceTrade={(trade) => placeSpotTrade(trade)}
                     baseAsset={baseAsset}
                     quoteAsset={quoteAsset}
                     currentPrice={summary.price}
