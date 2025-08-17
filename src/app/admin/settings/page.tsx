@@ -21,11 +21,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
 
-const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset }: { 
+const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset, onSave }: { 
     presets: TimedMarketPreset[],
     addPreset: () => void,
     removePreset: (id: string) => void,
-    updatePreset: (id: string, updates: Partial<TimedMarketPreset>) => void
+    updatePreset: (id: string, updates: Partial<TimedMarketPreset>) => void,
+    onSave: () => void
 }) => {
     return (
         <Card>
@@ -116,11 +117,12 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
                     ))}
                 </CardContent>
             </ScrollArea>
-            <CardFooter className="flex flex-col items-start gap-4">
+            <CardFooter className="flex-col items-start gap-4">
                  <Button variant="outline" size="sm" onClick={addPreset}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     添加新预设
                 </Button>
+                <Button onClick={onSave}>保存预设设置</Button>
             </CardFooter>
         </Card>
     );
@@ -528,6 +530,7 @@ export default function AdminSettingsPage() {
                             addPreset={addTimedMarketPreset}
                             removePreset={removeTimedMarketPreset}
                             updatePreset={updateTimedMarketPreset}
+                            onSave={() => handleSaveSettings('限定时间市场')}
                         />
                         
                         <Card>
