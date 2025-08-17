@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useSettings, TradingPairSettings, SpecialTimeFrame, TimedMarketPreset } from "@/context/settings-context";
+import { useSettings, TradingPairSettings, SpecialTimeFrame, TimedMarketPreset, MarketOverridePreset } from "@/context/settings-context";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import { availablePairs } from "@/types";
@@ -110,7 +110,19 @@ const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePrese
 };
 
 
-const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChange, handleVolatilityChange, updateSpecialTimeFrame, addSpecialTimeFrame, removeSpecialTimeFrame }: { 
+const PairSettingsCard = ({ 
+    pair, 
+    settings, 
+    handleSettingChange, 
+    handleTrendChange, 
+    handleVolatilityChange, 
+    updateSpecialTimeFrame, 
+    addSpecialTimeFrame, 
+    removeSpecialTimeFrame,
+    addMarketOverride,
+    updateMarketOverride,
+    removeMarketOverride
+}: { 
     pair: string, 
     settings: TradingPairSettings,
     handleSettingChange: (pair: string, key: keyof TradingPairSettings, value: any) => void,
@@ -118,7 +130,10 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
     handleVolatilityChange: (pair: string, value: number[]) => void,
     updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => void,
     addSpecialTimeFrame: (pair: string) => void,
-    removeSpecialTimeFrame: (pair: string, frameId: string) => void
+    removeSpecialTimeFrame: (pair: string, frameId: string) => void,
+    addMarketOverride: (pair: string) => void,
+    updateMarketOverride: (pair: string, overrideId: string, updates: Partial<MarketOverridePreset>) => void,
+    removeMarketOverride: (pair: string, overrideId: string) => void
 }) => {
     const [volatilityValue, setVolatilityValue] = useState(settings.volatility);
 
@@ -265,6 +280,84 @@ const PairSettingsCard = ({ pair, settings, handleSettingChange, handleTrendChan
                     添加特殊时间段
                 </Button>
             </div>
+            
+            <Separator />
+            
+             <div className="space-y-4">
+                <Label className="font-semibold">市场数据干预</Label>
+                 <p className="text-xs text-muted-foreground">
+                    设置一个时间段，用自定义的模拟数据覆盖真实市场行情。
+                </p>
+                {settings.marketOverrides.map((override, index) => (
+                    <div key={override.id} className="p-3 border rounded-lg space-y-3 relative bg-muted/30">
+                        <h4 className="text-sm font-medium">干预时段 {index + 1}</h4>
+                         <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeMarketOverride(pair, override.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <Label htmlFor={`override-start-${override.id}`} className="text-xs">开始时间</Label>
+                                <Input 
+                                    id={`override-start-${override.id}`}
+                                    type="time" 
+                                    value={override.startTime}
+                                    onChange={(e) => updateMarketOverride(pair, override.id, { startTime: e.target.value })}
+                                />
+                            </div>
+                             <div>
+                                <Label htmlFor={`override-end-${override.id}`} className="text-xs">结束时间</Label>
+                                <Input 
+                                    id={`override-end-${override.id}`}
+                                    type="time" 
+                                    value={override.endTime}
+                                    onChange={(e) => updateMarketOverride(pair, override.id, { endTime: e.target.value })}
+                                />
+                            </div>
+                             <div>
+                                <Label htmlFor={`override-min-${override.id}`} className="text-xs">最低价</Label>
+                                <Input 
+                                    id={`override-min-${override.id}`}
+                                    type="number" 
+                                    value={override.minPrice}
+                                    onChange={(e) => updateMarketOverride(pair, override.id, { minPrice: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                             <div>
+                                <Label htmlFor={`override-max-${override.id}`} className="text-xs">最高价</Label>
+                                <Input 
+                                    id={`override-max-${override.id}`}
+                                    type="number" 
+                                    value={override.maxPrice}
+                                    onChange={(e) => updateMarketOverride(pair, override.id, { maxPrice: parseFloat(e.target.value) || 0 })}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs">刷新频率</Label>
+                            <Select 
+                                value={override.frequency} 
+                                onValueChange={(value: 'day' | 'night') => updateMarketOverride(pair, override.id, { frequency: value })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="day">日间频率 (5s)</SelectItem>
+                                    <SelectItem value="night">夜间频率 (15s)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                ))}
+                 <Button variant="outline" size="sm" onClick={() => addMarketOverride(pair)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    添加干预时段
+                </Button>
+            </div>
+
         </div>
     );
 };
@@ -355,7 +448,10 @@ export default function AdminSettingsPage() {
         timedMarketPresets,
         addTimedMarketPreset,
         removeTimedMarketPreset,
-        updateTimedMarketPreset
+        updateTimedMarketPreset,
+        addMarketOverride,
+        updateMarketOverride,
+        removeMarketOverride,
     } = useSettings();
 
     const { systemSettings, updateDepositAddress } = useSystemSettings();
@@ -459,6 +555,7 @@ export default function AdminSettingsPage() {
                                         specialTimeFrames: [],
                                         isTradingHalted: false,
                                         volatility: 0.05,
+                                        marketOverrides: [],
                                     };
                                     return (
                                         <PairSettingsCard 
@@ -471,6 +568,9 @@ export default function AdminSettingsPage() {
                                             addSpecialTimeFrame={addSpecialTimeFrame}
                                             removeSpecialTimeFrame={removeSpecialTimeFrame}
                                             updateSpecialTimeFrame={updateSpecialTimeFrame}
+                                            addMarketOverride={addMarketOverride}
+                                            updateMarketOverride={updateMarketOverride}
+                                            removeMarketOverride={removeMarketOverride}
                                         />
                                     )
                                 })}
@@ -485,3 +585,5 @@ export default function AdminSettingsPage() {
         </DashboardLayout>
     );
 }
+
+    

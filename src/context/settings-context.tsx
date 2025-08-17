@@ -19,6 +19,15 @@ export type TimedMarketPreset = {
     price: number;
 }
 
+export type MarketOverridePreset = {
+    id: string;
+    startTime: string;
+    endTime: string;
+    minPrice: number;
+    maxPrice: number;
+    frequency: 'day' | 'night';
+}
+
 export type TradingPairSettings = {
     trend: 'up' | 'down' | 'normal';
     tradingDisabled: boolean; 
@@ -26,6 +35,7 @@ export type TradingPairSettings = {
     volatility: number; 
     baseProfitRate: number;
     specialTimeFrames: SpecialTimeFrame[];
+    marketOverrides: MarketOverridePreset[];
 };
 
 type AllSettings = {
@@ -42,6 +52,9 @@ interface SettingsContextType {
     addTimedMarketPreset: () => void;
     removeTimedMarketPreset: (presetId: string) => void;
     updateTimedMarketPreset: (presetId: string, updates: Partial<TimedMarketPreset>) => void;
+    addMarketOverride: (pair: string) => void;
+    removeMarketOverride: (pair: string, overrideId: string) => void;
+    updateMarketOverride: (pair: string, overrideId: string, updates: Partial<MarketOverridePreset>) => void;
 }
 
 const getDefaultPairSettings = (): TradingPairSettings => ({
@@ -51,6 +64,7 @@ const getDefaultPairSettings = (): TradingPairSettings => ({
     volatility: Math.random() * (0.02 - 0.01) + 0.01,
     baseProfitRate: 0.85,
     specialTimeFrames: [],
+    marketOverrides: [],
 });
 
 const defaultSettings: AllSettings = availablePairs.reduce((acc, pair) => {
@@ -145,6 +159,51 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setTimedMarketPresets(prev => prev.map(p => p.id === presetId ? { ...p, ...updates } : p));
     }, []);
 
+    const addMarketOverride = useCallback((pair: string) => {
+        setSettings(prev => {
+            const newOverride: MarketOverridePreset = {
+                id: `override_${Date.now()}`,
+                startTime: '14:30',
+                endTime: '14:35',
+                minPrice: 65000,
+                maxPrice: 65100,
+                frequency: 'day',
+            };
+            const pairSettings = prev[pair] || getDefaultPairSettings();
+            const updatedOverrides = [...pairSettings.marketOverrides, newOverride];
+            return {
+                ...prev,
+                [pair]: { ...pairSettings, marketOverrides: updatedOverrides },
+            };
+        });
+    }, []);
+
+    const removeMarketOverride = useCallback((pair: string, overrideId: string) => {
+        setSettings(prev => {
+            const pairSettings = prev[pair];
+            if (!pairSettings) return prev;
+            const updatedOverrides = pairSettings.marketOverrides.filter(o => o.id !== overrideId);
+            return {
+                ...prev,
+                [pair]: { ...pairSettings, marketOverrides: updatedOverrides },
+            };
+        });
+    }, []);
+
+    const updateMarketOverride = useCallback((pair: string, overrideId: string, updates: Partial<MarketOverridePreset>) => {
+        setSettings(prev => {
+            const pairSettings = prev[pair];
+            if (!pairSettings) return prev;
+            const updatedOverrides = pairSettings.marketOverrides.map(o =>
+                o.id === overrideId ? { ...o, ...updates } : o
+            );
+            return {
+                ...prev,
+                [pair]: { ...pairSettings, marketOverrides: updatedOverrides },
+            };
+        });
+    }, []);
+
 
     return (
         <SettingsContext.Provider value={{ 
@@ -156,7 +215,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             updateSpecialTimeFrame,
             addTimedMarketPreset,
             removeTimedMarketPreset,
-            updateTimedMarketPreset
+            updateTimedMarketPreset,
+            addMarketOverride,
+            removeMarketOverride,
+            updateMarketOverride,
         }}>
             {children}
         </SettingsContext.Provider>
@@ -170,3 +232,5 @@ export function useSettings() {
     }
     return context;
 }
+
+    
