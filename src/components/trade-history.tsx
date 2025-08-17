@@ -5,15 +5,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TradeRaw } from "@/types";
-import { useMarket } from "@/context/market-data-context";
 import { useEffect, useState } from "react";
 
-export function TradeHistory({ tradingPair }: { tradingPair: string }) {
-  const { displayedTrades } = useMarket();
+export function TradeHistory({ trades }: { trades: TradeRaw[] }) {
   const [highlighted, setHighlighted] = useState<number[]>([]);
-
-  const streamName = tradingPair.replace('/', '').toLowerCase();
-  const trades = displayedTrades[streamName] || [];
 
   useEffect(() => {
     if (trades.length > 0) {

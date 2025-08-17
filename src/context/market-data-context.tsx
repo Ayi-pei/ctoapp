@@ -73,14 +73,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     };
     
     const getLatestPrice = useCallback((pair: string): number => {
-        const adminOverride = adminOverrides[pair];
-        if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
-          return adminOverride.overridePrice;
+        const kline = klineData[pair];
+        if (kline && kline.length > 0) {
+            return kline[kline.length - 1].close;
         }
 
         const summary = summaryData.find(s => s.pair === pair);
         return summary?.price || 0;
-    }, [summaryData, adminOverrides]);
+    }, [summaryData, klineData]);
 
 
     const fetchMarketData = useCallback(async () => {
@@ -136,7 +136,16 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
      const fetchKlineData = useCallback(async (pair: string) => {
         const coingeckoId = coingeckoIdMap[pair];
-        if (!coingeckoId) return;
+        if (!coingeckoId || !CRYPTO_PAIRS.includes(pair)) {
+            // For non-crypto or unmapped pairs, use simulation
+            const lastPrice = getLatestPrice(pair) || randomInRange(1, 100);
+            const newData: OHLC[] = Array.from({ length: 50 }).map(() => {
+                const price = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
+                return { time: Date.now(), open: price, high: price, low: price, close: price };
+            });
+            setKlineData(prev => ({ ...prev, [pair]: newData }));
+            return;
+        };
 
         try {
             const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc`, {
@@ -162,13 +171,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error(`Error fetching k-line data for ${pair}:`, error);
         }
-    }, []);
+    }, [getLatestPrice]);
 
     useEffect(() => {
         fetchMarketData();
         const marketInterval = setInterval(fetchMarketData, 60000); // Fetch summary every 60s
         return () => clearInterval(marketInterval);
-    }, [fetchMarketData]);
+    }, []); // Run only once on mount
     
     useEffect(() => {
         fetchKlineData(tradingPair);
@@ -207,9 +216,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
 
                     // For non-crypto pairs that are not being fetched, simulate some movement
-                    if (!coingeckoIdMap[item.pair]) {
-                        const lastPrice = item.price || 1;
-                        return { ...item, price: lastPrice * (1 + (Math.random() - 0.5) * 0.001) };
+                    if (!CRYPTO_PAIRS.includes(item.pair)) {
+                        const lastPrice = item.price || randomInRange(1, 2000);
+                        const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
+                        
+                        setKlineData(prevKline => {
+                            const pairKline = prevKline[item.pair] || [];
+                            const newPoint = { time: Date.now(), open: lastPrice, high: Math.max(lastPrice, newPrice), low: Math.min(lastPrice, newPrice), close: newPrice };
+                            const updatedKline = [...pairKline.slice(-49), newPoint];
+                            return { ...prevKline, [item.pair]: updatedKline };
+                        });
+                        
+                        return { ...item, price: newPrice };
                     }
                     
                     return item; // Return crypto data as is, it's updated by fetchMarketData
