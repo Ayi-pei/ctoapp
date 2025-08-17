@@ -1,82 +1,128 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { getMarketAnalysis } from "@/ai/flows/get-market-analysis";
-import { Order, PriceDataPoint } from "@/types";
-import { Sparkles, LoaderCircle } from "lucide-react";
+import { PriceDataPoint } from "@/types";
+import { Play, Square, Bot, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
+import { useBalance } from "@/context/balance-context";
 
 type AIAssistantProps = {
-    orderBook: {
-        asks: Order[];
-        bids: Order[];
-    };
     priceHistory: PriceDataPoint[];
     tradingPair: string;
 };
 
-export function AIAssistant({ orderBook, priceHistory, tradingPair }: AIAssistantProps) {
-  const [analysis, setAnalysis] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
-  const handleManualAnalysis = async () => {
-    setIsLoading(true);
-    setAnalysis("");
-    try {
-        const orderBookDataString = `Asks:\n${orderBook.asks.slice(0, 10).map(o => `Price: ${o.price.toFixed(2)}, Size: ${o.size.toFixed(4)}`).join('\n')}\n\nBids:\n${orderBook.bids.slice(0, 10).map(o => `Price: ${o.price.toFixed(2)}, Size: ${o.size.toFixed(4)}`).join('\n')}`;
-
-        // For manual analysis, we can provide the recent price history as context
-        const priceHistoryString = `Recent Prices:\n${priceHistory.slice(-10).map(p => `Time: ${p.time}, Price: ${p.price.toFixed(2)}`).join('\n')}`;
-
-        const result = await getMarketAnalysis({
-            orderBookData: orderBookDataString,
-            priceHistoryData: priceHistoryString,
-            tradingPair: tradingPair,
-        });
-
-        if (result.analysis) {
-            setAnalysis(result.analysis);
-        } else {
-            throw new Error("Failed to get analysis from AI.");
-        }
-    } catch (error) {
-        console.error("Error explaining market dynamics:", error);
-        toast({
-            variant: "destructive",
-            title: "分析失败",
-            description: "无法生成市场分析，请稍后再试。",
-        })
-    } finally {
-        setIsLoading(false);
+// Simple automated trading strategy logic
+const decideTrade = (priceHistory: PriceDataPoint[]): 'buy' | 'sell' | null => {
+    if (priceHistory.length < 5) {
+        return null; // Not enough data
     }
-  };
+    const recentPrices = priceHistory.slice(-5).map(p => p.price);
+    const startPrice = recentPrices[0];
+    const endPrice = recentPrices[4];
+
+    if (endPrice > startPrice) {
+        return 'buy'; // Trend is up
+    } else if (endPrice < startPrice) {
+        return 'sell'; // Trend is down
+    }
+    return null; // No clear trend
+};
+
+
+export function AIAssistant({ priceHistory, tradingPair }: AIAssistantProps) {
+  const [isAutoTrading, setIsAutoTrading] = useState(false);
+  const [status, setStatus] = useState("未运行");
+  const { toast } = useToast();
+  const { placeContractTrade, balances } = useBalance();
+  const quoteAsset = tradingPair.split('/')[1];
+
+  const tradeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const executeAutoTrade = useCallback(() => {
+    setStatus("正在分析市场...");
+    const decision = decideTrade(priceHistory);
+    
+    if (decision) {
+        const tradeAmount = 10; // Fixed amount for auto-trade for now
+        if ((balances[quoteAsset]?.available || 0) < tradeAmount) {
+            setStatus(`余额不足，无法执行交易。`);
+            setIsAutoTrading(false);
+            if(tradeIntervalRef.current) clearInterval(tradeIntervalRef.current);
+            return;
+        }
+
+        placeContractTrade({
+            type: decision,
+            amount: tradeAmount, // Example: trade 10 USDT each time
+            period: 30, // Example: 30s contracts
+            profitRate: 0.85, // Example: 85% profit rate
+        }, tradingPair);
+        
+        setStatus(`趋势分析: ${decision === 'buy' ? '看涨' : '看跌'}。已自动下单 ${tradeAmount} ${quoteAsset}。`);
+    } else {
+        setStatus("无明显交易信号，跳过此次操作。");
+    }
+  }, [priceHistory, placeContractTrade, tradingPair, balances, quoteAsset]);
+
+
+  useEffect(() => {
+    if (isAutoTrading) {
+      setStatus("自动交易已启动，等待下一个决策点...");
+      tradeIntervalRef.current = setInterval(() => {
+        executeAutoTrade();
+      }, 10000); // Trade every 10 seconds
+    } else {
+      if (tradeIntervalRef.current) {
+        clearInterval(tradeIntervalRef.current);
+        tradeIntervalRef.current = null;
+      }
+      setStatus("未运行");
+    }
+
+    return () => {
+      if (tradeIntervalRef.current) {
+        clearInterval(tradeIntervalRef.current);
+      }
+    };
+  }, [isAutoTrading, executeAutoTrade]);
+
+  const handleStart = () => {
+    toast({ title: "启动成功", description: "AI自动交易已启动。" });
+    setIsAutoTrading(true);
+  }
+
+  const handleStop = () => {
+     toast({ title: "已停止", description: "AI自动交易已停止。" });
+    setIsAutoTrading(false);
+  }
 
   return (
     <Card>
         <CardHeader>
-            <CardTitle>AI 交易助手</CardTitle>
-            <CardDescription>获取基于当前市场数据的AI分析建议。</CardDescription>
+            <CardTitle>AI 交易助手 (自动策略)</CardTitle>
+            <CardDescription>启动后，系统将根据K线趋势自动执行秒合约交易。</CardDescription>
         </CardHeader>
         <CardContent>
-            <Button onClick={handleManualAnalysis} disabled={isLoading} className="w-full">
-                {isLoading ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                {isLoading ? '正在分析...' : '手动分析行情'}
-            </Button>
-            {analysis && (
-                <div className="mt-4">
-                    <ScrollArea className="h-32 w-full rounded-md border p-4 text-sm">
-                        <div className="text-foreground whitespace-pre-wrap">
-                        {analysis}
-                        </div>
-                    </ScrollArea>
-                </div>
-            )}
+            <div className="grid grid-cols-2 gap-4">
+                 <Button onClick={handleStart} disabled={isAutoTrading}>
+                    <Play className="mr-2 h-4 w-4" />
+                    开始自动交易
+                </Button>
+                <Button onClick={handleStop} disabled={!isAutoTrading} variant="destructive">
+                    <Square className="mr-2 h-4 w-4" />
+                    停止自动交易
+                </Button>
+            </div>
+            <div className="mt-4 p-3 bg-muted rounded-md text-sm text-center">
+                <p className="flex items-center justify-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    <span className="font-semibold">当前状态:</span>
+                    <span className="text-muted-foreground">{status}</span>
+                </p>
+            </div>
         </CardContent>
     </Card>
   );
