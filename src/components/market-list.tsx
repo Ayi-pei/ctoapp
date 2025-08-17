@@ -7,22 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
-
-const cryptoIcons: { [key: string]: string } = {
-  "BTC": "/icons/btc.svg",
-  "ETH": "/icons/eth.svg",
-  "XRP": "/icons/xrp.svg",
-  "LTC": "/icons/ltc.svg",
-  "BNB": "/icons/bnb.svg",
-  "MATIC": "/icons/matic.svg",
-  "SOL": "/icons/sol.svg",
-  "DOGE": "/icons/doge.svg",
-  "ADA": "/icons/ada.svg",
-  "SHIB": "/icons/shib.svg",
-  "XAU": "/icons/gold.svg",
-  "EUR": "/icons/eur.svg",
-  "GBP": "/icons/gbp.svg",
-};
+import Image from "next/image";
 
 const generateSparklineData = () => {
   const data = [];
@@ -54,9 +39,11 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
 
                     return (
                         <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2 cursor-pointer hover:bg-muted/50 rounded-lg">
-                             <img 
-                                src={cryptoIcons[item.pair.split('/')[0]]} 
+                             <Image 
+                                src={item.icon || `https://placehold.co/32x32.png`}
                                 alt={`${item.pair.split('/')[0]} logo`} 
+                                width={32}
+                                height={32}
                                 className="h-8 w-8"
                              />
                             <div>
@@ -88,9 +75,9 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
                                 </ChartContainer>
                              </div>
                             <div className="text-right">
-                                <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                                 <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                                    {isPositive ? '+' : ''}{item.change.toFixed(2)}%
+                                    {isPositive ? '+' : ''}{(item.change || 0).toFixed(2)}%
                                 </p>
                             </div>
                         </div>

@@ -29,6 +29,7 @@ export type MarketSummary = {
     volume: number;
     high: number;
     low: number;
+    icon?: string; // Optional icon URL from API
 };
 
 
@@ -169,10 +170,10 @@ export type InvestmentTier = {
 export type Investment = {
     id: string;
     user_id: string;
-    productName: string;
+    product_name: string;
     amount: number; // principal
     created_at: string;
-    date: string;
+    settlement_date: string;
     status: 'active' | 'settled';
     category: 'staking' | 'finance';
     profit?: number;

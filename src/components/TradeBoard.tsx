@@ -10,30 +10,26 @@ import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
 import { SmartTrade } from "./smart-trade";
 import { MarketOverview } from "./market-overview";
-import { useAuth } from "@/context/auth-context";
-import { Button } from "./ui/button";
-import { useAdminSettings } from "@/context/admin-settings-context";
+import { Skeleton } from "./ui/skeleton";
 
 // Helper function to get computed style of a CSS variable
 const getCssVar = (variable: string) => {
   if (typeof window === 'undefined') return '';
-  return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+  // Remove 'hsl(' and ')' and any spaces
+  const hslValues = getComputedStyle(document.documentElement)
+    .getPropertyValue(variable)
+    .replace(/hsl\(|\)|\s/g, '');
+  return hslValues;
 }
 
 export default function TradeBoard() {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
-  const { isAdmin } = useAuth();
-  const { startOverride } = useAdminSettings();
 
   const klineData = allKlineData[tradingPair] || [];
   const currentSummary = summaryData.find(s => s.pair === tradingPair);
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
-
-  if (klineData.length === 0) {
-    return <div>Loading market data...</div>;
-  }
 
   const chartColorHsl = getCssVar('--chart-2');
   const chartColorRgbaStart = `hsla(${chartColorHsl}, 0.3)`;
@@ -98,7 +94,13 @@ export default function TradeBoard() {
         <MarketOverview summary={currentSummary} />
 
         <div className="h-[400px] w-full bg-card rounded-lg p-2">
-          <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
+           {klineData.length > 0 ? (
+              <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
+            ) : (
+              <div className="flex justify-center items-center h-full">
+                <Skeleton className="h-full w-full" />
+              </div>
+            )}
         </div>
 
         <Tabs defaultValue="contract">
