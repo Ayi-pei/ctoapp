@@ -92,8 +92,10 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
         <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          
+          {/* Left Column (2/3 width) - Chart */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="h-[400px] w-full">
+            <div className="h-[500px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={data.priceData}
@@ -118,7 +120,10 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            
+          </div>
+
+          {/* Right Column (1/3 width) - Order Forms & Market Info */}
+          <div className="lg:col-span-1 space-y-4">
              <div className="space-y-2">
                 <Collapsible open={openCollapsible === 'contract'} onOpenChange={() => {}}>
                     <CollapsibleTrigger asChild>
@@ -156,8 +161,7 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                     </CollapsibleContent>
                 </Collapsible>
              </div>
-          </div>
-          <div className="lg:col-span-1 space-y-4">
+             
              <Tabs defaultValue="pairs">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="pairs">交易对</TabsTrigger>
