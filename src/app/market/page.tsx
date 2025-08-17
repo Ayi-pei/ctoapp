@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
 
 export default function MarketPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData, klineData } = useMarket();
 
     const renderMarketList = (data: any[]) => {
         if (!summaryData.length) {
@@ -29,7 +29,7 @@ export default function MarketPage() {
                 </div>
             )
         }
-        return <div className="px-4"><MarketList summary={data} /></div>
+        return <div className="px-4"><MarketList summary={data} klineData={klineData} /></div>
     }
 
     return (

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { MarketSummary } from "@/types";
+import { MarketSummary, OHLC } from "@/types";
 import { Area, AreaChart } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
@@ -9,17 +9,12 @@ import { useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import Image from "next/image";
 
-const generateSparklineData = () => {
-  const data = [];
-  let lastVal = Math.random() * 100;
-  for (let i = 0; i < 20; i++) {
-    lastVal += (Math.random() - 0.5) * 10;
-    data.push({ value: Math.max(0, lastVal) });
-  }
-  return data;
-}
+type MarketListProps = {
+  summary: MarketSummary[];
+  klineData: Record<string, OHLC[]>;
+};
 
-export function MarketList({ summary }: { summary: MarketSummary[] }) {
+export function MarketList({ summary, klineData }: MarketListProps) {
   const { changeTradingPair } = useMarket();
   const router = useRouter();
 
@@ -33,7 +28,9 @@ export function MarketList({ summary }: { summary: MarketSummary[] }) {
         <CardContent className="p-0">
             <div className="space-y-4">
                 {summary.map((item) => {
-                    const sparklineData = generateSparklineData();
+                    const pairKlineData = klineData[item.pair] || [];
+                    const sparklineData = pairKlineData.map(d => ({ value: d.close }));
+
                     const isPositive = item.change >= 0;
                     const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 

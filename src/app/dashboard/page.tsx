@@ -19,7 +19,7 @@ import { CheckInDialog } from "@/components/check-in-dialog";
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData } = useMarket();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData, klineData } = useMarket();
     const { balances } = useBalance();
     const { platformAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -66,7 +66,7 @@ export default function DashboardPage() {
                 </div>
             )
         }
-        return <MarketList summary={data} />
+        return <MarketList summary={data} klineData={klineData} />
     }
 
 
