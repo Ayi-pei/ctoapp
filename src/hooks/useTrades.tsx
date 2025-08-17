@@ -27,18 +27,13 @@ const STREAMS = [
 ];
 
 type TradeRaw = { price: number; quantity: number; time: number };
-type OHLC = { open: number; high: number; low: number; close: number; time: number };
 
-export default function useTrades(intervalMs = 5000, maxCandles = 50) {
+export default function useTrades(intervalMs = 5000) {
   const [tradesMap, setTradesMap] = useState<Record<string, TradeRaw>>({});
-  const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
-  const tempOHLCs = useRef<Record<string, OHLC | null>>({});
+  const [displayedTrades, setDisplayedTrades] = useState<Record<string, TradeRaw>>({});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Initialize temp map
-    STREAMS.forEach(s => (tempOHLCs.current[s] = null));
-
     const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${STREAMS.join("/")}`);
     wsRef.current = ws;
 
@@ -46,23 +41,12 @@ export default function useTrades(intervalMs = 5000, maxCandles = 50) {
       try {
         const { s: symbol, p: priceStr, q: qtyStr, T: time } = JSON.parse(event.data);
         const stream = `${symbol.toLowerCase()}@trade`;
-
         const price = parseFloat(priceStr);
         const qty = parseFloat(qtyStr);
         
         // Update raw tradesMap (for real-time price list)
         setTradesMap(prev => ({ ...prev, [stream]: { price, quantity: qty, time } }));
 
-        // Update temporary OHLC for the current interval window
-        const tmp = tempOHLCs.current[stream];
-        if (!tmp) {
-          tempOHLCs.current[stream] = { open: price, high: price, low: price, close: price, time };
-        } else {
-          tmp.high = Math.max(tmp.high, price);
-          tmp.low = Math.min(tmp.low, price);
-          tmp.close = price;
-          tmp.time = time;
-        }
       } catch (e) {
         console.warn("ws parse error", e);
       }
@@ -81,28 +65,14 @@ export default function useTrades(intervalMs = 5000, maxCandles = 50) {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setKlineData(prev => {
-        const next = { ...prev };
-        STREAMS.forEach(stream => {
-          const tmp = tempOHLCs.current[stream];
-          if (tmp) {
-            const arr = next[stream] ? [...next[stream]] : [];
-            arr.push({ ...tmp }); // push a copy
-            if (arr.length > maxCandles) arr.splice(0, arr.length - maxCandles);
-            next[stream] = arr;
-            tempOHLCs.current[stream] = null;
-          }
-        });
-        return next;
-      });
+        setDisplayedTrades(tradesMap);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [intervalMs, maxCandles]);
+  }, [tradesMap, intervalMs]);
 
 
   return {
-    tradesMap,
-    klineData,
+    displayedTrades,
   };
 }
