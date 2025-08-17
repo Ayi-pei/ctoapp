@@ -78,6 +78,9 @@ interface BalanceContextType {
   adjustFrozenBalance: (asset: string, amount: number, userId?: string) => void;
   confirmWithdrawal: (asset: string, amount: number, userId?: string) => void;
   revertWithdrawal: (asset: string, amount: number, userId?: string) => void;
+  handleCheckIn: () => Promise<{ success: boolean; reward: number; message?: string; }>;
+  lastCheckInDate?: string;
+  consecutiveCheckIns: number;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -93,6 +96,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
+  const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
+
 
   // Load user data from storage
   useEffect(() => {
@@ -104,6 +110,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setActiveContractTrades(data.activeContractTrades);
         setHistoricalTrades(data.historicalTrades);
         setCommissionLogs(data.commissionLogs);
+        setLastCheckInDate(data.lastCheckInDate);
+        setConsecutiveCheckIns(data.consecutiveCheckIns || 0);
     } else {
         // Logged out, clear all data
         setBalances(INITIAL_BALANCES_USER);
@@ -111,6 +119,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setActiveContractTrades([]);
         setHistoricalTrades([]);
         setCommissionLogs([]);
+        setLastCheckInDate(undefined);
+        setConsecutiveCheckIns(0);
     }
     setIsLoading(false);
   }, [user]);
@@ -124,10 +134,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
               activeContractTrades,
               historicalTrades,
               commissionLogs,
+              lastCheckInDate,
+              consecutiveCheckIns,
           };
           saveUserData(user.id, dataToStore);
       }
-  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs]);
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs, lastCheckInDate, consecutiveCheckIns]);
 
 
   const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
@@ -447,6 +459,38 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         distributeCommissions(user, trade.total);
      }
   };
+
+    const handleCheckIn = useCallback(async (): Promise<{ success: boolean; reward: number; message?: string; }> => {
+        if (!user) {
+            return { success: false, reward: 0, message: "User not logged in." };
+        }
+
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        if (lastCheckInDate === todayStr) {
+            return { success: false, reward: 0, message: "You have already checked in today." };
+        }
+
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        let newConsecutiveCheckIns = 1;
+        if (lastCheckInDate === yesterdayStr) {
+            newConsecutiveCheckIns = (consecutiveCheckIns % 7) + 1;
+        }
+
+        const baseReward = 0.5;
+        const reward = baseReward * Math.pow(1.5, newConsecutiveCheckIns - 1);
+
+        adjustBalance(user.id, 'USDT', reward);
+
+        setLastCheckInDate(todayStr);
+        setConsecutiveCheckIns(newConsecutiveCheckIns);
+
+        return { success: true, reward };
+    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
       if (userId && user?.id !== userId) return; 
@@ -504,7 +548,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       adjustBalance,
       adjustFrozenBalance,
       confirmWithdrawal,
-      revertWithdrawal
+      revertWithdrawal,
+      handleCheckIn,
+      lastCheckInDate,
+      consecutiveCheckIns
     };
 
   return (

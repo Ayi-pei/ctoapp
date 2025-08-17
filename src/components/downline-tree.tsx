@@ -35,8 +35,8 @@ export const DownlineTree = ({ userId }: DownlineTreeProps) => {
         setIsLoading(true);
         // Mock data since Supabase is removed
         const mockDownline: DownlineMember[] = [
-            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString() },
-            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString() },
+            { id: 'user2', username: 'testuser2', level: 1, created_at: new Date().toISOString(), email: 'test2@test.com', inviter_id: 'user1', is_admin: false, is_frozen: false, is_test_user: true, invitation_code: 'ABC', nickname: 'user2', credit_score: 100 },
+            { id: 'user3', username: 'testuser3', level: 2, created_at: new Date().toISOString(), email: 'test3@test.com', inviter_id: 'user2', is_admin: false, is_frozen: false, is_test_user: true, invitation_code: 'DEF', nickname: 'user3', credit_score: 100 },
         ];
         setDownline(mockDownline);
         setIsLoading(false);

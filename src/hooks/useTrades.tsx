@@ -2,83 +2,70 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { availablePairs } from "@/types";
-
-const streams = availablePairs.map(p => `${p.replace('/', '').toLowerCase()}@aggTrade`);
 
 export default function useTrades() {
   const [tradesMap, setTradesMap] = useState<Record<string, any>>({});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const initWS = () => {
-      // Prevent creating a new WebSocket if one already exists or is connecting
-      if (wsRef.current && wsRef.current.readyState < 2) { // 0=CONNECTING, 1=OPEN
-          console.log("WebSocket connection already exists or is connecting.");
-          return;
-      }
-      
-      // Connecting to a single aggregated trade stream is more stable than subscribing to many individual streams,
-      // which can result in a URL that is too long for the server to handle.
-      const ws = new WebSocket(
-        `wss://stream.binance.com:9443/ws/!aggTrade@arr`
-      );
-      wsRef.current = ws;
+    // If a connection already exists, do nothing.
+    // This prevents the effect from creating a new connection on every re-render in Strict Mode.
+    if (wsRef.current) {
+        return;
+    }
 
-      ws.onopen = () => {
-          console.log(`✅ WS connected to aggregate trade stream.`);
-      };
+    const ws = new WebSocket(
+      `wss://stream.binance.com:9443/ws/!aggTrade@arr`
+    );
+    wsRef.current = ws;
 
-      ws.onmessage = (event) => {
-        try {
-          const trades = JSON.parse(event.data);
-          // For an array of trades from the aggregate stream
-          if (Array.isArray(trades)) {
-            setTradesMap(prev => {
-                const newMap = { ...prev };
-                trades.forEach(trade => {
-                    // stream name is based on symbol, e.g., btcusdt@aggtrade
-                    const streamName = `${trade.s.toLowerCase()}@aggtrade`;
-                    newMap[streamName] = { 
-                        price: parseFloat(trade.p), 
-                        quantity: parseFloat(trade.q), 
-                        time: trade.T 
-                    };
-                });
-                return newMap;
-            });
-          }
-        } catch (err) {
-          console.error("WS message parse error:", err);
-        }
-      };
-
-      ws.onerror = (err) => {
-          console.error("❌ WS error:", err);
-      };
-
-      ws.onclose = (ev) => {
-        console.warn("⚠️ WS connection closed", ev);
-        // Only try to reconnect if the closure was unexpected.
-        if (!(wsRef.current as any)?.isClosedByCleanup) {
-          setTimeout(initWS, 3000); // Attempt to reconnect after 3 seconds
-        }
-      };
+    ws.onopen = () => {
+        console.log(`✅ WS connected to aggregate trade stream.`);
     };
 
-    initWS();
+    ws.onmessage = (event) => {
+      try {
+        const trades = JSON.parse(event.data);
+        if (Array.isArray(trades)) {
+          setTradesMap(prev => {
+              const newMap = { ...prev };
+              trades.forEach(trade => {
+                  const streamName = `${trade.s.toLowerCase()}@aggtrade`;
+                  newMap[streamName] = { 
+                      price: parseFloat(trade.p), 
+                      quantity: parseFloat(trade.q), 
+                      time: trade.T 
+                  };
+              });
+              return newMap;
+          });
+        }
+      } catch (err) {
+        console.error("WS message parse error:", err);
+      }
+    };
 
-    // The cleanup function, called when the component unmounts.
+    ws.onerror = (err) => {
+        console.error("❌ WS error:", err);
+    };
+
+    ws.onclose = (ev) => {
+      // We only log the closure, but we don't attempt to reconnect here.
+      // The useEffect cleanup and setup will handle creating a new connection if needed.
+      if (!ev.wasClean) {
+          console.warn("⚠️ WS connection closed unexpectedly", ev);
+      }
+    };
+
+    // The cleanup function, called when the component unmounts or before the effect re-runs.
     return () => {
       if (wsRef.current) {
-        // Set a custom flag to prevent auto-reconnection on manual close.
-        (wsRef.current as any).isClosedByCleanup = true;
         wsRef.current.close(1000, "Component unmounted");
-        wsRef.current = null;
+        wsRef.current = null; // Ensure the ref is cleared on cleanup.
         console.log("WebSocket connection closed on component cleanup.");
       }
     };
-  }, []); // Empty dependency array ensures this runs only once on mount.
+  }, []); // Empty dependency array ensures this runs only on mount and unmount.
 
   return tradesMap;
 }

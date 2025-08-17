@@ -72,29 +72,29 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         }
     }, [requests, isLoaded]);
 
-    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user_id'>, forUserId?: string) => {
+    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user' | 'user_id'>, forUserId?: string) => {
         const targetUser = forUserId ? getUserById(forUserId) : user;
         if (!targetUser) return;
-        
-        const fullRequest: AnyRequest = {
+    
+        const fullRequest = {
             ...newRequest,
             id: `req_${Date.now()}`,
             user_id: targetUser.id,
-            status: 'pending',
+            status: 'pending' as const,
             created_at: new Date().toISOString(),
             user: { username: targetUser.username },
         };
-
-        if (newRequest.type === 'adjustment') {
-             fullRequest.status = 'approved';
+    
+        if (fullRequest.type === 'adjustment') {
+            (fullRequest as any).status = 'approved' as const;
         }
-
-        setRequests(prev => [fullRequest, ...prev]);
-
-        if (fullRequest.status === 'approved' && fullRequest.type === 'adjustment') {
+    
+        setRequests(prev => [fullRequest as AnyRequest, ...prev]);
+    
+        if (fullRequest.type === 'adjustment' && (fullRequest as any).status === 'approved') {
             adjustBalance(fullRequest.user_id, (fullRequest as Transaction).asset, (fullRequest as Transaction).amount);
         }
-
+    
     }, [user, getUserById, adjustBalance]);
 
     const addDepositRequest = useCallback((params: DepositRequestParams, type: 'deposit' | 'adjustment' = 'deposit', forUserId?: string) => {
@@ -168,7 +168,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         setRequests(prev => prev.map(r => {
             if (r.id === requestId) {
                 const originalRequest = r;
-                const updatedRequest = { ...r, ...updates };
+                const updatedRequest = { ...r, ...updates } as AnyRequest;
 
                 // If status is changed to approved, handle balance changes
                 if (originalRequest.status !== 'approved' && updatedRequest.status === 'approved') {

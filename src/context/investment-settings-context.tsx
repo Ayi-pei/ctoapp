@@ -45,11 +45,11 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
             { hours: 6, rate: 0.025 }, // 2.5%
         ]
     },
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily', 'data-ai-hint': 'server rack' },
-    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily', 'data-ai-hint': 'microchip hardware' },
-    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily', 'data-ai-hint': 'computer fan' },
-    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily', 'data-ai-hint': 'mining rig' },
-    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily', 'data-ai-hint': 'circuit board' },
+    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
 ];
 
 
@@ -118,7 +118,6 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             imgSrc: "https://placehold.co/80x80.png",
             productType: 'daily',
             category: 'staking', // Default to staking, admin can change it
-            'data-ai-hint': 'mining hardware'
         };
         setInvestmentProducts(prev => [...prev, newProduct]);
     }, []);

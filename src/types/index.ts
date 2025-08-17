@@ -6,8 +6,8 @@ export type PriceDataPoint = {
 };
 
 // Represents a single point for a candlestick chart (OHLC)
-export type KlineDataPoint = {
-  time: string;
+export type OHLC = {
+  time: number;
   open: number;
   high: number;
   low: number;
@@ -76,6 +76,14 @@ export type MarketTrade = {
   price: number;
   amount: number;
   time: string;
+};
+
+// Represents a raw trade event from a WebSocket stream
+export type TradeRaw = {
+    stream: string;
+    price: number;
+    quantity: number;
+    timestamp: number;
 };
 
 
