@@ -79,10 +79,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
 
     const fetchMarketData = useCallback(async (isRetry = false) => {
-        const currentSource = API_SOURCES[apiSourceIndex];
+        const storedIndex = localStorage.getItem('apiSourceIndex');
+        const currentIndex = storedIndex ? parseInt(storedIndex, 10) : 0;
+        const currentSource = API_SOURCES[currentIndex];
+        
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
         
-        if (ids.length === 0) return;
+        if (ids.length === 0 && currentSource !== 'coinpaprika') return;
 
         try {
             const response = await axios.get('/api/market-data', {
@@ -99,21 +102,20 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const updatedData = [...prev];
                 newSummaryData.forEach(newItem => {
                     const index = updatedData.findIndex(item => item.pair === newItem.pair);
-                    const existingItem = updatedData[index];
+                    
+                    if (index !== -1) {
+                        updatedData[index] = { ...updatedData[index], ...newItem};
+                    } else {
+                        updatedData.push(newItem);
+                    }
 
-                    // Initialize simulated price if it doesn't exist
+                    // Initialize simulated price if it doesn't exist, only once
                     setSimulatedPrices(prevPrices => {
                         if (!prevPrices[newItem.pair]) {
                             return { ...prevPrices, [newItem.pair]: newItem.price };
                         }
                         return prevPrices;
                     });
-                    
-                    if (index !== -1) {
-                        updatedData[index] = { ...existingItem, ...newItem};
-                    } else {
-                        updatedData.push(newItem);
-                    }
                 });
                 return updatedData;
             });
@@ -121,13 +123,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error(`Error fetching market summary from ${currentSource}:`, error);
             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+                const nextIndex = (currentIndex + 1) % API_SOURCES.length;
+                localStorage.setItem('apiSourceIndex', nextIndex.toString());
                 if (!isRetry) {
-                    setApiSourceIndex(prev => (prev + 1) % API_SOURCES.length);
-                    setTimeout(() => fetchMarketData(true), 1000); 
+                   setTimeout(() => fetchMarketData(true), 1000); 
                 }
             }
         }
-    }, [apiSourceIndex]);
+    }, []);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         if (!CRYPTO_PAIRS.includes(pair)) return;
@@ -190,7 +193,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
                     nextPrice = adminOverride.overridePrice;
                     overrideApplied = true;
-                    console.log(`[ADMIN OVERRIDE] Price for ${pair} set to ${nextPrice}`);
                 }
                 // 2. Second Priority: Scheduled market overrides from settings
                 else if (pairSettings?.marketOverrides?.length) {
@@ -203,7 +205,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
                             nextPrice = randomInRange(override.minPrice, override.maxPrice);
                             overrideApplied = true;
-                            console.log(`[SCHEDULED OVERRIDE] Price for ${pair} set to ${nextPrice} (Range: ${override.minPrice}-${override.maxPrice})`);
                             break;
                         }
                     }
