@@ -89,9 +89,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: hsl(var(--background));
   }
-  body.light {
+  .light body {
     background-image: linear-gradient(to bottom right, #FFFBEB, #FEFBF6);
   }
 }
