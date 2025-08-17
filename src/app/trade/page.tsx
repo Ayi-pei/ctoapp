@@ -2,7 +2,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { OrderBook } from "@/components/order-book";
@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils';
 import { TradeHistory } from "@/components/trade-history";
 import { Archive } from 'lucide-react';
 import { AIAssistant } from '@/components/ai-assistant';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronsUpDown } from 'lucide-react';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -40,6 +42,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: string }) {
   const marketData = useMarket();
   const { tradingPair, data, summaryData } = marketData;
+  const [openCollapsible, setOpenCollapsible] = useState<'spot' | 'contract' | null>(null);
+
   const { 
     balances, 
     placeSpotTrade, 
@@ -75,12 +79,18 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
       </Card>
   );
 
+  const handleTriggerClick = (type: 'spot' | 'contract') => {
+    setOpenCollapsible(prev => prev === type ? null : type);
+  }
+
+
   return (
     <DashboardLayout>
-      <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
-        <div className="col-span-1 space-y-4 lg:col-span-2">
-          <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
-          <div className="h-[400px] w-full">
+      <main className="p-4">
+        <div className="space-y-4">
+           <MarketOverview summary={summaryData.find(s => s.pair === tradingPair)} />
+
+           <div className="h-[400px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={data.priceData}
@@ -105,39 +115,48 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
 
-        <div className="col-span-1 space-y-4">
-          <Tabs defaultValue={defaultTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="contract">秒合约</TabsTrigger>
-              <TabsTrigger value="spot">币币交易</TabsTrigger>
-            </TabsList>
-            <TabsContent value="spot" className="mt-4">
-              <SpotOrderForm
-                tradingPair={tradingPair}
-                balances={balances}
-                onPlaceTrade={(trade) => placeSpotTrade(trade)}
-                baseAsset={baseAsset}
-                quoteAsset={quoteAsset}
-                currentPrice={data.summary.price}
-              />
-            </TabsContent>
-            <TabsContent value="contract" className="mt-4">
-              <div className="flex flex-col gap-4">
-                <OrderForm
+          <Collapsible open={openCollapsible === 'contract'} onOpenChange={() => {}}>
+            <CollapsibleTrigger asChild>
+               <Button variant="outline" className="w-full justify-between" onClick={() => handleTriggerClick('contract')}>
+                  秒合约
+                  <ChevronsUpDown className="h-4 w-4" />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+                 <OrderForm
                   tradingPair={tradingPair}
                   balance={balances[quoteAsset]?.available || 0}
                   onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
                   quoteAsset={quoteAsset}
                 />
-                <AIAssistant
-                  orderBook={data.orderBook}
-                  tradingPair={tradingPair}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Collapsible open={openCollapsible === 'spot'} onOpenChange={() => {}}>
+            <CollapsibleTrigger asChild>
+               <Button variant="outline" className="w-full justify-between" onClick={() => handleTriggerClick('spot')}>
+                  币币交易
+                  <ChevronsUpDown className="h-4 w-4" />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+                 <SpotOrderForm
+                    tradingPair={tradingPair}
+                    balances={balances}
+                    onPlaceTrade={(trade) => placeSpotTrade(trade)}
+                    baseAsset={baseAsset}
+                    quoteAsset={quoteAsset}
+                    currentPrice={data.summary.price}
+                  />
+            </CollapsibleContent>
+          </Collapsible>
+          
+          <AIAssistant
+            priceHistory={data.priceData}
+            orderBook={data.orderBook}
+            tradingPair={tradingPair}
+           />
 
           <div className="pt-4">
             <Tabs defaultValue="current">
@@ -231,17 +250,13 @@ const TradePage = React.memo(function TradePage({ defaultTab }: { defaultTab: st
                   </Card>
                 ) : renderEmptyState("暂无历史委托")}
               </TabsContent>
-              <TabsContent value="orderbook" className="mt-4">
+               <TabsContent value="orderbook" className="mt-4">
                 <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
               </TabsContent>
               <TabsContent value="trades" className="mt-4">
                 <TradeHistory trades={data.trades} />
               </TabsContent>
             </Tabs>
-          </div>
-
-          <div className="hidden md:block">
-            <OrderBook asks={data.orderBook.asks} bids={data.orderBook.bids} tradingPair={tradingPair} />
           </div>
         </div>
       </main>
