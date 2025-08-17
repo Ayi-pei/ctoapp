@@ -11,6 +11,8 @@ const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT'
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
+const API_SOURCES = ['coingecko'];
+
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
 // Unified ID mapping for CoinGecko
@@ -84,11 +86,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const fetchMarketData = useCallback(async (isRetry = false) => {
         const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
         if (ids.length === 0) return;
+        
+        const currentSource = API_SOURCES[0];
 
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
-                    source: 'coingecko',
+                    source: currentSource,
                     endpoint: 'markets',
                     ids: ids.join(','),
                 }
@@ -119,7 +123,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData([...newSummaryData, ...nonCryptoSummary]);
 
         } catch (error) {
-            console.error(`Error fetching market summary from coingecko:`, error);
+            console.error(`Error fetching market summary from ${currentSource}:`, error);
         }
     }, [summaryData]);
 
