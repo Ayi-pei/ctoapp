@@ -159,9 +159,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         fetchMarketData();
-        const marketInterval = setInterval(fetchMarketData, 60000);
+        const marketInterval = setInterval(fetchMarketData, 300000); // 5 minutes
         return () => clearInterval(marketInterval);
-    }, []);
+    }, [fetchMarketData]);
     
     useEffect(() => {
         fetchKlineData(tradingPair);
