@@ -11,10 +11,8 @@ const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT'
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 
-// Helper function to generate a random number within a range
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-// Map our app's trading pairs to CoinGecko API IDs
 const coingeckoIdMap: Record<string, string> = {
     'BTC/USDT': 'bitcoin',
     'ETH/USDT': 'ethereum',
@@ -36,7 +34,6 @@ const coingeckoIdMap: Record<string, string> = {
     'EOS/USDT': 'eos',
     'FIL/USDT': 'filecoin',
     'ICP/USDT': 'internet-computer',
-    // Non-crypto assets won't be fetched from coingecko for now
     'XAU/USD': 'gold', 
     'EUR/USD': 'eur',
     'GBP/USD': 'gbp',
@@ -88,18 +85,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         if (cryptoIds.length === 0) return;
 
         try {
-            const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
+            const response = await axios.get('/api/market-data', {
                 params: {
-                    vs_currency: 'usd',
+                    endpoint: 'markets',
                     ids: cryptoIds.join(','),
-                    order: 'market_cap_desc',
-                    per_page: cryptoIds.length,
-                    page: 1,
-                    sparkline: false,
-                    price_change_percentage: '24h',
-                },
-                 headers: {
-                    'x-cg-demo-api-key': process.env.NEXT_PUBLIC_COINGECKO_API_KEY
                 }
             });
 
@@ -120,7 +109,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return null;
             }).filter(Boolean) as MarketSummary[];
             
-            // For now, keep mock data for non-crypto assets
             const nonCryptoSummary = [...GOLD_PAIRS, ...FOREX_PAIRS].map(pair => {
                  const existing = summaryData.find(s => s.pair === pair);
                  return existing || { pair, price: 0, change: 0, volume: 0, high: 0, low: 0, icon: '' };
@@ -129,7 +117,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setSummaryData([...newSummaryData, ...nonCryptoSummary]);
 
         } catch (error) {
-            console.error("Error fetching CoinGecko market data:", error);
+            console.error("Error fetching market summary via proxy:", error);
         }
     }, [summaryData]);
 
@@ -137,7 +125,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
      const fetchKlineData = useCallback(async (pair: string) => {
         const coingeckoId = coingeckoIdMap[pair];
         if (!coingeckoId || !CRYPTO_PAIRS.includes(pair)) {
-            // For non-crypto or unmapped pairs, use simulation
             const lastPrice = getLatestPrice(pair) || randomInRange(1, 100);
             const newData: OHLC[] = Array.from({ length: 50 }).map(() => {
                 const price = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
@@ -148,13 +135,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         };
 
         try {
-            const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc`, {
+            const response = await axios.get('/api/market-data', {
                 params: {
-                    vs_currency: 'usd',
-                    days: '1',
-                },
-                 headers: {
-                    'x-cg-demo-api-key': process.env.NEXT_PUBLIC_COINGECKO_API_KEY
+                    endpoint: 'ohlc',
+                    pairId: coingeckoId,
                 }
             });
 
@@ -169,38 +153,33 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
 
         } catch (error) {
-            console.error(`Error fetching k-line data for ${pair}:`, error);
+            console.error(`Error fetching k-line data for ${pair} via proxy:`, error);
         }
     }, [getLatestPrice]);
 
     useEffect(() => {
         fetchMarketData();
-        const marketInterval = setInterval(fetchMarketData, 60000); // Fetch summary every 60s
+        const marketInterval = setInterval(fetchMarketData, 60000);
         return () => clearInterval(marketInterval);
-    }, []); // Run only once on mount
+    }, []);
     
     useEffect(() => {
         fetchKlineData(tradingPair);
-         // No need for interval here as we will refetch when tradingPair changes
     }, [tradingPair, fetchKlineData]);
 
 
-    // This effect handles the admin overrides and simulations for non-crypto assets
     useEffect(() => {
         const interval = setInterval(() => {
             const now = new Date();
             const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-            // Handle non-crypto simulations and admin overrides for all pairs
             setSummaryData(prevSummary => 
                 prevSummary.map(item => {
-                    // Check for global admin override first
                     const adminOverride = adminOverrides[item.pair];
                     if (adminOverride?.active && adminOverride.overridePrice !== undefined) {
                         return { ...item, price: adminOverride.overridePrice };
                     }
                     
-                    // Check for scheduled market override
                     const pairSettings = settings[item.pair];
                     if (pairSettings?.marketOverrides) {
                          for (const override of pairSettings.marketOverrides) {
@@ -215,7 +194,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         }
                     }
 
-                    // For non-crypto pairs that are not being fetched, simulate some movement
                     if (!CRYPTO_PAIRS.includes(item.pair)) {
                         const lastPrice = item.price || randomInRange(1, 2000);
                         const newPrice = lastPrice * (1 + (Math.random() - 0.5) * 0.01);
@@ -230,11 +208,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         return { ...item, price: newPrice };
                     }
                     
-                    return item; // Return crypto data as is, it's updated by fetchMarketData
+                    return item;
                 })
             );
 
-        }, 5000); // Run this simulation/override check every 5 seconds
+        }, 5000);
 
         return () => clearInterval(interval);
     }, [settings, adminOverrides]);
