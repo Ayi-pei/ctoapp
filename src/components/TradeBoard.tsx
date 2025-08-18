@@ -15,13 +15,9 @@ import { cn } from "@/lib/utils";
 import { MarketList } from "./market-list";
 
 // Helper function to get computed style of a CSS variable
-const getCssVar = (variable: string, format: 'hsl' | 'raw' = 'hsl'): string => {
-    if (typeof window === 'undefined') return '#000';
-    const style = getComputedStyle(document.documentElement);
-    const hslValue = style.getPropertyValue(variable).trim();
-    if (!hslValue) return '#000';
-    if (format === 'raw') return hslValue;
-    return `hsl(${hslValue})`;
+const getCssVar = (variable: string): string => {
+    if (typeof window === 'undefined') return '';
+    return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
 };
 
 
@@ -34,10 +30,12 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
-  const chartColor = getCssVar('--chart-1');
-  const chartBorderColor = getCssVar('--border');
-  const chartMutedColor = getCssVar('--muted-foreground');
-  const chartColorRaw = getCssVar('--chart-1', 'raw');
+  const chartColor = `hsl(${getCssVar('--chart-1')})`;
+  const chartBorderColor = `hsl(${getCssVar('--border')})`;
+  const chartMutedColor = `hsl(${getCssVar('--muted-foreground')})`;
+  
+  // Correctly format the HSL value for use in HSLA by replacing spaces with commas
+  const chartColorRaw = getCssVar('--chart-1').replace(/ /g, ', ');
   const chartAreaColorStart = `hsla(${chartColorRaw}, 0.2)`;
   const chartAreaColorEnd = `hsla(${chartColorRaw}, 0)`;
 
