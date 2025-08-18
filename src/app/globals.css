@@ -69,6 +69,9 @@
     @apply text-foreground;
   }
   .gold-gradient-background {
-    background-image: linear-gradient(to bottom, #FFD700, #DAA520);
+    background-image: url('/images/1111.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 }
