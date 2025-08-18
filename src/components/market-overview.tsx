@@ -12,7 +12,7 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
 
   if (!summary) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 border rounded-lg bg-card/40">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 border rounded-lg bg-black/20">
         <div className="col-span-2 md:col-span-1 p-2 border rounded-md">
           <Skeleton className="h-8 w-24 mb-2" />
           <Skeleton className="h-9 w-32" />
@@ -32,7 +32,7 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
   const isPositive = summary.change >= 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-2 border rounded-lg bg-card/40">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-2 border rounded-lg bg-black/20">
       <div className="col-span-2 md:col-span-1 p-2 border rounded-md bg-black/20">
         <h2 className={`text-3xl font-bold ${isPositive ? "text-green-500" : "text-red-500"}`}>
           {summary.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
