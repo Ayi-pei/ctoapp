@@ -34,7 +34,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
         name: "富投宝", 
         price: 1, // Min investment amount
         maxPurchase: 999, 
-        imgSrc: "/images/futoubao.png",
+        imgSrc: "https://placehold.co/80x80.png",
         category: 'finance',
         productType: 'hourly',
         activeStartTime: '18:00',
@@ -45,11 +45,11 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
             { hours: 6, rate: 0.025 }, // 2.5%
         ]
     },
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio04.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/0kio05.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-1', "data-ai-hint": "mining hardware", name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-2', "data-ai-hint": "mining hardware", name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-3', "data-ai-hint": "mining hardware", name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-4', "data-ai-hint": "mining hardware", name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-5', "data-ai-hint": "mining hardware", name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "https://placehold.co/80x80.png", category: 'staking', productType: 'daily' },
 ];
 
 
