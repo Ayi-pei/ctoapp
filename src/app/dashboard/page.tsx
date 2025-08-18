@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
                 {/* Announcement */}
                 <Link href="/announcements">
-                    <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-lg flex items-center space-x-3 overflow-hidden">
+                     <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors">
                         <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
                         <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
                            {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
@@ -119,7 +119,7 @@ export default function DashboardPage() {
                         const Icon = feature.icon;
                         const content = (
                             <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                <div className="bg-muted p-4 rounded-full">
+                                <div className="bg-muted p-3 rounded-full">
                                     <Icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-xs text-muted-foreground">{feature.name}</p>
@@ -134,16 +134,16 @@ export default function DashboardPage() {
                             );
                         }
                         
-                        return <div key={feature.name}>{content}</div>;
+                        return <div key={feature.name} className="cursor-pointer">{content}</div>;
                     })}
                 </div>
                 
                 {/* Market List */}
                 <Tabs defaultValue="popular">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="popular">热门币种</TabsTrigger>
-                        <TabsTrigger value="forex">外汇币种</TabsTrigger>
-                        <TabsTrigger value="gold">国际黄金</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 bg-purple-900/20 rounded-lg p-1">
+                        <TabsTrigger value="popular" className="data-[state=active]:bg-card data-[state=active]:shadow-md">热门币种</TabsTrigger>
+                        <TabsTrigger value="forex" className="data-[state=active]:bg-card data-[state=active]:shadow-md">外汇币种</TabsTrigger>
+                        <TabsTrigger value="gold" className="data-[state=active]:bg-card data-[state=active]:shadow-md">国际黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular">
                        {renderMarketList(cryptoSummaryData)}

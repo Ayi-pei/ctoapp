@@ -36,10 +36,10 @@ export default function MarketPage() {
         <DashboardLayout>
             <div className="flex flex-col h-full">
                  <Tabs defaultValue="popular" className="pt-4">
-                    <TabsList className="grid w-full grid-cols-3 bg-transparent px-4">
-                        <TabsTrigger value="popular" className="data-[state=active]:bg-card data-[state=active]:shadow-none">热门币种</TabsTrigger>
-                        <TabsTrigger value="forex" className="data-[state=active]:bg-card data-[state=active]:shadow-none">外汇币种</TabsTrigger>
-                        <TabsTrigger value="gold" className="data-[state=active]:bg-card data-[state=active]:shadow-none">国际黄金</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 bg-purple-900/20 rounded-lg p-1 mx-4">
+                        <TabsTrigger value="popular" className="data-[state=active]:bg-card data-[state=active]:shadow-md">热门币种</TabsTrigger>
+                        <TabsTrigger value="forex" className="data-[state=active]:bg-card data-[state=active]:shadow-md">外汇币种</TabsTrigger>
+                        <TabsTrigger value="gold" className="data-[state=active]:bg-card data-[state=active]:shadow-md">国际黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular" className="mt-4">
                        {renderMarketList(cryptoSummaryData)}
