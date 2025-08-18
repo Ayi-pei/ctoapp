@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
       }
       
-      const newUserId = `user_${Date.now()}`;
+      const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const newUser: User = {
           id: newUserId,
           username,
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('userSession');
-    router.push('/');
+    router.replace('/');
   };
   
   const getUserById = (id: string): User | null => {
