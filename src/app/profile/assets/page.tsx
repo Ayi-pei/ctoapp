@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,63 +11,92 @@ import { useBalance } from "@/context/balance-context";
 import type { Investment } from "@/types";
 import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
+import axios from 'axios';
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/auth-context";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB"];
 const FOREX_ASSETS = ["EUR", "GBP"];
 const GOLD_ASSETS = ["XAU"];
 
-const AssetList = ({ assets, balances }: { assets: string[], balances: ReturnType<typeof useBalance>['balances'] }) => (
-    <Card>
-        <CardContent className="p-0">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>资产</TableHead>
-                        <TableHead className="text-right">可用</TableHead>
-                        <TableHead className="text-right">冻结</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {assets.map(asset => {
-                        const balance = balances[asset] || { available: 0, frozen: 0 };
-                        return (
-                            <TableRow key={asset}>
-                                <TableCell className="font-medium">{asset}</TableCell>
-                                <TableCell className="text-right">{balance.available.toFixed(4)}</TableCell>
-                                <TableCell className="text-right">{balance.frozen.toFixed(4)}</TableCell>
-                            </TableRow>
-                        )
-                    })}
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
-);
+type Balances = { [key: string]: { available: number; frozen: number } };
 
-const InvestmentList = ({ investments }: { investments: Investment[] }) => (
-     <Card>
-        <CardContent className="p-0">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>产品名称</TableHead>
-                        <TableHead className="text-right">投资金额 (USDT)</TableHead>
-                        <TableHead className="text-right">状态</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {investments.map(inv => (
-                        <TableRow key={inv.id}>
-                            <TableCell className="font-medium">{inv.product_name}</TableCell>
-                            <TableCell className="text-right">{inv.amount.toFixed(2)}</TableCell>
-                             <TableCell className="text-right">{inv.status}</TableCell>
+const AssetList = ({ assets, balances, isLoading }: { assets: string[], balances: Balances, isLoading: boolean }) => {
+    if (isLoading) {
+        return (
+            <div className="space-y-2 p-1">
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+        )
+    }
+    
+    return (
+        <Card>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>资产</TableHead>
+                            <TableHead className="text-right">可用</TableHead>
+                            <TableHead className="text-right">冻结</TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
-);
+                    </TableHeader>
+                    <TableBody>
+                        {assets.map(asset => {
+                            const balance = balances[asset] || { available: 0, frozen: 0 };
+                            return (
+                                <TableRow key={asset}>
+                                    <TableCell className="font-medium">{asset}</TableCell>
+                                    <TableCell className="text-right">{balance.available.toFixed(4)}</TableCell>
+                                    <TableCell className="text-right">{balance.frozen.toFixed(4)}</TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+const InvestmentList = ({ investments, isLoading }: { investments: Investment[], isLoading: boolean }) => {
+     if (isLoading) {
+        return (
+            <div className="space-y-2 p-1">
+                <Skeleton className="h-24 w-full" />
+            </div>
+        )
+    }
+
+    if (investments.length === 0) {
+        return <EmptyState text="您还没有任何投资记录。" />;
+    }
+
+     return (
+        <Card>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>产品名称</TableHead>
+                            <TableHead className="text-right">投资金额 (USDT)</TableHead>
+                            <TableHead className="text-right">状态</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {investments.map(inv => (
+                            <TableRow key={inv.id}>
+                                <TableCell className="font-medium">{inv.product_name}</TableCell>
+                                <TableCell className="text-right">{inv.amount.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">{inv.status}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
 
 
 const EmptyState = ({ text }: { text: string }) => (
@@ -81,7 +111,28 @@ const EmptyState = ({ text }: { text: string }) => (
 
 export default function AssetsPage() {
     const router = useRouter();
-    const { balances, investments } = useBalance();
+    const { user } = useAuth();
+    const [balances, setBalances] = useState<Balances>({});
+    const [investments, setInvestments] = useState<Investment[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchAssets = async () => {
+            if (!user) return;
+            setIsLoading(true);
+            try {
+                const response = await axios.get('/api/user/assets');
+                setBalances(response.data.balances || {});
+                setInvestments(response.data.investments || []);
+            } catch (error) {
+                console.error("Failed to fetch assets:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAssets();
+    }, [user]);
 
     return (
         <DashboardLayout>
@@ -102,16 +153,16 @@ export default function AssetsPage() {
                     </TabsList>
 
                     <TabsContent value="crypto">
-                        <AssetList assets={CRYPTO_ASSETS} balances={balances} />
+                        <AssetList assets={CRYPTO_ASSETS} balances={balances} isLoading={isLoading} />
                     </TabsContent>
                      <TabsContent value="investments">
-                        {investments.length > 0 ? <InvestmentList investments={investments} /> : <EmptyState text="您还没有任何投资记录。" />}
+                        <InvestmentList investments={investments} isLoading={isLoading} />
                     </TabsContent>
                     <TabsContent value="forex">
-                        <AssetList assets={FOREX_ASSETS} balances={balances} />
+                        <AssetList assets={FOREX_ASSETS} balances={balances} isLoading={isLoading} />
                     </TabsContent>
                      <TabsContent value="gold">
-                        <AssetList assets={GOLD_ASSETS} balances={balances} />
+                        <AssetList assets={GOLD_ASSETS} balances={balances} isLoading={isLoading} />
                     </TabsContent>
                 </Tabs>
             </div>
