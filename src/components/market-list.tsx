@@ -32,7 +32,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
             const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 
             return (
-                <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors">
+                <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-gradient-to-r from-gray-200 via-gray-400 to-blue-500 text-card-foreground cursor-pointer transition-colors">
                     <CardContent className="p-2">
                         <div className="flex items-center gap-4">
                              <Image 
@@ -43,7 +43,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                                 className="h-8 w-8 flex-shrink-0"
                             />
                             <div className="flex-shrink-0">
-                                <p className="font-semibold">{item.pair}</p>
+                                <p className="font-semibold text-blue-900">{item.pair}</p>
                             </div>
                             <div className="flex-grow h-10 w-20">
                                 <ChartContainer config={{
@@ -71,7 +71,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                                 </ChartContainer>
                             </div>
                             <div className="flex-shrink-0 w-28 flex flex-col items-end">
-                                <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
+                                <p className="font-semibold text-blue-900">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                                 <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                                     {isPositive ? '+' : ''}{(item.change || 0).toFixed(2)}%
                                 </p>
