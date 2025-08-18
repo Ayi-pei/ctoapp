@@ -89,12 +89,12 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
     };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 p-4">
 
       <div className="lg:col-span-5 space-y-4">
         <MarketOverview summary={currentSummary} />
 
-        <div className="h-[400px] w-full bg-slate-800/80 rounded-lg p-2">
+        <div className="h-[240px] w-full bg-slate-800/80 rounded-lg p-2">
            {klineData.length > 0 ? (
               <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
             ) : (
