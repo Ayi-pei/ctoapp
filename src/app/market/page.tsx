@@ -7,10 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
 
 export default function MarketPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, summaryData, klineData } = useMarket();
+    const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
 
     const renderMarketList = (data: any[]) => {
-        if (!summaryData.length) {
+        if (!summaryData.length && data.length === 0) {
             return (
                 <div className="space-y-4 mt-4">
                     {[...Array(5)].map((_, i) => (
@@ -36,13 +36,17 @@ export default function MarketPage() {
         <DashboardLayout>
             <div className="flex flex-col h-full">
                  <Tabs defaultValue="popular" className="pt-4">
-                    <TabsList className="grid w-full grid-cols-3 bg-purple-900/20 rounded-lg p-1 mx-4">
+                    <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1 mx-4">
                         <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
-                        <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货涨幅</TabsTrigger>
-                        <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">国际黄金</TabsTrigger>
+                        <TabsTrigger value="futures" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货</TabsTrigger>
+                        <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">外汇</TabsTrigger>
+                        <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular" className="mt-4">
                        {renderMarketList(cryptoSummaryData)}
+                    </TabsContent>
+                     <TabsContent value="futures" className="mt-4">
+                       {renderMarketList(futuresSummaryData)}
                     </TabsContent>
                     <TabsContent value="forex" className="mt-4">
                        {renderMarketList(forexSummaryData)}

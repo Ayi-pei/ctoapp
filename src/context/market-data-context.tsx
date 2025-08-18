@@ -9,6 +9,8 @@ import axios, { AxiosError } from 'axios';
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
+const FUTURES_PAIRS = ['OIL/USD', 'XAG/USD', 'NAS100/USD'];
+
 
 const API_SOURCES = ['coingecko', 'coinpaprika'];
 
@@ -49,6 +51,7 @@ interface MarketContextType {
     cryptoSummaryData: MarketSummary[];
     goldSummaryData: MarketSummary[];
     forexSummaryData: MarketSummary[];
+    futuresSummaryData: MarketSummary[];
     klineData: Record<string, OHLC[]>;
     getLatestPrice: (pair: string) => number;
 }
@@ -250,6 +253,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
     const goldSummaryData = summaryData.filter(s => GOLD_PAIRS.includes(s.pair));
     const forexSummaryData = summaryData.filter(s => FOREX_PAIRS.includes(s.pair));
+    const futuresSummaryData = summaryData.filter(s => FUTURES_PAIRS.includes(s.pair));
 
 
     const contextValue: MarketContextType = {
@@ -260,6 +264,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         cryptoSummaryData,
         goldSummaryData,
         forexSummaryData,
+        futuresSummaryData,
         klineData,
         getLatestPrice,
     };

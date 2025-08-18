@@ -17,6 +17,9 @@ const INITIAL_BALANCES: { [key: string]: { available: number; frozen: number } }
     USD: { available: 0, frozen: 0 },
     EUR: { available: 0, frozen: 0 },
     GBP: { available: 0, frozen: 0 },
+    OIL: { available: 0, frozen: 0 },
+    XAG: { available: 0, frozen: 0 },
+    NAS100: { available: 0, frozen: 0 },
 };
 
 export type UserData = {
