@@ -17,8 +17,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'TradeFlow',
-  description: 'A dashboard for cryptocurrency trading with live data and AI insights.',
+  title: 'SRfinance',
+  description: 'A web-app for cryptocurrency trading with live data and AI insights.',
 };
 
 export default function RootLayout({

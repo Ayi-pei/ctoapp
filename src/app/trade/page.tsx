@@ -11,7 +11,7 @@ function TradePageContents() {
   const tab = searchParams.get('tab') || 'contract';
   
   return (
-    <div className="h-full w-full trade-background">
+    <div className="h-full w-full">
         <main className="p-4 flex flex-col gap-4">
             <TradeBoard initialTab={tab} />
         </main>
