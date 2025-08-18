@@ -128,30 +128,32 @@ export default function StakingPage() {
 
     return (
         <DashboardLayout>
-            <Header />
-            <div className="space-y-4">
-               {stakingProducts.map(product => (
-                    <MiningProductCard 
-                        key={product.id}
-                        product={product}
-                        purchasedCount={getPurchasedCount(product.name)}
-                        onInvest={handleInvestClick}
+            <div className="h-full gold-gradient-background">
+                <Header />
+                <div className="space-y-4">
+                   {stakingProducts.map(product => (
+                        <MiningProductCard 
+                            key={product.id}
+                            product={product}
+                            purchasedCount={getPurchasedCount(product.name)}
+                            onInvest={handleInvestClick}
+                        />
+                    ))}
+                </div>
+                 {selectedProduct && (
+                    <InvestmentDialog
+                        isOpen={isInvestmentDialogOpen}
+                        onOpenChange={setIsInvestmentDialogOpen}
+                        product={{
+                            name: selectedProduct.name,
+                            minInvestment: selectedProduct.price,
+                            maxInvestment: selectedProduct.price, // Each purchase is one unit
+                        }}
+                        balance={balances['USDT']?.available || 0}
+                        onConfirm={handleConfirmInvestment}
                     />
-                ))}
+                )}
             </div>
-             {selectedProduct && (
-                <InvestmentDialog
-                    isOpen={isInvestmentDialogOpen}
-                    onOpenChange={setIsInvestmentDialogOpen}
-                    product={{
-                        name: selectedProduct.name,
-                        minInvestment: selectedProduct.price,
-                        maxInvestment: selectedProduct.price, // Each purchase is one unit
-                    }}
-                    balance={balances['USDT']?.available || 0}
-                    onConfirm={handleConfirmInvestment}
-                />
-            )}
         </DashboardLayout>
     );
 }
