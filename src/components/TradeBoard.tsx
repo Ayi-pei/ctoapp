@@ -22,7 +22,7 @@ const getCssVar = (variable: string): string[] => {
 };
 
 
-export default function TradeBoard() {
+export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: string }) {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
 
@@ -104,7 +104,7 @@ export default function TradeBoard() {
             )}
         </div>
 
-        <Tabs defaultValue="contract">
+        <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="contract">秒合约</TabsTrigger>
             <TabsTrigger value="spot">币币</TabsTrigger>
