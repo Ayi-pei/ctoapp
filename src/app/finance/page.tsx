@@ -38,7 +38,7 @@ const Header = () => {
             <h1 className="text-2xl font-bold tracking-widest bg-black/20 text-white px-4 py-2 rounded-lg shadow-lg border border-white/30"><span className="bg-gradient-to-r from-yellow-400 to-amber-600 bg-clip-text text-transparent">富投宝</span></h1>
              <AlertDialog>
                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="text-foreground p-2 h-auto absolute right-4 text-xs">规则</Button>
+                    <Button variant="outline" className="text-foreground p-2 h-auto absolute right-4 text-xs border-green-500 bg-blue-500/40 hover:bg-blue-500/60">规则</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                     <AlertDialogHeader>
