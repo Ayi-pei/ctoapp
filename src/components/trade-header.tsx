@@ -28,9 +28,9 @@ import { useState, useEffect } from 'react';
 
 // Simple SVG Logo component
 const Logo = () => (
-    <div className="flex items-center gap-2 text-primary">
+    <div className="flex items-center gap-2 text-white">
        <CandlestickChart className="h-7 w-7" />
-       <span className="font-semibold text-lg text-foreground">TradeFlow</span>
+       <span className="font-semibold text-lg">TradeFlow</span>
     </div>
 )
 
@@ -63,7 +63,7 @@ export function TradeHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 border-b border-border flex-shrink-0 h-16">
+    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-[--gradient-purple] to-[--gradient-gold] text-white">
       <div className="flex items-center gap-3 w-1/3">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
@@ -72,7 +72,7 @@ export function TradeHeader() {
          {isTradePage && (
             <div className="w-[150px]">
                 <Select value={tradingPair} onValueChange={changeTradingPair}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full bg-white/20 border-white/30 text-white placeholder:text-white/80">
                     <SelectValue placeholder="Select Pair" />
                     </SelectTrigger>
                     <SelectContent>
@@ -89,11 +89,11 @@ export function TradeHeader() {
       </div>
 
       <div className="flex items-center justify-end gap-4 w-1/3">
-        <Home className="h-6 w-6 text-foreground cursor-pointer" onClick={handleHomeClick} />
+        <Home className="h-6 w-6 cursor-pointer" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar>
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/20 focus-visible:ring-white">
+                    <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl} alt={user?.username} />
                         <AvatarFallback>
                            <User />
