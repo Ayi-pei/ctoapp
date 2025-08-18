@@ -71,12 +71,12 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="p-4 space-y-6 bg-black/30 backdrop-blur-sm h-full">
+        <div className="p-4 space-y-6">
             {/* Smart Contract Carousel */}
             <Carousel>
                 <CarouselContent>
                     <CarouselItem>
-                            <Card className="bg-card relative overflow-hidden">
+                            <Card className="bg-card/80 relative overflow-hidden">
                             <CardContent className="p-4">
                                 <h3 className="text-lg font-semibold">智能秒合约</h3>
                                 <p className="text-muted-foreground mt-1">质押挖矿</p>
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                         </Card>
                     </CarouselItem>
                         <CarouselItem>
-                            <Card className="bg-card relative overflow-hidden">
+                            <Card className="bg-card/80 relative overflow-hidden">
                             <CardContent className="p-4">
                                 <h3 className="text-lg font-semibold">新功能上线</h3>
                                 <p className="text-muted-foreground mt-1">理财产品</p>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
             </div>
             
             {/* Market List */}
-            <div className="bg-card rounded-lg p-2">
+            <div className="rounded-lg p-2">
                 <Tabs defaultValue="popular">
                     <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1">
                         <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
