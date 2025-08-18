@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 space-y-6">
+            <div className="p-4 space-y-6 home-background">
                 {/* Smart Contract Carousel */}
                 <Carousel>
                     <CarouselContent>
