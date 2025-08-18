@@ -39,7 +39,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     onInvest: (product: InvestmentProduct) => void 
 }) => {
     return (
-        <Card className="bg-transparent border-none shadow-none">
+        <Card className="bg-card/70 border rounded-lg p-1 hover:bg-card/90 transition-colors">
             <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ export default function StakingPage() {
         <DashboardLayout>
             <div className="h-full gold-gradient-background">
                 <Header />
-                <div className="space-y-4">
+                <div className="space-y-4 p-4">
                    {stakingProducts.map(product => (
                         <MiningProductCard 
                             key={product.id}
@@ -157,3 +157,4 @@ export default function StakingPage() {
         </DashboardLayout>
     );
 }
+
