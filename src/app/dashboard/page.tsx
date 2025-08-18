@@ -73,17 +73,6 @@ export default function DashboardPage() {
     return (
         <DashboardLayout>
             <div className="p-4 space-y-6">
-                {/* Account Balance */}
-                <Card className="bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg">
-                    <CardContent className="p-4">
-                        <p className="text-blue-100 text-sm">账户余额(USDT)</p>
-                        <p className="text-3xl font-bold mt-1">{totalBalance.toFixed(2)}</p>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                            <Button className="bg-white/20 hover:bg-white/30 text-white" onClick={() => setIsDepositOpen(true)}>充币</Button>
-                            <Button variant="secondary" className="bg-white/90 hover:bg-white text-blue-600" onClick={() => setIsWithdrawOpen(true)}>提币</Button>
-                        </div>
-                    </CardContent>
-                </Card>
 
                 {/* Smart Contract Carousel */}
                 <Carousel>
