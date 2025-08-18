@@ -156,7 +156,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    useEffect(() => {
+    // useEffect(() => {
         // const marketInterval = setInterval(fetchMarketData, 60000);
         // const klineInterval = setInterval(() => {
         //      availablePairs.forEach(pair => fetchKlineData(pair));
@@ -169,7 +169,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         //     clearInterval(marketInterval);
         //     clearInterval(klineInterval);
         // };
-    }, [fetchMarketData, fetchKlineData]);
+    // }, [fetchMarketData, fetchKlineData]);
 
 
     // Second-by-second simulation engine
