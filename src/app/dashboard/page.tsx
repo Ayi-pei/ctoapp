@@ -33,7 +33,7 @@ export default function DashboardPage() {
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
         { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
-        { name: '币币交易', icon: ArrowRightLeft, href: '/trade' },
+        { name: '限时活动', icon: Megaphone, href: '/coming-soon' },
         { name: '质押挖矿', icon: Gem, href: '/staking' },
     ];
     
