@@ -39,13 +39,6 @@ const generateInvitationCode = () => {
     return result;
 };
 
-const generateRandomNickname = () => {
-    const adjectives = ["Brave", "Wise", "Lucky", "Happy", "Swift", "Bold", "Clever", "Sturdy", "Silent", "Witty"];
-    const nouns = ["Trader", "Explorer", "Pioneer", "Voyager", "Analyst", "Investor", "Gambler", "Captain", "Wizard", "Oracle"];
-    return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
-}
-
-
 const getMockUsers = (): { [id: string]: User } => {
     if (typeof window === 'undefined') return {};
     const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
@@ -145,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const newUser: User = {
           id: newUserId,
           username,
-          nickname: generateRandomNickname(),
+          nickname: username, // Set nickname to username by default
           password,
           email: `${username}@noemail.app`,
           is_admin: false,

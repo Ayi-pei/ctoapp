@@ -22,15 +22,7 @@ const ProfileHeader = () => {
     const { toast } = useToast();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-    const [isEditingNickname, setIsEditingNickname] = useState(false);
-    const [nickname, setNickname] = useState(user?.nickname || user?.username || "");
     const avatarInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (user) {
-            setNickname(user.nickname || user.username);
-        }
-    }, [user]);
 
     const getUsdtValue = (assetName: string, amount: number) => {
         if (assetName === 'USDT') return amount;
@@ -43,25 +35,6 @@ const ProfileHeader = () => {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
 
-    const handleNicknameBlur = async () => {
-        setIsEditingNickname(false);
-        if (user && nickname !== (user.nickname || user.username)) {
-            const success = await updateUser(user.id, { nickname });
-            if (success) {
-                toast({ title: "成功", description: "昵称已更新。" });
-            } else {
-                toast({ variant: 'destructive', title: "失败", description: "无法更新您的昵称。" });
-                setNickname(user.nickname || user.username);
-            }
-        }
-    };
-    
-     const handleNicknameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.currentTarget.blur();
-        }
-    };
-    
     const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file && user) {
@@ -99,27 +72,7 @@ const ProfileHeader = () => {
             
             {/* Middle Column: User Info */}
             <div className="flex-grow space-y-1 text-left">
-                <div className="flex items-center gap-2">
-                    {isEditingNickname ? (
-                        <input
-                            type="text"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
-                            onBlur={handleNicknameBlur}
-                            onKeyDown={handleNicknameKeyDown}
-                            className="font-semibold text-xl bg-transparent text-white border-b-2 border-white/50 focus:outline-none focus:ring-0 h-auto p-1 max-w-[150px]"
-                            autoFocus
-                        />
-                    ) : (
-                        <h2 
-                            className="font-semibold text-xl cursor-pointer flex items-center gap-2"
-                            onClick={() => setIsEditingNickname(true)}
-                        >
-                            {nickname}
-                            <Edit2 className="w-4 h-4 text-muted-foreground" />
-                        </h2>
-                    )}
-                </div>
+                <h2 className="font-semibold text-xl">{user?.username}</h2>
                 <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
                 <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
             </div>
@@ -151,7 +104,7 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
         <Link href={href} passHref>
             <div className="flex items-center justify-between p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
                 <div className="flex items-center gap-4">
-                    {React.createElement(icon, { className: "text-primary [&_svg]:size-6" })}
+                    {React.createElement(icon, { className: "[&_svg]:size-6" })}
                     <span className="font-medium text-card-foreground">{label}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
