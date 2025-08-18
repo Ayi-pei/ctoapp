@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
 
 
 const ProfileHeader = () => {
@@ -67,41 +68,45 @@ const ProfileHeader = () => {
 
 
      return (
-        <div className="relative bg-gradient-to-br from-blue-500 to-blue-700 p-6 text-white text-center rounded-b-3xl -mx-4 -mt-4 mb-6">
-            <div className="absolute top-4 right-4">
-                 <Bell className="w-6 h-6" />
-            </div>
+        <div className="relative text-white text-center">
             <div className="flex flex-col items-center">
-                <Avatar className="h-20 w-20 mb-3 border-2 border-white">
+                <Avatar className="h-24 w-24 mb-4 border-4 border-primary/50">
                     <AvatarImage src={avatarUrl} alt={user?.username} />
                     <AvatarFallback>
-                        <UserIcon className="h-10 w-10" />
+                        <UserIcon className="h-12 w-12" />
                     </AvatarFallback>
                 </Avatar>
-                {isEditingNickname ? (
-                    <input
-                        type="text"
-                        value={nickname}
-                        onChange={(e) => setNickname(e.target.value)}
-                        onBlur={handleNicknameBlur}
-                        onKeyDown={handleNicknameKeyDown}
-                        className="font-semibold text-lg bg-transparent text-white border-b-2 border-white/50 text-center focus:outline-none focus:ring-0 h-auto p-1 max-w-[200px]"
-                        autoFocus
-                    />
-                ) : (
-                    <h2 
-                        className="font-semibold text-lg cursor-pointer"
-                        onClick={() => setIsEditingNickname(true)}
-                    >
-                        {nickname}
-                    </h2>
-                )}
-                <p className="text-sm text-blue-100">余额: {totalBalance.toFixed(2)} USDT</p>
-                 <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-400/50 px-2.5 py-0.5 text-xs font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">信誉分: {user?.credit_score || 100}</div></div>
+                 <div className="flex items-center gap-2">
+                    {isEditingNickname ? (
+                        <input
+                            type="text"
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            onBlur={handleNicknameBlur}
+                            onKeyDown={handleNicknameKeyDown}
+                            className="font-semibold text-2xl bg-transparent text-white border-b-2 border-white/50 text-center focus:outline-none focus:ring-0 h-auto p-1 max-w-[200px]"
+                            autoFocus
+                        />
+                    ) : (
+                        <h2 
+                            className="font-semibold text-2xl cursor-pointer"
+                            onClick={() => setIsEditingNickname(true)}
+                        >
+                            {nickname}
+                        </h2>
+                    )}
+                 </div>
+                <div className="text-sm mt-2 space-y-1 text-muted-foreground">
+                    <p>用户ID: {user?.id}</p>
+                    <p>总资产估值: {totalBalance.toFixed(2)} USDT</p>
+                </div>
+                 <div className="mt-2">
+                    <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300">信誉分: {user?.credit_score || 100}</Badge>
+                 </div>
 
-                 <div className="flex gap-4 mt-4">
-                    <Button onClick={() => setIsDepositOpen(true)} className="bg-white/20 hover:bg-white/30 text-white">充值</Button>
-                    <Button onClick={() => setIsWithdrawOpen(true)} className="bg-white/20 hover:bg-white/30 text-white">提现</Button>
+                 <div className="flex gap-4 mt-6 w-full max-w-sm">
+                    <Button onClick={() => setIsDepositOpen(true)} className="flex-1 bg-primary/80 hover:bg-primary text-primary-foreground h-12 text-base">充值</Button>
+                    <Button onClick={() => setIsWithdrawOpen(true)} className="flex-1 bg-secondary/80 hover:bg-secondary h-12 text-base">提现</Button>
                 </div>
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
@@ -111,60 +116,31 @@ const ProfileHeader = () => {
 };
 
 
-const ListItem = ({ icon, label, children }: { icon: React.ElementType, label: string, children?: React.ReactNode }) => {
+const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: string, href: string }) => {
     return (
-        <div className="flex items-center justify-between p-4 bg-card rounded-lg hover:bg-muted cursor-pointer">
-            <div className="flex items-center gap-4">
-                {React.createElement(icon, { className: "w-6 h-6 text-primary" })}
-                <span className="font-medium">{label}</span>
+        <Link href={href} passHref>
+            <div className="flex items-center justify-between p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
+                <div className="flex items-center gap-4">
+                    {React.createElement(icon, { className: "w-6 h-6 text-primary" })}
+                    <span className="font-medium">{label}</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
-            {children || <ChevronRight className="w-5 h-5 text-muted-foreground" />}
-        </div>
+        </Link>
     );
 };
 
-const languages = [
-    { code: 'zh', name: '中文' },
-    { code: 'en', name: 'English' },
-    { code: 'ja', name: '日本語' },
-    { code: 'ko', name: '한국어' },
-    { code: 'ru', name: 'Русский' },
-    { code: 'id', name: 'Bahasa Indonesia' },
-]
 
-const LanguageSwitcher = () => {
-    const [selectedLanguage, setSelectedLanguage] = useState(languages[0]);
-    const { toast } = useToast();
-
-    const handleSelectLanguage = (language: typeof languages[0]) => {
-        setSelectedLanguage(language);
-        toast({
-            title: "语言已切换",
-            description: `语言已切换至 ${language.name}`,
-        });
-    }
-
+const ActionItem = ({ icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                    <span>{selectedLanguage.name}</span>
-                    <ChevronRight className="w-5 h-5" />
-                </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                {languages.map(lang => (
-                    <DropdownMenuItem key={lang.code} onClick={() => handleSelectLanguage(lang)}>
-                        <div className="flex items-center justify-between w-full">
-                           <span>{lang.name}</span>
-                           {selectedLanguage.code === lang.code && <Check className="w-4 h-4 text-primary" />}
-                        </div>
-                    </DropdownMenuItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    )
-}
+        <div onClick={onClick} className="flex items-center p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
+            <div className="flex items-center gap-4">
+                 {React.createElement(icon, { className: "w-6 h-6 text-destructive" })}
+                 <span className="font-medium text-destructive">{label}</span>
+            </div>
+        </div>
+    );
+};
 
 
 export default function ProfilePage() {
@@ -179,32 +155,27 @@ export default function ProfilePage() {
         { label: "平台公告", icon: Bell, href: "/announcements" },
     ];
 
-    const actionItems = [
-        { label: "更换语言", icon: Globe, customComponent: <LanguageSwitcher /> },
-        { label: "退出登陆", icon: LogOut, onClick: logout },
-    ];
-
 
     return (
         <DashboardLayout>
             <div className="h-full w-full profile-background">
-                <div className="p-4 space-y-6">
+                <div className="p-4 space-y-8">
                     <ProfileHeader />
                     
-                    <div className="space-y-2">
-                        {menuItems.map(item => (
-                            <Link href={item.href} key={item.label} passHref>
-                               <ListItem label={item.label} icon={item.icon} />
-                            </Link>
-                        ))}
-                        {actionItems.map(item => (
-                             <div key={item.label} onClick={item.onClick}>
-                                <ListItem label={item.label} icon={item.icon}>
-                                    {item.customComponent ? item.customComponent : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
-                                </ListItem>
-                            </div>
-                        ))}
-                    </div>
+                    <Card className="bg-card/50 border-border/30">
+                        <CardContent className="p-2 space-y-2">
+                             {menuItems.map(item => (
+                                <ListItem key={item.label} label={item.label} icon={item.icon} href={item.href} />
+                            ))}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-card/50 border-border/30">
+                        <CardContent className="p-2">
+                            <ActionItem label="退出登陆" icon={LogOut} onClick={logout} />
+                        </CardContent>
+                    </Card>
+
                 </div>
             </div>
         </DashboardLayout>
