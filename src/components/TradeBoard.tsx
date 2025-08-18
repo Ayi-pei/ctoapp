@@ -35,7 +35,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   const chartMutedColor = `hsl(${getCssVar('--muted-foreground')})`;
   
   // Correctly format the HSL value for use in HSLA by replacing spaces with commas
-  const chartColorRaw = getCssVar('--chart-1').replace(/ /g, ', ');
+  const chartColorRaw = getCssVar('--chart-1').replace(/ /g, ',');
   const chartAreaColorStart = `hsla(${chartColorRaw}, 0.2)`;
   const chartAreaColorEnd = `hsla(${chartColorRaw}, 0)`;
 
@@ -103,12 +103,12 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       <div className="space-y-4">
         <MarketOverview summary={currentSummary} />
 
-        <div className="h-[240px] w-full bg-slate-800/80 rounded-lg p-2">
+        <div className="h-[240px] w-full bg-card rounded-lg p-2">
            {currentKlineData.length > 0 ? (
               <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
             ) : (
               <div className="flex justify-center items-center h-full">
-                <Skeleton className="h-full w-full bg-slate-700" />
+                <Skeleton className="h-full w-full bg-muted" />
               </div>
             )}
         </div>
