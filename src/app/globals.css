@@ -105,7 +105,7 @@
     @apply border-border;
   }
   body {
-    background-color: hsl(var(--background));
+    /* The background-color was removed from here to prevent it from overriding the background image. */
     @apply text-foreground;
   }
 
