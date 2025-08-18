@@ -17,7 +17,7 @@ const Header = () => {
     const router = useRouter();
     
     return (
-        <div className="p-4 bg-card text-foreground rounded-b-lg space-y-4">
+        <div className="p-4 bg-black/20 backdrop-blur-sm text-foreground rounded-b-lg space-y-4">
             <div className="relative flex items-center justify-center">
                 <Button variant="ghost" size="icon" className="absolute left-0" onClick={() => router.back()}>
                     <ChevronLeft />
@@ -39,45 +39,47 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     onInvest: (product: InvestmentProduct) => void 
 }) => {
     return (
-        <Card className="bg-card/70 border rounded-lg p-1 hover:bg-card/90 transition-colors">
-            <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+        <div className="rounded-lg p-[1px] bg-gradient-to-br from-gray-500/50 to-gray-700/50 cursor-pointer hover:shadow-lg transition-shadow">
+            <Card className="bg-black/20 border-none">
+                <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+                            <div>
+                                <h4 className="font-semibold">{product.name}</h4>
+                            </div>
+                        </div>
+                        <Button 
+                            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-full"
+                            onClick={() => onInvest(product)}
+                        >
+                            买入
+                        </Button>
+                    </div>
+                    <div className="grid grid-cols-3 text-center mt-4 text-sm">
                         <div>
-                            <h4 className="font-semibold">{product.name}</h4>
+                            <p className="text-muted-foreground flex items-center justify-center gap-1"><CreditCard className="w-3 h-3" /> 每份金额</p>
+                            <p className="font-semibold">{product.price}</p>
+                        </div>
+                        <div>
+                            <p className="text-muted-foreground flex items-center justify-center gap-1"><Calendar className="w-3 h-3"/> 周期</p>
+                            <p className="font-semibold">{product.period} 天</p>
+                        </div>
+                         <div>
+                            <p className="text-muted-foreground flex items-center justify-center gap-1"><Percent className="w-3 h-3"/> 收益率</p>
+                            <p className="font-semibold">{(product.dailyRate ?? 0) * 100}% / 天</p>
+                         </div>
+                    </div>
+                    <div className="mt-4">
+                        <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>已购买次数: {purchasedCount}</span>
+                            <span>最大购买次数: {product.maxPurchase}</span>
                         </div>
                     </div>
-                    <Button 
-                        className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-full"
-                        onClick={() => onInvest(product)}
-                    >
-                        买入
-                    </Button>
-                </div>
-                <div className="grid grid-cols-3 text-center mt-4 text-sm">
-                    <div>
-                        <p className="text-muted-foreground flex items-center justify-center gap-1"><CreditCard className="w-3 h-3" /> 每份金额</p>
-                        <p className="font-semibold">{product.price}</p>
-                    </div>
-                    <div>
-                        <p className="text-muted-foreground flex items-center justify-center gap-1"><Calendar className="w-3 h-3"/> 周期</p>
-                        <p className="font-semibold">{product.period} 天</p>
-                    </div>
-                     <div>
-                        <p className="text-muted-foreground flex items-center justify-center gap-1"><Percent className="w-3 h-3"/> 收益率</p>
-                        <p className="font-semibold">{(product.dailyRate ?? 0) * 100}% / 天</p>
-                     </div>
-                </div>
-                <div className="mt-4">
-                    <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>已购买次数: {purchasedCount}</span>
-                        <span>最大购买次数: {product.maxPurchase}</span>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+        </div>
     )
 };
 
@@ -157,4 +159,5 @@ export default function StakingPage() {
         </DashboardLayout>
     );
 }
+
 
