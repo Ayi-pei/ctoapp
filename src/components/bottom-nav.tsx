@@ -29,11 +29,11 @@ export function BottomNav() {
                 <Link href={item.href}>
                   <span
                     className={cn(
-                      'flex flex-col items-center gap-1 py-2 text-xs text-white/80',
-                      isActive ? 'text-yellow-400' : ''
+                      'flex flex-col items-center gap-1 py-2 text-xs',
+                      isActive ? 'text-yellow-400' : 'text-white/90'
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className={cn("h-5 w-5", !isActive && "text-sky-300")} />
                     <span>{item.label}</span>
                   </span>
                 </Link>
