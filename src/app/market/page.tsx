@@ -29,7 +29,7 @@ export default function MarketPage() {
                 </div>
             )
         }
-        return <div className="px-4"><MarketList summary={data} klineData={klineData} /></div>
+        return <MarketList summary={data} klineData={klineData} />
     }
 
     return (
@@ -43,16 +43,16 @@ export default function MarketPage() {
                         <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular" className="mt-4">
-                       {renderMarketList(cryptoSummaryData)}
+                       <div className="px-4">{renderMarketList(cryptoSummaryData)}</div>
                     </TabsContent>
                      <TabsContent value="futures" className="mt-4">
-                       {renderMarketList(futuresSummaryData)}
+                       <div className="px-4">{renderMarketList(futuresSummaryData)}</div>
                     </TabsContent>
                     <TabsContent value="forex" className="mt-4">
-                       {renderMarketList(forexSummaryData)}
+                       <div className="px-4">{renderMarketList(forexSummaryData)}</div>
                     </TabsContent>
                     <TabsContent value="gold" className="mt-4">
-                        {renderMarketList(goldSummaryData)}
+                        <div className="px-4">{renderMarketList(goldSummaryData)}</div>
                     </TabsContent>
                 </Tabs>
             </div>
