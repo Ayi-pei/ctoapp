@@ -10,8 +10,6 @@ import { SystemSettingsProvider } from '@/context/system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
-import { ThemeProvider } from '@/components/theme-provider';
-import { CustomThemeProvider } from '@/context/theme-context';
 import { BottomNav } from '@/components/bottom-nav';
 
 const inter = Inter({
@@ -31,32 +29,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
-        <ThemeProvider>
-          <CustomThemeProvider>
-            <AuthProvider>
-              <SystemSettingsProvider>
-                <SettingsProvider>
-                  <InvestmentSettingsProvider>
-                    <MarketDataProvider>
-                      <BalanceProvider>
-                        <RequestsProvider>
-                          <AnnouncementsProvider>
-                            <div className='h-screen w-screen'>
-                              {children}
-                            </div>
-                            <Toaster />
-                            <BottomNav />
-                          </AnnouncementsProvider>
-                        </RequestsProvider>
-                      </BalanceProvider>
-                    </MarketDataProvider>
-                  </InvestmentSettingsProvider>
-                </SettingsProvider>
-              </SystemSettingsProvider>
-            </AuthProvider>
-          </CustomThemeProvider>
-        </ThemeProvider>
+      <body className="font-sans antialiased text-foreground bg-background">
+        <AuthProvider>
+          <SystemSettingsProvider>
+            <SettingsProvider>
+              <InvestmentSettingsProvider>
+                <MarketDataProvider>
+                  <BalanceProvider>
+                    <RequestsProvider>
+                      <AnnouncementsProvider>
+                        {children}
+                        <Toaster />
+                        <BottomNav />
+                      </AnnouncementsProvider>
+                    </RequestsProvider>
+                  </BalanceProvider>
+                </MarketDataProvider>
+              </InvestmentSettingsProvider>
+            </SettingsProvider>
+          </SystemSettingsProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -12,11 +12,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { useRequests } from "@/context/requests-context";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useTheme } from "@/context/theme-context";
-import { Sun, Moon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
 
 
 const changePasswordSchema = z.object({
@@ -33,7 +28,6 @@ export default function ProfileSettingsPage() {
     const { toast } = useToast();
     const { user } = useAuth();
     const { addPasswordResetRequest } = useRequests();
-    const { theme, setTheme } = useTheme();
 
 
     const form = useForm<z.infer<typeof changePasswordSchema>>({
@@ -129,31 +123,6 @@ export default function ProfileSettingsPage() {
                                 <Button type="submit">提交审核</Button>
                             </form>
                         </Form>
-                    </CardContent>
-                </Card>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>主题设置</CardTitle>
-                        <CardDescription>选择您喜欢的界面主题。</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <RadioGroup
-                            value={theme}
-                            onValueChange={setTheme}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                        >
-                            <Label htmlFor="light-theme" className="flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer data-[state=checked]:border-primary">
-                                <RadioGroupItem value="light" id="light-theme" className="sr-only"/>
-                                <Sun className="w-8 h-8 mb-2"/>
-                                <span className="font-semibold">白昼</span>
-                            </Label>
-                             <Label htmlFor="dark-theme" className="flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer data-[state=checked]:border-primary">
-                                <RadioGroupItem value="dark" id="dark-theme" className="sr-only"/>
-                                <Moon className="w-8 h-8 mb-2"/>
-                                <span className="font-semibold">夜间</span>
-                            </Label>
-                        </RadioGroup>
                     </CardContent>
                 </Card>
             </div>

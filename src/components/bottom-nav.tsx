@@ -16,8 +16,13 @@ export function BottomNav() {
   
   const itemsToShow = navItems.slice(0, 5);
 
+  // Return null if there are no items to show, which might happen during auth loading
+  if (itemsToShow.length === 0) {
+    return null;
+  }
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 border-t border-transparent bg-gradient-to-r from-[--gradient-purple] to-[--gradient-gold] md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 border-t bg-gradient-to-r from-gray-400 to-gray-600 md:hidden z-50">
       <ul className="flex justify-around items-center h-16 px-1">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
@@ -30,10 +35,10 @@ export function BottomNav() {
                   <div
                     className={cn(
                       'flex flex-col items-center justify-center gap-1 text-xs w-16 h-14 rounded-lg transition-all',
-                      isActive ? 'text-yellow-300 bg-white/20' : 'text-white/90'
+                      isActive ? 'text-white bg-black/20' : 'text-gray-800'
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5", !isActive && "text-sky-300")} />
+                    <item.icon className={cn("h-5 w-5", isActive ? "text-white" : "text-gray-900")} />
                     <span>{item.label}</span>
                   </div>
                 </Link>
