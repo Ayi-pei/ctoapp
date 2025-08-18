@@ -18,19 +18,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Home, CandlestickChart } from "lucide-react";
+import { User, LogOut, Home } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMarket } from "@/context/market-data-context";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 
 // Simple SVG Logo component
 const Logo = () => (
     <div className="flex items-center gap-2">
-       <CandlestickChart className="h-7 w-7 text-blue-300" />
-       <span className="font-semibold text-lg text-white">TradeFlow</span>
+       <Image src="/images/logo.png" alt="TradeFlow Logo" width={120} height={40} />
     </div>
 )
 
