@@ -32,6 +32,8 @@
     --chart-5: 27 87% 67%;
     --gradient-purple: #4c1d95; /* Deep purple */
     --gradient-gold: #f59e0b; /* Bright gold */
+    --gradient-grey: #a0aec0; /* Cool Gray */
+    --gradient-silver: #e2e8f0; /* Lighter Gray/Silver */
   }
 
   .dark {
@@ -61,6 +63,8 @@
     --chart-5: 27 87% 67%;
     --gradient-purple: #4c1d95; /* Deep purple */
     --gradient-gold: #f59e0b; /* Bright gold */
+    --gradient-grey: #a0aec0; /* Cool Gray */
+    --gradient-silver: #e2e8f0; /* Lighter Gray/Silver */
   }
 
   .light {
@@ -91,6 +95,8 @@
     --chart-5: 197 37% 24%;
     --gradient-purple: #4c1d95; /* Deep purple */
     --gradient-gold: #f59e0b; /* Bright gold */
+    --gradient-grey: #a0aec0; /* Cool Gray */
+    --gradient-silver: #e2e8f0; /* Lighter Gray/Silver */
   }
 }
 
