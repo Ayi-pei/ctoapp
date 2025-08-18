@@ -113,28 +113,30 @@ export default function DashboardPage() {
                 </Link>
 
                 {/* Features Grid */}
+                <div className="bg-purple-900/20 rounded-lg p-4">
                     <div className="grid grid-cols-4 gap-4 text-center">
-                    {features.map(feature => {
-                        const Icon = feature.icon;
-                        const content = (
-                            <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                <div className="bg-muted p-3 rounded-full">
-                                    <Icon className="h-6 w-6 text-primary" />
+                        {features.map(feature => {
+                            const Icon = feature.icon;
+                            const content = (
+                                <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
+                                    <div className="bg-muted p-3 rounded-full">
+                                        <Icon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{feature.name}</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">{feature.name}</p>
-                            </div>
-                        );
-
-                        if (feature.href) {
-                                return (
-                                <Link href={feature.href} key={feature.name}>
-                                    {content}
-                                </Link>
                             );
-                        }
-                        
-                        return <div key={feature.name} className="cursor-pointer">{content}</div>;
-                    })}
+
+                            if (feature.href) {
+                                    return (
+                                    <Link href={feature.href} key={feature.name}>
+                                        {content}
+                                    </Link>
+                                );
+                            }
+                            
+                            return <div key={feature.name} className="cursor-pointer">{content}</div>;
+                        })}
+                    </div>
                 </div>
                 
                 {/* Market List */}
