@@ -11,18 +11,20 @@ function TradePageContents() {
   const tab = searchParams.get('tab') || 'contract';
   
   return (
-    <DashboardLayout>
-      <main className="p-4 flex flex-col gap-4">
-          <TradeBoard initialTab={tab} />
-      </main>
-    </DashboardLayout>
+    <div className="h-full w-full trade-background">
+        <main className="p-4 flex flex-col gap-4">
+            <TradeBoard initialTab={tab} />
+        </main>
+    </div>
   );
 };
 
 export default function TradePage() {
     return (
-        <React.Suspense fallback={<DashboardLayout><main className="p-4">Loading...</main></DashboardLayout>}>
-            <TradePageContents />
-        </React.Suspense>
+        <DashboardLayout>
+            <React.Suspense fallback={<main className="p-4">Loading...</main>}>
+                <TradePageContents />
+            </React.Suspense>
+        </DashboardLayout>
     )
 }

@@ -134,7 +134,7 @@ export default function YueBaoStylePage() {
 
     return (
         <DashboardLayout>
-            <div className="h-full w-full finance-background bg-cover bg-center">
+            <div className="h-full w-full finance-background">
                 <div className="flex flex-col h-full bg-black/50 backdrop-blur-sm">
                     <Header />
                     <div className="flex-grow p-4 space-y-6 rounded-t-2xl">

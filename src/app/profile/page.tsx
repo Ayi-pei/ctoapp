@@ -187,22 +187,24 @@ export default function ProfilePage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 space-y-6">
-                <ProfileHeader />
-                
-                <div className="space-y-2">
-                    {menuItems.map(item => (
-                        <Link href={item.href} key={item.label} passHref>
-                           <ListItem label={item.label} icon={item.icon} />
-                        </Link>
-                    ))}
-                    {actionItems.map(item => (
-                         <div key={item.label} onClick={item.onClick}>
-                            <ListItem label={item.label} icon={item.icon}>
-                                {item.customComponent ? item.customComponent : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
-                            </ListItem>
-                        </div>
-                    ))}
+            <div className="h-full w-full profile-background">
+                <div className="p-4 space-y-6">
+                    <ProfileHeader />
+                    
+                    <div className="space-y-2">
+                        {menuItems.map(item => (
+                            <Link href={item.href} key={item.label} passHref>
+                               <ListItem label={item.label} icon={item.icon} />
+                            </Link>
+                        ))}
+                        {actionItems.map(item => (
+                             <div key={item.label} onClick={item.onClick}>
+                                <ListItem label={item.label} icon={item.icon}>
+                                    {item.customComponent ? item.customComponent : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                                </ListItem>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </DashboardLayout>
