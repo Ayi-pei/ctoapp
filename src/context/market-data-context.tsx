@@ -80,8 +80,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         if (currentSource !== 'coinpaprika') {
             currentSource = 'coinpaprika';
         }
-        
-        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
+
+        const allPairs = [...CRYPTO_PAIRS, ...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
+        const ids = allPairs.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
         
         if (ids.length === 0 && currentSource !== 'coinpaprika') return;
 

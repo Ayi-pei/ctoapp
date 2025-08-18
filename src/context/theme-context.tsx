@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { ThemeProvider, useTheme as useNextTheme } from 'next-themes';
+import React, { createContext, useContext, ReactNode } from 'react';
 
 type Theme = 'dark' | 'light';
 
@@ -12,47 +13,24 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setThemeState] = useState<Theme>('light'); // Default to light theme
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        // Prefer stored theme, but fall back to light if nothing is stored.
-        const storedTheme = localStorage.getItem('tradeflow-theme') as Theme | null;
-        setThemeState(storedTheme || 'light');
-        setIsMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (isMounted) {
-            const root = window.document.documentElement;
-            root.classList.remove('light', 'dark');
-            root.classList.add(theme);
-            localStorage.setItem('tradeflow-theme', theme);
-        }
-    }, [theme, isMounted]);
-
-    const setTheme = useCallback((newTheme: Theme) => {
-        setThemeState(newTheme);
-    }, []);
-
-    if (!isMounted) {
-        // To prevent hydration mismatch, render nothing or a loader on the server/first-pass.
-        // Once mounted, the client-side `useEffect` will kick in.
-        return null;
-    }
-
-    return (
-        <ThemeContext.Provider value={{ theme, setTheme }}>
-            {children}
-        </ThemeContext.Provider>
-    );
-}
-
+// This is a custom hook that wraps the one from next-themes
 export function useTheme() {
     const context = useContext(ThemeContext);
     if (context === undefined) {
         throw new Error('useTheme must be used within a ThemeProvider');
     }
     return context;
+}
+
+// You can keep a separate provider if you have other theme-related state,
+// but for just wrapping next-themes, we can simplify.
+// For now, let's keep it in case you want to add more context later.
+export function CustomThemeProvider({ children }: { children: ReactNode }) {
+    const { theme, setTheme } = useNextTheme();
+
+    return (
+        <ThemeContext.Provider value={{ theme: (theme as Theme) || 'dark', setTheme }}>
+            {children}
+        </ThemeContext.Provider>
+    );
 }

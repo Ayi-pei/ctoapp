@@ -11,7 +11,7 @@ import { SystemSettingsProvider } from '@/context/system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
-import { ThemeProvider } from '@/context/theme-context';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const inter = Inter({
   subsets: ['latin'],
