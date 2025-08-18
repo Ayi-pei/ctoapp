@@ -1,3 +1,4 @@
+
 "use client";
 import Link from 'next/link';
 
@@ -28,8 +29,8 @@ import { useState, useEffect } from 'react';
 // Simple SVG Logo component
 const Logo = () => (
     <div className="flex items-center gap-2">
-       <CandlestickChart className="h-7 w-7" />
-       <span className="font-semibold text-lg">TradeFlow</span>
+       <CandlestickChart className="h-7 w-7 text-amber-400" />
+       <span className="font-semibold text-lg text-amber-400">TradeFlow</span>
     </div>
 )
 
@@ -43,7 +44,7 @@ export function TradeHeader() {
 
   useEffect(() => {
     if (user) {
-        setAvatarUrl(`https://api.dicebear.com/8.x/initials/svg?seed=${user.id}`);
+        setAvatarUrl(user.avatar_url || `https://api.dicebear.com/8.x/initials/svg?seed=${user.id}`);
     }
   }, [user]);
 
@@ -88,13 +89,13 @@ export function TradeHeader() {
       </div>
 
       <div className="flex items-center justify-end gap-4 w-1/3">
-        <Home className="h-6 w-6 cursor-pointer" onClick={handleHomeClick} />
+        <Home className="h-6 w-6 cursor-pointer text-amber-400" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full hover:bg-black/10 focus-visible:ring-ring [&_svg]:size-8">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl} alt={user?.username} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-transparent text-amber-400">
                            <User />
                         </AvatarFallback>
                     </Avatar>
