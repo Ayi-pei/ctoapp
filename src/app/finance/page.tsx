@@ -141,7 +141,7 @@ export default function YueBaoStylePage() {
                         <Card className="shadow-lg futoubao-card-background">
                             <CardContent className="p-6">
                                 <div className="text-sm text-black/80">总金额 (USDT)</div>
-                                <div className="text-4xl font-bold mt-2 text-black">{totalAmount.toFixed(2)}</div>
+                                <div className="text-4xl font-bold mt-2 text-green-600">{totalAmount.toFixed(2)}</div>
                                 <div className="grid grid-cols-2 mt-4 text-sm">
                                     <div>
                                         <div className="text-black/80">累计收益 (USDT)</div>
