@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -41,17 +42,17 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     return (
         <Card className="bg-card/80 border overflow-hidden">
             <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-[1fr_auto] items-center gap-4">
-                    <div className="flex flex-col items-center gap-2">
-                        <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
-                        <h4 className="font-semibold text-sm">{product.name}</h4>
+                <div>
+                    <h4 className="font-semibold text-lg mb-4">{product.name}</h4>
+                    <div className="flex items-center justify-between">
+                        <Image src={product.imgSrc} alt={product.name} width={64} height={64} className="rounded-md" />
+                        <Button 
+                            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
+                            onClick={() => onInvest(product)}
+                        >
+                            买入
+                        </Button>
                     </div>
-                    <Button 
-                        className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
-                        onClick={() => onInvest(product)}
-                    >
-                        买入
-                    </Button>
                 </div>
                 
                 <Separator />
