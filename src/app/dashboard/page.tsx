@@ -136,7 +136,7 @@ export default function DashboardPage() {
                 </Link>
 
                 {/* Features Grid */}
-                <div className="bg-gray-500/60 rounded-lg p-2">
+                <div className="bg-gradient-to-r from-gray-200 via-gray-400 to-gray-600 rounded-lg p-2">
                     <div className="grid grid-cols-4 gap-2">
                         {features.map((feature) => {
                             const content = (
