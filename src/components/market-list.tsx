@@ -70,7 +70,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                                     </AreaChart>
                                 </ChartContainer>
                             </div>
-                            <div className="text-right">
+                            <div className="flex flex-col items-end">
                                 <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                                 <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                                     {isPositive ? '+' : ''}{(item.change || 0).toFixed(2)}%
