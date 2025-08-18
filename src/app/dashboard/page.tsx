@@ -24,22 +24,19 @@ const carouselItems = [
         title: "智能秒合约",
         description: "预测市场，秒速盈利",
         href: "/trade?tab=contract",
-        imgSrc: "https://placehold.co/600x400.png",
-        imgHint: "trading chart",
+        imgSrc: "/images/lun.png",
     },
     {
         title: "高收益理财",
         description: "稳定增值，安心之选",
         href: "/finance",
-        imgSrc: "https://placehold.co/600x400.png",
-        imgHint: "investment growth",
+        imgSrc: "/images/lun01.png",
     },
     {
         title: "邀请好友赚佣金",
         description: "分享链接，共享收益",
         href: "/profile/promotion",
-        imgSrc: "https://placehold.co/600x400.png",
-        imgHint: "people network",
+        imgSrc: "/images/lun02.png",
     }
 ];
 
@@ -110,7 +107,6 @@ export default function DashboardPage() {
                                         alt={item.title}
                                         fill
                                         className="object-cover"
-                                        data-ai-hint={item.imgHint}
                                     />
                                     <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-4">
                                         <h3 className="text-xl font-bold">{item.title}</h3>
