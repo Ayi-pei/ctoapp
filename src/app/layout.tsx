@@ -1,4 +1,3 @@
-
 import type {Metadata} from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -13,6 +12,7 @@ import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
 import { ThemeProvider } from '@/components/theme-provider';
 import { CustomThemeProvider } from '@/context/theme-context';
+import { BottomNav } from '@/components/bottom-nav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -43,6 +43,8 @@ export default function RootLayout({
                         <RequestsProvider>
                           <AnnouncementsProvider>
                             {children}
+                            <Toaster />
+                            <BottomNav />
                           </AnnouncementsProvider>
                         </RequestsProvider>
                       </BalanceProvider>
@@ -51,7 +53,6 @@ export default function RootLayout({
                 </SettingsProvider>
               </SystemSettingsProvider>
             </AuthProvider>
-            <Toaster />
           </CustomThemeProvider>
         </ThemeProvider>
       </body>
