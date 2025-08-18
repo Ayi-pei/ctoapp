@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
@@ -24,12 +24,11 @@ const ProfileHeader = () => {
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     const [isEditingNickname, setIsEditingNickname] = useState(false);
     const [nickname, setNickname] = useState(user?.nickname || user?.username || "");
-    const [avatarUrl, setAvatarUrl] = useState('');
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (user) {
             setNickname(user.nickname || user.username);
-            setAvatarUrl(`https://api.dicebear.com/8.x/initials/svg?seed=${user.id}`);
         }
     }, [user]);
 
@@ -62,50 +61,72 @@ const ProfileHeader = () => {
             e.currentTarget.blur();
         }
     };
+    
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && user) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const newAvatarUrl = reader.result as string;
+                updateUser(user.id, { avatar_url: newAvatarUrl });
+                 toast({ title: "成功", description: "头像已更新。" });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     return (
-        <div className="relative text-white w-full">
-            <div className="flex items-center gap-4">
-                {/* Left Column: Avatar */}
-                <Avatar className="h-20 w-20 border-4 border-primary/50">
-                    <AvatarImage src={avatarUrl} alt={user?.username} />
+        <div className="relative text-white w-full grid grid-cols-[auto_1fr_auto] items-center gap-4">
+             {/* Left Column: Avatar */}
+            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                 <Avatar className="h-20 w-20 border-4 border-primary/50">
+                    <AvatarImage src={user?.avatar_url} alt={user?.username} />
                     <AvatarFallback>
                         <Users className="h-10 w-10" />
                     </AvatarFallback>
                 </Avatar>
-                
-                {/* Middle Column: User Info */}
-                <div className="flex-grow space-y-1 text-left">
-                    <div className="flex items-center gap-2">
-                        {isEditingNickname ? (
-                            <input
-                                type="text"
-                                value={nickname}
-                                onChange={(e) => setNickname(e.target.value)}
-                                onBlur={handleNicknameBlur}
-                                onKeyDown={handleNicknameKeyDown}
-                                className="font-semibold text-xl bg-transparent text-white border-b-2 border-white/50 focus:outline-none focus:ring-0 h-auto p-1 max-w-[150px]"
-                                autoFocus
-                            />
-                        ) : (
-                            <h2 
-                                className="font-semibold text-xl cursor-pointer"
-                                onClick={() => setIsEditingNickname(true)}
-                            >
-                                {nickname}
-                            </h2>
-                        )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">ID: {user?.id}</p>
-                    <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
-                    <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                    <span className="text-xs text-white">更换头像</span>
                 </div>
+                 <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                />
+            </div>
+            
+            {/* Middle Column: User Info */}
+            <div className="flex-grow space-y-1 text-left">
+                <div className="flex items-center gap-2">
+                    {isEditingNickname ? (
+                        <input
+                            type="text"
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            onBlur={handleNicknameBlur}
+                            onKeyDown={handleNicknameKeyDown}
+                            className="font-semibold text-xl bg-transparent text-white border-b-2 border-white/50 focus:outline-none focus:ring-0 h-auto p-1 max-w-[150px]"
+                            autoFocus
+                        />
+                    ) : (
+                        <h2 
+                            className="font-semibold text-xl cursor-pointer"
+                            onClick={() => setIsEditingNickname(true)}
+                        >
+                            {nickname}
+                        </h2>
+                    )}
+                </div>
+                <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
+                <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+            </div>
 
-                {/* Right Column: Actions */}
-                <div className="flex flex-col gap-2">
-                    <Button onClick={() => setIsDepositOpen(true)} className="bg-primary/80 hover:bg-primary text-primary-foreground h-9 text-sm">充值</Button>
-                    <Button onClick={() => setIsWithdrawOpen(true)} className="bg-secondary/80 hover:bg-secondary h-9 text-sm">提现</Button>
-                </div>
+            {/* Right Column: Actions */}
+            <div className="flex flex-col gap-2">
+                <Button onClick={() => setIsDepositOpen(true)} className="bg-primary/80 hover:bg-primary text-primary-foreground h-9 text-sm">充值</Button>
+                <Button onClick={() => setIsWithdrawOpen(true)} className="bg-secondary/80 hover:bg-secondary h-9 text-sm">提现</Button>
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />

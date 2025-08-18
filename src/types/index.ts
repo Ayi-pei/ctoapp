@@ -57,6 +57,7 @@ export type User = {
     password?: string; // For mock DB
     credit_score: number;
     last_login_at?: string;
+    avatar_url?: string;
 };
 
 export type Announcement = {

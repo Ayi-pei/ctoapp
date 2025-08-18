@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -37,6 +38,12 @@ const generateInvitationCode = () => {
     }
     return result;
 };
+
+const generateRandomNickname = () => {
+    const adjectives = ["Brave", "Wise", "Lucky", "Happy", "Swift", "Bold", "Clever", "Sturdy", "Silent", "Witty"];
+    const nouns = ["Trader", "Explorer", "Pioneer", "Voyager", "Analyst", "Investor", "Gambler", "Captain", "Wizard", "Oracle"];
+    return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+}
 
 
 const getMockUsers = (): { [id: string]: User } => {
@@ -134,10 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return false;
       }
       
+      const newUserId = `user_${Date.now()}`;
       const newUser: User = {
-          id: `user_${Date.now()}`,
+          id: newUserId,
           username,
-          nickname: username,
+          nickname: generateRandomNickname(),
           password,
           email: `${username}@noemail.app`,
           is_admin: false,
@@ -147,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           inviter_id: inviterId,
           created_at: new Date().toISOString(),
           credit_score: 100,
+          avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${newUserId}`,
       };
       
       allUsers[newUser.id] = newUser;
