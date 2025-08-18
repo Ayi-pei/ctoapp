@@ -76,7 +76,7 @@
   }
   .home-background {
     background-image: url('/images/home.png');
-    background-size: contain;
+    background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
   }
