@@ -32,7 +32,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     return null; // Or a loading spinner
   }
 
-  const isDashboard = pathname === '/dashboard';
   const isUserFacingPage = !pathname.startsWith('/admin');
 
 
