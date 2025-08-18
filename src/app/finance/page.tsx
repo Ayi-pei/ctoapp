@@ -134,52 +134,54 @@ export default function YueBaoStylePage() {
 
     return (
         <DashboardLayout>
-            <div className="flex flex-col h-full bg-card">
-                <Header />
-                <div className="flex-grow p-4 space-y-6 bg-background rounded-t-2xl">
-                    <Card className="bg-card shadow-lg">
-                        <CardContent className="p-6">
-                            <div className="text-sm text-muted-foreground">总金额 (USDT)</div>
-                            <div className="text-4xl font-bold mt-2">{totalAmount.toFixed(2)}</div>
-                            <div className="grid grid-cols-2 mt-4 text-sm">
-                                <div>
-                                    <div className="text-muted-foreground">累计收益 (USDT)</div>
-                                    <div className="font-semibold text-green-400">+{totalProfit.toFixed(2)}</div>
+            <div className="h-full w-full finance-background bg-cover bg-center">
+                <div className="flex flex-col h-full bg-black/50 backdrop-blur-sm">
+                    <Header />
+                    <div className="flex-grow p-4 space-y-6 rounded-t-2xl">
+                        <Card className="bg-card/80 shadow-lg">
+                            <CardContent className="p-6">
+                                <div className="text-sm text-muted-foreground">总金额 (USDT)</div>
+                                <div className="text-4xl font-bold mt-2">{totalAmount.toFixed(2)}</div>
+                                <div className="grid grid-cols-2 mt-4 text-sm">
+                                    <div>
+                                        <div className="text-muted-foreground">累计收益 (USDT)</div>
+                                        <div className="font-semibold text-green-400">+{totalProfit.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-muted-foreground">昨日收益 (USDT)</div>
+                                        <div className="font-semibold text-green-400">+{yesterdayProfit.toFixed(2)}</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-muted-foreground">昨日收益 (USDT)</div>
-                                    <div className="font-semibold text-green-400">+{yesterdayProfit.toFixed(2)}</div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <Button className="w-full h-12 bg-primary/80 hover:bg-primary" onClick={handleInvestClick}>转入</Button>
-                        <Button className="w-full h-12" variant="secondary" disabled>转出</Button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button className="w-full h-12 bg-primary/80 hover:bg-primary" onClick={handleInvestClick}>转入</Button>
+                            <Button className="w-full h-12" variant="secondary" disabled>转出</Button>
+                        </div>
+                        
+                        <Tabs defaultValue="active" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="active">进行中 ({activeInvestments.length})</TabsTrigger>
+                                <TabsTrigger value="settled">历史记录 ({settledInvestments.length})</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="active" className="mt-4">
+                                {activeInvestments.length > 0 ? (
+                                    <InvestmentList investments={activeInvestments} title="进行中订单" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">暂无进行中的订单</div>
+                                )}
+                            </TabsContent>
+                            <TabsContent value="settled" className="mt-4">
+                                {settledInvestments.length > 0 ? (
+                                    <InvestmentList investments={settledInvestments} title="已完成订单" />
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">暂无已完成的订单</div>
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                        
                     </div>
-                    
-                    <Tabs defaultValue="active" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="active">进行中 ({activeInvestments.length})</TabsTrigger>
-                            <TabsTrigger value="settled">历史记录 ({settledInvestments.length})</TabsTrigger>
-                        </TabsList>
-                         <TabsContent value="active" className="mt-4">
-                            {activeInvestments.length > 0 ? (
-                                <InvestmentList investments={activeInvestments} title="进行中订单" />
-                            ) : (
-                                <div className="text-center text-muted-foreground py-10">暂无进行中的订单</div>
-                            )}
-                        </TabsContent>
-                         <TabsContent value="settled" className="mt-4">
-                             {settledInvestments.length > 0 ? (
-                                <InvestmentList investments={settledInvestments} title="已完成订单" />
-                            ) : (
-                                <div className="text-center text-muted-foreground py-10">暂无已完成的订单</div>
-                            )}
-                        </TabsContent>
-                    </Tabs>
-                    
                 </div>
             </div>
 

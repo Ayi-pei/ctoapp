@@ -74,4 +74,10 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+  .finance-background {
+    background-image: url('/images/0kio.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }
