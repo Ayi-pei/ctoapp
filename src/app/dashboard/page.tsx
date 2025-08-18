@@ -136,31 +136,25 @@ export default function DashboardPage() {
                 </Link>
 
                 {/* Features Grid */}
-                <div className="bg-gray-500/60 rounded-lg p-4">
-                    <div className="grid grid-cols-4 gap-y-4 text-center">
+                <div className="bg-gray-500/60 rounded-lg p-2">
+                    <div className="grid grid-cols-4 gap-2 text-center">
                         {features.map((feature) => {
                             const content = (
                                 <div
-                                    className="flex flex-col items-center justify-center space-y-2"
+                                    className="relative h-40 w-full overflow-hidden rounded-lg group"
                                     onClick={(feature as any).action}
                                 >
-                                    <div
-                                        className={cn(
-                                            'flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60',
-                                            (feature as any).imgSrc ? 'overflow-hidden p-0' : 'p-2'
-                                        )}
-                                    >
-                                        {(feature as any).imgSrc ? (
-                                            <Image
-                                                src={(feature as any).imgSrc}
-                                                alt={feature.name}
-                                                width={48}
-                                                height={48}
-                                                className="h-full w-full object-cover"
-                                            />
-                                        ) : null}
+                                    {(feature as any).imgSrc ? (
+                                        <Image
+                                            src={(feature as any).imgSrc}
+                                            alt={feature.name}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    ) : null}
+                                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 text-center">
+                                         <p className="text-xs font-semibold text-white">{feature.name}</p>
                                     </div>
-                                    <p className="text-xs font-semibold text-white">{feature.name}</p>
                                 </div>
                             );
 
