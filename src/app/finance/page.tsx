@@ -156,7 +156,7 @@ export default function YueBaoStylePage() {
                         </Card>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <Button className="w-full h-12 bg-primary/80 hover:bg-primary" onClick={handleInvestClick}>转入</Button>
+                            <Button className="w-full h-12 bg-gradient-to-r from-gray-200 to-yellow-500 text-black font-bold" onClick={handleInvestClick}>转入</Button>
                             <Button className="w-full h-12" variant="secondary" disabled>转出</Button>
                         </div>
                         
