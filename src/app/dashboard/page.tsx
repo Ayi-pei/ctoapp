@@ -51,14 +51,14 @@ export default function DashboardPage() {
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
-        { name: '每日任务', imgSrc: '/images/book.png', href: '/coming-soon' },
-        { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true) },
-        { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion' },
-        { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download' },
-        { name: '闪兑', imgSrc: '/images/dui.png', href: '/coming-soon' },
-        { name: '秒合约', imgSrc: '/images/tt.png', href: '/trade?tab=contract' },
-        { name: '限时活动', imgSrc: '/images/time.png', href: '/coming-soon' },
-        { name: '关于我们', imgSrc: '/images/me.png', href: '/coming-soon' },
+        { name: '每日任务', imgSrc: '/images/book.png', href: '/coming-soon', labelPosition: 'top' },
+        { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true), labelPosition: 'top' },
+        { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion', labelPosition: 'top' },
+        { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download', labelPosition: 'top' },
+        { name: '闪兑', imgSrc: '/images/dui.png', href: '/coming-soon', labelPosition: 'bottom' },
+        { name: '秒合约', imgSrc: '/images/tt.png', href: '/trade?tab=contract', labelPosition: 'bottom' },
+        { name: '限时活动', imgSrc: '/images/time.png', href: '/coming-soon', labelPosition: 'bottom' },
+        { name: '关于我们', imgSrc: '/images/me.png', href: '/coming-soon', labelPosition: 'bottom' },
     ];
     
     const getUsdtValue = (assetName: string, amount: number) => {
@@ -128,16 +128,16 @@ export default function DashboardPage() {
 
                 {/* Announcement */}
                 <Link href="/announcements">
-                        <div className="bg-gradient-to-r from-slate-200 to-amber-400 border-l-4 border-amber-500 p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
-                        <Megaphone className="h-5 w-5 text-black flex-shrink-0" />
-                        <div className="text-sm text-black flex-1 truncate whitespace-nowrap">
+                        <div className="bg-card/80 backdrop-blur-sm border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-card/90 transition-opacity">
+                        <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
                             {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
                         </div>
                     </div>
                 </Link>
 
                 {/* Features Grid */}
-                <div className="bg-gray-300 rounded-lg p-2">
+                <div className="bg-card/50 backdrop-blur-sm rounded-lg p-2">
                     <div className="grid grid-cols-4 gap-2">
                         {features.map((feature) => {
                             const content = (
@@ -154,7 +154,10 @@ export default function DashboardPage() {
                                             className="object-cover"
                                         />
                                     ) : null}
-                                    <div className="absolute bottom-0 left-0 right-0 p-2 text-center">
+                                    <div className={cn(
+                                        "absolute left-0 right-0 p-2 text-center",
+                                        feature.labelPosition === 'top' ? 'top-0' : 'bottom-0'
+                                    )}>
                                          <p className="text-sm font-bold text-blue-900">{feature.name}</p>
                                     </div>
                                 </div>
@@ -178,13 +181,13 @@ export default function DashboardPage() {
                 </div>
                 
                 {/* Market List */}
-                <div className="rounded-lg p-2">
+                <div className="rounded-lg p-2 bg-card/50 backdrop-blur-sm">
                     <Tabs defaultValue="popular">
-                        <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1">
-                            <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
-                            <TabsTrigger value="futures" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货</TabsTrigger>
-                            <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">外汇</TabsTrigger>
-                            <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-4 bg-background/70 rounded-lg p-1">
+                            <TabsTrigger value="popular" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">热门币种</TabsTrigger>
+                            <TabsTrigger value="futures" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">期货</TabsTrigger>
+                            <TabsTrigger value="forex" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">外汇</TabsTrigger>
+                            <TabsTrigger value="gold" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">黄金</TabsTrigger>
                         </TabsList>
                         <TabsContent value="popular">
                             {renderMarketList(cryptoSummaryData)}
