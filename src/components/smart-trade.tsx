@@ -166,7 +166,7 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
   }, []);
 
   return (
-    <Card>
+    <Card className="bg-card/40">
         <CardHeader>
             <CardTitle>智能交易</CardTitle>
             <CardDescription>在24小时内预设币种、数量及时间，系统将自动执行买入或卖出操作。</CardDescription>
@@ -205,11 +205,11 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                 <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600 hover:bg-green-700">
+                 <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600/40 hover:bg-green-700">
                     <Clock className="mr-2 h-4 w-4" />
                     智投预购
                 </Button>
-                <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600 hover:red-green-700">
+                <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600/40 hover:bg-red-700">
                     <Clock className="mr-2 h-4 w-4" />
                     审时抛售
                 </Button>

@@ -30,7 +30,7 @@ export function OrderForm({ tradingPair, balance, onPlaceTrade, quoteAsset }: Or
     };
 
     return (
-        <Card>
+        <Card className="bg-card/40">
             <CardHeader>
                 <CardTitle>秒合约</CardTitle>
             </CardHeader>
@@ -38,14 +38,14 @@ export function OrderForm({ tradingPair, balance, onPlaceTrade, quoteAsset }: Or
                 <div className="grid grid-cols-2 gap-4">
                     <Button
                         size="lg"
-                        className="bg-green-600 hover:bg-green-700 text-white text-lg h-12"
+                        className="bg-green-600/40 hover:bg-green-700 text-white text-lg h-12"
                         onClick={() => handleOpenSheet('buy')}
                     >
                         看涨
                     </Button>
                     <Button
                         size="lg"
-                        className="bg-red-600 hover:bg-red-700 text-white text-lg h-12"
+                        className="bg-red-600/40 hover:bg-red-700 text-white text-lg h-12"
                         onClick={() => handleOpenSheet('sell')}
                     >
                         看跌
