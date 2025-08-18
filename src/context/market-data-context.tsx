@@ -236,7 +236,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 }
 
                 if (!CRYPTO_PAIRS.includes(pair) && nextPrice === 0) {
-                     nextPrice = pair.startsWith('XAU') ? 2300 : 1.1;
+                     if (pair.startsWith('XAU')) nextPrice = 2300;
+                     else if (pair.startsWith('OIL')) nextPrice = 80;
+                     else if (pair.startsWith('XAG')) nextPrice = 29;
+                     else if (pair.startsWith('NAS100')) nextPrice = 19000;
+                     else nextPrice = 1.1; // Forex default
                 }
                 
                 newPrices[pair] = nextPrice;

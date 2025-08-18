@@ -39,7 +39,7 @@ export const availablePairs = [
     'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT',
     'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT',
     'XAU/USD', 'EUR/USD', 'GBP/USD',
-    'OIL/USD', 'XAG/USD', 'NAS100/USD' // New Futures
+    'OIL/USD', 'XAG/USD', 'NAS100/USD'
 ];
 
 // Represents a user's profile, mirroring the public.users table
