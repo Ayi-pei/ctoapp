@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -59,7 +60,7 @@
   }
 
   .light {
-    --background: 0 0% 100%;
+    --background: 0 0% 98%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
@@ -94,9 +95,5 @@
   body {
     background-color: hsl(var(--background));
     @apply text-foreground;
-  }
-  .light body {
-    /* Optional: Add a subtle gradient for the light theme body */
-    background-image: linear-gradient(to bottom right, #f0f4f8, #ffffff);
   }
 }

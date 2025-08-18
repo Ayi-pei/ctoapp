@@ -74,13 +74,13 @@ export default function DashboardPage() {
         <DashboardLayout>
             <div className="p-4 space-y-6">
                 {/* Account Balance */}
-                <Card className="bg-card">
+                <Card className="bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg">
                     <CardContent className="p-4">
-                        <p className="text-muted-foreground text-sm">账户余额(USDT)</p>
+                        <p className="text-blue-100 text-sm">账户余额(USDT)</p>
                         <p className="text-3xl font-bold mt-1">{totalBalance.toFixed(2)}</p>
                         <div className="grid grid-cols-2 gap-4 mt-4">
-                            <Button className="bg-primary/80 hover:bg-primary" onClick={() => setIsDepositOpen(true)}>充币</Button>
-                            <Button variant="secondary" onClick={() => setIsWithdrawOpen(true)}>提币</Button>
+                            <Button className="bg-white/20 hover:bg-white/30 text-white" onClick={() => setIsDepositOpen(true)}>充币</Button>
+                            <Button variant="secondary" className="bg-white/90 hover:bg-white text-blue-600" onClick={() => setIsWithdrawOpen(true)}>提币</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
                                     <h3 className="text-lg font-semibold">智能秒合约</h3>
                                     <p className="text-muted-foreground mt-1">质押挖矿</p>
                                     <p className="text-muted-foreground text-sm">轻松放大您的收益</p>
-                                    <Button size="sm" className="mt-4 bg-primary/80 hover:bg-primary">客服在线</Button>
+                                    <Button size="sm" className="mt-4">客服在线</Button>
                                     <div className="absolute top-4 right-4 text-xs text-muted-foreground">1/5</div>
                                 </CardContent>
                             </Card>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
                                     <h3 className="text-lg font-semibold">新功能上线</h3>
                                     <p className="text-muted-foreground mt-1">理财产品</p>
                                     <p className="text-muted-foreground text-sm">稳定收益，安全可靠</p>
-                                    <Button size="sm" className="mt-4 bg-primary/80 hover:bg-primary">了解更多</Button>
+                                    <Button size="sm" className="mt-4">了解更多</Button>
                                     <div className="absolute top-4 right-4 text-xs text-muted-foreground">2/5</div>
                                 </CardContent>
                             </Card>
@@ -116,7 +116,7 @@ export default function DashboardPage() {
 
                 {/* Announcement */}
                 <Link href="/announcements">
-                    <div className="bg-card p-3 rounded-lg flex items-center space-x-3 overflow-hidden">
+                    <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-lg flex items-center space-x-3 overflow-hidden">
                         <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
                         <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
                            {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
@@ -130,7 +130,7 @@ export default function DashboardPage() {
                         const Icon = feature.icon;
                         const content = (
                             <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                <div className="bg-card p-4 rounded-full">
+                                <div className="bg-muted p-4 rounded-full">
                                     <Icon className="h-6 w-6 text-primary" />
                                 </div>
                                 <p className="text-xs text-muted-foreground">{feature.name}</p>
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                 
                 {/* Market List */}
                 <Tabs defaultValue="popular">
-                    <TabsList className="grid w-full grid-cols-3 bg-card">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="popular">热门币种</TabsTrigger>
                         <TabsTrigger value="forex">外汇币种</TabsTrigger>
                         <TabsTrigger value="gold">国际黄金</TabsTrigger>

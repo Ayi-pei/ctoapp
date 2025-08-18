@@ -67,7 +67,7 @@ const ProfileHeader = () => {
 
 
      return (
-        <div className="relative bg-gradient-to-b from-blue-400 to-blue-600 p-6 text-white text-center rounded-b-3xl -mx-4 -mt-4 mb-6">
+        <div className="relative bg-gradient-to-br from-blue-500 to-blue-700 p-6 text-white text-center rounded-b-3xl -mx-4 -mt-4 mb-6">
             <div className="absolute top-4 right-4">
                  <Bell className="w-6 h-6" />
             </div>
@@ -96,8 +96,8 @@ const ProfileHeader = () => {
                         {nickname}
                     </h2>
                 )}
-                <p className="text-sm">余额: {totalBalance.toFixed(2)} USDT</p>
-                 <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">信誉分: {user?.credit_score || 100}</div></div>
+                <p className="text-sm text-blue-100">余额: {totalBalance.toFixed(2)} USDT</p>
+                 <div className="text-sm mt-1"><div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-400/50 px-2.5 py-0.5 text-xs font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">信誉分: {user?.credit_score || 100}</div></div>
 
                  <div className="flex gap-4 mt-4">
                     <Button onClick={() => setIsDepositOpen(true)} className="bg-white/20 hover:bg-white/30 text-white">充值</Button>
