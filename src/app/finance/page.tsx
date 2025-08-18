@@ -15,6 +15,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const PRODUCT_NAME = "富投宝";
 
@@ -26,7 +36,26 @@ const Header = () => {
                 <ChevronLeft />
             </Button>
             <h1 className="text-2xl font-bold tracking-widest bg-black/20 text-white px-4 py-2 rounded-lg shadow-lg border border-white/30"><span className="bg-gradient-to-r from-yellow-400 to-amber-600 bg-clip-text text-transparent">富投宝</span></h1>
-            <Button variant="link" className="text-foreground p-0 h-auto absolute right-4">规则</Button>
+             <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="text-foreground p-2 h-auto absolute right-4 text-xs">规则</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>富投宝规则说明</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2 pt-2 text-left">
+                        <p>1. <strong>投资时间:</strong> “富投宝”仅在每日特定时间段内开放投资，具体时间请参考产品说明。</p>
+                        <p>2. <strong>计息方式:</strong> 投资成功后，系统将根据您选择的投资时长和对应的小时利率开始计息。</p>
+                        <p>3. <strong>收益计算:</strong> 预计收益 = 投资金额 × 对应时长的小时利率。实际收益以结算时为准。</p>
+                        <p>4. <strong>本金与收益返还:</strong> 投资到期后，您的本金和所产生的收益将自动返还至您的USDT可用余额中。</p>
+                        <p>5. <strong>风险提示:</strong> 所有投资均存在市场风险，请您在充分了解产品详情后，根据自身的风险承受能力进行操作。</p>
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogAction>我明白了</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
