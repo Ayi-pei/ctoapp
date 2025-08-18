@@ -39,7 +39,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     onInvest: (product: InvestmentProduct) => void 
 }) => {
     return (
-        <Card className="bg-card/80 border overflow-hidden">
+        <Card className="bg-card/80 border-2 border-amber-400/50 overflow-hidden shadow-[inset_0_0_8px_rgba(234,179,8,0.4)]">
             <div className="flex items-stretch">
                 <div className="flex-shrink-0 w-32 md:w-40 flex items-center justify-center bg-muted/50 p-4">
                     <div className="relative h-24 w-24">
