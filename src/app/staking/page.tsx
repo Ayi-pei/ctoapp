@@ -10,7 +10,7 @@ import { useBalance } from "@/context/balance-context";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Separator } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 
 const Header = () => {
@@ -40,48 +40,48 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
 }) => {
     return (
         <Card className="bg-card/80 border overflow-hidden">
-            <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-[1fr_auto] items-start gap-4">
-                    <h4 className="font-semibold text-lg">{product.name}</h4>
-                    <Button 
-                        className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
-                        onClick={() => onInvest(product)}
-                    >
-                        买入
-                    </Button>
+            <div className="flex items-stretch">
+                <div className="flex-shrink-0 w-32 md:w-40 flex items-center justify-center bg-muted/50 p-4">
+                    <Image src={product.imgSrc} alt={product.name} width={96} height={96} className="rounded-md object-contain" />
                 </div>
+                <div className="flex-grow">
+                    <CardContent className="p-4 space-y-3 h-full flex flex-col justify-between">
+                        <div>
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-semibold text-lg">{product.name}</h4>
+                                <Button 
+                                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-xs h-7 px-4 rounded-md -mt-1"
+                                    onClick={() => onInvest(product)}
+                                >
+                                    买入
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-3 text-left text-sm mt-3 gap-y-2">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">每份金额</p>
+                                    <p className="font-semibold">{product.price}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">周期</p>
+                                    <p className="font-semibold">{product.period} 天</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground">收益率</p>
+                                    <p className="font-semibold text-green-400">{(product.dailyRate ?? 0) * 100}%/天</p>
+                                </div>
+                            </div>
+                        </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 flex-shrink-0">
-                             <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+                        <div>
+                            <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
+                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                <span>已购: {purchasedCount}</span>
+                                <span>限购: {product.maxPurchase}</span>
+                            </div>
                         </div>
-                        <p className="text-muted-foreground">{product.name}</p>
-                    </div>
-                     <div className="grid grid-cols-3 text-left">
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">每份金额</p>
-                            <p className="font-semibold">{product.price}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">周期</p>
-                            <p className="font-semibold">{product.period} 天</p>
-                        </div>
-                         <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">收益率</p>
-                            <p className="font-semibold">{(product.dailyRate ?? 0) * 100}%/天</p>
-                         </div>
-                    </div>
+                    </CardContent>
                 </div>
-
-                <div>
-                    <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>已购买次数: {purchasedCount}</span>
-                        <span>最大购买次数: {product.maxPurchase}</span>
-                    </div>
-                </div>
-            </CardContent>
+            </div>
         </Card>
     )
 };
