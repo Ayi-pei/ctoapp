@@ -36,7 +36,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
 
                     return (
                         <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="rounded-lg p-[1px] bg-gradient-to-br from-[--gradient-grey] to-[--gradient-silver] cursor-pointer hover:shadow-lg transition-shadow">
-                            <div className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 p-2 rounded-[7px] bg-card hover:bg-muted/50">
+                            <div className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 p-2 rounded-[7px] bg-slate-200 dark:bg-card hover:bg-slate-300/80 dark:hover:bg-muted/50 text-slate-800 dark:text-card-foreground">
                                 <Image 
                                     src={item.icon || `https://placehold.co/32x32.png`}
                                     alt={`${item.pair.split('/')[0]} logo`} 
