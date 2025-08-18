@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as UserType } from '@/types';
-import { loginUser, checkAdminInviteCode } from '@/app/actions/auth';
+import { login as apiLogin, checkAdminInviteCode } from '@/services/authService';
 
 // Re-exporting the type from types/index.ts to avoid circular dependencies
 // and to be the single source of truth.
@@ -67,40 +67,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
-    const allUsers = getMockUsers();
-    const now = new Date().toISOString();
+    const result = await apiLogin(username, password);
 
-    // First, try to log in as admin via the secure server action
-    const adminResult = await loginUser(username, password);
+    if (result.success && result.user) {
+        const now = new Date().toISOString();
+        const loggedInUser = { ...result.user, last_login_at: now };
 
-    if (adminResult.success && adminResult.user) {
-        let adminWithLoginDate = { ...adminResult.user, last_login_at: now };
-        
-        // Ensure admin user exists in our mock DB and is up-to-date
-        allUsers[ADMIN_USER_ID] = adminWithLoginDate;
+        // Even though API handles login, we still save user to mock DB and session for now
+        const allUsers = getMockUsers();
+        allUsers[loggedInUser.id] = { ...allUsers[loggedInUser.id], ...loggedInUser };
         saveMockUsers(allUsers);
         
-        setUser(adminWithLoginDate);
-        localStorage.setItem('userSession', JSON.stringify(adminWithLoginDate));
-        return { success: true, isAdmin: true };
-    }
-    
-    // If admin login fails, fall back to regular user login (client-side localStorage)
-    const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
-
-    if (foundUser) {
-        if (foundUser.is_frozen) {
-            console.error("Login failed: Account is frozen.");
-            return { success: false, isAdmin: false };
-        }
-
-        const userWithLoginDate = { ...foundUser, last_login_at: now };
-        allUsers[foundUser.id] = userWithLoginDate;
-        saveMockUsers(allUsers);
-        
-        setUser(userWithLoginDate);
-        localStorage.setItem('userSession', JSON.stringify(userWithLoginDate));
-        return { success: true, isAdmin: foundUser.is_admin };
+        setUser(loggedInUser);
+        localStorage.setItem('userSession', JSON.stringify(loggedInUser));
+        return { success: true, isAdmin: loggedInUser.is_admin };
     }
     
     return { success: false, isAdmin: false };

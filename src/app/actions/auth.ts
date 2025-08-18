@@ -1,26 +1,30 @@
+
 'use server';
+
+// This file is deprecated and its contents have been moved to the new API route
+// at /api/auth/login/route.ts and the authService.
+// We keep it here to avoid breaking imports but it should be removed later.
 
 import type { User } from '@/types';
 
-const ADMIN_USER_ID = 'admin_user_001';
-
-// This is a server-only function to securely check admin credentials
+// This function is now part of the API route logic.
 export async function loginUser(username: string, password: string): Promise<{ success: boolean, user: User | null, error?: string }> {
+    console.warn("DEPRECATED: loginUser in /app/actions/auth.ts is deprecated. Use the /api/auth/login endpoint.");
+    
     if (
-        username === process.env.ADMIN_NAME &&
-        password === process.env.ADMIN_KEY
+        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+        password === process.env.NEXT_PUBLIC_ADMIN_KEY
     ) {
-        // Construct the admin user object. In a real app, this would come from a database.
         const adminUser: User = {
-            id: ADMIN_USER_ID,
+            id: 'admin_user_001',
             username: username,
             nickname: 'Administrator',
-            password: password, // Note: In a real app, you would not store or return the password.
+            password: password,
             email: `${username}@noemail.app`,
             is_admin: true,
             is_test_user: false,
             is_frozen: false,
-            invitation_code: process.env.ADMIN_AUTH || '',
+            invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '',
             inviter_id: null,
             created_at: new Date().toISOString(),
             credit_score: 999,
@@ -29,11 +33,11 @@ export async function loginUser(username: string, password: string): Promise<{ s
         return { success: true, user: adminUser };
     }
 
-    // If it's not an admin, we return an error. The client will then handle regular user login.
     return { success: false, user: null, error: "Invalid admin credentials" };
 }
 
-// This is a server-only function to securely check the admin invitation code
+// This function is now part of the authService.
 export async function checkAdminInviteCode(code: string): Promise<boolean> {
-    return code === process.env.ADMIN_AUTH;
+     console.warn("DEPRECATED: checkAdminInviteCode in /app/actions/auth.ts is deprecated. It is now part of authService.");
+    return code === process.env.NEXT_PUBLIC_ADMIN_AUTH;
 }
