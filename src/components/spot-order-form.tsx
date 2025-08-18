@@ -200,7 +200,7 @@ export function SpotOrderForm({
                 可用: {orderType === 'buy' ? `${quoteAssetBalance.toFixed(2)} ${quoteAsset}` : `${baseAssetBalance.toFixed(6)} ${baseAsset}`}
             </div>
 
-            <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600/40 hover:bg-green-700' : 'bg-red-600/40 hover:bg-red-700')}>
+            <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600/60 hover:bg-green-700' : 'bg-red-600/60 hover:bg-red-700')}>
                 {orderType === 'buy' ? `买入 ${baseAsset}` : `卖出 ${baseAsset}`}
             </Button>
           </div>

@@ -205,11 +205,11 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                 <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600/40 hover:bg-green-700">
+                 <Button onClick={() => handleScheduleTrade('buy')} className="bg-green-600/60 hover:bg-green-700">
                     <Clock className="mr-2 h-4 w-4" />
                     智投预购
                 </Button>
-                <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600/40 hover:bg-red-700">
+                <Button onClick={() => handleScheduleTrade('sell')} className="bg-red-600/60 hover:bg-red-700">
                     <Clock className="mr-2 h-4 w-4" />
                     审时抛售
                 </Button>
