@@ -137,11 +137,11 @@ export default function DashboardPage() {
 
                 {/* Features Grid */}
                 <div className="bg-gray-500/60 rounded-lg p-2">
-                    <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="grid grid-cols-4 gap-2">
                         {features.map((feature) => {
                             const content = (
                                 <div
-                                    className="relative h-40 w-full overflow-hidden rounded-lg group"
+                                    className="relative w-full overflow-hidden rounded-lg group aspect-square"
                                     onClick={(feature as any).action}
                                 >
                                     {(feature as any).imgSrc ? (
