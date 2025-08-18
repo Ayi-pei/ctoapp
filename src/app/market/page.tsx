@@ -34,7 +34,7 @@ export default function MarketPage() {
 
     return (
         <DashboardLayout>
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full bg-card">
                  <Tabs defaultValue="popular" className="pt-4">
                     <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1 mx-4">
                         <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
