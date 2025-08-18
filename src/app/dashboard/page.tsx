@@ -119,7 +119,7 @@ export default function DashboardPage() {
                             const Icon = feature.icon;
                             const content = (
                                 <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                    <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/30 to-purple-800/30">
+                                    <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60">
                                         <Icon className="h-8 w-8 text-amber-400" />
                                     </div>
                                     <p className="text-xs text-amber-400">{feature.name}</p>
