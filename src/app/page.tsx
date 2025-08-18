@@ -29,7 +29,7 @@ export default function Home() {
 
     // Show a loading skeleton or spinner while the authentication state is being determined.
     return (
-        <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="flex h-screen w-screen items-center justify-center">
             <div className="flex flex-col items-center gap-4">
                 <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
                 <p className="text-muted-foreground">正在加载，请稍候...</p>
