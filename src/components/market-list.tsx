@@ -24,9 +24,9 @@ export function MarketList({ summary, klineData }: MarketListProps) {
   }
 
   return (
-    <Card className="bg-card border-none shadow-none">
+    <Card className="bg-transparent border-none shadow-none">
         <CardContent className="p-0">
-            <div className="space-y-4">
+            <div className="space-y-2">
                 {summary.map((item) => {
                     const pairKlineData = klineData[item.pair] || [];
                     const sparklineData = pairKlineData.map(d => ({ value: d.close }));
@@ -35,7 +35,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                     const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 
                     return (
-                        <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 py-2 cursor-pointer hover:bg-muted/50 rounded-lg">
+                        <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 p-2 cursor-pointer hover:bg-muted/50 rounded-lg border">
                              <Image 
                                 src={item.icon || `https://placehold.co/32x32.png`}
                                 alt={`${item.pair.split('/')[0]} logo`} 
