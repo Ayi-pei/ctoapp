@@ -11,14 +11,14 @@ function TradePageContents() {
   const tab = searchParams.get('tab') || 'contract';
   
   return (
-    <TradeBoard initialTab={tab} />
+      <TradeBoard initialTab={tab} />
   );
 };
 
 export default function TradePage() {
     return (
         <DashboardLayout>
-            <React.Suspense fallback={<main className="p-4">Loading...</main>}>
+            <React.Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
                 <TradePageContents />
             </React.Suspense>
         </DashboardLayout>
