@@ -126,9 +126,9 @@ export default function DashboardPage() {
 
                 {/* Announcement */}
                 <Link href="/announcements">
-                        <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors">
-                        <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
-                        <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
+                        <div className="bg-gradient-to-r from-slate-200 to-amber-400 border-l-4 border-amber-500 p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity">
+                        <Megaphone className="h-5 w-5 text-black flex-shrink-0" />
+                        <div className="text-sm text-black flex-1 truncate whitespace-nowrap">
                             {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
                         </div>
                     </div>
