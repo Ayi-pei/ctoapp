@@ -33,12 +33,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   }
 
   const isDashboard = pathname === '/dashboard';
+  const isUserFacingPage = !pathname.startsWith('/admin');
+
 
   return (
-    <div className={cn("flex flex-col h-screen", isDashboard ? 'home-background' : 'bg-background')}>
-      <div className={cn(isDashboard && 'h-full')}>
+    <div className={cn("flex h-screen w-screen flex-col", isUserFacingPage ? 'home-background' : 'bg-background')}>
+      <div className={cn(isUserFacingPage && "h-full w-full")}>
         <TradeHeader />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1" style={{height: 'calc(100vh - 4rem)'}}>
           <Sidebar />
           <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
             {children}
