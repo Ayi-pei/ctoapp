@@ -25,7 +25,7 @@ const Header = () => {
             <Button variant="ghost" size="icon" className="absolute left-2" onClick={() => router.back()}>
                 <ChevronLeft />
             </Button>
-            <h1 className="text-2xl font-bold tracking-widest bg-black/20 text-white px-4 py-2 rounded-lg shadow-lg border border-white/30">{PRODUCT_NAME}</h1>
+            <h1 className="text-2xl font-bold tracking-widest bg-black/20 text-white px-4 py-2 rounded-lg shadow-lg border border-white/30"><span className="bg-gradient-to-r from-yellow-400 to-amber-600 bg-clip-text text-transparent">富投宝</span></h1>
             <Button variant="link" className="text-foreground p-0 h-auto absolute right-4">规则</Button>
         </div>
     )
