@@ -12,6 +12,7 @@ import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
 import { ThemeProvider } from '@/components/theme-provider';
+import { CustomThemeProvider } from '@/context/theme-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,24 +33,26 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased text-foreground">
         <ThemeProvider>
-          <AuthProvider>
-            <SystemSettingsProvider>
-              <SettingsProvider>
-                <InvestmentSettingsProvider>
-                  <MarketDataProvider>
-                    <BalanceProvider>
-                      <RequestsProvider>
-                        <AnnouncementsProvider>
-                          {children}
-                        </AnnouncementsProvider>
-                      </RequestsProvider>
-                    </BalanceProvider>
-                  </MarketDataProvider>
-                </InvestmentSettingsProvider>
-              </SettingsProvider>
-            </SystemSettingsProvider>
-          </AuthProvider>
-          <Toaster />
+          <CustomThemeProvider>
+            <AuthProvider>
+              <SystemSettingsProvider>
+                <SettingsProvider>
+                  <InvestmentSettingsProvider>
+                    <MarketDataProvider>
+                      <BalanceProvider>
+                        <RequestsProvider>
+                          <AnnouncementsProvider>
+                            {children}
+                          </AnnouncementsProvider>
+                        </RequestsProvider>
+                      </BalanceProvider>
+                    </MarketDataProvider>
+                  </InvestmentSettingsProvider>
+                </SettingsProvider>
+              </SystemSettingsProvider>
+            </AuthProvider>
+            <Toaster />
+          </CustomThemeProvider>
         </ThemeProvider>
       </body>
     </html>

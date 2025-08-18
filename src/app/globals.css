@@ -108,4 +108,16 @@
     background-color: hsl(var(--background));
     @apply text-foreground;
   }
+
+  .home-background {
+    background-image: url('/images/home-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+
+  .home-background > div {
+     background-color: hsla(var(--background), 0.8);
+     backdrop-filter: blur(4px);
+  }
 }
