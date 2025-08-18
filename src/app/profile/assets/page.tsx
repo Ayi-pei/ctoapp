@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBalance } from "@/context/balance-context";
 import type { Investment } from "@/types";
 import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
-import axios from 'axios';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
+import { getUserAssets } from "@/services/userService";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB"];
 const FOREX_ASSETS = ["EUR", "GBP"];
@@ -121,11 +120,12 @@ export default function AssetsPage() {
             if (!user) return;
             setIsLoading(true);
             try {
-                const response = await axios.get('/api/user/assets');
-                setBalances(response.data.balances || {});
-                setInvestments(response.data.investments || []);
+                // Use the new service layer to fetch data
+                const data = await getUserAssets();
+                setBalances(data.balances || {});
+                setInvestments(data.investments || []);
             } catch (error) {
-                console.error("Failed to fetch assets:", error);
+                console.error("Failed to fetch assets via service:", error);
             } finally {
                 setIsLoading(false);
             }
