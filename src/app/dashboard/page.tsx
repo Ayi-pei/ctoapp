@@ -137,33 +137,46 @@ export default function DashboardPage() {
 
                 {/* Features Grid */}
                 <div className="bg-gray-500/60 rounded-lg p-4">
-                    <div className="grid grid-cols-4 gap-y-6 gap-x-2 text-center justify-items-center">
-                        {features.map(feature => {
-                            const Icon = (feature as any).icon;
+                    <div className="grid grid-cols-4 gap-y-4 text-center">
+                        {features.map((feature) => {
                             const content = (
-                                <div className="flex flex-col items-center space-y-2" onClick={(feature as any).action}>
-                                    <div className={cn("rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60 flex items-center justify-center h-[72px] w-[72px]",
-                                        (feature as any).imgSrc ? "p-0 overflow-hidden" : "p-4"
-                                    )}>
-                                        {(feature as any).imgSrc ? (
-                                            <Image src={(feature as any).imgSrc} alt={feature.name} width={72} height={72} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <Icon className="h-8 w-8 text-amber-400" />
+                                <div
+                                    className="flex flex-col items-center justify-center space-y-2"
+                                    onClick={(feature as any).action}
+                                >
+                                    <div
+                                        className={cn(
+                                            'flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60',
+                                            (feature as any).imgSrc ? 'overflow-hidden p-0' : 'p-2'
                                         )}
+                                    >
+                                        {(feature as any).imgSrc ? (
+                                            <Image
+                                                src={(feature as any).imgSrc}
+                                                alt={feature.name}
+                                                width={48}
+                                                height={48}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : null}
                                     </div>
-                                    <p className="text-sm font-bold text-blue-900">{feature.name}</p>
+                                    <p className="text-xs font-semibold text-white">{feature.name}</p>
                                 </div>
                             );
 
                             if ((feature as any).href) {
                                 return (
-                                <Link href={(feature as any).href} key={feature.name}>
-                                    {content}
-                                </Link>
+                                    <Link href={(feature as any).href} key={feature.name}>
+                                        {content}
+                                    </Link>
                                 );
                             }
-                            
-                            return <div key={feature.name} className="cursor-pointer">{content}</div>;
+
+                            return (
+                                <div key={feature.name} className="cursor-pointer">
+                                    {content}
+                                </div>
+                            );
                         })}
                     </div>
                 </div>
