@@ -42,9 +42,13 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     return (
         <Card className="bg-card/80 border overflow-hidden">
             <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
-                    <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
-                    <h4 className="font-semibold">{product.name}</h4>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+                        <div>
+                            <h4 className="font-semibold">{product.name}</h4>
+                        </div>
+                    </div>
                     <Button 
                         className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
                         onClick={() => onInvest(product)}
