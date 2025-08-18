@@ -30,7 +30,7 @@ export function OrderForm({ tradingPair, balance, onPlaceTrade, quoteAsset }: Or
     };
 
     return (
-        <Card className="bg-card/40">
+        <Card className="bg-card/60">
             <CardHeader>
                 <CardTitle>秒合约</CardTitle>
             </CardHeader>

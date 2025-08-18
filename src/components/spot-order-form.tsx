@@ -138,7 +138,7 @@ export function SpotOrderForm({
 
 
   return (
-    <Card className="bg-card/40">
+    <Card className="bg-card/60">
       <CardContent className="p-4">
         <Tabs defaultValue="buy" onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
           <TabsList className="grid w-full grid-cols-2">
@@ -200,7 +200,7 @@ export function SpotOrderForm({
                 可用: {orderType === 'buy' ? `${quoteAssetBalance.toFixed(2)} ${quoteAsset}` : `${baseAssetBalance.toFixed(6)} ${baseAsset}`}
             </div>
 
-            <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600/60 hover:bg-green-700' : 'bg-red-600/60 hover:bg-red-700')}>
+            <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600/50 hover:bg-green-700' : 'bg-red-600/50 hover:bg-red-700')}>
                 {orderType === 'buy' ? `买入 ${baseAsset}` : `卖出 ${baseAsset}`}
             </Button>
           </div>

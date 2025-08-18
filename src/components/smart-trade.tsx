@@ -166,7 +166,7 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
   }, []);
 
   return (
-    <Card className="bg-card/40">
+    <Card className="bg-card/50">
         <CardHeader>
             <CardTitle>智能交易</CardTitle>
             <CardDescription>在24小时内预设币种、数量及时间，系统将自动执行买入或卖出操作。</CardDescription>
