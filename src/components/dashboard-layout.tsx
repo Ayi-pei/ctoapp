@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -8,26 +7,42 @@ import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
 import { TradeHeader } from './trade-header';
 import { cn } from '@/lib/utils';
+import { LoaderCircle } from 'lucide-react';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // Redirect to login if auth is not resolved or user is not authenticated.
-    if (!isAuthenticated) {
-      router.push('/');
+    // While loading, do nothing.
+    if (isLoading) return;
+    
+    // After loading, if user is not authenticated and not already on a public page, redirect to login.
+    const isPublicPage = pathname === '/login' || pathname === '/register';
+    if (!isAuthenticated && !isPublicPage) {
+      router.replace('/');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading, pathname, router]);
 
 
+  // Show a full-screen loader while the auth state is being determined.
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // If not authenticated and on a public page (like /login), don't render the main layout.
+  // The child component (the login page itself) will be rendered directly by RootLayout.
   if (!isAuthenticated) {
-    return null; // Or a loading spinner
+     return <>{children}</>;
   }
   
   const isDashboardPage = pathname === '/dashboard';
