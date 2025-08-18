@@ -49,35 +49,34 @@ const ProfileHeader = () => {
     };
 
     return (
-        <div className="relative text-white w-full grid grid-cols-[auto_1fr_auto] items-center gap-4">
-             {/* Left Column: Avatar */}
-            <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                 <Avatar className="h-20 w-20 border-4 border-primary/50">
-                    <AvatarImage src={user?.avatar_url} alt={user?.username} />
-                    <AvatarFallback>
-                        <Users className="h-10 w-10" />
-                    </AvatarFallback>
-                </Avatar>
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                    <span className="text-xs text-white">更换头像</span>
+        <div className="relative text-white w-full flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+                <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                    <Avatar className="h-20 w-20 border-4 border-primary/50">
+                        <AvatarImage src={user?.avatar_url} alt={user?.username} />
+                        <AvatarFallback>
+                            <Users className="h-10 w-10" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                        <span className="text-xs text-white">更换头像</span>
+                    </div>
+                    <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                    />
                 </div>
-                 <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                />
-            </div>
-            
-            {/* Middle Column: User Info */}
-            <div className="flex-grow space-y-1 text-left">
-                <h2 className="font-semibold text-xl">{user?.username}</h2>
-                <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
-                <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+                
+                <div className="space-y-1">
+                    <h2 className="font-semibold text-xl">{user?.username}</h2>
+                    <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
+                    <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+                </div>
             </div>
 
-            {/* Right Column: Actions */}
             <div className="flex flex-col gap-2">
                 <Button 
                     onClick={() => setIsDepositOpen(true)} 
