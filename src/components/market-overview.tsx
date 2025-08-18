@@ -13,7 +13,7 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
 
   if (!summary) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 border rounded-lg bg-purple-900/50">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-2 border rounded-lg bg-purple-900/50">
         <div className="col-span-2 md:col-span-1 p-2 border rounded-md">
           <Skeleton className="h-8 w-24 mb-2" />
           <Skeleton className="h-9 w-32" />
@@ -44,15 +44,15 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
       </div>
       <div className="col-span-2 md:col-span-3 grid grid-cols-3 gap-x-4 text-sm">
         <div className="p-2 border rounded-md text-right">
-          <p className="text-muted-foreground">24h High</p>
+          <p className="text-green-400">24h High</p>
           <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
-          <p className="text-muted-foreground">24h Low</p>
+          <p className="text-green-400">24h Low</p>
           <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
-          <p className="text-muted-foreground">24h Volume</p>
+          <p className="text-green-400">24h Volume</p>
           <p className="font-medium">{(summary.volume / 1000000).toFixed(2)}M</p>
         </div>
       </div>
