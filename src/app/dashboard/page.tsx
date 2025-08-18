@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Download, Repeat, ArrowRightLeft, User, Megaphone, Gem, ClipboardList } from "lucide-react";
+import { Download, Repeat, ArrowRightLeft, User, Megaphone, Gem, ClipboardList, ArrowRight } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -16,6 +16,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMarket } from "@/context/market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
+import Image from "next/image";
+
+
+const carouselItems = [
+    {
+        title: "智能秒合约",
+        description: "预测市场，秒速盈利",
+        href: "/trade?tab=contract",
+        imgSrc: "https://placehold.co/600x400.png",
+        imgHint: "trading chart",
+    },
+    {
+        title: "高收益理财",
+        description: "稳定增值，安心之选",
+        href: "/finance",
+        imgSrc: "https://placehold.co/600x400.png",
+        imgHint: "investment growth",
+    },
+    {
+        title: "邀请好友赚佣金",
+        description: "分享链接，共享收益",
+        href: "/profile/promotion",
+        imgSrc: "https://placehold.co/600x400.png",
+        imgHint: "people network",
+    }
+];
 
 
 export default function DashboardPage() {
@@ -74,30 +100,30 @@ export default function DashboardPage() {
         <DashboardLayout>
             <div className="p-4 space-y-6">
                 {/* Smart Contract Carousel */}
-                <Carousel>
+                <Carousel className="w-full" opts={{ loop: true }}>
                     <CarouselContent>
-                        <CarouselItem>
-                                <Card className="bg-card/80 relative overflow-hidden">
-                                <CardContent className="p-4">
-                                    <h3 className="text-lg font-semibold">智能秒合约</h3>
-                                    <p className="text-muted-foreground mt-1">质押挖矿</p>
-                                    <p className="text-muted-foreground text-sm">轻松放大您的收益</p>
-                                    <Button size="sm" className="mt-4">客服在线</Button>
-                                    <div className="absolute top-4 right-4 text-xs text-muted-foreground">1/5</div>
-                                </CardContent>
-                            </Card>
-                        </CarouselItem>
-                            <CarouselItem>
-                                <Card className="bg-card/80 relative overflow-hidden">
-                                <CardContent className="p-4">
-                                    <h3 className="text-lg font-semibold">新功能上线</h3>
-                                    <p className="text-muted-foreground mt-1">理财产品</p>
-                                    <p className="text-muted-foreground text-sm">稳定收益，安全可靠</p>
-                                    <Button size="sm" className="mt-4">了解更多</Button>
-                                    <div className="absolute top-4 right-4 text-xs text-muted-foreground">2/5</div>
-                                </CardContent>
-                            </Card>
-                        </CarouselItem>
+                        {carouselItems.map((item, index) => (
+                             <CarouselItem key={index}>
+                                <Card className="relative w-full h-40 overflow-hidden text-white">
+                                    <Image
+                                        src={item.imgSrc}
+                                        alt={item.title}
+                                        fill
+                                        className="object-cover"
+                                        data-ai-hint={item.imgHint}
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-4">
+                                        <h3 className="text-xl font-bold">{item.title}</h3>
+                                        <p className="text-sm text-white/80">{item.description}</p>
+                                        <Link href={item.href}>
+                                             <Button variant="link" className="text-amber-300 p-0 h-auto justify-start mt-1">
+                                                了解更多 <ArrowRight className="w-4 h-4 ml-1" />
+                                             </Button>
+                                        </Link>
+                                    </div>
+                                </Card>
+                            </CarouselItem>
+                        ))}
                     </CarouselContent>
                 </Carousel>
                 

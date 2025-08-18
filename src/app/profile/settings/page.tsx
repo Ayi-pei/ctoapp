@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { useRequests } from "@/context/requests-context";
+import { LifeBuoy } from "lucide-react";
 
 
 const changePasswordSchema = z.object({
@@ -73,6 +74,20 @@ export default function ProfileSettingsPage() {
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
                  <h1 className="text-2xl font-bold">安全设置</h1>
+                 
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>帮助与支持</CardTitle>
+                        <CardDescription>遇到问题？我们的客服团队随时为您服务。</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button>
+                            <LifeBuoy className="mr-2 h-4 w-4" />
+                            联系在线客服
+                        </Button>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle>修改密码</CardTitle>
