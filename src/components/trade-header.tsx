@@ -63,7 +63,7 @@ export function TradeHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 text-gray-800">
+    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16">
       <div className="flex items-center gap-3 w-1/3">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
@@ -85,7 +85,7 @@ export function TradeHeader() {
                 </Select>
             </div>
          )}
-         {showTitle && <h1 className="text-lg font-semibold text-amber-400 border border-purple-500/80 rounded-lg px-4 py-1 bg-black/20">{getTitle()}</h1>}
+         {showTitle && <h1 className="text-lg font-semibold text-amber-400 border border-purple-500/80 rounded-lg px-4 py-1">{getTitle()}</h1>}
       </div>
 
       <div className="flex items-center justify-end gap-4 w-1/3">
