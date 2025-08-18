@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
+import Image from "next/image";
 
 const Header = () => {
     const router = useRouter();
@@ -41,8 +42,14 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
         <Card className="bg-card/80 border overflow-hidden">
             <div className="flex items-stretch">
                 <div className="flex-shrink-0 w-32 md:w-40 flex items-center justify-center bg-muted/50 p-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={product.imgSrc} alt={product.name} width={96} height={96} className="rounded-md object-contain" />
+                    <div className="relative h-24 w-24">
+                        <Image 
+                          src={product.imgSrc} 
+                          alt={product.name}
+                          fill
+                          className="object-contain rounded-md"
+                        />
+                    </div>
                 </div>
                 <div className="flex-grow">
                     <CardContent className="p-4 space-y-3 h-full flex flex-col justify-between">
