@@ -35,6 +35,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
         price: 1, // Min investment amount
         maxPurchase: 999, 
         imgSrc: "https://placehold.co/80x80.png",
+        "data-ai-hint": "gold coin",
         category: 'finance',
         productType: 'hourly',
         activeStartTime: '18:00',
