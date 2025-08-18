@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoaderCircle } from 'lucide-react';
 import AuthLayout from '@/components/auth-layout';
 
 const loginSchema = z.object({
@@ -40,7 +40,7 @@ export default function LoginPage() {
        toast({
         title: '登录成功',
       });
-      // Redirect logic will be handled by the effect below.
+      // The redirect is now handled by the DashboardLayout's effect
     } else {
       toast({
         variant: 'destructive',
@@ -52,41 +52,23 @@ export default function LoginPage() {
 
   useEffect(() => {
     // If the user is authenticated, redirect them away from the login page.
+    // This is a secondary check in case the layout's redirect is delayed.
     if (!isLoading && isAuthenticated) {
-        if (isAdmin) {
-            router.replace('/admin');
-        } else {
-            router.replace('/dashboard');
-        }
+        router.replace(isAdmin ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, isAdmin, isLoading, router]);
 
-  // If loading the auth state or already authenticated, show a skeleton loader.
-  // This prevents the login form from flashing on the screen for already logged-in users.
+  // While loading or if already authenticated, show a loader.
+  // The layout will handle the redirect.
   if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
-        <Card className="w-full max-w-md">
-            <CardHeader>
-                <Skeleton className="h-8 w-24 mx-auto" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                 <div className="space-y-2">
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-10 w-full" />
-                </div>
-                <Skeleton className="h-10 w-full" />
-            </CardContent>
-        </Card>
+            <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
         </AuthLayout>
      )
   }
 
-  // Render the login form if not authenticated and not loading.
+  // Render the login form only if not authenticated and not loading.
   return (
       <AuthLayout>
       <Card className="w-full max-w-md">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -14,24 +15,29 @@ type DashboardLayoutProps = {
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // While loading, do nothing.
-    if (isLoading) return;
-    
-    // After loading, if user is not authenticated and not already on a public page, redirect to login.
-    const isPublicPage = pathname === '/login' || pathname === '/register';
-    if (!isAuthenticated && !isPublicPage) {
-      router.replace('/');
+    if (!isLoading) {
+      if (isAuthenticated) {
+        // If logged in and on a public page, redirect to the dashboard.
+        if (pathname === '/login' || pathname === '/register') {
+          router.replace(isAdmin ? '/admin' : '/dashboard');
+        }
+      } else {
+        // If not logged in and not on a public page, redirect to login.
+        if (pathname !== '/login' && pathname !== '/register') {
+          router.replace('/login');
+        }
+      }
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [isAuthenticated, isLoading, isAdmin, pathname, router]);
 
-
-  // Show a full-screen loader while the auth state is being determined.
-  if (isLoading) {
+  // Show a full-screen loader while the auth state is being determined,
+  // or if we are about to redirect away from a public page.
+  if (isLoading || (isAuthenticated && (pathname === '/login' || pathname === '/register'))) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
@@ -39,8 +45,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
   
-  // If not authenticated and on a public page (like /login), don't render the main layout.
-  // The child component (the login page itself) will be rendered directly by RootLayout.
+  // If not authenticated, let the public pages (login/register) render themselves.
   if (!isAuthenticated) {
      return <>{children}</>;
   }

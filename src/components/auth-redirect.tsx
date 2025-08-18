@@ -7,31 +7,26 @@ import { useAuth } from '@/context/auth-context';
 import { LoaderCircle } from 'lucide-react';
 
 /**
- * AuthRedirect is a client component responsible for handling the initial
- * authentication check and redirecting the user accordingly. It displays a
- * loading spinner while verifying the auth state. This component is intended
- * to be rendered within a layout that provides the desired page background.
+ * @deprecated This component is no longer needed. The logic has been consolidated
+ * into the `DashboardLayout` for a more streamlined and efficient auth flow.
+ * Keeping the file to avoid breaking imports, but it should be considered for removal.
  */
 export default function AuthRedirect() {
     const { isAuthenticated, isLoading, isAdmin } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
+        // This logic is now primarily handled by the DashboardLayout.
+        // This component is kept for safety but should be phased out.
         if (!isLoading) {
             if (isAuthenticated) {
-                if (isAdmin) {
-                    router.replace('/admin');
-                } else {
-                    router.replace('/dashboard');
-                }
+                router.replace(isAdmin ? '/admin' : '/dashboard');
             } else {
                 router.replace('/login');
             }
         }
     }, [isAuthenticated, isLoading, isAdmin, router]);
 
-    // This loading spinner will be displayed on top of the background
-    // provided by the parent layout (e.g., DashboardLayout).
     return (
         <div className="flex h-full w-full items-center justify-center">
             <div className="flex flex-col items-center gap-4">
