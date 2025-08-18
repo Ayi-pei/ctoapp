@@ -91,7 +91,7 @@ export function TradeHeader() {
         <Home className="h-6 w-6 cursor-pointer" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-black/10 focus-visible:ring-ring">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-black/10 focus-visible:ring-ring [&_svg]:size-8">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl} alt={user?.username} />
                         <AvatarFallback>

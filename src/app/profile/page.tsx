@@ -6,13 +6,12 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, Bell, LogOut, FileText, Share2, Shield, Globe, Landmark, MessageSquare, CreditCard, Check, User as UserIcon, Users } from "lucide-react";
+import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, CreditCard, Users } from "lucide-react";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { useBalance } from "@/context/balance-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -73,7 +72,7 @@ const ProfileHeader = () => {
                 <Avatar className="h-24 w-24 mb-4 border-4 border-primary/50">
                     <AvatarImage src={avatarUrl} alt={user?.username} />
                     <AvatarFallback>
-                        <UserIcon className="h-12 w-12" />
+                        <Users className="h-12 w-12" />
                     </AvatarFallback>
                 </Avatar>
                  <div className="flex items-center gap-2">
@@ -120,9 +119,9 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
     return (
         <Link href={href} passHref>
             <div className="flex items-center justify-between p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
-                <div className="flex items-center gap-4">
-                    {React.createElement(icon, { className: "w-6 h-6 text-primary" })}
-                    <span className="font-medium">{label}</span>
+                <div className="flex items-center gap-4 [&_svg]:size-6 text-primary">
+                    {React.createElement(icon)}
+                    <span className="font-medium text-card-foreground">{label}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -134,9 +133,9 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
 const ActionItem = ({ icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
     return (
         <div onClick={onClick} className="flex items-center p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
-            <div className="flex items-center gap-4">
-                 {React.createElement(icon, { className: "w-6 h-6 text-destructive" })}
-                 <span className="font-medium text-destructive">{label}</span>
+            <div className="flex items-center gap-4 text-destructive [&_svg]:size-6">
+                 {React.createElement(icon)}
+                 <span className="font-medium">{label}</span>
             </div>
         </div>
     );
