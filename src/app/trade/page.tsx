@@ -1,26 +1,24 @@
 
+
 "use client";
 
 import React from 'react';
 import DashboardLayout from "@/components/dashboard-layout";
 import TradeBoard from '@/components/TradeBoard';
-import { useSearchParams } from 'next/navigation';
 
-function TradePageContents() {
-  const searchParams = useSearchParams();
-  const tab = searchParams.get('tab') || 'contract';
+// The page now accepts searchParams as a prop, which is the recommended
+// way for Server Components to access URL parameters in Next.js App Router.
+export default function TradePage({
+  searchParams,
+}: {
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
+  const tab = searchParams?.tab || 'contract';
   
   return (
-      <TradeBoard initialTab={tab} />
-  );
-};
-
-export default function TradePage() {
-    return (
-        <DashboardLayout>
-            <React.Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
-                <TradePageContents />
-            </React.Suspense>
-        </DashboardLayout>
-    )
+    <DashboardLayout>
+        <TradeBoard initialTab={Array.isArray(tab) ? tab[0] : tab} />
+    </DashboardLayout>
+  )
 }
+
