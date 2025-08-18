@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MarketSummary, OHLC } from "@/types";
@@ -34,18 +33,18 @@ export function MarketList({ summary, klineData }: MarketListProps) {
             return (
                 <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors overflow-hidden">
                     <CardContent className="p-2">
-                        <div className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4">
+                        <div className="flex items-center gap-4">
                              <Image 
                                 src={item.icon || `https://placehold.co/32x32.png`}
                                 alt={`${item.pair.split('/')[0]} logo`} 
                                 width={32}
                                 height={32}
-                                className="h-8 w-8"
+                                className="h-8 w-8 flex-shrink-0"
                             />
-                            <div>
+                            <div className="flex-shrink-0">
                                 <p className="font-semibold">{item.pair}</p>
                             </div>
-                            <div className="h-10 w-20">
+                            <div className="flex-grow h-10 w-20">
                                 <ChartContainer config={{
                                     value: {
                                         label: "Value",
@@ -70,7 +69,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                                     </AreaChart>
                                 </ChartContainer>
                             </div>
-                            <div className="flex flex-col items-end">
+                            <div className="flex-shrink-0 w-28 flex flex-col items-end">
                                 <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</p>
                                 <p className={`text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
                                     {isPositive ? '+' : ''}{(item.change || 0).toFixed(2)}%
