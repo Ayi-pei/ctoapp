@@ -50,7 +50,7 @@ export default function DashboardPage() {
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
-        { name: '每日任务', icon: ClipboardList, href: '/coming-soon' },
+        { name: '每日任务', imgSrc: '/images/book.png', href: '/coming-soon' },
         { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '代理团队', icon: User, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
@@ -138,21 +138,25 @@ export default function DashboardPage() {
                 <div className="bg-gray-500/60 rounded-lg p-4">
                     <div className="grid grid-cols-4 gap-4 text-center">
                         {features.map(feature => {
-                            const Icon = feature.icon;
+                            const Icon = (feature as any).icon;
                             const content = (
-                                <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                    <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60">
-                                        <Icon className="h-8 w-8 text-amber-400" />
+                                <div className="flex flex-col items-center space-y-2" onClick={(feature as any).action}>
+                                    <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60 flex items-center justify-center h-[72px] w-[72px]">
+                                        {feature.imgSrc ? (
+                                            <Image src={feature.imgSrc} alt={feature.name} width={40} height={40} className="h-10 w-10 object-contain" />
+                                        ) : (
+                                            <Icon className="h-8 w-8 text-amber-400" />
+                                        )}
                                     </div>
                                     <p className="text-sm font-bold text-blue-900">{feature.name}</p>
                                 </div>
                             );
 
                             if (feature.href) {
-                                    return (
-                                    <Link href={feature.href} key={feature.name}>
-                                        {content}
-                                    </Link>
+                                return (
+                                <Link href={feature.href} key={feature.name}>
+                                    {content}
+                                </Link>
                                 );
                             }
                             
