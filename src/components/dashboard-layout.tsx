@@ -28,13 +28,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   if (!isAuthenticated) {
     return null; // Or a loading spinner
   }
+  
+  const isDashboardPage = pathname === '/dashboard';
 
   return (
     <div className={cn("h-screen w-screen flex flex-col")}>
       <TradeHeader />
       <div className="flex flex-1 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <main className={cn(
+            "flex-1 overflow-y-auto pb-16 md:pb-0",
+            isDashboardPage && "gold-gradient-background home-background"
+          )}>
             {children}
           </main>
       </div>

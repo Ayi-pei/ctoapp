@@ -1,4 +1,3 @@
-
 "use client";
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -72,7 +71,7 @@ export default function DashboardPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 space-y-6 home-background">
+            <div className="p-4 space-y-6">
                 {/* Smart Contract Carousel */}
                 <Carousel>
                     <CarouselContent>
