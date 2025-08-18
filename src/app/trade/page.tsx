@@ -11,6 +11,8 @@ export default function TradePage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  // Directly access the 'tab' property from searchParams.
+  // This avoids enumerating the params object, which causes the Next.js error.
   const tab = searchParams?.tab || 'contract';
   
   return (
