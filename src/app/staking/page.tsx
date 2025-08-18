@@ -44,7 +44,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 flex-shrink-0">
-                           <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md object-cover w-full h-full" />
+                           <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
                         </div>
                         <div>
                             <h4 className="font-semibold">{product.name}</h4>
