@@ -144,7 +144,7 @@ export default function DashboardPage() {
                                     <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60">
                                         <Icon className="h-8 w-8 text-amber-400" />
                                     </div>
-                                    <p className="text-sm font-bold text-blue-400">{feature.name}</p>
+                                    <p className="text-sm font-bold text-blue-900">{feature.name}</p>
                                 </div>
                             );
 
