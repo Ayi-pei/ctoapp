@@ -42,7 +42,9 @@ export default function RootLayout({
                       <BalanceProvider>
                         <RequestsProvider>
                           <AnnouncementsProvider>
-                            {children}
+                            <div className='h-screen w-screen'>
+                              {children}
+                            </div>
                             <Toaster />
                             <BottomNav />
                           </AnnouncementsProvider>
