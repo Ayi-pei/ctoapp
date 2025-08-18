@@ -15,7 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; isAdmin: boolean }>;
   logout: () => void;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   isLoading: boolean;
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
     const allUsers = getMockUsers();
     const now = new Date().toISOString();
 
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(adminWithLoginDate);
         localStorage.setItem('userSession', JSON.stringify(adminWithLoginDate));
-        return true;
+        return { success: true, isAdmin: true };
     }
     
     // If admin login fails, fall back to regular user login (client-side localStorage)
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (foundUser) {
         if (foundUser.is_frozen) {
             console.error("Login failed: Account is frozen.");
-            return false;
+            return { success: false, isAdmin: false };
         }
 
         const userWithLoginDate = { ...foundUser, last_login_at: now };
@@ -100,10 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(userWithLoginDate);
         localStorage.setItem('userSession', JSON.stringify(userWithLoginDate));
-        return true;
+        return { success: true, isAdmin: foundUser.is_admin };
     }
     
-    return false;
+    return { success: false, isAdmin: false };
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {

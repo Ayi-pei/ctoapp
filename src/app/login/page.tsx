@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from 'react-hook-form';
@@ -34,13 +35,14 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const success = await login(values.username, values.password);
+    const result = await login(values.username, values.password);
 
-    if (success) {
+    if (result.success) {
        toast({
         title: '登录成功',
       });
-      // The redirect is now handled by the DashboardLayout's effect
+       // Redirect immediately after successful login
+       router.replace(result.isAdmin ? '/admin' : '/dashboard');
     } else {
       toast({
         variant: 'destructive',
@@ -51,15 +53,14 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    // If the user is authenticated, redirect them away from the login page.
-    // This is a secondary check in case the layout's redirect is delayed.
+    // This effect handles the case where a logged-in user tries to access the login page.
     if (!isLoading && isAuthenticated) {
         router.replace(isAdmin ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, isAdmin, isLoading, router]);
 
   // While loading or if already authenticated, show a loader.
-  // The layout will handle the redirect.
+  // The layout or the effect above will handle the redirect.
   if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
@@ -104,7 +105,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                 {form.formState.isSubmitting && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
                 登录
               </Button>
             </form>
