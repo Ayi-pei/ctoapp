@@ -60,7 +60,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                                     className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-xs h-7 px-4 rounded-md -mt-1"
                                     onClick={() => onInvest(product)}
                                 >
-                                    买入
+                                    质押
                                 </Button>
                             </div>
                             <div className="grid grid-cols-3 text-left text-sm mt-3 gap-y-2">
