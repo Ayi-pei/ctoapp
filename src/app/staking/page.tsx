@@ -9,7 +9,7 @@ import { InvestmentDialog } from "@/components/investment-dialog";
 import { useBalance } from "@/context/balance-context";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Separator } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 
 const Header = () => {
