@@ -72,8 +72,8 @@ export default function DashboardPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 space-y-6">
-
+            <div className="home-background">
+              <div className="p-4 space-y-6 bg-black/30 backdrop-blur-sm h-full">
                 {/* Smart Contract Carousel */}
                 <Carousel>
                     <CarouselContent>
@@ -159,6 +159,7 @@ export default function DashboardPage() {
                         {renderMarketList(goldSummaryData)}
                     </TabsContent>
                 </Tabs>
+              </div>
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />

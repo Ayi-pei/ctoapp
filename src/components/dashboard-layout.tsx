@@ -36,8 +36,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
 
   return (
-    <div className={cn("flex h-screen w-screen flex-col", isUserFacingPage ? 'home-background' : 'bg-background')}>
-      <div className={cn(isUserFacingPage && "h-full w-full")}>
+    <div className={cn("flex h-screen w-screen flex-col bg-background")}>
         <TradeHeader />
         <div className="flex flex-1" style={{height: 'calc(100vh - 4rem)'}}>
           <Sidebar />
@@ -46,7 +45,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </main>
         </div>
         <BottomNav />
-      </div>
     </div>
   );
 };

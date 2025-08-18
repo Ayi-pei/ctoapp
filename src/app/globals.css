@@ -105,8 +105,7 @@
     @apply border-border;
   }
   body {
-    /* The background-color was removed from here to prevent it from overriding the background image. */
-    @apply text-foreground;
+    @apply bg-background text-foreground;
   }
 
   .home-background {
@@ -114,10 +113,6 @@
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
-  }
-
-  .home-background > div {
-     background-color: hsla(var(--background), 0.8);
-     backdrop-filter: blur(4px);
+    @apply h-full w-full;
   }
 }
