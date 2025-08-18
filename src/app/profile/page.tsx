@@ -175,7 +175,7 @@ export default function ProfilePage() {
     return (
         <DashboardLayout>
             <div className="h-full w-full profile-background">
-                <div className="p-4 space-y-8 bg-background/70 backdrop-blur-sm h-full">
+                <div className="p-4 space-y-8 h-full">
                     <ProfileHeader />
                     
                     <div className="space-y-2">
