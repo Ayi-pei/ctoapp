@@ -137,7 +137,7 @@ export default function DashboardPage() {
 
                 {/* Features Grid */}
                 <div className="bg-gray-500/60 rounded-lg p-4">
-                    <div className="grid grid-cols-4 gap-4 text-center">
+                    <div className="grid grid-cols-4 gap-y-6 gap-x-2 text-center justify-items-center">
                         {features.map(feature => {
                             const Icon = (feature as any).icon;
                             const content = (
