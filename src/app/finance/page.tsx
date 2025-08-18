@@ -145,11 +145,11 @@ export default function YueBaoStylePage() {
                                 <div className="grid grid-cols-2 mt-4 text-sm">
                                     <div>
                                         <div className="text-black/80">累计收益 (USDT)</div>
-                                        <div className="font-semibold text-black">+{totalProfit.toFixed(2)}</div>
+                                        <div className="font-semibold text-green-600">+{totalProfit.toFixed(2)}</div>
                                     </div>
                                     <div>
                                         <div className="text-black/80">昨日收益 (USDT)</div>
-                                        <div className="font-semibold text-black">+{yesterdayProfit.toFixed(2)}</div>
+                                        <div className="font-semibold text-green-600">+{yesterdayProfit.toFixed(2)}</div>
                                     </div>
                                 </div>
                             </CardContent>
