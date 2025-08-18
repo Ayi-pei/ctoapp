@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ArrowRightLeft, Download, Landmark, Gift, Users, Megaphone, Repeat, Scale, User, BarChart, Gem } from "lucide-react";
+import { ArrowRightLeft, Download, Landmark, Gift, Users, Megaphone, Repeat, Scale, User, BarChart, Gem, ClipboardList } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -27,7 +27,7 @@ export default function DashboardPage() {
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
-        { name: '理财', icon: Landmark, href: '/finance' },
+        { name: '每日任务', icon: ClipboardList, href: '/coming-soon' },
         { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '代理团队', icon: Users, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
