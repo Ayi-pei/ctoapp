@@ -135,7 +135,7 @@ export default function StakingPage() {
         <DashboardLayout>
             <div className="h-full bg-background flex flex-col">
                 <Header />
-                <div className="flex-grow space-y-4 p-4 staking-background">
+                <div className="flex-grow flex flex-col gap-4 p-4 staking-background">
                    {stakingProducts.map(product => (
                         <MiningProductCard 
                             key={product.id}
