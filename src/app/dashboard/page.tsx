@@ -52,7 +52,7 @@ export default function DashboardPage() {
 
     const features = [
         { name: '每日任务', imgSrc: '/images/book.png', href: '/coming-soon' },
-        { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
+        { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true) },
         { name: '代理团队', icon: User, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
@@ -143,10 +143,10 @@ export default function DashboardPage() {
                             const content = (
                                 <div className="flex flex-col items-center space-y-2" onClick={(feature as any).action}>
                                     <div className={cn("rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60 flex items-center justify-center h-[72px] w-[72px]",
-                                        feature.imgSrc ? "p-0 overflow-hidden" : "p-4"
+                                        (feature as any).imgSrc ? "p-0 overflow-hidden" : "p-4"
                                     )}>
-                                        {feature.imgSrc ? (
-                                            <Image src={feature.imgSrc} alt={feature.name} width={72} height={72} className="h-full w-full object-cover" />
+                                        {(feature as any).imgSrc ? (
+                                            <Image src={(feature as any).imgSrc} alt={feature.name} width={72} height={72} className="h-full w-full object-cover" />
                                         ) : (
                                             <Icon className="h-8 w-8 text-amber-400" />
                                         )}
@@ -155,9 +155,9 @@ export default function DashboardPage() {
                                 </div>
                             );
 
-                            if (feature.href) {
+                            if ((feature as any).href) {
                                 return (
-                                <Link href={feature.href} key={feature.name}>
+                                <Link href={(feature as any).href} key={feature.name}>
                                     {content}
                                 </Link>
                                 );
