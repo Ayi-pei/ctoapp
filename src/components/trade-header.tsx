@@ -28,7 +28,7 @@ import { useState, useEffect } from 'react';
 
 // Simple SVG Logo component
 const Logo = () => (
-    <div className="flex items-center gap-2 text-foreground">
+    <div className="flex items-center gap-2">
        <CandlestickChart className="h-7 w-7" />
        <span className="font-semibold text-lg">TradeFlow</span>
     </div>
@@ -63,7 +63,7 @@ export function TradeHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-background text-foreground">
+    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-gray-400 to-gray-600 text-gray-800">
       <div className="flex items-center gap-3 w-1/3">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
@@ -72,7 +72,7 @@ export function TradeHeader() {
          {isTradePage && (
             <div className="w-[150px]">
                 <Select value={tradingPair} onValueChange={changeTradingPair}>
-                    <SelectTrigger className="w-full bg-secondary border-border/80 text-foreground placeholder:text-muted-foreground rounded-md">
+                    <SelectTrigger className="w-full bg-black/20 border-white/30 text-white placeholder:text-gray-300 rounded-md">
                     <SelectValue placeholder="Select Pair" />
                     </SelectTrigger>
                     <SelectContent>
@@ -92,7 +92,7 @@ export function TradeHeader() {
         <Home className="h-6 w-6 cursor-pointer" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted focus-visible:ring-ring">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-black/10 focus-visible:ring-ring">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl} alt={user?.username} />
                         <AvatarFallback>
