@@ -22,7 +22,7 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-purple-800 via-purple-900 to-indigo-950 border-t border-purple-700/50">
       <ul className="flex justify-around items-center h-16 px-1">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
@@ -38,8 +38,8 @@ export function BottomNav() {
                       isActive ? 'text-amber-300 bg-black/20' : 'text-amber-300'
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5", isActive ? "text-amber-400" : "text-amber-400")} />
-                    <span>{item.label}</span>
+                    <item.icon className={cn("h-5 w-5", "text-amber-400")} />
+                    <span className="text-amber-300">{item.label}</span>
                   </div>
                 </Link>
               </li>

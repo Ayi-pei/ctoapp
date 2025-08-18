@@ -63,7 +63,7 @@ export function TradeHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16">
+    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-purple-800 via-purple-900 to-indigo-950 shadow-lg">
       <div className="flex items-center gap-3 w-1/3">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
