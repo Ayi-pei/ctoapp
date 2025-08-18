@@ -41,6 +41,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {children}
           </main>
       </div>
+      <BottomNav />
     </div>
   );
 };

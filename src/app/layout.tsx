@@ -10,7 +10,6 @@ import { SystemSettingsProvider } from '@/context/system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
-import { BottomNav } from '@/components/bottom-nav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,7 +39,6 @@ export default function RootLayout({
                       <AnnouncementsProvider>
                         {children}
                         <Toaster />
-                        <BottomNav />
                       </AnnouncementsProvider>
                     </RequestsProvider>
                   </BalanceProvider>
