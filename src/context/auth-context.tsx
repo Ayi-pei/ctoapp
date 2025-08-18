@@ -160,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('userSession');
-    router.replace('/');
+    router.replace('/login'); // Redirect directly to login page
   };
   
   const getUserById = (id: string): User | null => {

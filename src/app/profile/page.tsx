@@ -148,9 +148,9 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
 };
 
 
-const ActionItem = ({ icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
+const ActionItem = ({ icon, label, action }: { icon: React.ElementType, label: string, action?: () => void }) => {
     return (
-        <div onClick={onClick} className="flex items-center justify-center p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
+        <div onClick={action} className="flex items-center justify-center p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
             <div className="flex items-center gap-2 text-destructive">
                  {React.createElement(icon, { className: "[&_svg]:size-5" })}
                  <span className="font-medium">{label}</span>
@@ -185,7 +185,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                        <ActionItem label="退出登陆" icon={LogOut} onClick={logout} />
+                        <ActionItem label="退出登陆" icon={LogOut} action={logout} />
                     </div>
 
                 </div>
