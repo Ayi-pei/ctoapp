@@ -83,6 +83,12 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+  .futoubao-card-background {
+    background-image: url('/images/futoubao.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
   .trade-background {
     background-image: url('/images/tradepp.png');
     background-size: cover;

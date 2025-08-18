@@ -138,7 +138,7 @@ export default function YueBaoStylePage() {
                 <div className="flex flex-col h-full bg-black/50 backdrop-blur-sm">
                     <Header />
                     <div className="flex-grow p-4 space-y-6 rounded-t-2xl">
-                        <Card className="bg-card/80 shadow-lg">
+                        <Card className="shadow-lg futoubao-card-background">
                             <CardContent className="p-6">
                                 <div className="text-sm text-muted-foreground">总金额 (USDT)</div>
                                 <div className="text-4xl font-bold mt-2">{totalAmount.toFixed(2)}</div>
