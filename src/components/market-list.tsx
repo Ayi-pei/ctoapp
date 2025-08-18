@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MarketSummary, OHLC } from "@/types";
@@ -31,7 +32,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
             const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 
             return (
-                <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors overflow-hidden">
+                <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors">
                     <CardContent className="p-2">
                         <div className="flex items-center gap-4">
                              <Image 
