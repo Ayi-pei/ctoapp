@@ -15,13 +15,12 @@ import { cn } from "@/lib/utils";
 import { MarketList } from "./market-list";
 
 // Helper function to get computed style of a CSS variable
-const getCssVar = (variable: string): string => {
+const getCssVar = (variable: string, format: 'hsl' | 'raw' = 'hsl'): string => {
     if (typeof window === 'undefined') return '#000';
     const style = getComputedStyle(document.documentElement);
-    // Returns the HSL value as a string like "207 82% 65%"
     const hslValue = style.getPropertyValue(variable).trim();
     if (!hslValue) return '#000';
-    // Convert HSL string to a usable hsl() color string
+    if (format === 'raw') return hslValue;
     return `hsl(${hslValue})`;
 };
 
@@ -38,8 +37,9 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   const chartColor = getCssVar('--chart-1');
   const chartBorderColor = getCssVar('--border');
   const chartMutedColor = getCssVar('--muted-foreground');
-  const chartAreaColorStart = `hsla(${getCssVar('--chart-1')}, 0.2)`;
-  const chartAreaColorEnd = `hsla(${getCssVar('--chart-1')}, 0)`;
+  const chartColorRaw = getCssVar('--chart-1', 'raw');
+  const chartAreaColorStart = `hsla(${chartColorRaw}, 0.2)`;
+  const chartAreaColorEnd = `hsla(${chartColorRaw}, 0)`;
 
 
   const klineOption = {
