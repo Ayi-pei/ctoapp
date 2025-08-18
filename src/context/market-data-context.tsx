@@ -157,18 +157,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => {
-        const marketInterval = setInterval(fetchMarketData, 60000);
-        const klineInterval = setInterval(() => {
-             availablePairs.forEach(pair => fetchKlineData(pair));
-        }, 300000);
+        // const marketInterval = setInterval(fetchMarketData, 60000);
+        // const klineInterval = setInterval(() => {
+        //      availablePairs.forEach(pair => fetchKlineData(pair));
+        // }, 300000);
 
-        fetchMarketData();
-        availablePairs.forEach(pair => fetchKlineData(pair));
+        // fetchMarketData();
+        // availablePairs.forEach(pair => fetchKlineData(pair));
 
-        return () => {
-            clearInterval(marketInterval);
-            clearInterval(klineInterval);
-        };
+        // return () => {
+        //     clearInterval(marketInterval);
+        //     clearInterval(klineInterval);
+        // };
     }, [fetchMarketData, fetchKlineData]);
 
 
