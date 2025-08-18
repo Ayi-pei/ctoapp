@@ -1,3 +1,4 @@
+
 "use client";
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -118,7 +119,7 @@ export default function DashboardPage() {
                             const Icon = feature.icon;
                             const content = (
                                 <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                                    <div className="bg-muted p-3 rounded-full">
+                                    <div className="bg-slate-800 p-3 rounded-lg border">
                                         <Icon className="h-6 w-6 text-primary" />
                                     </div>
                                     <p className="text-xs text-muted-foreground">{feature.name}</p>
