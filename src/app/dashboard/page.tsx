@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Repeat, ArrowRightLeft, Megaphone, Gem, ArrowRight } from "lucide-react";
+import { ArrowRightLeft, Megaphone, Gem, ArrowRight } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -55,7 +55,7 @@ export default function DashboardPage() {
         { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true) },
         { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion' },
         { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download' },
-        { name: '闪兑', icon: Repeat, href: '/coming-soon' },
+        { name: '闪兑', imgSrc: '/images/dui.png', href: '/coming-soon' },
         { name: '秒合约', icon: ArrowRightLeft, href: '/trade?tab=contract' },
         { name: '限时活动', icon: Gem, href: '/coming-soon' },
         { name: '关于我们', icon: Megaphone, href: '/coming-soon' },
