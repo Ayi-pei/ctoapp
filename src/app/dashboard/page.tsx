@@ -71,97 +71,99 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="p-4 space-y-6">
-            {/* Smart Contract Carousel */}
-            <Carousel>
-                <CarouselContent>
-                    <CarouselItem>
-                            <Card className="bg-card/80 relative overflow-hidden">
-                            <CardContent className="p-4">
-                                <h3 className="text-lg font-semibold">智能秒合约</h3>
-                                <p className="text-muted-foreground mt-1">质押挖矿</p>
-                                <p className="text-muted-foreground text-sm">轻松放大您的收益</p>
-                                <Button size="sm" className="mt-4">客服在线</Button>
-                                <div className="absolute top-4 right-4 text-xs text-muted-foreground">1/5</div>
-                            </CardContent>
-                        </Card>
-                    </CarouselItem>
+        <DashboardLayout>
+            <div className="p-4 space-y-6">
+                {/* Smart Contract Carousel */}
+                <Carousel>
+                    <CarouselContent>
                         <CarouselItem>
-                            <Card className="bg-card/80 relative overflow-hidden">
-                            <CardContent className="p-4">
-                                <h3 className="text-lg font-semibold">新功能上线</h3>
-                                <p className="text-muted-foreground mt-1">理财产品</p>
-                                <p className="text-muted-foreground text-sm">稳定收益，安全可靠</p>
-                                <Button size="sm" className="mt-4">了解更多</Button>
-                                <div className="absolute top-4 right-4 text-xs text-muted-foreground">2/5</div>
-                            </CardContent>
-                        </Card>
-                    </CarouselItem>
-                </CarouselContent>
-            </Carousel>
-            
+                                <Card className="bg-card/80 relative overflow-hidden">
+                                <CardContent className="p-4">
+                                    <h3 className="text-lg font-semibold">智能秒合约</h3>
+                                    <p className="text-muted-foreground mt-1">质押挖矿</p>
+                                    <p className="text-muted-foreground text-sm">轻松放大您的收益</p>
+                                    <Button size="sm" className="mt-4">客服在线</Button>
+                                    <div className="absolute top-4 right-4 text-xs text-muted-foreground">1/5</div>
+                                </CardContent>
+                            </Card>
+                        </CarouselItem>
+                            <CarouselItem>
+                                <Card className="bg-card/80 relative overflow-hidden">
+                                <CardContent className="p-4">
+                                    <h3 className="text-lg font-semibold">新功能上线</h3>
+                                    <p className="text-muted-foreground mt-1">理财产品</p>
+                                    <p className="text-muted-foreground text-sm">稳定收益，安全可靠</p>
+                                    <Button size="sm" className="mt-4">了解更多</Button>
+                                    <div className="absolute top-4 right-4 text-xs text-muted-foreground">2/5</div>
+                                </CardContent>
+                            </Card>
+                        </CarouselItem>
+                    </CarouselContent>
+                </Carousel>
+                
 
-            {/* Announcement */}
-            <Link href="/announcements">
-                    <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors">
-                    <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
-                    <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
-                        {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
-                    </div>
-                </div>
-            </Link>
-
-            {/* Features Grid */}
-                <div className="grid grid-cols-4 gap-4 text-center">
-                {features.map(feature => {
-                    const Icon = feature.icon;
-                    const content = (
-                        <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
-                            <div className="bg-muted p-3 rounded-full">
-                                <Icon className="h-6 w-6 text-primary" />
-                            </div>
-                            <p className="text-xs text-muted-foreground">{feature.name}</p>
+                {/* Announcement */}
+                <Link href="/announcements">
+                        <div className="bg-primary/10 border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-primary/20 transition-colors">
+                        <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
+                            {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
                         </div>
-                    );
+                    </div>
+                </Link>
 
-                    if (feature.href) {
-                            return (
-                            <Link href={feature.href} key={feature.name}>
-                                {content}
-                            </Link>
+                {/* Features Grid */}
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                    {features.map(feature => {
+                        const Icon = feature.icon;
+                        const content = (
+                            <div className="flex flex-col items-center space-y-2" onClick={feature.action}>
+                                <div className="bg-muted p-3 rounded-full">
+                                    <Icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <p className="text-xs text-muted-foreground">{feature.name}</p>
+                            </div>
                         );
-                    }
-                    
-                    return <div key={feature.name} className="cursor-pointer">{content}</div>;
-                })}
+
+                        if (feature.href) {
+                                return (
+                                <Link href={feature.href} key={feature.name}>
+                                    {content}
+                                </Link>
+                            );
+                        }
+                        
+                        return <div key={feature.name} className="cursor-pointer">{content}</div>;
+                    })}
+                </div>
+                
+                {/* Market List */}
+                <div className="rounded-lg p-2">
+                    <Tabs defaultValue="popular">
+                        <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1">
+                            <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
+                            <TabsTrigger value="futures" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货</TabsTrigger>
+                            <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">外汇</TabsTrigger>
+                            <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="popular">
+                            {renderMarketList(cryptoSummaryData)}
+                        </TabsContent>
+                        <TabsContent value="futures">
+                            {renderMarketList(futuresSummaryData)}
+                        </TabsContent>
+                        <TabsContent value="forex">
+                            {renderMarketList(forexSummaryData)}
+                        </TabsContent>
+                        <TabsContent value="gold">
+                            {renderMarketList(goldSummaryData)}
+                        </TabsContent>
+                    </Tabs>
+                </div>
+                <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
+                <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
+                <CheckInDialog isOpen={isCheckInOpen} onOpenChange={setIsCheckInOpen} />
             </div>
-            
-            {/* Market List */}
-            <div className="rounded-lg p-2">
-                <Tabs defaultValue="popular">
-                    <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1">
-                        <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
-                        <TabsTrigger value="futures" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货</TabsTrigger>
-                        <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">外汇</TabsTrigger>
-                        <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="popular">
-                        {renderMarketList(cryptoSummaryData)}
-                    </TabsContent>
-                    <TabsContent value="futures">
-                        {renderMarketList(futuresSummaryData)}
-                    </TabsContent>
-                    <TabsContent value="forex">
-                        {renderMarketList(forexSummaryData)}
-                    </TabsContent>
-                    <TabsContent value="gold">
-                        {renderMarketList(goldSummaryData)}
-                    </TabsContent>
-                </Tabs>
-            </div>
-            <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
-            <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
-            <CheckInDialog isOpen={isCheckInOpen} onOpenChange={setIsCheckInOpen} />
-        </div>
+        </DashboardLayout>
     );
 }
