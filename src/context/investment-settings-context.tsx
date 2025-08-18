@@ -72,15 +72,21 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
             if (storedSettings) {
                 const parsed = JSON.parse(storedSettings);
-                // Simple merge to ensure new products/fields from default are added
-                const finalProducts = defaultInvestmentProducts.map(dp => {
-                    const found = parsed.find((sp: InvestmentProduct) => sp.id === dp.id);
-                    return found ? { ...dp, ...found } : dp;
+                // Merge stored settings with defaults to ensure all keys are present,
+                // but prioritize the imgSrc from the default settings to prevent incorrect paths.
+                const finalProducts = defaultInvestmentProducts.map(defaultProd => {
+                    const storedProd = parsed.find((p: InvestmentProduct) => p.id === defaultProd.id);
+                    if (storedProd) {
+                        // If found in storage, merge it, but force the default imgSrc
+                        return { ...defaultProd, ...storedProd, imgSrc: defaultProd.imgSrc };
+                    }
+                    return defaultProd; // Otherwise, use the default product
                 });
-                // Add any purely custom products from storage that aren't in default
-                parsed.forEach((sp: InvestmentProduct) => {
-                    if (!finalProducts.some(fp => fp.id === sp.id)) {
-                        finalProducts.push(sp);
+
+                // Add any purely custom products from storage that aren't in the default list
+                parsed.forEach((storedProd: InvestmentProduct) => {
+                    if (!finalProducts.some(fp => fp.id === storedProd.id)) {
+                        finalProducts.push(storedProd);
                     }
                 });
 
