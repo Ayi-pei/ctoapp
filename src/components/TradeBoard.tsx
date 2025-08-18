@@ -32,9 +32,9 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
-  const chartColor = "#4481eb";
-  const chartAreaColorStart = "rgba(68, 129, 235, 0.3)";
-  const chartAreaColorEnd = "rgba(68, 129, 235, 0)";
+  const chartColor = "#FFFFFF"; // Changed to white
+  const chartAreaColorStart = "rgba(255, 255, 255, 0.3)"; // Changed to transparent white
+  const chartAreaColorEnd = "rgba(255, 255, 255, 0)"; // Changed to transparent white
 
   const klineOption = {
       backgroundColor: "transparent",
@@ -46,14 +46,14 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
         type: "category",
         data: klineData.map((d) => new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
         axisLine: { lineStyle: { color: "hsl(var(--muted-foreground))" } },
-        axisLabel: { color: "hsl(var(--muted-foreground))" },
+        axisLabel: { color: "#FFFFFF" }, // Changed to white
         boundaryGap: false,
       },
       yAxis: {
         scale: true,
         axisLine: { show: false },
         axisLabel: { show: false },
-        splitLine: { show: true, lineStyle: { color: "hsl(var(--border))", type: 'dashed' } }
+        splitLine: { show: true, lineStyle: { color: "#90EE90", type: 'dashed' } } // Changed to light green
       },
       grid: {
         left: "5",
