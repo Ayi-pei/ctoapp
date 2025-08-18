@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Download, Repeat, Scale, User, Megaphone, Gem, ClipboardList } from "lucide-react";
+import { Download, Repeat, ArrowRightLeft, User, Megaphone, Gem, ClipboardList } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -32,7 +32,7 @@ export default function DashboardPage() {
         { name: '代理团队', icon: User, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
-        { name: '秒合约', icon: Scale, href: '/trade?tab=contract' },
+        { name: '秒合约', icon: ArrowRightLeft, href: '/trade?tab=contract' },
         { name: '限时活动', icon: Gem, href: '/coming-soon' },
         { name: '关于我们', icon: Megaphone, href: '/coming-soon' },
     ];
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                 </Link>
 
                 {/* Features Grid */}
-                <div className="bg-purple-900/20 rounded-lg p-4">
+                <div className="bg-gradient-to-br from-gray-400/20 to-gray-600/20 rounded-lg p-4">
                     <div className="grid grid-cols-4 gap-4 text-center">
                         {features.map(feature => {
                             const Icon = feature.icon;
