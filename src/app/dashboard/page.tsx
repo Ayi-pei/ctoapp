@@ -17,6 +17,7 @@ import { useMarket } from "@/context/market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 
 const carouselItems = [
@@ -141,9 +142,11 @@ export default function DashboardPage() {
                             const Icon = (feature as any).icon;
                             const content = (
                                 <div className="flex flex-col items-center space-y-2" onClick={(feature as any).action}>
-                                    <div className="p-4 rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60 flex items-center justify-center h-[72px] w-[72px]">
+                                    <div className={cn("rounded-lg border border-white/10 bg-gradient-to-b from-purple-500/60 to-purple-800/60 flex items-center justify-center h-[72px] w-[72px]",
+                                        feature.imgSrc ? "p-0 overflow-hidden" : "p-4"
+                                    )}>
                                         {feature.imgSrc ? (
-                                            <Image src={feature.imgSrc} alt={feature.name} width={40} height={40} className="h-10 w-10 object-contain" />
+                                            <Image src={feature.imgSrc} alt={feature.name} width={72} height={72} className="h-full w-full object-cover" />
                                         ) : (
                                             <Icon className="h-8 w-8 text-amber-400" />
                                         )}
