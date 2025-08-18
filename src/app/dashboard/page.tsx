@@ -155,8 +155,8 @@ export default function DashboardPage() {
                                         />
                                     ) : null}
                                     <div className={cn(
-                                        "absolute left-0 right-0 p-2 text-center",
-                                        feature.labelPosition === 'top' ? 'top-0' : 'bottom-0'
+                                        "absolute left-0 right-0 text-center",
+                                        feature.labelPosition === 'top' ? 'top-0 pt-2 px-2' : 'bottom-0 p-2'
                                     )}>
                                          <p className="text-sm font-bold text-blue-900">{feature.name}</p>
                                     </div>
