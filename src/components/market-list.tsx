@@ -24,19 +24,18 @@ export function MarketList({ summary, klineData }: MarketListProps) {
   }
 
   return (
-    <Card className="bg-transparent border-none shadow-none">
-        <CardContent className="p-0">
-            <div className="space-y-2">
-                {summary.map((item) => {
-                    const pairKlineData = klineData[item.pair] || [];
-                    const sparklineData = pairKlineData.map(d => ({ value: d.close }));
+    <div className="space-y-2">
+        {summary.map((item) => {
+            const pairKlineData = klineData[item.pair] || [];
+            const sparklineData = pairKlineData.map(d => ({ value: d.close }));
+            const isPositive = item.change >= 0;
+            const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
 
-                    const isPositive = item.change >= 0;
-                    const color = isPositive ? 'hsl(var(--chart-2))' : 'hsl(10, 80%, 50%)';
-
-                    return (
-                        <div key={item.pair} onClick={() => handlePairClick(item.pair)} className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4 p-2 rounded-lg bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors">
-                            <Image 
+            return (
+                <Card key={item.pair} onClick={() => handlePairClick(item.pair)} className="bg-card hover:bg-muted/50 text-card-foreground cursor-pointer transition-colors overflow-hidden">
+                    <CardContent className="p-2">
+                        <div className="grid grid-cols-[auto_1fr_80px_100px] items-center gap-4">
+                             <Image 
                                 src={item.icon || `https://placehold.co/32x32.png`}
                                 alt={`${item.pair.split('/')[0]} logo`} 
                                 width={32}
@@ -78,10 +77,10 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                                 </p>
                             </div>
                         </div>
-                    )
-                })}
-            </div>
-        </CardContent>
-    </Card>
+                    </CardContent>
+                </Card>
+            )
+        })}
+    </div>
   );
 }
