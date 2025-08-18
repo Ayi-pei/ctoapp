@@ -98,4 +98,10 @@
     background-position: center;
     background-repeat: no-repeat;
   }
+  .staking-background {
+    background-image: url('/images/staking-bg.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }

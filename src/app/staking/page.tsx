@@ -18,7 +18,7 @@ const Header = () => {
     const router = useRouter();
     
     return (
-        <div className="p-4 bg-background border-b">
+        <div className="p-4 bg-background/80 backdrop-blur-sm border-b">
             <div className="relative flex items-center justify-center">
                 <Button variant="ghost" size="icon" className="absolute left-0" onClick={() => router.back()}>
                     <ChevronLeft />
@@ -40,7 +40,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     onInvest: (product: InvestmentProduct) => void 
 }) => {
     return (
-        <Card className="bg-card border-none overflow-hidden">
+        <Card className="bg-card border overflow-hidden">
             <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -132,9 +132,9 @@ export default function StakingPage() {
 
     return (
         <DashboardLayout>
-            <div className="h-full bg-background">
+            <div className="h-full bg-background flex flex-col">
                 <Header />
-                <div className="space-y-4 p-4">
+                <div className="flex-grow space-y-4 p-4 staking-background">
                    {stakingProducts.map(product => (
                         <MiningProductCard 
                             key={product.id}
