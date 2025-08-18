@@ -20,8 +20,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   useEffect(() => {
     // Redirect to login if auth is not resolved or user is not authenticated.
-    // The check for `user === undefined` is removed as the context now handles the redirect on logout.
-    // We still keep a check here for initial load protection.
     if (!isAuthenticated) {
       router.push('/');
     }
@@ -34,17 +32,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const isUserFacingPage = !pathname.startsWith('/admin');
 
-
   return (
-    <div className={cn("flex h-screen w-screen flex-col bg-background")}>
-        <TradeHeader />
-        <div className="flex flex-1" style={{height: 'calc(100vh - 4rem)'}}>
+    <div className={cn("h-screen w-screen flex flex-col", isUserFacingPage ? "" : "bg-background")}>
+      <TradeHeader />
+      <div className="flex flex-1 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          <main className="flex-1 overflow-y-auto pb-16 md:pb-0 home-background">
             {children}
           </main>
-        </div>
-        <BottomNav />
+      </div>
+      <BottomNav />
     </div>
   );
 };
