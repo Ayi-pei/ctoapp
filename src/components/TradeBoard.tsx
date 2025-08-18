@@ -12,29 +12,35 @@ import { SmartTrade } from "./smart-trade";
 import { MarketOverview } from "./market-overview";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
+import { MarketList } from "./market-list";
 
 // Helper function to get computed style of a CSS variable
-const getCssVar = (variable: string): string[] => {
-    if (typeof window === 'undefined') return ['0', '0', '0'];
+const getCssVar = (variable: string): string => {
+    if (typeof window === 'undefined') return '#000';
     const style = getComputedStyle(document.documentElement);
-    const value = style.getPropertyValue(variable).trim();
-    // Assuming HSL format "H S% L%"
-    return value.replace(/%/g, '').split(' ');
+    // Returns the HSL value as a string like "207 82% 65%"
+    const hslValue = style.getPropertyValue(variable).trim();
+    if (!hslValue) return '#000';
+    // Convert HSL string to a usable hsl() color string
+    return `hsl(${hslValue})`;
 };
 
 
 export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: string }) {
-  const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice } = useMarket();
+  const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice, cryptoSummaryData, klineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
 
-  const klineData = allKlineData[tradingPair] || [];
+  const currentKlineData = allKlineData[tradingPair] || [];
   const currentSummary = summaryData.find(s => s.pair === tradingPair);
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
-  const chartColor = "#FFFFFF"; // Changed to white
-  const chartAreaColorStart = "rgba(255, 255, 255, 0.3)"; // Changed to transparent white
-  const chartAreaColorEnd = "rgba(255, 255, 255, 0)"; // Changed to transparent white
+  const chartColor = getCssVar('--chart-1');
+  const chartBorderColor = getCssVar('--border');
+  const chartMutedColor = getCssVar('--muted-foreground');
+  const chartAreaColorStart = `hsla(${getCssVar('--chart-1')}, 0.2)`;
+  const chartAreaColorEnd = `hsla(${getCssVar('--chart-1')}, 0)`;
+
 
   const klineOption = {
       backgroundColor: "transparent",
@@ -44,27 +50,32 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       },
       xAxis: {
         type: "category",
-        data: klineData.map((d) => new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
-        axisLine: { lineStyle: { color: "hsl(var(--muted-foreground))" } },
-        axisLabel: { color: "#FFFFFF" }, // Changed to white
+        data: currentKlineData.map((d) => new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
+        axisLine: { lineStyle: { color: chartMutedColor } },
+        axisLabel: { color: chartMutedColor },
         boundaryGap: false,
       },
       yAxis: {
         scale: true,
         axisLine: { show: false },
-        axisLabel: { show: false },
-        splitLine: { show: true, lineStyle: { color: "#90EE90", type: 'dashed' } } // Changed to light green
+        axisLabel: { 
+            show: true,
+            color: chartMutedColor,
+            formatter: (value: number) => value.toFixed(2)
+        },
+        splitLine: { show: true, lineStyle: { color: chartBorderColor, opacity: 0.5, type: 'dashed' } }
       },
       grid: {
         left: "5",
-        right: "5",
+        right: "50",
         bottom: "25",
         top: "10",
+        containLabel: true,
       },
       series: [{
         name: tradingPair,
         type: "line",
-        data: klineData.map(d => d.close),
+        data: currentKlineData.map(d => d.close),
         smooth: true,
         showSymbol: false,
         lineStyle: {
@@ -89,13 +100,13 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
     };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 p-4">
+    <div className="space-y-4 p-4">
 
-      <div className="lg:col-span-5 space-y-4">
+      <div className="space-y-4">
         <MarketOverview summary={currentSummary} />
 
         <div className="h-[240px] w-full bg-slate-800/80 rounded-lg p-2">
-           {klineData.length > 0 ? (
+           {currentKlineData.length > 0 ? (
               <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
             ) : (
               <div className="flex justify-center items-center h-full">
@@ -132,7 +143,10 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
             <SmartTrade tradingPair={tradingPair} />
           </TabsContent>
         </Tabs>
+      </div>
 
+      <div className="pt-4">
+        <MarketList summary={cryptoSummaryData} klineData={klineData} />
       </div>
     </div>
   );
