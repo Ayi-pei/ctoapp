@@ -155,7 +155,7 @@ export default function DashboardPage() {
                                         />
                                     ) : null}
                                     <div className="absolute bottom-0 left-0 right-0 p-2 text-center">
-                                         <p className="text-sm font-bold text-black">{feature.name}</p>
+                                         <p className="text-sm font-bold text-blue-900">{feature.name}</p>
                                     </div>
                                 </div>
                             );
