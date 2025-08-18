@@ -254,6 +254,29 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         return () => clearInterval(simulationInterval);
     }, [settings, simulatedPrices, summaryData, timedMarketPresets]);
 
+    // This effect ensures that summary data for non-crypto assets is initialized
+    // even if the API calls fail or don't return data for them.
+    useEffect(() => {
+        const allAssetPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
+        const missingPairs = allAssetPairs.filter(pair => !summaryData.some(s => s.pair === pair));
+
+        if (missingPairs.length > 0) {
+            const newEntries = missingPairs.map(pair => {
+                const price = getLatestPrice(pair) || 0; // Use simulated or default
+                return {
+                    pair,
+                    price,
+                    change: 0,
+                    volume: 0,
+                    high: price,
+                    low: price,
+                    icon: `https://placehold.co/32x32.png` // Placeholder icon
+                };
+            });
+            setSummaryData(prev => [...prev, ...newEntries]);
+        }
+    }, [summaryData, getLatestPrice]);
+
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
     const goldSummaryData = summaryData.filter(s => GOLD_PAIRS.includes(s.pair));
