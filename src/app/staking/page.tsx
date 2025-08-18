@@ -131,13 +131,12 @@ export default function StakingPage() {
             <Header />
             <div className="space-y-4">
                {stakingProducts.map(product => (
-                    <div key={product.id} className="p-4">
-                        <MiningProductCard 
-                            product={product}
-                            purchasedCount={getPurchasedCount(product.name)}
-                            onInvest={handleInvestClick}
-                        />
-                    </div>
+                    <MiningProductCard 
+                        key={product.id}
+                        product={product}
+                        purchasedCount={getPurchasedCount(product.name)}
+                        onInvest={handleInvestClick}
+                    />
                 ))}
             </div>
              {selectedProduct && (
