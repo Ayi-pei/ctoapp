@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Download, Repeat, ArrowRightLeft, User, Megaphone, Gem, ClipboardList, ArrowRight } from "lucide-react";
+import { Download, Repeat, ArrowRightLeft, User, Megaphone, Gem, ClipboardList, ArrowRight, Gift } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
@@ -51,7 +51,7 @@ export default function DashboardPage() {
 
     const features = [
         { name: '每日任务', icon: ClipboardList, href: '/coming-soon' },
-        { name: '签到中心', icon: User, action: () => setIsCheckInOpen(true) },
+        { name: '签到中心', icon: Gift, action: () => setIsCheckInOpen(true) },
         { name: '代理团队', icon: User, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '闪兑', icon: Repeat, href: '/coming-soon' },
