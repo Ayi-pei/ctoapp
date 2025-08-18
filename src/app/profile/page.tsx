@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, Users } from "lucide-react";
+import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, Users, Edit2 } from "lucide-react";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { useBalance } from "@/context/balance-context";
@@ -112,10 +112,11 @@ const ProfileHeader = () => {
                         />
                     ) : (
                         <h2 
-                            className="font-semibold text-xl cursor-pointer"
+                            className="font-semibold text-xl cursor-pointer flex items-center gap-2"
                             onClick={() => setIsEditingNickname(true)}
                         >
                             {nickname}
+                            <Edit2 className="w-4 h-4 text-muted-foreground" />
                         </h2>
                     )}
                 </div>
@@ -125,8 +126,18 @@ const ProfileHeader = () => {
 
             {/* Right Column: Actions */}
             <div className="flex flex-col gap-2">
-                <Button onClick={() => setIsDepositOpen(true)} className="bg-primary/80 hover:bg-primary text-primary-foreground h-9 text-sm">充值</Button>
-                <Button onClick={() => setIsWithdrawOpen(true)} className="bg-secondary/80 hover:bg-secondary h-9 text-sm">提现</Button>
+                <Button 
+                    onClick={() => setIsDepositOpen(true)} 
+                    className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-10 px-6 text-sm rounded-md shadow-lg"
+                >
+                    充值
+                </Button>
+                <Button 
+                    onClick={() => setIsWithdrawOpen(true)} 
+                    className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold h-10 px-6 text-sm rounded-md shadow-lg"
+                >
+                    提现
+                </Button>
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
@@ -140,7 +151,7 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
         <Link href={href} passHref>
             <div className="flex items-center justify-between p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
                 <div className="flex items-center gap-4">
-                    {React.createElement(icon, { className: "[&_svg]:size-6 text-primary" })}
+                    {React.createElement(icon, { className: "text-primary [&_svg]:size-6" })}
                     <span className="font-medium text-card-foreground">{label}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
