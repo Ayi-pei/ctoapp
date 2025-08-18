@@ -17,7 +17,7 @@ export function BottomNav() {
   const itemsToShow = navItems.slice(0, 5);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-background md:hidden z-50">
+    <nav className="fixed bottom-0 left-0 right-0 border-t border-transparent bg-gradient-to-r from-[--gradient-purple] to-[--gradient-gold] md:hidden z-50">
       <ul className="flex justify-around">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
@@ -29,8 +29,8 @@ export function BottomNav() {
                 <Link href={item.href}>
                   <span
                     className={cn(
-                      'flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground',
-                      isActive ? 'text-primary' : ''
+                      'flex flex-col items-center gap-1 py-2 text-xs text-white/80',
+                      isActive ? 'text-yellow-400' : ''
                     )}
                   >
                     <item.icon className="h-5 w-5" />

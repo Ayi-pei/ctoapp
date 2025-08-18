@@ -30,6 +30,8 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --gradient-purple: #4c1d95; /* Deep purple */
+    --gradient-gold: #f59e0b; /* Bright gold */
   }
 
   .dark {
@@ -57,6 +59,8 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --gradient-purple: #4c1d95; /* Deep purple */
+    --gradient-gold: #f59e0b; /* Bright gold */
   }
 
   .light {
@@ -85,6 +89,8 @@
     --chart-3: 0 84.2% 60.2%;
     --chart-4: 207 79% 66%;
     --chart-5: 197 37% 24%;
+    --gradient-purple: #4c1d95; /* Deep purple */
+    --gradient-gold: #f59e0b; /* Bright gold */
   }
 }
 
