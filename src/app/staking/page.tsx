@@ -12,7 +12,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
-import { Separator } from "@/components/ui/separator";
 
 const Header = () => {
     const router = useRouter();
@@ -42,36 +41,40 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
     return (
         <Card className="bg-card/80 border overflow-hidden">
             <CardContent className="p-4 space-y-4">
-                <div>
-                    <h4 className="font-semibold text-lg mb-4">{product.name}</h4>
-                    <div className="flex items-center justify-between">
-                        <Image src={product.imgSrc} alt={product.name} width={64} height={64} className="rounded-md" />
-                        <Button 
-                            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
-                            onClick={() => onInvest(product)}
-                        >
-                            买入
-                        </Button>
-                    </div>
+                <div className="grid grid-cols-[1fr_auto] items-start gap-4">
+                    <h4 className="font-semibold text-lg">{product.name}</h4>
+                    <Button 
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-sm h-8 px-6 rounded-md"
+                        onClick={() => onInvest(product)}
+                    >
+                        买入
+                    </Button>
                 </div>
-                
-                <Separator />
 
-                <div className="grid grid-cols-3 text-left text-sm">
-                    <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">每份金额</p>
-                        <p className="font-semibold">{product.price}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 flex-shrink-0">
+                             <Image src={product.imgSrc} alt={product.name} width={48} height={48} className="rounded-md" />
+                        </div>
+                        <p className="text-muted-foreground">{product.name}</p>
                     </div>
-                    <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">周期</p>
-                        <p className="font-semibold">{product.period} 天</p>
+                     <div className="grid grid-cols-3 text-left">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">每份金额</p>
+                            <p className="font-semibold">{product.price}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">周期</p>
+                            <p className="font-semibold">{product.period} 天</p>
+                        </div>
+                         <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">收益率</p>
+                            <p className="font-semibold">{(product.dailyRate ?? 0) * 100}%/天</p>
+                         </div>
                     </div>
-                     <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">收益率</p>
-                        <p className="font-semibold">{(product.dailyRate ?? 0) * 100}% / 天</p>
-                     </div>
                 </div>
-                <div className="mt-4">
+
+                <div>
                     <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
                         <span>已购买次数: {purchasedCount}</span>
