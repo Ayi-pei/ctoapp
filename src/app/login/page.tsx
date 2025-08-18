@@ -60,7 +60,7 @@ export default function LoginPage() {
   }, [isAuthenticated, isAdmin, isLoading, router]);
 
   // While loading or if already authenticated, show a loader.
-  // The layout or the effect above will handle the redirect.
+  // The effect above will handle the redirect.
   if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
