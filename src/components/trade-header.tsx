@@ -64,11 +64,11 @@ export function TradeHeader() {
 
   return (
     <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-gray-200 via-gray-400 to-blue-500 shadow-lg">
-      <div className="flex items-center gap-3 w-1/3">
+      <div className="flex items-center gap-3 basis-1/3 justify-start">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
       
-      <div className="flex-grow flex justify-center w-1/3">
+      <div className="flex-grow flex justify-center basis-1/3">
          {isTradePage && (
             <div className="w-[150px]">
                 <Select value={tradingPair} onValueChange={changeTradingPair}>
@@ -88,7 +88,7 @@ export function TradeHeader() {
          {showTitle && <h1 className="text-lg font-semibold text-white border border-blue-300/80 rounded-lg px-4 py-1">{getTitle()}</h1>}
       </div>
 
-      <div className="flex items-center justify-end gap-4 w-1/3">
+      <div className="flex items-center justify-end gap-4 basis-1/3">
         <Home className="h-6 w-6 cursor-pointer text-white" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
