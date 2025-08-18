@@ -35,10 +35,10 @@ export function BottomNav() {
                   <div
                     className={cn(
                       'flex flex-col items-center justify-center gap-1 text-xs w-16 h-14 rounded-lg transition-all',
-                      isActive ? 'text-amber-300 bg-black/20' : 'text-gray-800'
+                      isActive ? 'text-amber-300 bg-black/20' : 'text-amber-300'
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5", isActive ? "text-amber-400" : "text-gray-900")} />
+                    <item.icon className={cn("h-5 w-5", isActive ? "text-amber-400" : "text-amber-400")} />
                     <span>{item.label}</span>
                   </div>
                 </Link>
