@@ -13,7 +13,6 @@ import { useBalance } from "@/context/balance-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
 
 
 const ProfileHeader = () => {
@@ -22,7 +21,13 @@ const ProfileHeader = () => {
     const { toast } = useToast();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
+    const [isEditingNickname, setIsEditingNickname] = useState(false);
+    const [nickname, setNickname] = useState(user?.nickname || "");
     const avatarInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setNickname(user?.nickname || "");
+    }, [user?.nickname]);
 
     const getUsdtValue = (assetName: string, amount: number) => {
         if (assetName === 'USDT') return amount;
@@ -34,6 +39,20 @@ const ProfileHeader = () => {
     const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
+    
+    const handleNicknameBlur = () => {
+        if (user && nickname.trim() && nickname !== user.nickname) {
+            updateUser(user.id, { nickname: nickname });
+            toast({ title: "成功", description: "昵称已更新。" });
+        }
+        setIsEditingNickname(false);
+    }
+    
+    const handleNicknameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleNicknameBlur();
+        }
+    }
 
     const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -49,13 +68,13 @@ const ProfileHeader = () => {
     };
 
     return (
-        <div className="relative text-white w-full flex items-center justify-between gap-4">
+        <div className="w-full flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                    <Avatar className="h-20 w-20 border-4 border-primary/50">
+                    <Avatar className="h-16 w-16 border-4 border-primary/50">
                         <AvatarImage src={user?.avatar_url} alt={user?.username} />
                         <AvatarFallback>
-                            <Users className="h-10 w-10" />
+                            <Users className="h-8 w-8" />
                         </AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
@@ -71,7 +90,23 @@ const ProfileHeader = () => {
                 </div>
                 
                 <div className="space-y-1">
-                    <h2 className="font-semibold text-xl">{user?.username}</h2>
+                    {isEditingNickname ? (
+                         <input 
+                            type="text"
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            onBlur={handleNicknameBlur}
+                            onKeyDown={handleNicknameKeyDown}
+                            autoFocus
+                            className="bg-transparent border-b border-primary text-xl font-semibold text-card-foreground focus:outline-none"
+                         />
+                    ) : (
+                        <div className="flex items-center gap-2">
+                             <h2 className="font-semibold text-xl cursor-pointer" onClick={() => setIsEditingNickname(true)}>{nickname}</h2>
+                             <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingNickname(true)} />
+                        </div>
+                    )}
+                   
                     <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
                     <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
                 </div>
@@ -101,9 +136,9 @@ const ProfileHeader = () => {
 const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: string, href: string }) => {
     return (
         <Link href={href} passHref>
-            <div className="flex items-center justify-between p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
+            <div className="flex items-center justify-between p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
                 <div className="flex items-center gap-4">
-                    {React.createElement(icon, { className: "[&_svg]:size-6" })}
+                    {React.createElement(icon, { className: "[&_svg]:size-6 text-primary" })}
                     <span className="font-medium text-card-foreground">{label}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -115,9 +150,9 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
 
 const ActionItem = ({ icon, label, onClick }: { icon: React.ElementType, label: string, onClick?: () => void }) => {
     return (
-        <div onClick={onClick} className="flex items-center p-4 bg-card/50 rounded-lg hover:bg-muted/50 cursor-pointer border border-border/50">
-            <div className="flex items-center gap-4 text-destructive">
-                 {React.createElement(icon, { className: "[&_svg]:size-6" })}
+        <div onClick={onClick} className="flex items-center justify-center p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
+            <div className="flex items-center gap-2 text-destructive">
+                 {React.createElement(icon, { className: "[&_svg]:size-5" })}
                  <span className="font-medium">{label}</span>
             </div>
         </div>
@@ -140,22 +175,18 @@ export default function ProfilePage() {
     return (
         <DashboardLayout>
             <div className="h-full w-full profile-background">
-                <div className="p-4 space-y-8">
+                <div className="p-4 space-y-8 bg-background/70 backdrop-blur-sm h-full">
                     <ProfileHeader />
                     
-                    <Card className="bg-card/50 border-border/30">
-                        <CardContent className="p-2 space-y-2">
-                             {menuItems.map(item => (
-                                <ListItem key={item.label} label={item.label} icon={item.icon} href={item.href} />
-                            ))}
-                        </CardContent>
-                    </Card>
+                    <div className="space-y-2">
+                        {menuItems.map(item => (
+                            <ListItem key={item.label} label={item.label} icon={item.icon} href={item.href} />
+                        ))}
+                    </div>
 
-                    <Card className="bg-card/50 border-border/30">
-                        <CardContent className="p-2">
-                            <ActionItem label="退出登陆" icon={LogOut} onClick={logout} />
-                        </CardContent>
-                    </Card>
+                    <div>
+                        <ActionItem label="退出登陆" icon={LogOut} onClick={logout} />
+                    </div>
 
                 </div>
             </div>
