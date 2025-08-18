@@ -85,7 +85,7 @@ export function TradeHeader() {
                 </Select>
             </div>
          )}
-         {showTitle && <h1 className="text-lg font-semibold">{getTitle()}</h1>}
+         {showTitle && <h1 className="text-lg font-semibold text-amber-400 border border-purple-500/80 rounded-lg px-4 py-1 bg-black/20">{getTitle()}</h1>}
       </div>
 
       <div className="flex items-center justify-end gap-4 w-1/3">
