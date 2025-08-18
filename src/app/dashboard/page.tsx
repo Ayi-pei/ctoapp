@@ -107,6 +107,7 @@ export default function DashboardPage() {
                                         src={item.imgSrc}
                                         alt={item.title}
                                         fill
+                                        sizes="(max-width: 768px) 100vw, 50vw"
                                         className="object-cover"
                                     />
                                     <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-4">
@@ -149,6 +150,7 @@ export default function DashboardPage() {
                                             src={(feature as any).imgSrc}
                                             alt={feature.name}
                                             fill
+                                            sizes="(max-width: 768px) 25vw, 10vw"
                                             className="object-cover"
                                         />
                                     ) : null}

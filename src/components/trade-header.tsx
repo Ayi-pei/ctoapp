@@ -30,7 +30,13 @@ import Image from 'next/image';
 // Simple SVG Logo component
 const Logo = () => (
     <div className="flex items-center gap-2">
-       <Image src="/images/logo.png" alt="TradeFlow Logo" width={120} height={40} />
+       <Image 
+         src="/images/logo.png" 
+         alt="TradeFlow Logo" 
+         width={120} 
+         height={40}
+         style={{ width: 'auto', height: 'auto' }}
+        />
     </div>
 )
 
