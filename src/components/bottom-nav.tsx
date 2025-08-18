@@ -22,7 +22,7 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-purple-800 via-purple-900 to-indigo-950 border-t border-purple-700/50">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-indigo-950 via-purple-900 to-purple-800 border-t border-purple-700/50">
       <ul className="flex justify-around items-center h-16 px-1">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
