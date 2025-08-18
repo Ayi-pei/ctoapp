@@ -22,7 +22,7 @@ export function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-indigo-950 via-purple-900 to-purple-800 border-t border-purple-700/50">
+    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-gray-200 via-gray-400 to-blue-500 border-t border-blue-600/50">
       <ul className="flex justify-around items-center h-16 px-1">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
@@ -35,11 +35,11 @@ export function BottomNav() {
                   <div
                     className={cn(
                       'flex flex-col items-center justify-center gap-1 text-xs w-16 h-14 rounded-lg transition-all',
-                      isActive ? 'text-amber-300 bg-black/20' : 'text-amber-300'
+                      isActive ? 'text-blue-700 bg-white/20' : 'text-blue-900'
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5", "text-amber-400")} />
-                    <span className="text-amber-300">{item.label}</span>
+                    <item.icon className={cn("h-5 w-5", isActive ? 'text-blue-700' : 'text-blue-900')} />
+                    <span className={cn(isActive ? 'font-bold' : '')}>{item.label}</span>
                   </div>
                 </Link>
               </li>

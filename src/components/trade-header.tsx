@@ -29,8 +29,8 @@ import { useState, useEffect } from 'react';
 // Simple SVG Logo component
 const Logo = () => (
     <div className="flex items-center gap-2">
-       <CandlestickChart className="h-7 w-7 text-amber-400" />
-       <span className="font-semibold text-lg text-amber-400">TradeFlow</span>
+       <CandlestickChart className="h-7 w-7 text-blue-300" />
+       <span className="font-semibold text-lg text-white">TradeFlow</span>
     </div>
 )
 
@@ -63,7 +63,7 @@ export function TradeHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-indigo-950 via-purple-900 to-purple-800 shadow-lg">
+    <header className="flex items-center justify-between p-4 flex-shrink-0 h-16 bg-gradient-to-r from-gray-200 via-gray-400 to-blue-500 shadow-lg">
       <div className="flex items-center gap-3 w-1/3">
          {showLogo ? <Link href="/dashboard"><Logo /></Link> : <div className="md:hidden w-6 h-6" />}
       </div>
@@ -85,17 +85,17 @@ export function TradeHeader() {
                 </Select>
             </div>
          )}
-         {showTitle && <h1 className="text-lg font-semibold text-amber-400 border border-purple-500/80 rounded-lg px-4 py-1">{getTitle()}</h1>}
+         {showTitle && <h1 className="text-lg font-semibold text-white border border-blue-300/80 rounded-lg px-4 py-1">{getTitle()}</h1>}
       </div>
 
       <div className="flex items-center justify-end gap-4 w-1/3">
-        <Home className="h-6 w-6 cursor-pointer text-amber-400" onClick={handleHomeClick} />
+        <Home className="h-6 w-6 cursor-pointer text-white" onClick={handleHomeClick} />
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full hover:bg-black/10 focus-visible:ring-ring [&_svg]:size-8">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl} alt={user?.username} />
-                        <AvatarFallback className="bg-transparent text-amber-400">
+                        <AvatarFallback className="bg-transparent text-white">
                            <User />
                         </AvatarFallback>
                     </Avatar>
