@@ -33,7 +33,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const isUserFacingPage = !pathname.startsWith('/admin');
 
   return (
-    <div className={cn("h-screen w-screen flex flex-col", isUserFacingPage ? "bg-black/30 backdrop-blur-sm" : "bg-background")}>
+    <div className={cn("h-screen w-screen flex flex-col bg-background")}>
       <TradeHeader />
       <div className="flex flex-1 overflow-hidden">
           <Sidebar />

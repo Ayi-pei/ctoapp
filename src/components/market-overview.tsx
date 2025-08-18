@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,8 +31,8 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
   const isPositive = summary.change >= 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 items-start py-2">
-        <div className="col-span-2 md:col-span-1">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4 items-start py-2">
+        <div className="col-span-1">
             <h2 className={`text-3xl font-bold ${isPositive ? "text-green-500" : "text-red-500"}`}>
             {summary.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
             </h2>
@@ -41,17 +40,19 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
                 {isPositive ? '+' : ''}{summary.change.toFixed(2)}%
             </p>
         </div>
-        <div className="text-sm text-right md:text-left">
-            <p className="text-muted-foreground">24h High</p>
-            <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        </div>
-        <div className="text-sm text-right md:text-left">
-            <p className="text-muted-foreground">24h Low</p>
-            <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-        </div>
-        <div className="text-sm text-right md:text-left">
-            <p className="text-muted-foreground">24h Volume</p>
-            <p className="font-medium">{(summary.volume / 1000000).toFixed(2)}M</p>
+         <div className="col-span-1 grid grid-cols-3 gap-x-4 text-sm text-right">
+             <div>
+                <p className="text-muted-foreground">24h High</p>
+                <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+            <div>
+                <p className="text-muted-foreground">24h Low</p>
+                <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+             <div>
+                <p className="text-muted-foreground">24h Volume</p>
+                <p className="font-medium">{(summary.volume / 1000000).toFixed(2)}M</p>
+            </div>
         </div>
     </div>
   );

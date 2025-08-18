@@ -11,6 +11,7 @@ import { SpotOrderForm } from "./spot-order-form";
 import { SmartTrade } from "./smart-trade";
 import { MarketOverview } from "./market-overview";
 import { Skeleton } from "./ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // Helper function to get computed style of a CSS variable
 const getCssVar = (variable: string): string[] => {
@@ -31,10 +32,9 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
-  const [h, s, l] = getCssVar('--primary');
-  const chartColor = `hsl(${h}, ${s}%, ${l}%)`;
-  const chartAreaColorStart = `hsla(${h}, ${s}%, ${l}%, 0.3)`;
-  const chartAreaColorEnd = `hsla(${h}, ${s}%, ${l}%, 0)`;
+  const chartColor = "#4481eb";
+  const chartAreaColorStart = "rgba(68, 129, 235, 0.3)";
+  const chartAreaColorEnd = "rgba(68, 129, 235, 0)";
 
   const klineOption = {
       backgroundColor: "transparent",
@@ -94,21 +94,21 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       <div className="lg:col-span-5 space-y-4">
         <MarketOverview summary={currentSummary} />
 
-        <div className="h-[400px] w-full bg-card rounded-lg p-2">
+        <div className="h-[400px] w-full bg-slate-800 rounded-lg p-2">
            {klineData.length > 0 ? (
               <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
             ) : (
               <div className="flex justify-center items-center h-full">
-                <Skeleton className="h-full w-full" />
+                <Skeleton className="h-full w-full bg-slate-700" />
               </div>
             )}
         </div>
 
         <Tabs defaultValue={initialTab}>
-          <TabsList>
-            <TabsTrigger value="contract">秒合约</TabsTrigger>
-            <TabsTrigger value="spot">币币</TabsTrigger>
-            <TabsTrigger value="smart">智能交易</TabsTrigger>
+          <TabsList className="bg-secondary rounded-md p-1 h-auto">
+            <TabsTrigger value="contract" className={cn("px-6 py-2 text-sm rounded-md data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md")}>秒合约</TabsTrigger>
+            <TabsTrigger value="spot" className={cn("px-6 py-2 text-sm rounded-md data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md")}>币币</TabsTrigger>
+            <TabsTrigger value="smart" className={cn("px-6 py-2 text-sm rounded-md data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md")}>智能交易</TabsTrigger>
           </TabsList>
           <TabsContent value="contract">
             <OrderForm
