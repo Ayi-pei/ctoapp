@@ -1,7 +1,5 @@
 
 
-"use client";
-
 import React from 'react';
 import DashboardLayout from "@/components/dashboard-layout";
 import TradeBoard from '@/components/TradeBoard';
@@ -21,4 +19,3 @@ export default function TradePage({
     </DashboardLayout>
   )
 }
-
