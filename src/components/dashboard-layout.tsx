@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -29,8 +28,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   if (!isAuthenticated) {
     return null; // Or a loading spinner
   }
-
-  const isUserFacingPage = !pathname.startsWith('/admin');
 
   return (
     <div className={cn("h-screen w-screen flex flex-col")}>
