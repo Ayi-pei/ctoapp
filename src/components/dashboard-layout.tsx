@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -9,6 +8,7 @@ import { BottomNav } from './bottom-nav';
 import { TradeHeader } from './trade-header';
 import { cn } from '@/lib/utils';
 import { LoaderCircle } from 'lucide-react';
+import AuthLayout from './auth-layout';
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -20,14 +20,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
+    // This effect handles redirection for users who are already logged in
+    // or are not logged in and trying to access a protected page.
     if (!isLoading) {
       if (isAuthenticated) {
-        // If logged in and on a public page, redirect to the dashboard.
+        // If logged in and on a public page like login/register, redirect away.
         if (pathname === '/login' || pathname === '/register') {
           router.replace(isAdmin ? '/admin' : '/dashboard');
         }
       } else {
-        // If not logged in and not on a public page, redirect to login.
+        // If not logged in, redirect to the login page.
+        // The root page ('/') will handle the initial redirect to '/login'.
+        // This handles cases where user tries to access other protected routes directly.
         if (pathname !== '/login' && pathname !== '/register') {
           router.replace('/login');
         }
@@ -35,17 +39,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     }
   }, [isAuthenticated, isLoading, isAdmin, pathname, router]);
 
-  // Show a full-screen loader while the auth state is being determined,
-  // or if we are about to redirect away from a public page.
-  if (isLoading || (isAuthenticated && (pathname === '/login' || pathname === '/register'))) {
+  // While loading auth state, show a full-screen loader.
+  if (isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-      </div>
+      <AuthLayout>
+        <div className="flex flex-col items-center gap-4">
+            <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground">正在加载，请稍候...</p>
+        </div>
+      </AuthLayout>
     );
   }
   
-  // If not authenticated, let the public pages (login/register) render themselves.
+  // If not authenticated and not loading, the user should be on login/register.
+  // The effect above will handle redirection if they aren't.
+  // We return null here to let the login/register pages render themselves without the layout.
   if (!isAuthenticated) {
      return <>{children}</>;
   }
