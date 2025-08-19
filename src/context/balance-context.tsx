@@ -7,8 +7,6 @@ import { useAuth } from './auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
-import { useLogs } from './logs-context';
-
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -39,6 +37,8 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
 };
 
 const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
+const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
+
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -90,7 +90,6 @@ interface BalanceContextType {
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
-const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById, getAllUsers, updateUser } = useAuth();
@@ -586,26 +585,26 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return allInvestments;
   }, [getAllUsers]);
 
-    const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
-        if (typeof window === 'undefined') return 0;
-        const targetDate = date || new Date().toISOString().split('T')[0];
+  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
+    if (typeof window === 'undefined') return 0;
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    try {
+        const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
+        if (!storedLogs) return 0;
         
-        try {
-            const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
-            if (!storedLogs) return 0;
-            
-            const allLogs: ActionLog[] = JSON.parse(storedLogs);
-            
-            return allLogs.filter(log => 
-                log.entity_type === 'task_completion' && 
-                log.created_at.startsWith(targetDate)
-            ).length;
+        const allLogs: ActionLog[] = JSON.parse(storedLogs);
+        
+        return allLogs.filter(log => 
+            log.entity_type === 'task_completion' && 
+            log.created_at.startsWith(targetDate)
+        ).length;
 
-        } catch (error) {
-            console.error("Failed to read or parse logs from localStorage", error);
-            return 0;
-        }
-    }, []);
+    } catch (error) {
+        console.error("Failed to read or parse logs from localStorage", error);
+        return 0;
+    }
+  }, []);
   
   const value = { 
       balances, 
