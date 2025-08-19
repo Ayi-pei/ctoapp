@@ -6,7 +6,7 @@ import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 import { useToast } from '@/hooks/use-toast';
 
-const SWAP_ORDERS_STORAGE_KEY = 'tradeflow_swap_orders';
+const SWAP_ORDERS_STORAGE_KEY = 'tradeflow_swap_orders_v2';
 
 export type SwapOrder = {
     id: string;
@@ -24,7 +24,7 @@ interface SwapContextType {
     orders: SwapOrder[];
     openOrders: SwapOrder[];
     myOrders: SwapOrder[];
-    createOrder: (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>) => void;
+    createOrder: (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>) => boolean;
     fulfillOrder: (orderId: string) => void;
     cancelOrder: (orderId: string) => void;
 }
@@ -33,7 +33,7 @@ const SwapContext = createContext<SwapContextType | undefined>(undefined);
 
 export function SwapProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
-    const { balances, adjustBalance } = useBalance();
+    const { balances, adjustBalance, adjustFrozenBalance } = useBalance();
     const { toast } = useToast();
     const [orders, setOrders] = useState<SwapOrder[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
@@ -62,16 +62,16 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         }
     }, [orders, isLoaded]);
 
-    const createOrder = useCallback((params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>) => {
+    const createOrder = useCallback((params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>): boolean => {
         if (!user) {
             toast({ variant: "destructive", title: "请先登录" });
-            return;
+            return false;
         }
 
         const { fromAsset, fromAmount } = params;
         if ((balances[fromAsset]?.available || 0) < fromAmount) {
             toast({ variant: "destructive", title: "挂单失败", description: "您的可用余额不足。" });
-            return;
+            return false;
         }
 
         const newOrder: SwapOrder = {
@@ -84,11 +84,12 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         };
 
         // Freeze the user's `fromAsset` balance
-        adjustBalance(user.id, fromAsset, -fromAmount);
+        adjustFrozenBalance(fromAsset, fromAmount, user.id);
         
         setOrders(prev => [...prev, newOrder]);
         toast({ title: "挂单成功", description: "您的兑换订单已成功创建。" });
-    }, [user, balances, toast, adjustBalance]);
+        return true;
+    }, [user, balances, toast, adjustFrozenBalance]);
 
     const fulfillOrder = useCallback((orderId: string) => {
         if (!user) {
@@ -118,14 +119,16 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         adjustBalance(user.id, toAsset, -toAmount);
         adjustBalance(user.id, fromAsset, fromAmount);
 
-        // 2. Maker (order creator) receives `toAsset`
+        // 2. Maker (order creator) has their frozen `fromAsset` balance confirmed (deducted from frozen)
+        // and receives `toAsset`
+        adjustFrozenBalance(fromAsset, -fromAmount, order.userId); // This "unfreezes" by removing from frozen
         adjustBalance(order.userId, toAsset, toAmount);
 
         // 3. Update order status
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'filled' } : o));
         
         toast({ title: "兑换成功！" });
-    }, [user, orders, balances, toast, adjustBalance]);
+    }, [user, orders, balances, toast, adjustBalance, adjustFrozenBalance]);
 
     const cancelOrder = useCallback((orderId: string) => {
         if (!user) {
@@ -134,22 +137,22 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         }
         
         const order = orders.find(o => o.id === orderId);
-         if (!order || order.userId !== user.id) {
-            toast({ variant: "destructive", title: "操作失败", description: "这不是您的订单。" });
+         if (!order || order.userId !== user.id || order.status !== 'open') {
+            toast({ variant: "destructive", title: "操作失败", description: "这不是您的可取消订单。" });
             return;
         }
 
-        // Unfreeze the user's `fromAsset` balance
-        adjustBalance(user.id, order.fromAsset, order.fromAmount);
+        // Unfreeze the user's `fromAsset` balance by moving it back to available
+        adjustFrozenBalance(order.fromAsset, -order.fromAmount, user.id);
 
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
         toast({ title: "订单已取消" });
-    }, [user, orders, toast, adjustBalance]);
+    }, [user, orders, toast, adjustFrozenBalance]);
 
     const value: SwapContextType = {
         orders,
         openOrders: orders.filter(o => o.status === 'open' && o.userId !== user?.id),
-        myOrders: orders.filter(o => o.status === 'open' && o.userId === user?.id),
+        myOrders: orders.filter(o => o.userId === user?.id),
         createOrder,
         fulfillOrder,
         cancelOrder,

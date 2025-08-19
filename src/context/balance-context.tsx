@@ -266,6 +266,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       const currentAvailable = userBalances[asset]?.available || 0;
       const currentFrozen = userBalances[asset]?.frozen || 0;
 
+      // amount can be negative to unfreeze
       userBalances[asset] = {
           available: currentAvailable - amount,
           frozen: currentFrozen + amount,
@@ -297,19 +298,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
 
         if (investmentToSettle.stakingAsset && investmentToSettle.stakingAmount) {
-            const currentData = getUserData(investmentToSettle.user_id);
-            const currentFrozen = currentData.balances[investmentToSettle.stakingAsset]?.frozen || 0;
-            const currentAvailable = currentData.balances[investmentToSettle.stakingAsset]?.available || 0;
-
-            currentData.balances[investmentToSettle.stakingAsset] = {
-                available: currentAvailable + investmentToSettle.stakingAmount,
-                frozen: currentFrozen - investmentToSettle.stakingAmount
-            };
-            saveUserData(investmentToSettle.user_id, currentData);
-            
-            if(user?.id === investmentToSettle.user_id) {
-                setBalances(currentData.balances);
-            }
+            // Unfreeze staked asset
+            adjustFrozenBalance(investmentToSettle.stakingAsset, -investmentToSettle.stakingAmount, investmentToSettle.user_id);
         }
         
         const userData = getUserData(investmentToSettle.user_id);
@@ -326,7 +316,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             });
         }
         
-  }, [adjustBalance, toast, user?.id, getAllUserInvestments]);
+  }, [adjustBalance, toast, user?.id, getAllUserInvestments, adjustFrozenBalance]);
 
   // Effect to handle investment settlement
   useEffect(() => {
