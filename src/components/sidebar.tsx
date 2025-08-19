@@ -31,14 +31,14 @@ export function Sidebar() {
                   <Collapsible defaultOpen={isParentActive}>
                     <CollapsibleTrigger 
                       className={cn(
-                        "group flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted",
+                        "group flex w-full items-center justify-between rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted",
                         isParentActive && 'bg-muted'
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        <item.icon className="h-5 w-5" />
-                        <span>{item.label}</span>
-                      </div>
+                        <div className="flex items-center gap-3">
+                            <item.icon className="h-5 w-5" />
+                            <span>{item.label}</span>
+                        </div>
                       <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="py-1 pl-6 space-y-1">
