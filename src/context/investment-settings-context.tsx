@@ -34,7 +34,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
         name: "富投宝", 
         price: 1, // Min investment amount
         maxPurchase: 999, 
-        imgSrc: "https://placehold.co/80x80.png",
+        imgSrc: "/images/futoubao.png",
         category: 'finance',
         productType: 'hourly',
         activeStartTime: '18:00',

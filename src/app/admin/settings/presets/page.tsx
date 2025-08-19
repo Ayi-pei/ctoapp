@@ -1,3 +1,4 @@
+
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 
 const TimedMarketSettingsCard = ({ presets, addPreset, removePreset, updatePreset, onSave }: { 
@@ -126,9 +128,14 @@ export default function AdminPresetsPage() {
         removeTimedMarketPreset,
         updateTimedMarketPreset,
     } = useSettings();
+    const { toast } = useToast();
 
-    const handleSaveSettings = (section: string) => {
-        alert(`${section} settings saved!`);
+    const handleSaveChanges = () => {
+        // The context now saves automatically, but we can provide user feedback.
+        toast({
+            title: "设置已保存",
+            description: "定时预设设置已自动更新。",
+        });
     };
 
     return (
@@ -140,7 +147,7 @@ export default function AdminPresetsPage() {
                     addPreset={addTimedMarketPreset}
                     removePreset={removeTimedMarketPreset}
                     updatePreset={updateTimedMarketPreset}
-                    onSave={() => handleSaveSettings('限定时间市场')}
+                    onSave={handleSaveChanges}
                 />
             </div>
         </DashboardLayout>

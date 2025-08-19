@@ -1,3 +1,4 @@
+
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 
 const PairSettingsCard = ({ 
@@ -279,6 +281,7 @@ export default function AdminMarketSettingsPage() {
         updateMarketOverride,
         removeMarketOverride,
     } = useSettings();
+    const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
         const currentTrend = settings[pair]?.trend;
@@ -294,8 +297,12 @@ export default function AdminMarketSettingsPage() {
         updateSettings(pair, { volatility: value[0] });
     }
     
-    const handleSaveSettings = (section: string) => {
-        alert(`${section} settings saved!`);
+    const handleSaveChanges = () => {
+        // The context now saves automatically, but we can provide user feedback.
+        toast({
+            title: "设置已保存",
+            description: "市场设置已自动更新。",
+        });
     };
 
     return (
@@ -339,7 +346,7 @@ export default function AdminMarketSettingsPage() {
                         </CardContent>
                     </ScrollArea>
                     <CardFooter>
-                       <Button onClick={() => handleSaveSettings('市场')}>保存市场设置</Button>
+                       <Button onClick={handleSaveChanges}>保存市场设置</Button>
                     </CardFooter>
                 </Card>
             </div>

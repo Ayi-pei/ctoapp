@@ -4,6 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs } from '@/types';
 
+const SETTINGS_STORAGE_KEY = 'tradeflow_market_settings_v2';
+
 export type SpecialTimeFrame = {
     id: string;
     startTime: string; 
@@ -79,7 +81,43 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>(defaultSettings);
     const [timedMarketPresets, setTimedMarketPresets] = useState<TimedMarketPreset[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
     
+     // Load settings from localStorage on initial render
+    useEffect(() => {
+        try {
+            const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
+            if (storedSettings) {
+                const parsed = JSON.parse(storedSettings);
+                // Merge with defaults to handle cases where new pairs are added
+                const mergedSettings = { ...defaultSettings, ...parsed };
+                setSettings(mergedSettings);
+                setTimedMarketPresets(parsed.timedMarketPresets || []);
+            } else {
+                setSettings(defaultSettings);
+            }
+        } catch (error) {
+            console.error("Failed to load settings from localStorage", error);
+            setSettings(defaultSettings);
+        }
+        setIsLoaded(true);
+    }, []);
+
+    // Save settings to localStorage whenever they change
+    useEffect(() => {
+        if (isLoaded) {
+            try {
+                const dataToStore = {
+                    ...settings,
+                    timedMarketPresets: timedMarketPresets
+                };
+                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(dataToStore));
+            } catch (error) {
+                console.error("Failed to save settings to localStorage", error);
+            }
+        }
+    }, [settings, timedMarketPresets, isLoaded]);
+
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
             const updatedPairSettings = {
@@ -236,5 +274,3 @@ export function useSettings() {
     }
     return context;
 }
-
-    

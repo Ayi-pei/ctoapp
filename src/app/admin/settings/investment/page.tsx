@@ -1,3 +1,4 @@
+
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { PlusCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const InvestmentProductCard = ({ product, updateProduct, removeProduct }: {
     product: InvestmentProduct,
@@ -87,9 +89,14 @@ const InvestmentProductCard = ({ product, updateProduct, removeProduct }: {
 
 export default function AdminInvestmentSettingsPage() {
     const { investmentProducts, addProduct, removeProduct, updateProduct } = useInvestmentSettings();
+    const { toast } = useToast();
 
-    const handleSaveSettings = (section: string) => {
-        alert(`${section} settings saved!`);
+    const handleSaveChanges = () => {
+        // The context now saves automatically, but we can provide user feedback.
+        toast({
+            title: "设置已保存",
+            description: "理财产品设置已自动更新。",
+        });
     };
 
     return (
@@ -118,7 +125,7 @@ export default function AdminInvestmentSettingsPage() {
                             <PlusCircle className="mr-2 h-4 w-4"/>
                             添加新理财产品
                         </Button>
-                       <Button onClick={() => handleSaveSettings('理财')}>保存理财设置</Button>
+                       <Button onClick={handleSaveChanges}>保存理财设置</Button>
                     </CardFooter>
                 </Card>
             </div>
