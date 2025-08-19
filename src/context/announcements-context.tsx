@@ -107,7 +107,7 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         setIsLoaded(true);
     }, []);
 
-    // Save all announcement data to localStorage
+    // Save all announcement data to localStorage automatically
     const saveAllAnnouncements = useCallback(() => {
         if (isLoaded) {
             try {
@@ -122,6 +122,11 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
             }
         }
     }, [isLoaded, announcements, carouselItems, hornAnnouncements]);
+    
+    // Auto-save on any change
+    useEffect(() => {
+        saveAllAnnouncements();
+    }, [announcements, carouselItems, hornAnnouncements, saveAllAnnouncements]);
     
     // --- General Announcement Methods ---
     const addAnnouncement = useCallback((announcement: Omit<Announcement, 'id' | 'date'>) => {

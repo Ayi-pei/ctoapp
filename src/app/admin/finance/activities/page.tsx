@@ -127,7 +127,7 @@ export default function AdminActivitiesPage() {
 
     const handleSave = () => {
         saveActivities();
-        toast({ title: "成功", description: "所有限时活动设置已保存。" });
+        toast({ title: "成功", description: "所有限时活动设置已自动保存。" });
     }
 
     return (

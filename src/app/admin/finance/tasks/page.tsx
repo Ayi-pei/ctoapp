@@ -96,28 +96,28 @@ const TaskEditorCard = ({ task, updateTask, removeTask }: {
                         <Label htmlFor={`task-link-${task.id}`}>跳转链接</Label>
                         <Input id={`task-link-${task.id}`} value={task.link} onChange={e => updateTask(task.id, { link: e.target.value })} placeholder="例如: /trade" />
                     </div>
-                </div>
-            </div>
-             <div className="space-y-2">
-                <Label>任务图片</Label>
-                <div className="flex items-center gap-4">
-                    {task.imgSrc && (
-                        <Image 
-                            src={task.imgSrc} 
-                            alt={task.title} 
-                            width={80} 
-                            height={80} 
-                            className="object-cover rounded-md border"
-                            data-ai-hint="task reward"
-                        />
-                    )}
-                    <Input 
-                        id={`task-img-upload-${task.id}`} 
-                        type="file" 
-                        accept="image/*"
-                        onChange={handleImageUpload} 
-                        className="text-xs file:text-xs file:font-medium file:text-foreground file:border-0 file:bg-muted file:rounded-md file:px-2 file:py-1 file:mr-2 hover:file:bg-accent"
-                    />
+                     <div className="space-y-2">
+                        <Label>任务图片</Label>
+                        <div className="flex items-center gap-4">
+                            {task.imgSrc && (
+                                <Image 
+                                    src={task.imgSrc} 
+                                    alt={task.title} 
+                                    width={80} 
+                                    height={80} 
+                                    className="object-cover rounded-md border"
+                                    data-ai-hint="task reward"
+                                />
+                            )}
+                            <Input 
+                                id={`task-img-upload-${task.id}`} 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleImageUpload} 
+                                className="text-xs file:text-xs file:font-medium file:text-foreground file:border-0 file:bg-muted file:rounded-md file:px-2 file:py-1 file:mr-2 hover:file:bg-accent"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="flex items-center justify-between pt-4 border-t mt-4">
@@ -149,7 +149,7 @@ export default function AdminTasksPage() {
 
     const handleSave = () => {
         saveTasks();
-        toast({ title: "成功", description: "所有任务设置已保存。" });
+        toast({ title: "成功", description: "所有任务设置已自动保存。" });
     }
 
     return (

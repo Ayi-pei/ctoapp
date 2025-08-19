@@ -154,7 +154,7 @@ export default function AdminAnnouncementsPage() {
 
     const handleSave = () => {
         saveAllAnnouncements();
-        toast({ title: "成功", description: "所有公告设置已保存。" });
+        toast({ title: "成功", description: "所有公告设置已自动保存。" });
     }
 
     const handleAddHorn = () => {

@@ -20,6 +20,7 @@ const defaultTasks: DailyTask[] = [
     link: '/trade?tab=contract',
     status: 'published',
     trigger: 'contract_trade',
+    imgSrc: 'https://placehold.co/600x400.png'
   },
   {
     id: 'spot_trade',
@@ -30,6 +31,7 @@ const defaultTasks: DailyTask[] = [
     link: '/trade?tab=spot',
     status: 'published',
     trigger: 'spot_trade',
+    imgSrc: 'https://placehold.co/600x400.png'
   },
   {
     id: 'investment',
@@ -40,6 +42,7 @@ const defaultTasks: DailyTask[] = [
     link: '/finance',
     status: 'published',
     trigger: 'investment',
+    imgSrc: 'https://placehold.co/600x400.png'
   }
 ];
 
@@ -108,6 +111,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, [dailyTasks]);
   
   useEffect(() => {
+    saveTasks();
+  }, [dailyTasks, saveTasks]);
+  
+  useEffect(() => {
     if (user && isLoaded) {
        try {
         const key = `${USER_TASKS_STATE_KEY_PREFIX}${user.id}`;
@@ -127,7 +134,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       reward_type: 'usdt',
       link: '/',
       status: 'draft',
-      trigger: 'contract_trade'
+      trigger: 'contract_trade',
+      imgSrc: 'https://placehold.co/600x400.png'
     };
     setDailyTasks(prev => [...prev, newTask]);
   }, []);
@@ -144,7 +152,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     
     const today = new Date().toISOString().split('T')[0];
-    const task = dailyTasks.find(t => t.id === type && t.status === 'published');
+    const task = dailyTasks.find(t => t.trigger === type && t.status === 'published');
     if (!task) return;
 
     const isAlreadyCompleted = userTasksState.some(state => state.taskId === task.id && state.date === today);
