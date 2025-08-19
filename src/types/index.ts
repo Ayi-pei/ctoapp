@@ -5,6 +5,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -267,12 +268,15 @@ export type ActionLog = {
 // Represents a P2P Swap Order
 export type SwapOrder = {
     id: string;
-    userId: string;
+    userId: string;       // The user who created the order (seller/maker)
     username: string;
     fromAsset: string;
     fromAmount: number;
     toAsset: string;
     toAmount: number;
-    status: 'open' | 'filled' | 'cancelled';
+    status: 'open' | 'pending_payment' | 'pending_confirmation' | 'completed' | 'cancelled' | 'disputed';
     createdAt: string;
+    takerId?: string;     // The user who accepted the order (buyer/taker)
+    takerUsername?: string;
+    paymentProofUrl?: string; // Data URL of the uploaded image
 };

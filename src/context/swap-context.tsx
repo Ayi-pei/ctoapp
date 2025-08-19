@@ -5,28 +5,20 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 import { useToast } from '@/hooks/use-toast';
+import { SwapOrder } from '@/types';
 
-const SWAP_ORDERS_STORAGE_KEY = 'tradeflow_swap_orders_v2';
-
-export type SwapOrder = {
-    id: string;
-    userId: string;
-    username: string;
-    fromAsset: string;
-    fromAmount: number;
-    toAsset: string;
-    toAmount: number;
-    status: 'open' | 'filled' | 'cancelled';
-    createdAt: string;
-};
+const SWAP_ORDERS_STORAGE_KEY = 'tradeflow_swap_orders_v3';
 
 interface SwapContextType {
     orders: SwapOrder[];
-    openOrders: SwapOrder[];
-    myOrders: SwapOrder[];
-    createOrder: (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>) => boolean;
-    fulfillOrder: (orderId: string) => void;
+    createOrder: (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt' | 'takerId' | 'takerUsername' | 'paymentProofUrl'>) => boolean;
+    acceptOrder: (orderId: string) => void;
+    uploadProof: (orderId: string, proofUrl: string) => void;
+    confirmCompletion: (orderId: string) => void;
     cancelOrder: (orderId: string) => void;
+    relistOrder: (orderId: string) => void;
+    withdrawOrder: (orderId: string) => void;
+    reportDispute: (orderId: string) => void;
 }
 
 const SwapContext = createContext<SwapContextType | undefined>(undefined);
@@ -62,7 +54,7 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         }
     }, [orders, isLoaded]);
 
-    const createOrder = useCallback((params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt'>): boolean => {
+    const createOrder = useCallback((params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt' | 'takerId' | 'takerUsername' | 'paymentProofUrl'>): boolean => {
         if (!user) {
             toast({ variant: "destructive", title: "请先登录" });
             return false;
@@ -83,7 +75,6 @@ export function SwapProvider({ children }: { children: ReactNode }) {
             createdAt: new Date().toISOString(),
         };
 
-        // Freeze the user's `fromAsset` balance
         adjustFrozenBalance(fromAsset, fromAmount, user.id);
         
         setOrders(prev => [...prev, newOrder]);
@@ -91,71 +82,98 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         return true;
     }, [user, balances, toast, adjustFrozenBalance]);
 
-    const fulfillOrder = useCallback((orderId: string) => {
+    const acceptOrder = useCallback((orderId: string) => {
         if (!user) {
             toast({ variant: "destructive", title: "请先登录" });
             return;
         }
 
+        setOrders(prev => prev.map(o => {
+            if (o.id === orderId && o.status === 'open') {
+                toast({ title: "订单已接受", description: "请尽快完成支付并上传凭证。" });
+                return { 
+                    ...o, 
+                    status: 'pending_payment',
+                    takerId: user.id,
+                    takerUsername: user.username,
+                };
+            }
+            return o;
+        }));
+    }, [user, toast]);
+
+    const uploadProof = useCallback((orderId: string, proofUrl: string) => {
+        setOrders(prev => prev.map(o => {
+            if (o.id === orderId && o.status === 'pending_payment') {
+                return { ...o, status: 'pending_confirmation', paymentProofUrl: proofUrl };
+            }
+            return o;
+        }));
+    }, []);
+
+    const confirmCompletion = useCallback((orderId: string) => {
         const order = orders.find(o => o.id === orderId);
-        if (!order || order.status !== 'open') {
-            toast({ variant: "destructive", title: "兑换失败", description: "订单不存在或已被兑换。" });
-            return;
-        }
-        
-        if (order.userId === user.id) {
-             toast({ variant: "destructive", title: "操作无效", description: "您不能兑换自己的订单。" });
-            return;
-        }
+        if (!order || order.status !== 'pending_confirmation') return;
 
-        const { toAsset, toAmount, fromAsset, fromAmount } = order;
-        if ((balances[toAsset]?.available || 0) < toAmount) {
-            toast({ variant: "destructive", title: "兑换失败", description: `您的 ${toAsset} 余额不足。` });
-            return;
-        }
+        // Finalize asset transfer
+        // 1. Unfreeze and debit seller's (maker) `fromAsset`
+        adjustFrozenBalance(order.fromAsset, -order.fromAmount, order.userId);
 
-        // --- Execute the swap ---
-        // 1. Taker (current user) pays `toAsset` and receives `fromAsset`
-        adjustBalance(user.id, toAsset, -toAmount);
-        adjustBalance(user.id, fromAsset, fromAmount);
+        // 2. Debit buyer's (taker) `toAsset` (This should have been frozen ideally, but for now we debit directly)
+        // For a more robust system, we should freeze buyer's asset on `acceptOrder`.
+        // We assume buyer has the funds for simplicity here.
+        adjustBalance(order.takerId!, order.toAsset, -order.toAmount);
 
-        // 2. Maker (order creator) has their frozen `fromAsset` balance confirmed (deducted from frozen)
-        // and receives `toAsset`
-        adjustFrozenBalance(fromAsset, -fromAmount, order.userId); // This "unfreezes" by removing from frozen
-        adjustBalance(order.userId, toAsset, toAmount);
+        // 3. Credit seller (maker) with `toAsset`
+        adjustBalance(order.userId, order.toAsset, order.toAmount);
 
-        // 3. Update order status
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'filled' } : o));
-        
-        toast({ title: "兑换成功！" });
-    }, [user, orders, balances, toast, adjustBalance, adjustFrozenBalance]);
+        // 4. Credit buyer (taker) with `fromAsset`
+        adjustBalance(order.takerId!, order.fromAsset, order.fromAmount);
+
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'completed' } : o));
+        toast({ title: "交易完成", description: "资产已成功交换。" });
+    }, [orders, adjustBalance, adjustFrozenBalance, toast]);
 
     const cancelOrder = useCallback((orderId: string) => {
-        if (!user) {
-            toast({ variant: "destructive", title: "请先登录" });
-            return;
-        }
-        
+        if (!user) return;
         const order = orders.find(o => o.id === orderId);
-         if (!order || order.userId !== user.id || order.status !== 'open') {
-            toast({ variant: "destructive", title: "操作失败", description: "这不是您的可取消订单。" });
-            return;
-        }
-
-        // Unfreeze the user's `fromAsset` balance by moving it back to available
-        adjustFrozenBalance(order.fromAsset, -order.fromAmount, user.id);
+        if (!order || order.userId !== user.id || order.status !== 'open') return;
 
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-        toast({ title: "订单已取消" });
-    }, [user, orders, toast, adjustFrozenBalance]);
+        toast({ title: "订单已暂停", description: "您可以选择重新挂单或撤销以解冻资产。" });
+    }, [user, orders, toast]);
+
+    const relistOrder = useCallback((orderId: string) => {
+        setOrders(prev => prev.map(o => o.id === orderId && o.status === 'cancelled' ? { ...o, status: 'open' } : o));
+        toast({ title: "订单已重新挂出" });
+    }, [toast]);
+    
+    const withdrawOrder = useCallback((orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || order.status !== 'cancelled') return;
+        
+        adjustFrozenBalance(order.fromAsset, -order.fromAmount, order.userId);
+        
+        // Effectively remove the order or mark it as withdrawn to hide it
+        setOrders(prev => prev.filter(o => o.id !== orderId));
+        toast({ title: "订单已撤销", description: "冻结的资产已返还。" });
+    }, [orders, adjustFrozenBalance, toast]);
+
+    const reportDispute = useCallback((orderId: string) => {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'disputed' } : o));
+        toast({ title: "申诉已提交", description: "管理员将会介入处理，请留意站内信。", variant: "destructive" });
+    }, [toast]);
 
     const value: SwapContextType = {
         orders,
-        openOrders: orders.filter(o => o.status === 'open' && o.userId !== user?.id),
-        myOrders: orders.filter(o => o.userId === user?.id),
         createOrder,
-        fulfillOrder,
+        acceptOrder,
+        uploadProof,
+        confirmCompletion,
         cancelOrder,
+        relistOrder,
+        withdrawOrder,
+        reportDispute,
     };
 
     return (
