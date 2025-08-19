@@ -83,7 +83,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const fetchedSummaries = response.data;
             const newSummaryData = fetchedSummaries.map((s: any) => ({
                 ...s,
-                icon: `https://assets.coingecko.com/coins/images/${apiIdMap[s.pair]?.coingecko}/large.png`,
+                icon: `https://assets.coingecko.com/coins/images/${s.id}/large.png`,
             }));
 
             setSummaryData(prev => {
