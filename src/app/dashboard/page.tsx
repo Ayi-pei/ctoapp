@@ -24,21 +24,25 @@ import Autoplay from "embla-carousel-autoplay"
 export default function DashboardPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
     const { balances } = useBalance();
-    const { platformAnnouncements, carouselItems, hornAnnouncements } = useAnnouncements();
+    const { hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const [currentHornIndex, setCurrentHornIndex] = useState(0);
 
+     const activeHornAnnouncements = hornAnnouncements
+        .filter(ann => !ann.expires_at || new Date(ann.expires_at) > new Date())
+        .sort((a, b) => b.priority - a.priority);
+
     useEffect(() => {
-        if (hornAnnouncements.length === 0) return;
+        if (activeHornAnnouncements.length === 0) return;
 
         const timer = setInterval(() => {
-            setCurrentHornIndex(prevIndex => (prevIndex + 1) % hornAnnouncements.length);
+            setCurrentHornIndex(prevIndex => (prevIndex + 1) % activeHornAnnouncements.length);
         }, 5000); // Change announcement every 5 seconds
 
         return () => clearInterval(timer);
-    }, [hornAnnouncements]);
+    }, [activeHornAnnouncements]);
 
     const features = [
         { name: '每日任务', imgSrc: '/images/book.png', href: '/tasks', labelPosition: 'top' },
@@ -53,17 +57,16 @@ export default function DashboardPage() {
     
     const getUsdtValue = (assetName: string, amount: number) => {
         if (assetName === 'USDT') return amount;
-        if (assetName === 'BTC') return amount * 68000; // Mock price
-        if (assetName === 'ETH') return amount * 3800; // Mock price
-        return 0;
+        const assetSummary = summaryData.find(s => s.pair.startsWith(assetName));
+        return amount * (assetSummary?.price || 0);
     }
 
     const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
     
-    const renderMarketList = (data: any[]) => {
-        if (!summaryData.length && data.length === 0) { // Check both to avoid flicker
+    const renderMarketList = (data: any[], type: string) => {
+        if (summaryData.length === 0 && data.length === 0) { // Check both to avoid flicker
             return (
                 <div className="space-y-4 mt-4">
                     {[...Array(3)].map((_, i) => (
@@ -80,10 +83,13 @@ export default function DashboardPage() {
                 </div>
             )
         }
+        if (data.length === 0) {
+            return <div className="text-center text-muted-foreground py-10">暂无 {type} 市场数据。</div>
+        }
         return <MarketList summary={data} klineData={klineData} />
     }
 
-    const currentHornAnnouncement = hornAnnouncements.length > 0 ? hornAnnouncements[currentHornIndex] : null;
+    const currentHornAnnouncement = activeHornAnnouncements.length > 0 ? activeHornAnnouncements[currentHornIndex] : null;
 
 
     return (
@@ -100,7 +106,7 @@ export default function DashboardPage() {
                     ]}
                 >
                     <CarouselContent>
-                        {carouselItems.map((item, index) => (
+                        {useAnnouncements().carouselItems.map((item, index) => (
                              <CarouselItem key={index}>
                                 <Card className="relative w-full h-40 overflow-hidden text-white">
                                     <Image
@@ -136,7 +142,7 @@ export default function DashboardPage() {
                             ) : (
                                 <span className="font-semibold text-primary mr-2">【平台公告】</span>
                             )}
-                            {currentHornAnnouncement ? currentHornAnnouncement.content : (platformAnnouncements[0]?.title || "欢迎来到TradeFlow！")}
+                            {currentHornAnnouncement ? currentHornAnnouncement.content : "欢迎来到TradeFlow！"}
                         </div>
                     </div>
                 </Link>
@@ -195,16 +201,16 @@ export default function DashboardPage() {
                             <TabsTrigger value="gold" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">黄金</TabsTrigger>
                         </TabsList>
                         <TabsContent value="popular">
-                            {renderMarketList(cryptoSummaryData)}
+                            {renderMarketList(cryptoSummaryData, "热门币种")}
                         </TabsContent>
                         <TabsContent value="futures">
-                            {renderMarketList(futuresSummaryData)}
+                            {renderMarketList(futuresSummaryData, "期货")}
                         </TabsContent>
                         <TabsContent value="forex">
-                            {renderMarketList(forexSummaryData)}
+                            {renderMarketList(forexSummaryData, "外汇")}
                         </TabsContent>
                         <TabsContent value="gold">
-                            {renderMarketList(goldSummaryData)}
+                            {renderMarketList(goldSummaryData, "黄金")}
                         </TabsContent>
                     </Tabs>
                 </div>

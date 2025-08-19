@@ -9,8 +9,8 @@ import { useMarket } from "@/context/market-data-context";
 export default function MarketPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
 
-    const renderMarketList = (data: any[]) => {
-        if (!summaryData.length && data.length === 0) {
+    const renderMarketList = (data: any[], type: string) => {
+        if (summaryData.length === 0 && data.length === 0) {
             return (
                 <div className="space-y-4 mt-4">
                     {[...Array(5)].map((_, i) => (
@@ -29,6 +29,9 @@ export default function MarketPage() {
                 </div>
             )
         }
+         if (data.length === 0) {
+            return <div className="text-center text-muted-foreground py-10">暂无 {type} 市场数据。</div>
+        }
         return <MarketList summary={data} klineData={klineData} />
     }
 
@@ -43,16 +46,16 @@ export default function MarketPage() {
                         <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
                     </TabsList>
                     <TabsContent value="popular" className="mt-4">
-                       <div className="px-4">{renderMarketList(cryptoSummaryData)}</div>
+                       <div className="px-4">{renderMarketList(cryptoSummaryData, "热门币种")}</div>
                     </TabsContent>
                      <TabsContent value="futures" className="mt-4">
-                       <div className="px-4">{renderMarketList(futuresSummaryData)}</div>
+                       <div className="px-4">{renderMarketList(futuresSummaryData, "期货")}</div>
                     </TabsContent>
                     <TabsContent value="forex" className="mt-4">
-                       <div className="px-4">{renderMarketList(forexSummaryData)}</div>
+                       <div className="px-4">{renderMarketList(forexSummaryData, "外汇")}</div>
                     </TabsContent>
                     <TabsContent value="gold" className="mt-4">
-                        <div className="px-4">{renderMarketList(goldSummaryData)}</div>
+                        <div className="px-4">{renderMarketList(goldSummaryData, "黄金")}</div>
                     </TabsContent>
                 </Tabs>
             </div>

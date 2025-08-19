@@ -32,12 +32,12 @@ const apiIdMap: Record<string, { coingecko?: string, yahoo?: string, tatum?: str
     'EOS/USDT': { coingecko: 'eos', yahoo: 'EOS-USD', tatum: 'EOS' },
     'FIL/USDT': { coingecko: 'filecoin', yahoo: 'FIL-USD', tatum: 'FIL' },
     'ICP/USDT': { coingecko: 'internet-computer', yahoo: 'ICP-USD', tatum: 'ICP' },
-    'XAU/USD': { yahoo: 'GC=F' },
-    'EUR/USD': { yahoo: 'EURUSD=X' },
-    'GBP/USD': { yahoo: 'GBPUSD=X' },
-    'OIL/USD': { yahoo: 'CL=F' },
-    'XAG/USD': { yahoo: 'SI=F' },
-    'NAS100/USD': { yahoo: 'NQ=F' },
+    'XAU/USD': { yahoo: 'GC=F', iconId: 'xau' },
+    'EUR/USD': { yahoo: 'EURUSD=X', iconId: 'eur' },
+    'GBP/USD': { yahoo: 'GBPUSD=X', iconId: 'gbp' },
+    'OIL/USD': { yahoo: 'CL=F', iconId: 'oil' },
+    'XAG/USD': { yahoo: 'SI=F', iconId: 'xag' },
+    'NAS100/USD': { yahoo: 'NQ=F', iconId: 'nas100' },
 };
 
 
@@ -142,16 +142,17 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             try {
                 const response = await axios.get(`/api/quote/${symbol}`);
                 const data = response.data;
-                const pair = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
-                
+                const pairKey = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
+                const iconId = apiIdMap[pairKey]?.iconId;
+
                 return {
-                    pair: pair,
+                    pair: pairKey,
                     price: data.regularMarketPrice || 0,
                     change: (data.regularMarketChangePercent || 0) * 100,
                     volume: data.regularMarketVolume || 0,
                     high: data.regularMarketDayHigh || 0,
                     low: data.regularMarketDayLow || 0,
-                    icon: `/images/instrument-icons/${pair.split('/')[0].toLowerCase()}.png`,
+                    icon: iconId ? `/images/instrument-icons/${iconId}.png` : `https://placehold.co/32x32.png`,
                 } as MarketSummary;
             } catch (error) {
                 console.error(`Failed to fetch from Yahoo for ${symbol}`);
@@ -164,14 +165,16 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         const processedData = processDataWithOverrides(newSummaryData);
 
         setSummaryData(prev => {
-            const nonCryptoPrev = prev.filter(p => !nonCryptoPairs.includes(p.pair));
-            return [...nonCryptoPrev, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+            const existingCrypto = prev.filter(p => CRYPTO_PAIRS.includes(p.pair));
+            return [...existingCrypto, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
         });
 
     }, [processDataWithOverrides]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         try {
+            // For non-crypto, kline data is built from summary data, no separate API call needed for now.
+             if (!CRYPTO_PAIRS.includes(pair)) return;
             const response = await axios.get(`/api/market-data`, {
                 params: { type: 'kline', pair: pair }
             });
@@ -214,37 +217,20 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             });
         };
 
-        const intervals = availablePairs.map(pair => {
-            const pairSettings = settings[pair];
-            let intervalTime = 5000; // Default day frequency
-            if (pairSettings && pairSettings.marketOverrides.length > 0) {
-                const activeOverride = pairSettings.marketOverrides.find(o => {
-                    const now = new Date();
-                    const currentTime = now.getHours() * 60 + now.getMinutes();
-                    const [startH, startM] = o.startTime.split(':').map(Number);
-                    const startTime = startH * 60 + startM;
-                    const [endH, endM] = o.endTime.split(':').map(Number);
-                    const endTime = endH * 60 + endM;
-                    return currentTime >= startTime && currentTime <= endTime;
-                });
-                if (activeOverride && activeOverride.frequency === 'night') {
-                    intervalTime = 15000;
-                }
-            }
-            return setInterval(() => {
-                if (CRYPTO_PAIRS.includes(pair)) fetchCryptoData();
-                else fetchYahooData();
-            }, intervalTime);
-        });
+        const cryptoInterval = setInterval(fetchCryptoData, 5000);
+        const yahooInterval = setInterval(fetchYahooData, 5000);
+        
+        fetchCryptoData();
+        fetchYahooData();
 
-        updateKlineWithSummary();
         const updateInterval = setInterval(updateKlineWithSummary, 2000);
 
         return () => {
-            intervals.forEach(clearInterval);
+            clearInterval(cryptoInterval);
+            clearInterval(yahooInterval);
             clearInterval(updateInterval);
         };
-    }, [fetchCryptoData, fetchYahooData, summaryData, settings]);
+    }, [fetchCryptoData, fetchYahooData]);
 
 
     useEffect(() => {
