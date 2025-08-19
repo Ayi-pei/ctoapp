@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { SpotTrade } from "@/types";
+import { useTasks } from "@/context/tasks-context";
 
 type SpotOrderFormProps = {
   tradingPair: string;
@@ -37,6 +39,7 @@ export function SpotOrderForm({
   const [total, setTotal] = useState("");
   const [sliderValue, setSliderValue] = useState(0);
   const { toast } = useToast();
+  const { triggerTaskCompletion } = useTasks();
   
   const quoteAssetBalance = balances[quoteAsset]?.available || 0;
   const baseAssetBalance = balances[baseAsset]?.available || 0;
@@ -130,6 +133,8 @@ export function SpotOrderForm({
       description: `您的 ${tradeType === 'market' ? '市价' : '限价'} ${orderType === 'buy' ? '买入' : '卖出'} 订单已提交。`,
     });
     
+    triggerTaskCompletion('spot_trade');
+
     setAmount("");
     setTotal("");
     setPrice("");

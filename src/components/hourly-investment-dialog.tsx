@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { InvestmentProduct } from "@/context/investment-settings-context";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { useTasks } from "@/context/tasks-context";
 
 type HourlyInvestmentDialogProps = {
     isOpen: boolean;
@@ -35,6 +37,7 @@ export function HourlyInvestmentDialog({
     onConfirm 
 }: HourlyInvestmentDialogProps) {
     const { toast } = useToast();
+    const { triggerTaskCompletion } = useTasks();
     const [amount, setAmount] = useState("");
     const [selectedDuration, setSelectedDuration] = useState<number | undefined>(product.hourlyTiers?.[0]?.hours);
 
@@ -88,6 +91,7 @@ export function HourlyInvestmentDialog({
         }
         
         onConfirm(numericAmount, selectedDuration);
+        triggerTaskCompletion('investment');
     };
     
     const expectedProfit = () => {

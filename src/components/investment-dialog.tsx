@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useTasks } from "@/context/tasks-context";
 
 type InvestmentDialogProps = {
     isOpen: boolean;
@@ -36,6 +38,7 @@ export function InvestmentDialog({
     onConfirm 
 }: InvestmentDialogProps) {
     const { toast } = useToast();
+    const { triggerTaskCompletion } = useTasks();
     const [amount, setAmount] = useState("");
     const isFixedAmount = product.minInvestment === product.maxInvestment;
 
@@ -82,6 +85,7 @@ export function InvestmentDialog({
         }
         
         onConfirm(numericAmount);
+        triggerTaskCompletion('investment');
     };
 
     return (

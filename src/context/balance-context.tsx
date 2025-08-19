@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -94,7 +95,7 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, updateUser } = useAuth();
+  const { user, getUserById, updateUser, getAllUsers } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   const { addLog } = useLogs();
@@ -110,22 +111,22 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     const getAllHistoricalTrades = useCallback(() => {
         if (typeof window === 'undefined') return [];
-        const allUsers = getUserById ? Object.values(localStorage.getItem('tradeflow_users') ? JSON.parse(localStorage.getItem('tradeflow_users')!) : {}) as User[] : [];
+        const allUsers = getAllUsers();
         const allTrades: (SpotTrade | ContractTrade)[] = [];
-        allUsers.forEach((u: any) => {
+        allUsers.forEach((u) => {
             const userData = getUserData(u.id);
             if (userData.historicalTrades) {
                 allTrades.push(...userData.historicalTrades);
             }
         });
         return allTrades;
-    }, [getUserById]);
+    }, [getAllUsers]);
 
     const getAllUserInvestments = useCallback(() => {
         if (typeof window === 'undefined') return [];
-        const allUsers = getUserById ? Object.values(localStorage.getItem('tradeflow_users') ? JSON.parse(localStorage.getItem('tradeflow_users')!) : {}) as User[] : [];
+        const allUsers = getAllUsers();
         const allInvestments: Investment[] = [];
-        allUsers.forEach((u: any) => {
+        allUsers.forEach((u) => {
             const userData = getUserData(u.id);
             if (userData.investments) {
                 const userInvestments = userData.investments.map(inv => ({
@@ -136,7 +137,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             }
         });
         return allInvestments;
-    }, [getUserById]);
+    }, [getAllUsers]);
 
     const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
         if (typeof window === 'undefined') return 0;
@@ -551,8 +552,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         id: `st-${Date.now()}`,
         type: trade.type,
         amount: trade.amount,
-        price: currentPrice,
         total: trade.total,
+        price: currentPrice,
         user_id: user.id,
         trading_pair: trade.trading_pair,
         base_asset: baseAsset,

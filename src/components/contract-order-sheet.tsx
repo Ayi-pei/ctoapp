@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import { useSettings } from "@/context/settings-context";
 import { useSystemSettings } from "@/context/system-settings-context";
+import { useTasks } from "@/context/tasks-context";
 
 type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -58,6 +59,7 @@ export function ContractOrderSheet({
   const { toast } = useToast();
   const { settings } = useSettings();
   const { systemSettings } = useSystemSettings();
+  const { triggerTaskCompletion } = useTasks();
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
@@ -180,6 +182,9 @@ export function ContractOrderSheet({
         title: "下单成功",
         description: `您已成功下单 ${numericAmount} ${quoteAsset} 进行 ${orderTypeText}。`
     });
+
+    // Trigger task completion
+    triggerTaskCompletion('contract_trade');
     
     resetState();
   };
