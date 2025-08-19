@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import { useSettings } from './settings-context';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
@@ -16,27 +16,34 @@ const API_SOURCES = ['coingecko', 'coinpaprika'];
 
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
-    'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin' },
-    'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum' },
-    'SOL/USDT': { coingecko: 'solana', coinpaprika: 'sol-solana' },
-    'XRP/USDT': { coingecko: 'ripple', coinpaprika: 'xrp-xrp' },
-    'LTC/USDT': { coingecko: 'litecoin', coinpaprika: 'ltc-litecoin' },
-    'BNB/USDT': { coingecko: 'binancecoin', coinpaprika: 'bnb-binance-coin' },
-    'MATIC/USDT': { coingecko: 'matic-network', coinpaprika: 'matic-polygon' },
-    'DOGE/USDT': { coingecko: 'dogecoin', coinpaprika: 'doge-dogecoin' },
-    'ADA/USDT': { coingecko: 'cardano', coinpaprika: 'ada-cardano' },
-    'SHIB/USDT': { coingecko: 'shiba-inu', coinpaprika: 'shib-shiba-inu' },
-    'AVAX/USDT': { coingecko: 'avalanche-2', coinpaprika: 'avax-avalanche' },
-    'LINK/USDT': { coingecko: 'chainlink', coinpaprika: 'link-chainlink' },
-    'DOT/USDT': { coingecko: 'polkadot', coinpaprika: 'dot-polkadot' },
-    'UNI/USDT': { coingecko: 'uniswap', coinpaprika: 'uni-uniswap' },
-    'TRX/USDT': { coingecko: 'tron', coinpaprika: 'trx-tron' },
-    'XLM/USDT': { coingecko: 'stellar', coinpaprika: 'xlm-stellar' },
-    'VET/USDT': { coingecko: 'vechain', coinpaprika: 'vet-vechain' },
-    'EOS/USDT': { coingecko: 'eos', coinpaprika: 'eos-eos' },
-    'FIL/USDT': { coingecko: 'filecoin', coinpaprika: 'fil-filecoin' },
-    'ICP/USDT': { coingecko: 'internet-computer', coinpaprika: 'icp-internet-computer' },
+const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string, yahoo?: string }> = {
+    'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin', yahoo: 'BTC-USD' },
+    'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum', yahoo: 'ETH-USD' },
+    'SOL/USDT': { coingecko: 'solana', coinpaprika: 'sol-solana', yahoo: 'SOL-USD' },
+    'XRP/USDT': { coingecko: 'ripple', coinpaprika: 'xrp-xrp', yahoo: 'XRP-USD' },
+    'LTC/USDT': { coingecko: 'litecoin', coinpaprika: 'ltc-litecoin', yahoo: 'LTC-USD' },
+    'BNB/USDT': { coingecko: 'binancecoin', coinpaprika: 'bnb-binance-coin', yahoo: 'BNB-USD' },
+    'MATIC/USDT': { coingecko: 'matic-network', coinpaprika: 'matic-polygon', yahoo: 'MATIC-USD' },
+    'DOGE/USDT': { coingecko: 'dogecoin', coinpaprika: 'doge-dogecoin', yahoo: 'DOGE-USD' },
+    'ADA/USDT': { coingecko: 'cardano', coinpaprika: 'ada-cardano', yahoo: 'ADA-USD' },
+    'SHIB/USDT': { coingecko: 'shiba-inu', coinpaprika: 'shib-shiba-inu', yahoo: 'SHIB-USD' },
+    'AVAX/USDT': { coingecko: 'avalanche-2', coinpaprika: 'avax-avalanche', yahoo: 'AVAX-USD' },
+    'LINK/USDT': { coingecko: 'chainlink', coinpaprika: 'link-chainlink', yahoo: 'LINK-USD' },
+    'DOT/USDT': { coingecko: 'polkadot', coinpaprika: 'dot-polkadot', yahoo: 'DOT-USD' },
+    'UNI/USDT': { coingecko: 'uniswap', coinpaprika: 'uni-uniswap', yahoo: 'UNI-USD' },
+    'TRX/USDT': { coingecko: 'tron', coinpaprika: 'trx-tron', yahoo: 'TRX-USD' },
+    'XLM/USDT': { coingecko: 'stellar', coinpaprika: 'xlm-stellar', yahoo: 'XLM-USD' },
+    'VET/USDT': { coingecko: 'vechain', coinpaprika: 'vet-vechain', yahoo: 'VET-USD' },
+    'EOS/USDT': { coingecko: 'eos', coinpaprika: 'eos-eos', yahoo: 'EOS-USD' },
+    'FIL/USDT': { coingecko: 'filecoin', coinpaprika: 'fil-filecoin', yahoo: 'FIL-USD' },
+    'ICP/USDT': { coingecko: 'internet-computer', coinpaprika: 'icp-internet-computer', yahoo: 'ICP-USD' },
+    // Non-crypto mappings
+    'XAU/USD': { yahoo: 'GC=F' }, // Gold Futures
+    'EUR/USD': { yahoo: 'EURUSD=X' },
+    'GBP/USD': { yahoo: 'GBPUSD=X' },
+    'OIL/USD': { yahoo: 'CL=F' }, // Crude Oil Futures
+    'XAG/USD': { yahoo: 'SI=F' }, // Silver Futures
+    'NAS100/USD': { yahoo: 'NQ=F' }, // Nasdaq 100 Futures
 };
 
 type ApiState = {
@@ -63,36 +70,20 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>({
-        // Set initial default prices for non-crypto assets
-        'XAU/USD': 2300,
-        'EUR/USD': 1.07,
-        'GBP/USD': 1.25,
-        'OIL/USD': 80,
-        'XAG/USD': 29,
-        'NAS100/USD': 19000,
-    });
     
     // THIS IS THE NEW SOURCE OF TRUTH FOR ALL TRADING LOGIC
     const getLatestPrice = useCallback((pair: string): number => {
-        return simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
-    }, [simulatedPrices, summaryData]);
-
-
-    const fetchMarketData = useCallback(async (isRetry = false) => {
+        return summaryData.find(s => s.pair === pair)?.price || 0;
+    }, [summaryData]);
+    
+    const fetchCryptoData = useCallback(async (isRetry = false) => {
         const storedIndex = localStorage.getItem('apiSourceIndex');
         const currentIndex = storedIndex ? parseInt(storedIndex, 10) : 0;
         let currentSource = API_SOURCES[currentIndex];
-        
-        // Ensure Coinpaprika is used for markets endpoint as it provides more data
-        if (currentSource !== 'coinpaprika') {
-            currentSource = 'coinpaprika';
-        }
 
-        const allPairs = [...CRYPTO_PAIRS, ...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
-        const ids = allPairs.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
+        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
         
-        if (ids.length === 0 && currentSource !== 'coinpaprika') return;
+        if (ids.length === 0) return;
 
         try {
             const response = await axios.get('/api/market-data', {
@@ -109,48 +100,78 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const updatedData = [...prev];
                 newSummaryData.forEach(newItem => {
                     const index = updatedData.findIndex(item => item.pair === newItem.pair);
-                    
                     if (index !== -1) {
                         updatedData[index] = { ...updatedData[index], ...newItem};
                     } else {
                         updatedData.push(newItem);
                     }
-
-                    // Initialize simulated price if it doesn't exist, only once
-                    setSimulatedPrices(prevPrices => {
-                        if (!prevPrices[newItem.pair]) {
-                            return { ...prevPrices, [newItem.pair]: newItem.price };
-                        }
-                        return prevPrices;
-                    });
                 });
                 return updatedData;
             });
 
         } catch (error) {
-            console.error(`Error fetching market summary from ${currentSource}:`, error);
-            if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
+            console.error(`Error fetching crypto summary from ${currentSource}:`, error);
+             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
                 const nextIndex = (currentIndex + 1) % API_SOURCES.length;
                 localStorage.setItem('apiSourceIndex', nextIndex.toString());
                 if (!isRetry) {
-                   setTimeout(() => fetchMarketData(true), 1000); 
+                   setTimeout(() => fetchCryptoData(true), 1000); 
                 }
             }
         }
     }, []);
 
+    const fetchYahooData = useCallback(async () => {
+        const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
+        const symbolsToFetch = nonCryptoPairs.map(pair => apiIdMap[pair]?.yahoo).filter(Boolean) as string[];
+
+        const promises = symbolsToFetch.map(async (symbol) => {
+            try {
+                const response = await axios.get(`/api/quote/${symbol}`);
+                const data = response.data;
+                const pair = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
+                
+                return {
+                    pair: pair,
+                    price: data.regularMarketPrice || 0,
+                    change: data.regularMarketChangePercent * 100 || 0,
+                    volume: data.regularMarketVolume || 0,
+                    high: data.regularMarketDayHigh || 0,
+                    low: data.regularMarketDayLow || 0,
+                    icon: `/images/instrument-icons/${pair.split('/')[0].toLowerCase()}.png`,
+                } as MarketSummary;
+            } catch (error) {
+                console.error(`Failed to fetch from Yahoo for ${symbol}:`, error);
+                return null;
+            }
+        });
+        
+        const results = await Promise.all(promises);
+        const newSummaryData = results.filter(Boolean) as MarketSummary[];
+
+        setSummaryData(prev => {
+            const updatedData = [...prev];
+            newSummaryData.forEach(newItem => {
+                const index = updatedData.findIndex(item => item.pair === newItem.pair);
+                if (index !== -1) {
+                    updatedData[index] = { ...updatedData[index], ...newItem};
+                } else {
+                    updatedData.push(newItem);
+                }
+            });
+            return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+        });
+
+    }, []);
+
     const fetchKlineData = useCallback(async (pair: string) => {
-        if (!CRYPTO_PAIRS.includes(pair)) return;
-        
-        const currentSource = 'coingecko';
         const coingeckoId = apiIdMap[pair]?.coingecko;
-        
         if (!coingeckoId) return;
 
         try {
             const response = await axios.get('/api/market-data', {
                 params: {
-                    source: currentSource,
+                    source: 'coingecko',
                     endpoint: 'ohlc',
                     pairId: coingeckoId,
                 }
@@ -160,123 +181,30 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
 
         } catch (error) {
-            console.error(`Error fetching k-line data for ${pair} via ${currentSource} proxy:`, error);
+            console.error(`Error fetching k-line data for ${pair} via coingecko proxy:`, error);
         }
     }, []);
 
 
-    // Second-by-second simulation engine
+    // Initial data fetch and periodic refresh
     useEffect(() => {
-        const simulationInterval = setInterval(() => {
-            const now = new Date();
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        fetchCryptoData();
+        fetchYahooData();
+        const cryptoInterval = setInterval(fetchCryptoData, 60000); // 1 minute for crypto
+        const yahooInterval = setInterval(fetchYahooData, 15000); // 15 seconds for real markets
 
-            const newPrices: Record<string, number> = {};
+        return () => {
+            clearInterval(cryptoInterval);
+            clearInterval(yahooInterval);
+        };
+    }, [fetchCryptoData, fetchYahooData]);
 
-            availablePairs.forEach(pair => {
-                const pairSettings = settings[pair];
-                const lastSimulatedPrice = getLatestPrice(pair);
-                
-                if (lastSimulatedPrice === 0) return; // Don't simulate if no base price
-
-                let nextPrice = lastSimulatedPrice;
-                let overrideApplied = false;
-
-                // 1. Highest Priority: Timed Market Presets
-                if (timedMarketPresets?.length) {
-                    for (const preset of timedMarketPresets) {
-                        if (preset.pair !== pair) continue;
-
-                        const [startH, startM] = preset.startTime.split(':').map(Number);
-                        const [endH, endM] = preset.endTime.split(':').map(Number);
-                        const startMinutes = startH * 60 + startM;
-                        const endMinutes = endH * 60 + endM;
-                        
-                        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                             const targetPrice = preset.action === 'buy' ? preset.maxPrice : preset.minPrice;
-                             // Move price towards target
-                             nextPrice = lastSimulatedPrice + (targetPrice - lastSimulatedPrice) * 0.1;
-                             overrideApplied = true;
-                             break;
-                        }
-                    }
-                }
-                
-                // 2. Second Priority: Scheduled market overrides from settings
-                if (!overrideApplied && pairSettings?.marketOverrides?.length) {
-                    for (const override of pairSettings.marketOverrides) {
-                        const [startH, startM] = override.startTime.split(':').map(Number);
-                        const [endH, endM] = override.endTime.split(':').map(Number);
-                        const startMinutes = startH * 60 + startM;
-                        const endMinutes = endH * 60 + endM;
-
-                        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-                            nextPrice = randomInRange(override.minPrice, override.maxPrice);
-                            overrideApplied = true;
-                            break;
-                        }
-                    }
-                }
-                
-                // 3. Default Simulation Logic (if no overrides are active)
-                if (!overrideApplied) {
-                    const volatility = pairSettings?.volatility || 0.0005;
-                    const trendStrength = 0.0001;
-                    
-                    let trendEffect = 0;
-                    if (pairSettings?.trend === 'up') trendEffect = trendStrength;
-                    if (pairSettings?.trend === 'down') trendEffect = -trendStrength;
-                    
-                    const randomFactor = (Math.random() - 0.5) * volatility;
-                    nextPrice = lastSimulatedPrice * (1 + trendEffect + randomFactor);
-                }
-                
-                newPrices[pair] = nextPrice;
-            });
-            
-            setSimulatedPrices(prev => ({...prev, ...newPrices}));
-
-        }, 3000); // Refresh prices every 3 seconds for a more realistic feel
-
-        return () => clearInterval(simulationInterval);
-    }, [settings, getLatestPrice, timedMarketPresets]);
-
-    // This effect ensures that summary data for non-crypto assets is initialized
-    // and updated based on simulated prices.
+    // Fetch K-line data when trading pair changes
     useEffect(() => {
-        const allAssetPairs = [...CRYPTO_PAIRS, ...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
-        
-        const updatedSummaryData = allAssetPairs.map(pair => {
-            const existingSummary = summaryData.find(s => s.pair === pair);
-            const currentPrice = getLatestPrice(pair);
-
-            if (existingSummary) {
-                const oldPrice = existingSummary.price;
-                const change = oldPrice > 0 ? ((currentPrice - oldPrice) / oldPrice) * 100 : 0;
-                return {
-                    ...existingSummary,
-                    price: currentPrice,
-                    change: isNaN(change) ? 0 : change,
-                    high: Math.max(existingSummary.high, currentPrice),
-                    low: existingSummary.low > 0 ? Math.min(existingSummary.low, currentPrice) : currentPrice,
-                };
-            } else {
-                 return {
-                    pair,
-                    price: currentPrice,
-                    change: 0,
-                    volume: 0,
-                    high: currentPrice,
-                    low: currentPrice,
-                    icon: `https://placehold.co/32x32.png` // Placeholder icon
-                };
-            }
-        });
-
-        setSummaryData(updatedSummaryData);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [simulatedPrices]);
+        if (tradingPair) {
+            fetchKlineData(tradingPair);
+        }
+    }, [tradingPair, fetchKlineData]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
