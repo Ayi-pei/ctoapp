@@ -70,63 +70,31 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData]);
     
     const fetchCryptoData = useCallback(async () => {
-        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean);
-        if (tatumIds.length === 0) return;
+        const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
+        if (coingeckoIds.length === 0) return;
 
-        const promises = tatumIds.map(async (tatumId) => {
-             const pair = Object.keys(apiIdMap).find(key => apiIdMap[key]?.tatum === tatumId) || "Unknown";
-             const coingeckoId = apiIdMap[pair]?.coingecko;
-             if (!coingeckoId) return null;
-
-             try {
-                // This call happens on the server via the AI flow, which can access process.env
-                const response = await fetch(`/api/genkit/flow/getMarketDataFlow`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ assetIds: [tatumId] }),
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch data for ${tatumId}, status: ${response.status}`);
-                }
-                const result = await response.json();
-                const rateData = result?.data?.[tatumId.toLowerCase()];
-
-                if (rateData && rateData.priceUsd) {
-                    const price = parseFloat(rateData.priceUsd);
-                     return {
-                        pair: pair,
-                        price: price,
-                        change: parseFloat(rateData.changePercent24Hr) || 0,
-                        volume: parseFloat(rateData.volumeUsd24Hr) || 0,
-                        high: price, // V4 doesn't provide high/low
-                        low: price,
-                        icon: `https://assets.coingecko.com/coins/images/${coingeckoId}/large.png`,
-                    } as MarketSummary;
-                }
-                return null;
-
-            } catch (error) {
-                console.error(`Error fetching Tatum summary for ${tatumId}:`, error);
-                return null;
-            }
-        });
-
-        const results = (await Promise.all(promises)).filter(Boolean) as MarketSummary[];
-        
-         setSummaryData(prev => {
-            const updatedData = [...prev];
-            results.forEach(newItem => {
-                const index = updatedData.findIndex(item => item.pair === newItem.pair);
-                if (index !== -1) {
-                    updatedData[index] = { ...updatedData[index], ...newItem};
-                } else {
-                    updatedData.push(newItem);
+        try {
+            const response = await axios.get('/api/market-data', {
+                params: {
+                    type: 'summary',
+                    ids: coingeckoIds.join(','),
                 }
             });
-            return updatedData;
-        });
+            const fetchedSummaries = response.data;
+            const newSummaryData = fetchedSummaries.map((s: any) => ({
+                ...s,
+                icon: `https://assets.coingecko.com/coins/images/${apiIdMap[s.pair]?.coingecko}/large.png`,
+            }));
 
+            setSummaryData(prev => {
+                const updatedData = [...prev.filter(d => !CRYPTO_PAIRS.includes(d.pair))]; // Remove old crypto data
+                updatedData.push(...newSummaryData);
+                return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+            });
+
+        } catch (error) {
+            console.error("Error fetching crypto summary from proxy:", error);
+        }
     }, []);
 
     const fetchYahooData = useCallback(async () => {
@@ -158,7 +126,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         const newSummaryData = results.filter(Boolean) as MarketSummary[];
 
         setSummaryData(prev => {
-            const updatedData = [...prev];
+            const updatedData = [...prev.filter(d => nonCryptoPairs.includes(d.pair))]; // Remove old non-crypto data to avoid duplicates
+            const nonCryptoPrev = prev.filter(p => !nonCryptoPairs.includes(p.pair));
+            
             newSummaryData.forEach(newItem => {
                 const index = updatedData.findIndex(item => item.pair === newItem.pair);
                 if (index !== -1) {
@@ -167,29 +137,24 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     updatedData.push(newItem);
                 }
             });
-            return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+
+            return [...nonCryptoPrev, ...updatedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
         });
 
     }, []);
 
     const fetchKlineData = useCallback(async (pair: string) => {
-        const coingeckoId = apiIdMap[pair]?.coingecko;
-        if (!coingeckoId) return;
-
         try {
-            // Using a simple proxy to bypass CORS for Coingecko's free API for k-line data
-            const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc?vs_currency=usd&days=1`);
-            const newOhlcData: OHLC[] = response.data.map((d: number[]) => ({
-                time: d[0],
-                open: d[1],
-                high: d[2],
-                low: d[3],
-                close: d[4],
-            }));
-            setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
+            const response = await axios.get(`/api/market-data`, {
+                params: {
+                    type: 'kline',
+                    pair: pair,
+                }
+            });
+            setKlineData(prev => ({ ...prev, [pair]: response.data }));
 
         } catch (error) {
-            console.error(`Error fetching k-line data for ${pair} from coingecko:`, error);
+            console.error(`Error fetching k-line data for ${pair} from proxy:`, error);
         }
     }, []);
 
