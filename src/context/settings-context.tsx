@@ -13,16 +13,6 @@ export type SpecialTimeFrame = {
     profitRate: number; 
 };
 
-export type TimedMarketPreset = {
-    id: string;
-    action: 'buy' | 'sell';
-    startTime: string;
-    endTime: string;
-    pair: string;
-    minPrice: number;
-    maxPrice: number;
-}
-
 export type MarketOverridePreset = {
     id: string;
     startTime: string;
@@ -48,14 +38,10 @@ type AllSettings = {
 
 interface SettingsContextType {
     settings: AllSettings;
-    timedMarketPresets: TimedMarketPreset[];
     updateSettings: (pair: string, newSettings: Partial<TradingPairSettings>) => void;
     addSpecialTimeFrame: (pair: string) => void;
     removeSpecialTimeFrame: (pair: string, frameId: string) => void;
     updateSpecialTimeFrame: (pair: string, frameId: string, updates: Partial<SpecialTimeFrame>) => void;
-    addTimedMarketPreset: () => void;
-    removeTimedMarketPreset: (presetId: string) => void;
-    updateTimedMarketPreset: (presetId: string, updates: Partial<TimedMarketPreset>) => void;
     addMarketOverride: (pair: string) => void;
     removeMarketOverride: (pair: string, overrideId: string) => void;
     updateMarketOverride: (pair: string, overrideId: string, updates: Partial<MarketOverridePreset>) => void;
@@ -80,7 +66,6 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const [settings, setSettings] = useState<AllSettings>(defaultSettings);
-    const [timedMarketPresets, setTimedMarketPresets] = useState<TimedMarketPreset[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     
      // Load settings from localStorage on initial render
@@ -90,9 +75,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             if (storedSettings) {
                 const parsed = JSON.parse(storedSettings);
                 // Merge with defaults to handle cases where new pairs are added
+                // We no longer need to handle timedMarketPresets here.
                 const mergedSettings = { ...defaultSettings, ...parsed };
+                delete mergedSettings.timedMarketPresets; // Clean up old property if it exists
                 setSettings(mergedSettings);
-                setTimedMarketPresets(parsed.timedMarketPresets || []);
             } else {
                 setSettings(defaultSettings);
             }
@@ -107,16 +93,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (isLoaded) {
             try {
-                const dataToStore = {
-                    ...settings,
-                    timedMarketPresets: timedMarketPresets
-                };
-                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(dataToStore));
+                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
             } catch (error) {
                 console.error("Failed to save settings to localStorage", error);
             }
         }
-    }, [settings, timedMarketPresets, isLoaded]);
+    }, [settings, isLoaded]);
 
     const updateSettings = useCallback((pair: string, newSettings: Partial<TradingPairSettings>) => {
         setSettings(prevSettings => {
@@ -181,26 +163,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
-    const addTimedMarketPreset = useCallback(() => {
-        setTimedMarketPresets(prev => [...prev, {
-            id: `preset_${Date.now()}`,
-            action: 'buy',
-            startTime: '12:00',
-            endTime: '13:00',
-            pair: availablePairs[0],
-            minPrice: 65000,
-            maxPrice: 65100,
-        }]);
-    }, []);
-
-    const removeTimedMarketPreset = useCallback((presetId: string) => {
-        setTimedMarketPresets(prev => prev.filter(p => p.id !== presetId));
-    }, []);
-
-    const updateTimedMarketPreset = useCallback((presetId: string, updates: Partial<TimedMarketPreset>) => {
-        setTimedMarketPresets(prev => prev.map(p => p.id === presetId ? { ...p, ...updates } : p));
-    }, []);
-
     const addMarketOverride = useCallback((pair: string) => {
         setSettings(prev => {
             const newOverride: MarketOverridePreset = {
@@ -250,14 +212,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return (
         <SettingsContext.Provider value={{ 
             settings, 
-            timedMarketPresets,
             updateSettings, 
             addSpecialTimeFrame, 
             removeSpecialTimeFrame, 
             updateSpecialTimeFrame,
-            addTimedMarketPreset,
-            removeTimedMarketPreset,
-            updateTimedMarketPreset,
             addMarketOverride,
             removeMarketOverride,
             updateMarketOverride,

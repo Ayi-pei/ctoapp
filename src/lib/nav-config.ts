@@ -31,7 +31,6 @@ export const adminNavItems = [
             { href: '/admin/settings/general', label: '通用设置', icon: SlidersHorizontal },
             { href: '/admin/settings/market', label: '市场设置', icon: LineChart },
             { href: '/admin/settings/investment', label: '理财产品', icon: Package },
-            { href: '/admin/settings/presets', label: '定时预设', icon: Coins },
         ]
     },
 ]
