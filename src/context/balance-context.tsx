@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier, ActionLog } from '@/types';
 import { useAuth } from './auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -90,11 +90,12 @@ interface BalanceContextType {
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
+const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
+
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById, getAllUsers, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
-  const { logs } = useLogs();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -585,13 +586,26 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return allInvestments;
   }, [getAllUsers]);
 
-  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    return logs.filter(log => 
-        log.entity_type === 'task_completion' && 
-        log.created_at.startsWith(targetDate)
-    ).length;
-  }, [logs]);
+    const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
+        if (typeof window === 'undefined') return 0;
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        
+        try {
+            const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
+            if (!storedLogs) return 0;
+            
+            const allLogs: ActionLog[] = JSON.parse(storedLogs);
+            
+            return allLogs.filter(log => 
+                log.entity_type === 'task_completion' && 
+                log.created_at.startsWith(targetDate)
+            ).length;
+
+        } catch (error) {
+            console.error("Failed to read or parse logs from localStorage", error);
+            return 0;
+        }
+    }, []);
   
   const value = { 
       balances, 
