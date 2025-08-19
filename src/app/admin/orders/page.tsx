@@ -5,10 +5,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
+import { useBalance } from '@/context/balance-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import { SpotTrade, ContractTrade, Investment } from '@/types';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,52 +32,6 @@ type FormattedOrder = AllOrderTypes & {
     statusText: string;
 };
 
-
-const getAllUserHistoricalTrades = (): (SpotTrade | ContractTrade)[] => {
-    if (typeof window === 'undefined') return [];
-    
-    const allTrades: (SpotTrade | ContractTrade)[] = [];
-    const userKeys = Object.keys(localStorage).filter(key => key.startsWith('tradeflow_user_'));
-    
-    userKeys.forEach(key => {
-        try {
-            const userData = JSON.parse(localStorage.getItem(key) || '{}');
-            if (userData.historicalTrades && Array.isArray(userData.historicalTrades)) {
-                allTrades.push(...userData.historicalTrades);
-            }
-        } catch (e) {
-            console.error(`Failed to parse trade data for key ${key}`, e);
-        }
-    });
-
-    return allTrades;
-}
-
-const getAllUserInvestments = (): Investment[] => {
-    if (typeof window === 'undefined') return [];
-
-    const allInvestments: Investment[] = [];
-     const userKeys = Object.keys(localStorage).filter(key => key.startsWith('tradeflow_user_'));
-
-    userKeys.forEach(key => {
-        try {
-            const userData = JSON.parse(localStorage.getItem(key) || '{}');
-            if (userData.investments && Array.isArray(userData.investments)) {
-                // Add user_id to each investment for admin view
-                const userInvestments = userData.investments.map((inv: Investment) => ({
-                    ...inv,
-                    user_id: key.replace('tradeflow_user_', '')
-                }));
-                allInvestments.push(...userInvestments);
-            }
-        } catch (e) {
-            console.error(`Failed to parse investment data for key ${key}`, e);
-        }
-    });
-    
-    return allInvestments;
-}
-
 const getOrderStatusText = (order: FormattedOrder) => {
     if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
     if (order.orderTypeText === 'contract') {
@@ -97,6 +51,7 @@ const getOrderStatusText = (order: FormattedOrder) => {
 
 export default function AdminOrdersPage() {
     const { isAdmin, getUserById } = useAuth();
+    const { getAllHistoricalTrades, getAllUserInvestments } = useBalance();
     const router = useRouter();
     const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
     
@@ -109,36 +64,34 @@ export default function AdminOrdersPage() {
         if (isAdmin === false) {
             router.push('/');
         } else if (isAdmin === true) {
-            if (typeof window !== 'undefined') {
-                const allHistoricalTrades = getAllUserHistoricalTrades();
-                const allInvestments = getAllUserInvestments();
+            const allHistoricalTrades = getAllHistoricalTrades();
+            const allInvestments = getAllUserInvestments();
 
-                const combinedOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
+            const combinedOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
 
-                const formattedOrders = combinedOrders.map(t => {
-                    const user = getUserById(t.user_id);
-                    let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
-                    if ('orderType' in t) {
-                        orderTypeText = t.orderType;
-                    } else if ('product_name' in t) {
-                        orderTypeText = 'investment';
-                    }
-                    
-                    const baseFormatted = {
-                        ...t,
-                        userId: user?.username || t.user_id,
-                        orderTypeText: orderTypeText,
-                    } as FormattedOrder;
-                    
-                    return { ...baseFormatted, statusText: getOrderStatusText(baseFormatted) };
+            const formattedOrders = combinedOrders.map(t => {
+                const user = getUserById(t.user_id);
+                let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
+                if ('orderType' in t) {
+                    orderTypeText = t.orderType;
+                } else if ('product_name' in t) {
+                    orderTypeText = 'investment';
+                }
+                
+                const baseFormatted = {
+                    ...t,
+                    userId: user?.username || t.user_id,
+                    orderTypeText: orderTypeText,
+                } as FormattedOrder;
+                
+                return { ...baseFormatted, statusText: getOrderStatusText(baseFormatted) };
 
-                }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
 
-                setAllOrders(formattedOrders);
-            }
+            setAllOrders(formattedOrders);
         }
-    }, [isAdmin, router, getUserById]);
+    }, [isAdmin, router, getUserById, getAllHistoricalTrades, getAllUserInvestments]);
     
     const filteredOrders = useMemo(() => {
         return allOrders.filter(order => {

@@ -81,12 +81,14 @@ interface BalanceContextType {
   handleCheckIn: () => Promise<{ success: boolean; reward: number; message?: string; }>;
   lastCheckInDate?: string;
   consecutiveCheckIns: number;
+  getAllHistoricalTrades: () => (SpotTrade | ContractTrade)[];
+  getAllUserInvestments: () => Investment[];
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById } = useAuth();
+  const { user, getUserById, getAllUsers } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   
@@ -549,6 +551,34 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
     return getUserData(userId).balances;
   }, []);
+
+  const getAllHistoricalTrades = useCallback((): (SpotTrade | ContractTrade)[] => {
+    const allUsers = getAllUsers();
+    const allTrades: (SpotTrade | ContractTrade)[] = [];
+    allUsers.forEach(u => {
+        const userData = getUserData(u.id);
+        if (userData.historicalTrades) {
+            allTrades.push(...userData.historicalTrades);
+        }
+    });
+    return allTrades;
+  }, [getAllUsers]);
+
+  const getAllUserInvestments = useCallback((): Investment[] => {
+    const allUsers = getAllUsers();
+    const allInvestments: Investment[] = [];
+    allUsers.forEach(u => {
+        const userData = getUserData(u.id);
+        if (userData.investments) {
+            const userInvestments = userData.investments.map(inv => ({
+                ...inv,
+                user_id: u.id 
+            }));
+            allInvestments.push(...userInvestments);
+        }
+    });
+    return allInvestments;
+  }, [getAllUsers]);
   
   const value = { 
       balances, 
@@ -568,7 +598,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       revertWithdrawal,
       handleCheckIn,
       lastCheckInDate,
-      consecutiveCheckIns
+      consecutiveCheckIns,
+      getAllHistoricalTrades,
+      getAllUserInvestments,
     };
 
   return (

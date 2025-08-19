@@ -16,24 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Copy, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const getAllUsers = (): User[] => {
-    if (typeof window === 'undefined') return [];
-    
-    const storedUsersData = localStorage.getItem('tradeflow_users');
-    if (!storedUsersData) return [];
-
-    try {
-        const usersObject = JSON.parse(storedUsersData);
-        return Object.values(usersObject);
-    } catch (e) {
-        console.error("Failed to parse users from localStorage", e);
-        return [];
-    }
-}
-
 
 export default function AdminUsersPage() {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, getAllUsers } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     
@@ -47,7 +32,7 @@ export default function AdminUsersPage() {
         if (!isAdmin) return;
         const allUsers = getAllUsers();
         setUsers(allUsers);
-    }, [isAdmin]);
+    }, [isAdmin, getAllUsers]);
 
     useEffect(() => {
         if (isAdmin === false) {

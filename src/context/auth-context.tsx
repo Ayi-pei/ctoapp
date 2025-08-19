@@ -20,6 +20,7 @@ interface AuthContextType {
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   isLoading: boolean;
   getUserById: (id: string) => User | null;
+  getAllUsers: () => User[];
   getDownline: (userId: string) => User[];
   updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
 }
@@ -162,6 +163,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return allUsers[id] || null;
   }
 
+  const getAllUsers = (): User[] => {
+    const usersObject = getMockUsers();
+    return Object.values(usersObject);
+  }
+
   const getDownline = (userId: string) => {
     const allUsers = getMockUsers();
     let downline: User[] = [];
@@ -214,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     isLoading,
     getUserById,
+    getAllUsers,
     getDownline,
     updateUser,
   };
