@@ -23,6 +23,7 @@ interface AuthContextType {
   getAllUsers: () => User[];
   getDownline: (userId: string) => User[];
   updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
+  reloadUser: () => void; // New function to reload user state from storage
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,6 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false);
   }, []);
+  
+  const reloadUser = () => {
+    const storedUser = localStorage.getItem('userSession');
+    if (storedUser) {
+        setUser(JSON.parse(storedUser));
+    }
+  };
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const result = await apiLogin(username, password);
@@ -223,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getAllUsers,
     getDownline,
     updateUser,
+    reloadUser,
   };
 
   return (
