@@ -46,20 +46,6 @@ export default function AdminGeneralSettingsPage() {
                                 onCheckedChange={(checked: boolean) => updateSetting('contractTradingEnabled', checked)}
                             />
                         </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
-                            <Label htmlFor="enable-ai-analysis" className="font-semibold text-base">
-                                开启AI智能分析
-                                <p className="text-xs font-normal text-muted-foreground mt-1">
-                                    关闭后，交易页面的“AI智能分析”功能将对所有用户隐藏。
-                                </p>
-                            </Label>
-                            <Switch
-                                id="enable-ai-analysis"
-                                checked={systemSettings.aiAnalysisEnabled}
-                                onCheckedChange={(checked: boolean) => updateSetting('aiAnalysisEnabled', checked)}
-                            />
-                        </div>
                         
                         {supportedAssets.map((asset) => (
                             <div className="space-y-2" key={asset}>

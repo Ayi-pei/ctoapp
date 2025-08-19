@@ -8,13 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
-import { Clock, ListTodo, Trash2, Sparkles, LoaderCircle } from "lucide-react";
+import { Clock, ListTodo, Trash2 } from "lucide-react";
 import { useSettings } from "@/context/settings-context";
 import { useMarket } from "@/context/market-data-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getMarketAnalysis } from "@/ai/flows/get-market-analysis";
-import { useSystemSettings } from "@/context/system-settings-context";
-
+import { availablePairs as allAvailablePairs } from "@/types"; // Renamed to avoid conflict
 
 type ScheduledTrade = {
     id: string;
@@ -26,110 +24,11 @@ type ScheduledTrade = {
     timeoutId: NodeJS.Timeout;
 };
 
-type AiAnalysisProps = {
+type SmartTradeProps = {
     tradingPair: string;
 };
 
-export function SmartTrade({ tradingPair }: AiAnalysisProps) {
-    const { toast } = useToast();
-    const { placeContractTrade } = useBalance();
-    const { klineData, summaryData } = useMarket();
-    const { systemSettings } = useSystemSettings(); // Get system settings
-
-    const [analysisResult, setAnalysisResult] = useState("");
-    const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-
-    const currentPairKline = klineData[tradingPair] || [];
-    const currentPairSummary = summaryData.find(s => s.pair === tradingPair);
-
-    const handleAiAnalysis = async () => {
-        if (!currentPairSummary) {
-            toast({
-                variant: "destructive",
-                title: "分析失败",
-                description: "缺少当前市场摘要数据，请稍后再试。"
-            });
-            return;
-        }
-
-        setIsAnalysisLoading(true);
-        setAnalysisResult("");
-
-        try {
-            const priceHistoryString = currentPairKline
-                .slice(-20) // Use last 20 data points
-                .map(d => `Time: ${new Date(d.time).toLocaleTimeString()}, Price: ${d.close.toFixed(4)}`)
-                .join('\\n');
-
-            // Simplified order book data for this example
-            const orderBookDataString = `Current Price: ${currentPairSummary.price.toFixed(4)}\n24h High: ${currentPairSummary.high.toFixed(4)}\n24h Low: ${currentPairSummary.low.toFixed(4)}`;
-
-            const result = await getMarketAnalysis({
-                orderBookData: orderBookDataString,
-                priceHistoryData: priceHistoryString,
-                tradingPair: tradingPair
-            });
-
-            if (result.analysis) {
-                setAnalysisResult(result.analysis);
-            } else {
-                throw new Error("AI did not return a valid analysis.");
-            }
-
-        } catch (error) {
-            console.error("Error getting AI market analysis:", error);
-            toast({
-                variant: "destructive",
-                title: "AI 分析出错",
-                description: "无法生成市场分析，请稍后再试。"
-            });
-        } finally {
-            setIsAnalysisLoading(false);
-        }
-    };
-
-
-    return (
-        <Card className="bg-card/50">
-            <CardHeader>
-                <CardTitle>AI 智能分析</CardTitle>
-                <CardDescription>由 AI 对当前市场数据进行分析，提供交易见解和建议。</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {systemSettings.aiAnalysisEnabled && (
-                    <>
-                        <Button onClick={handleAiAnalysis} disabled={isAnalysisLoading} className="w-full">
-                            {isAnalysisLoading ? (
-                                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Sparkles className="mr-2 h-4 w-4" />
-                            )}
-                            开始智能分析
-                        </Button>
-
-                        {isAnalysisLoading && (
-                            <div className="text-center p-4 text-muted-foreground">
-                                <p>AI 正在分析市场数据，请稍候...</p>
-                            </div>
-                        )}
-
-                        {analysisResult && (
-                            <div className="p-4 border rounded-md bg-muted/50 space-y-2">
-                                <h4 className="font-semibold text-primary">AI 分析结果:</h4>
-                                <p className="text-sm whitespace-pre-wrap">{analysisResult}</p>
-                            </div>
-                        )}
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
-// Keeping the old smart trade logic commented out for reference,
-// but it is now superseded by the AI Analysis feature.
-/*
-export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTradeProps) {
+export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps) {
   const { toast } = useToast();
   const { balances, placeContractTrade } = useBalance();
   const { settings } = useSettings();
@@ -163,6 +62,21 @@ export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTrad
   useEffect(() => {
     setQuantity("");
   }, [selectedPair]);
+
+  const getdefaultTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  
+  useEffect(() => {
+      setExecutionTime(getdefaultTime());
+  }, []);
 
   const handleScheduleTrade = (type: 'buy' | 'sell') => {
     const numericQuantity = parseFloat(quantity);
@@ -205,9 +119,13 @@ export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTrad
         const defaultPeriod = 30;
         const profitRate = pairSettings?.baseProfitRate || 0.85;
 
+        // Re-fetch the latest price at execution time for more accuracy
+        const latestPriceOnExecution = marketData[selectedPair]?.price || currentPrice;
+        const finalAmountInQuote = numericQuantity * latestPriceOnExecution;
+
         placeContractTrade({
             type,
-            amount: amountInQuoteAsset,
+            amount: finalAmountInQuote, // Use the more current amount
             period: defaultPeriod,
             profitRate: profitRate
         }, selectedPair);
@@ -250,21 +168,6 @@ export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTrad
         toast({ title: "已取消", description: "计划交易已成功取消。" });
     }
   }
-  
-  const getdefaultTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 5);
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
-  
-  useEffect(() => {
-      setExecutionTime(getdefaultTime());
-  }, []);
 
   return (
     <Card className="bg-card/50">
@@ -280,7 +183,7 @@ export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTrad
                         <SelectValue placeholder="选择一个交易对" />
                     </SelectTrigger>
                     <SelectContent>
-                        {availablePairs.map(pair => (
+                        {allAvailablePairs.map(pair => (
                             <SelectItem key={pair} value={pair}>{pair}</SelectItem>
                         ))}
                     </SelectContent>
@@ -345,4 +248,3 @@ export function SmartTrade_Legacy({ tradingPair: initialTradingPair }: SmartTrad
     </Card>
   );
 }
-*/
