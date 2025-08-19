@@ -233,3 +233,16 @@ export type UserTaskState = {
   date: string; // YYYY-MM-DD
   completed: boolean;
 };
+
+// Represents a limited-time activity configured by an admin
+export type LimitedTimeActivity = {
+    id: string;
+    title: string;
+    description: string;
+    rewardRule: string;
+    howToClaim: string;
+    expiresAt: string; // ISO date string
+    imgSrc?: string;
+    status: 'published' | 'draft';
+    createdAt: string; // ISO date string
+};

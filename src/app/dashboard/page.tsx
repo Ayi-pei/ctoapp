@@ -57,7 +57,7 @@ export default function DashboardPage() {
         { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download', labelPosition: 'top' },
         { name: '闪兑', imgSrc: '/images/dui.png', href: '/coming-soon', labelPosition: 'bottom' },
         { name: '秒合约', imgSrc: '/images/tt.png', href: '/trade?tab=contract', labelPosition: 'bottom' },
-        { name: '限时活动', imgSrc: '/images/time.png', href: '/coming-soon', labelPosition: 'bottom' },
+        { name: '限时活动', imgSrc: '/images/time.png', href: '/activities', labelPosition: 'bottom' },
         { name: '关于我们', imgSrc: '/images/me.png', href: '/coming-soon', labelPosition: 'bottom' },
     ];
     
