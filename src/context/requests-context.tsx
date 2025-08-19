@@ -153,7 +153,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
     const rejectRequest = async (requestId: string) => {
         const request = requests.find(r => r.id === requestId);
-        if (!request) return;
+        if (!request || request.status !== 'pending') return;
 
         if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
             revertWithdrawal(request.asset, request.amount, request.user_id);
