@@ -51,7 +51,7 @@ export default function DashboardPage() {
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
 
     const features = [
-        { name: '每日任务', imgSrc: '/images/book.png', href: '/coming-soon', labelPosition: 'top' },
+        { name: '每日任务', imgSrc: '/images/book.png', href: '/tasks', labelPosition: 'top' },
         { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true), labelPosition: 'top' },
         { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion', labelPosition: 'top' },
         { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download', labelPosition: 'top' },

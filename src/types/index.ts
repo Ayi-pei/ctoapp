@@ -213,3 +213,23 @@ export type RegisterUserResponse = {
     user_id?: string;
     message: string;
 };
+
+// Represents a daily task configured by an admin
+export type DailyTask = {
+  id: string;
+  title: string;
+  description: string;
+  reward: number; // USDT reward
+  reward_type: 'usdt' | 'credit_score';
+  link: string; // e.g. /trade?tab=contract
+  imgSrc?: string;
+  status: 'published' | 'draft';
+};
+
+
+// Represents the completion state of a task for a user for a specific day
+export type UserTaskState = {
+  taskId: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+};
