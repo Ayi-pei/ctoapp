@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
@@ -59,17 +59,15 @@ export default function AdminOrdersPage() {
     const [typeFilter, setTypeFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
-    
-    useEffect(() => {
-        if (isAdmin === false) {
-            router.push('/');
-        } else if (isAdmin === true) {
-            const allHistoricalTrades = getAllHistoricalTrades();
+
+    const loadData = useCallback(() => {
+        if (isAdmin === true) {
+            const allTrades = getAllHistoricalTrades();
             const allInvestments = getAllUserInvestments();
 
-            const combinedOrders: AllOrderTypes[] = [...allHistoricalTrades, ...allInvestments];
+            const combinedOrders: AllOrderTypes[] = [...allTrades, ...allInvestments];
 
-            const formattedOrders = combinedOrders.map(t => {
+            const formatted = combinedOrders.map(t => {
                 const user = getUserById(t.user_id);
                 let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
                 if ('orderType' in t) {
@@ -88,10 +86,17 @@ export default function AdminOrdersPage() {
 
             }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-
-            setAllOrders(formattedOrders);
+            setAllOrders(formatted);
         }
-    }, [isAdmin, router, getUserById, getAllHistoricalTrades, getAllUserInvestments]);
+    }, [isAdmin, getUserById, getAllHistoricalTrades, getAllUserInvestments]);
+    
+    useEffect(() => {
+        if (isAdmin === false) {
+            router.push('/');
+        } else {
+            loadData();
+        }
+    }, [isAdmin, router, loadData]);
     
     const filteredOrders = useMemo(() => {
         return allOrders.filter(order => {

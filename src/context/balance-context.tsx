@@ -8,6 +8,7 @@ import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
 import { useLogs } from './logs-context';
+import { useTasks } from './tasks-context';
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -38,8 +39,6 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
 };
 
 const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
-const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
-
 
 export type ContractTradeParams = {
   type: 'buy' | 'sell';
@@ -88,13 +87,20 @@ interface BalanceContextType {
   consecutiveCheckIns: number;
   getAllHistoricalTrades: () => (SpotTrade | ContractTrade)[];
   getAllUserInvestments: () => Investment[];
-  getAllTaskCompletionsForDate: (date?: string) => number;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
+// Helper to get all users directly from localStorage for data aggregation
+const getAllUsersFromStorage = (): User[] => {
+    if (typeof window === 'undefined') return [];
+    const storedUsers = localStorage.getItem('tradeflow_users');
+    return storedUsers ? Object.values(JSON.parse(storedUsers)) : [];
+};
+
+
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, updateUser, getAllUsers } = useAuth();
+  const { user, getUserById, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   const { addLog } = useLogs();
@@ -109,8 +115,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
     const getAllHistoricalTrades = useCallback(() => {
-        if (typeof window === 'undefined') return [];
-        const allUsers = getAllUsers();
+        const allUsers = getAllUsersFromStorage();
         const allTrades: (SpotTrade | ContractTrade)[] = [];
         allUsers.forEach((u) => {
             const userData = getUserData(u.id);
@@ -119,11 +124,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             }
         });
         return allTrades;
-    }, [getAllUsers]);
+    }, []);
 
     const getAllUserInvestments = useCallback(() => {
-        if (typeof window === 'undefined') return [];
-        const allUsers = getAllUsers();
+        const allUsers = getAllUsersFromStorage();
         const allInvestments: Investment[] = [];
         allUsers.forEach((u) => {
             const userData = getUserData(u.id);
@@ -136,24 +140,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             }
         });
         return allInvestments;
-    }, [getAllUsers]);
-
-    const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
-        if (typeof window === 'undefined') return 0;
-        const targetDate = date || new Date().toISOString().split('T')[0];
-        try {
-            const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
-            if (!storedLogs) return 0;
-            const allLogs: ActionLog[] = JSON.parse(storedLogs);
-            return allLogs.filter(log =>
-                log.entity_type === 'task_completion' &&
-                log.created_at.startsWith(targetDate)
-            ).length;
-        } catch (error) {
-            console.error("Failed to read or parse logs from localStorage", error);
-            return 0;
-        }
     }, []);
+
 
   // Load user data from storage
   useEffect(() => {
@@ -662,7 +650,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       consecutiveCheckIns,
       getAllHistoricalTrades,
       getAllUserInvestments,
-      getAllTaskCompletionsForDate,
     };
 
     return (
