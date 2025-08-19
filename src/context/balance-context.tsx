@@ -7,6 +7,7 @@ import { useAuth } from './auth-context';
 import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
+import { useLogs } from './logs-context';
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -94,9 +95,10 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, getAllUsers, updateUser } = useAuth();
+  const { user, getUserById, getAllUsers, updateUser, reloadUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
+  const { addLog } = useLogs();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -518,13 +520,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
         adjustBalance(user.id, 'USDT', reward);
         
-        updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
+        await updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
+        reloadUser(); // Force reload user state from AuthContext
 
         setLastCheckInDate(todayStr);
         setConsecutiveCheckIns(newConsecutiveCheckIns);
 
         return { success: true, reward };
-    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser]);
+    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser, reloadUser]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;

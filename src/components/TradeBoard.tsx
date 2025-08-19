@@ -27,6 +27,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
 
   const currentKlineData = allKlineData[tradingPair] || [];
   const currentSummary = summaryData.find(s => s.pair === tradingPair);
+  const currentPrice = getLatestPrice(tradingPair); // Get the single source of truth for the price
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
@@ -134,7 +135,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
               onPlaceTrade={placeSpotTrade}
               baseAsset={baseAsset}
               quoteAsset={quoteAsset}
-              currentPrice={getLatestPrice(tradingPair)}
+              currentPrice={currentPrice}
             />
           </TabsContent>
           <TabsContent value="smart">
