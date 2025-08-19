@@ -66,7 +66,7 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                     <Label htmlFor={`staking-amount-${product.id}`}>质押数量 (选填)</Label>
                     <Input id={`staking-amount-${product.id}`} type="number" value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || 0 })} placeholder="输入需要质押的数量" />
                 </div>
-                <div className="lg:col-span-3 space-y-2">
+                 <div className="lg:col-span-3 space-y-2">
                     <Label>产品图片</Label>
                     <div className="flex items-center gap-4">
                         {product.imgSrc && (
@@ -76,6 +76,7 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                                 width={80} 
                                 height={80} 
                                 className="object-cover rounded-md border"
+                                data-ai-hint="investment product"
                             />
                         )}
                         <Input 
