@@ -6,11 +6,12 @@ import { useAuth } from '@/context/auth-context';
 import { useRequests } from '@/context/requests-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, Users, UserCheck, UserX, ArrowUpCircle, ArrowDownCircle, Briefcase, CalendarDays, ClipboardList } from 'lucide-react';
+import { User, Users, UserCheck, UserX, ArrowUpCircle, ArrowDownCircle, Briefcase, CalendarDays, ClipboardList, Wallet } from 'lucide-react';
 import { User as UserType, AnyRequest } from '@/types';
-import { isToday, isThisMonth, parseISO } from 'date-fns';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { isToday, isThisMonth, parseISO, subHours } from 'date-fns';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useBalance } from '@/context/balance-context';
+import { getUserData } from '@/lib/user-data';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -36,14 +37,25 @@ const getAllUsers = (): UserType[] => {
 export default function AdminFinanceDashboardPage() {
     const { getDownline } = useAuth();
     const { requests } = useRequests();
-    const { getAllTaskCompletionsForDate } = useBalance();
+    const { balances } = useBalance();
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
-    const [dailyTaskCompletions, setDailyTaskCompletions] = useState(0);
+    const [platformTotalBalance, setPlatformTotalBalance] = useState(0);
 
     useEffect(() => {
-        setAllUsers(getAllUsers());
-        setDailyTaskCompletions(getAllTaskCompletionsForDate());
-    }, [getAllTaskCompletionsForDate, requests]);
+        const users = getAllUsers();
+        setAllUsers(users);
+
+        // Calculate total platform balance
+        let totalBalance = 0;
+        users.forEach(u => {
+            const userData = getUserData(u.id);
+            Object.values(userData.balances).forEach(bal => {
+                totalBalance += bal.available;
+            });
+        });
+        setPlatformTotalBalance(totalBalance);
+
+    }, [requests, balances]);
     
     const financialStats = useMemo(() => {
         const approvedRequests = requests.filter(r => r.status === 'approved');
@@ -74,8 +86,11 @@ export default function AdminFinanceDashboardPage() {
         const totalUsers = allUsers.length;
         const now = new Date();
         const onlineUsers = allUsers.filter(u => u.last_login_at && (now.getTime() - new Date(u.last_login_at).getTime()) < 5 * 60 * 1000).length;
-        const offlineUsers = totalUsers - onlineUsers;
         
+        const registeredToday = allUsers.filter(u => isToday(parseISO(u.created_at))).length;
+        
+        const offline48h = allUsers.filter(u => !u.last_login_at || new Date(u.last_login_at) < subHours(now, 48)).length;
+
         const adminUser = allUsers.find(u => u.is_admin);
         const downline = adminUser ? getDownline(adminUser.id) : [];
 
@@ -83,7 +98,7 @@ export default function AdminFinanceDashboardPage() {
         const level2 = downline.filter(u => (u as any).level === 2).length;
         const level3 = downline.filter(u => (u as any).level === 3).length;
 
-        return { totalUsers, onlineUsers, offlineUsers, level1, level2, level3 };
+        return { totalUsers, onlineUsers, registeredToday, offline48h, level1, level2, level3 };
     }, [allUsers, getDownline]);
 
     const chartData = [
@@ -91,6 +106,15 @@ export default function AdminFinanceDashboardPage() {
         { name: '本月', 充值: financialStats.monthlyDeposits, 提现: financialStats.monthlyWithdrawals },
         { name: '今日', 充值: financialStats.dailyDeposits, 提现: financialStats.dailyWithdrawals },
     ];
+    
+    const pieChartData = [
+        { name: '当前在线', value: userStats.onlineUsers },
+        { name: '今日注册', value: userStats.registeredToday },
+        { name: '>48h离线', value: userStats.offline48h },
+        { name: '其他活跃', value: userStats.totalUsers - userStats.onlineUsers - userStats.registeredToday - userStats.offline48h }
+    ].filter(item => item.value > 0);
+
+    const PIE_CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--muted-foreground))'];
 
 
     return (
@@ -100,8 +124,8 @@ export default function AdminFinanceDashboardPage() {
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <StatCard title="历史注册用户" value={userStats.totalUsers} icon={Users} description="平台所有注册用户总数" />
-                    <StatCard title="在线人数" value={userStats.onlineUsers} icon={UserCheck} description="5分钟内有活动的用户" />
-                    <StatCard title="离线人数" value={userStats.offlineUsers} icon={UserX} description="当前不在线的用户" />
+                    <StatCard title="当前在线人数" value={userStats.onlineUsers} icon={UserCheck} description="5分钟内有活动的用户" />
+                    <StatCard title="大于48h离线" value={userStats.offline48h} icon={UserX} description="超过两天未登录的用户" />
                 </div>
                 
                 <Card>
@@ -130,7 +154,6 @@ export default function AdminFinanceDashboardPage() {
                                         contentStyle={{
                                             backgroundColor: 'hsl(var(--background))',
                                             borderColor: 'hsl(var(--border))',
-                                            color: 'hsl(var(--foreground))'
                                         }}
                                     />
                                     <Legend />
@@ -142,12 +165,45 @@ export default function AdminFinanceDashboardPage() {
                     </CardContent>
                 </Card>
                 
-                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="一级代理人数" value={userStats.level1} icon={Briefcase} />
-                    <StatCard title="二级代理人数" value={userStats.level2} icon={Briefcase} />
-                    <StatCard title="三级代理人数" value={userStats.level3} icon={Briefcase} />
-                    <StatCard title="今日任务完成数" value={dailyTaskCompletions} icon={ClipboardList} description="所有用户今日完成任务总数"/>
-                </div>
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>用户构成</CardTitle>
+                            <CardDescription>当前平台用户活跃度分布情况</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-80">
+                             <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={pieChartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {pieChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                     <Tooltip contentStyle={{
+                                            backgroundColor: 'hsl(var(--background))',
+                                            borderColor: 'hsl(var(--border))',
+                                        }}/>
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                     <div className="grid gap-4 grid-cols-2 grid-rows-2">
+                        <StatCard title="一级代理人数" value={userStats.level1} icon={Briefcase} />
+                        <StatCard title="二级代理人数" value={userStats.level2} icon={Briefcase} />
+                        <StatCard title="三级代理人数" value={userStats.level3} icon={Briefcase} />
+                        <StatCard title="平台总资金结余" value={`$${platformTotalBalance.toFixed(2)}`} icon={Wallet} description="所有用户可用余额总和"/>
+                    </div>
+                 </div>
              </div>
         </DashboardLayout>
     );
