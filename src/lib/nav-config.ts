@@ -1,5 +1,4 @@
-
-import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins } from 'lucide-react';
 
 export const userNavItems = [
   { href: '/dashboard', label: '首页', icon: Home },
@@ -14,5 +13,15 @@ export const adminNavItems = [
     { href: '/admin/requests', label: '审核请求', icon: Bell },
     { href: '/admin/finance', label: '运营相关', icon: Landmark },
     { href: '/admin/orders', label: '订单详情', icon: FileText },
-    { href: '/admin/settings', label: '系统设置', icon: Settings },
+    { 
+        href: '/admin/settings', 
+        label: '系统设置', 
+        icon: Settings,
+        subItems: [
+            { href: '/admin/settings/general', label: '通用设置', icon: SlidersHorizontal },
+            { href: '/admin/settings/market', label: '市场设置', icon: LineChart },
+            { href: '/admin/settings/investment', label: '理财产品', icon: Coins },
+            { href: '/admin/settings/presets', label: '定时预设', icon: ListChecks },
+        ]
+    },
 ]
