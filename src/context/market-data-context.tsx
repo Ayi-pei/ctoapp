@@ -70,6 +70,32 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData]);
     
     const fetchCryptoData = useCallback(async () => {
+        // First, try to fetch from Tatum
+        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
+        try {
+            const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
+            if (response.data && Object.keys(response.data).length > 0) {
+                const newSummaryData = Object.values(response.data).map((asset: any) => ({
+                    pair: `${asset.symbol}/USDT`,
+                    price: parseFloat(asset.priceUsd) || 0,
+                    change: parseFloat(asset.changePercent24Hr) || 0,
+                    volume: parseFloat(asset.volumeUsd24Hr) || 0,
+                    high: parseFloat(asset.high) || 0,
+                    low: parseFloat(asset.low) || 0,
+                    icon: `https://static.tatum.io/assets/images/logo/crypto-logos/${asset.symbol.toLowerCase()}.svg`,
+                }));
+                
+                setSummaryData(prev => {
+                    const existingNonCrypto = prev.filter(d => !CRYPTO_PAIRS.includes(d.pair));
+                    return [...existingNonCrypto, ...newSummaryData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+                });
+                return; // Exit if Tatum is successful
+            }
+        } catch (error) {
+            console.warn("Tatum API fetch failed, falling back to CoinGecko.", error);
+        }
+
+        // Fallback to CoinGecko if Tatum fails or returns no data
         const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
         if (coingeckoIds.length === 0) return;
 
@@ -93,7 +119,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             });
 
         } catch (error) {
-            console.error("Error fetching crypto summary from proxy:", error);
+            console.error("Error fetching crypto summary from CoinGecko fallback:", error);
         }
     }, []);
 
@@ -213,3 +239,5 @@ export function useMarket() {
     }
     return context;
 }
+
+    

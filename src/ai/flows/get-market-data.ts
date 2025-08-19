@@ -59,14 +59,19 @@ const getMarketDataFlow = ai.defineFlow(
           }
         );
         const rate = response.data;
+        
+        const tickerResponse = await axios.get(`https://api.tatum.io/v4/market/ticker/${assetId}/USDT`, {
+            headers: { 'x-api-key': process.env.TATUM_API_KEY },
+        });
+        const ticker = tickerResponse.data;
 
-        if (rate && rate.value) {
+        if (rate && rate.value && ticker) {
           return {
             id: assetId.toLowerCase(),
             symbol: assetId,
             priceUsd: rate.value.toString(),
-            changePercent24Hr: '0', // V4 endpoint does not provide this
-            volumeUsd24Hr: '0', // V4 endpoint does not provide this
+            changePercent24Hr: ticker.change || '0',
+            volumeUsd24Hr: ticker.volume || '0',
           };
         }
         return null;
@@ -80,7 +85,7 @@ const getMarketDataFlow = ai.defineFlow(
 
     const realTimeData = results.reduce((acc, asset) => {
       if (asset) {
-        acc[asset.id] = asset;
+        acc[asset.symbol] = asset;
       }
       return acc;
     }, {} as Record<string, z.infer<typeof AssetDataSchema>>);
@@ -93,3 +98,5 @@ const getMarketDataFlow = ai.defineFlow(
     return { data: realTimeData };
   }
 );
+
+    
