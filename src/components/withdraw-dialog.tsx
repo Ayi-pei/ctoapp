@@ -115,7 +115,6 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     }
     
     const showCreditScoreWarning = user && user.credit_score < 90;
-    const isTestUser = user?.is_test_user === true;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -133,13 +132,6 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                            您的信誉分较低，如遇审核峰值过高将延迟受理，感谢理解配合。
                         </div>
                     )}
-                    {isTestUser && (
-                        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-3 text-xs">
-                           <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                           测试账户无法进行提现操作。
-                        </div>
-                    )}
-
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">
                             地址
@@ -200,7 +192,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                             取消
                         </Button>
                     </DialogClose>
-                    <Button type="button" onClick={handleWithdraw} disabled={isTestUser}>确定</Button>
+                    <Button type="button" onClick={handleWithdraw}>确定</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
