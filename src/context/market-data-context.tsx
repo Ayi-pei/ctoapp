@@ -134,7 +134,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return {
                     pair: pair,
                     price: data.regularMarketPrice || 0,
-                    change: data.regularMarketChangePercent * 100 || 0,
+                    change: (data.regularMarketChangePercent || 0) * 100,
                     volume: data.regularMarketVolume || 0,
                     high: data.regularMarketDayHigh || 0,
                     low: data.regularMarketDayLow || 0,

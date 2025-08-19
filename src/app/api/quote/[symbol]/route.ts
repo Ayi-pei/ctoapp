@@ -13,18 +13,18 @@ export async function GET(
   }
 
   try {
-    const results = await yahooFinance.quote(symbol, {
-        fields: ['regularMarketPrice', 'regularMarketChange', 'regularMarketChangePercent', 'regularMarketDayHigh', 'regularMarketDayLow', 'regularMarketVolume']
+    // Switched to quoteSummary which is more robust for different asset types.
+    const results = await yahooFinance.quoteSummary(symbol, {
+      modules: ["price"],
     });
 
-    if (!results) {
-         return NextResponse.json({ error: 'Symbol not found' }, { status: 404 });
+    if (!results || !results.price) {
+         return NextResponse.json({ error: 'Symbol not found or no price data available' }, { status: 404 });
     }
     
-    return NextResponse.json(results);
+    return NextResponse.json(results.price);
   } catch (error) {
     console.error(`Yahoo Finance API error for symbol ${symbol}:`, error);
-    // Check if the error is a known Yahoo Finance error
     if (error instanceof Error && (error.message.includes('404') || error.message.includes('No data found'))) {
        return NextResponse.json({ error: `No data found for symbol: ${symbol}` }, { status: 404 });
     }
