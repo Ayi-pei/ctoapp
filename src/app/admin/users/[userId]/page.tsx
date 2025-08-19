@@ -374,5 +374,3 @@ export default function UserDetailsPage({ params }: { params: { userId: string }
         </DashboardLayout>
     );
 }
-
-    

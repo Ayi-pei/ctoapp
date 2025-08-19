@@ -4,7 +4,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as UserType } from '@/types';
-import { login as apiLogin } from '@/services/authService';
 
 // Re-exporting the type from types/index.ts to avoid circular dependencies
 // and to be the single source of truth.
@@ -65,6 +64,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    
+    // Initialize admin user if not present
+    const allUsers = getMockUsers();
+    if (!allUsers[ADMIN_USER_ID] && process.env.NEXT_PUBLIC_ADMIN_NAME && process.env.NEXT_PUBLIC_ADMIN_KEY) {
+        allUsers[ADMIN_USER_ID] = {
+            id: ADMIN_USER_ID,
+            username: process.env.NEXT_PUBLIC_ADMIN_NAME,
+            nickname: 'Administrator',
+            password: process.env.NEXT_PUBLIC_ADMIN_KEY,
+            email: `${process.env.NEXT_PUBLIC_ADMIN_NAME}@noemail.app`,
+            is_admin: true,
+            is_test_user: false,
+            is_frozen: false,
+            invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || '',
+            inviter_id: null,
+            created_at: new Date().toISOString(),
+            credit_score: 999,
+        };
+        saveMockUsers(allUsers);
+    }
+
     setIsLoading(false);
   }, []);
   
@@ -76,29 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const result = await apiLogin(username, password);
-
-    if (result.success && result.user) {
-        const now = new Date().toISOString();
-        const loggedInUser = { ...result.user, last_login_at: now };
-        
-        const allUsers = getMockUsers();
-        allUsers[loggedInUser.id] = { ...allUsers[loggedInUser.id], ...loggedInUser };
-        saveMockUsers(allUsers);
-        
-        setUser(loggedInUser);
-        localStorage.setItem('userSession', JSON.stringify(loggedInUser));
-        return true;
-    }
-    
-    // Fallback to localStorage check for regular users if API fails
     const allUsers = getMockUsers();
     const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
+    
     if (foundUser) {
         const now = new Date().toISOString();
         const loggedInUser = { ...foundUser, last_login_at: now };
         
-        allUsers[loggedInUser.id] = loggedInUser;
+        allUsers[loggedInUser.id] = { ...allUsers[loggedInUser.id], ...loggedInUser };
         saveMockUsers(allUsers);
         
         setUser(loggedInUser);
@@ -118,8 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let inviterId: string | null = null;
       
-      // In a real app, this check would be an API call to avoid exposing env vars.
-      // For this project, we accept the security tradeoff for simplicity.
       const adminCode = process.env.NEXT_PUBLIC_ADMIN_AUTH;
       if (invitationCode === adminCode) {
           inviterId = ADMIN_USER_ID;
@@ -127,8 +130,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
           if (inviter) {
               inviterId = inviter.id;
-          } else if (invitationCode.length > 6 && /^\d+$/.test(invitationCode)) {
-              inviterId = ADMIN_USER_ID;
           }
       }
 
