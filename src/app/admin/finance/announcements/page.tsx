@@ -148,12 +148,11 @@ export default function AdminAnnouncementsPage() {
         addHornAnnouncement,
         removeHornAnnouncement,
         reorderHornAnnouncements,
-        saveAllAnnouncements
     } = useAnnouncements();
     const { toast } = useToast();
 
     const handleSave = () => {
-        saveAllAnnouncements();
+        // The context now saves automatically. This button provides user feedback.
         toast({ title: "成功", description: "所有公告设置已自动保存。" });
     }
 

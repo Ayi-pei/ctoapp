@@ -84,6 +84,7 @@ const ActivityEditorCard = ({ activity, updateActivity, removeActivity }: {
                                     width={80} 
                                     height={80} 
                                     className="object-cover rounded-md border"
+                                    data-ai-hint="reward celebration"
                                 />
                             )}
                             <Input 
@@ -122,11 +123,11 @@ const ActivityEditorCard = ({ activity, updateActivity, removeActivity }: {
 
 
 export default function AdminActivitiesPage() {
-    const { activities, addActivity, removeActivity, updateActivity, saveActivities } = useActivities();
+    const { activities, addActivity, removeActivity, updateActivity } = useActivities();
     const { toast } = useToast();
 
     const handleSave = () => {
-        saveActivities();
+        // The context now saves automatically. This button provides user feedback.
         toast({ title: "成功", description: "所有限时活动设置已自动保存。" });
     }
 

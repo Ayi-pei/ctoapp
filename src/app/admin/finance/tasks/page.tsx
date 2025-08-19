@@ -144,11 +144,11 @@ const TaskEditorCard = ({ task, updateTask, removeTask }: {
 }
 
 export default function AdminTasksPage() {
-    const { dailyTasks, addDailyTask, removeDailyTask, updateDailyTask, saveTasks } = useTasks();
+    const { dailyTasks, addDailyTask, removeDailyTask, updateDailyTask } = useTasks();
     const { toast } = useToast();
 
     const handleSave = () => {
-        saveTasks();
+        // The context now saves automatically. This button provides user feedback.
         toast({ title: "成功", description: "所有任务设置已自动保存。" });
     }
 
