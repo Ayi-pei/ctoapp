@@ -53,15 +53,16 @@ export async function POST(request: Request) {
           id: assetId.toLowerCase(),
           symbol: assetId,
           priceUsd: rate.value.toString(),
-          changePercent24Hr: ticker.change,
-          volumeUsd24Hr: ticker.volume,
-          high: ticker.high,
-          low: ticker.low,
+          changePercent24Hr: ticker.change || '0',
+          volumeUsd24Hr: ticker.volume || '0',
+          high: ticker.high || '0',
+          low: ticker.low || '0',
         };
       }
       return null;
     } catch (error) {
-      console.error(`Error fetching Tatum data for asset ${assetId}:`, error);
+      // Don't log entire error object in production
+      console.error(`Error fetching Tatum data for asset ${assetId}`);
       return null;
     }
   });
@@ -76,5 +77,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json(realTimeData);
 }
-
-    

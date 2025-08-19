@@ -36,7 +36,7 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-2 border rounded-lg bg-gradient-to-r from-gray-400/50 to-yellow-500/50">
       <div className="col-span-2 md:col-span-1 p-2 border rounded-md">
         <h2 className={`text-3xl font-bold ${isPositive ? "text-green-500" : "text-red-500"}`}>
-          {summary.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+          {summary.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}
         </h2>
         <p className={`text-sm font-medium ${isPositive ? "text-green-500" : "text-red-500"}`}>
           {isPositive ? '+' : ''}{summary.change.toFixed(2)}%
@@ -45,11 +45,11 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
       <div className="col-span-2 md:col-span-3 grid grid-cols-3 gap-x-4 text-sm">
         <div className="p-2 border rounded-md text-right">
           <p className="text-green-400">24h High</p>
-          <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
           <p className="text-green-400">24h Low</p>
-          <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
           <p className="text-green-400">24h Volume</p>

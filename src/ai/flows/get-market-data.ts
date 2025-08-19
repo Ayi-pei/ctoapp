@@ -41,62 +41,33 @@ const getMarketDataFlow = ai.defineFlow(
   },
   async (input) => {
     if (!process.env.TATUM_API_KEY) {
-      console.warn('TATUM_API_KEY is not set. Falling back to simulator.');
+      console.warn('TATUM_API_KEY is not set. Cannot fetch market data for AI.');
       return { data: {} };
     }
     if (!input.assetIds || input.assetIds.length === 0) {
       return { data: {} };
     }
-
-    const assetDataPromises = input.assetIds.map(async (assetId) => {
-      try {
-        const response = await axios.get(
-          `https://api.tatum.io/v4/market/price/${assetId}`,
-          {
-            headers: {
-              'x-api-key': process.env.TATUM_API_KEY,
-            },
-          }
-        );
-        const rate = response.data;
-        
-        const tickerResponse = await axios.get(`https://api.tatum.io/v4/market/ticker/${assetId}/USDT`, {
-            headers: { 'x-api-key': process.env.TATUM_API_KEY },
-        });
-        const ticker = tickerResponse.data;
-
-        if (rate && rate.value && ticker) {
-          return {
-            id: assetId.toLowerCase(),
-            symbol: assetId,
-            priceUsd: rate.value.toString(),
-            changePercent24Hr: ticker.change || '0',
-            volumeUsd24Hr: ticker.volume || '0',
-          };
-        }
-        return null;
-      } catch (error) {
-        console.error(`Error fetching data for asset ${assetId}:`, error);
-        return null;
+    
+    try {
+       // AI flow now also uses the unified Tatum API endpoint
+      const response = await axios.post(
+        // Using an absolute URL is safer for server-side calls
+        `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tatum/market-data`,
+        { assetIds: input.assetIds }
+      );
+      
+      const realTimeData: Record<string, z.infer<typeof AssetDataSchema>> = response.data;
+      
+      if (Object.keys(realTimeData).length === 0) {
+        console.warn('No data found for the requested assets via Tatum for AI.');
+        return { data: {} };
       }
-    });
 
-    const results = await Promise.all(assetDataPromises);
+      return { data: realTimeData };
 
-    const realTimeData = results.reduce((acc, asset) => {
-      if (asset) {
-        acc[asset.symbol] = asset;
-      }
-      return acc;
-    }, {} as Record<string, z.infer<typeof AssetDataSchema>>);
-
-    if (Object.keys(realTimeData).length === 0) {
-      console.warn('No data found for the requested assets.');
+    } catch (error) {
+      console.error('Error fetching market data in AI flow:', error);
       return { data: {} };
     }
-
-    return { data: realTimeData };
   }
 );
-
-    
