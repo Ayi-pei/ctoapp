@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as UserType } from '@/types';
-import { login as apiLogin, checkAdminInviteCode } from '@/services/authService';
+import { login as apiLogin } from '@/services/authService';
 
 // Re-exporting the type from types/index.ts to avoid circular dependencies
 // and to be the single source of truth.
@@ -73,8 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.success && result.user) {
         const now = new Date().toISOString();
         const loggedInUser = { ...result.user, last_login_at: now };
-
-        // Even though API handles login, we still save user to mock DB and session for now
+        
         const allUsers = getMockUsers();
         allUsers[loggedInUser.id] = { ...allUsers[loggedInUser.id], ...loggedInUser };
         saveMockUsers(allUsers);
@@ -84,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
     }
     
-    // Fallback to localStorage check for regular users since API only handles admin/mock
+    // Fallback to localStorage check for regular users if API fails
     const allUsers = getMockUsers();
     const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
     if (foundUser) {
@@ -111,15 +110,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let inviterId: string | null = null;
       
-      const isAdminCode = await checkAdminInviteCode(invitationCode);
-      if (isAdminCode) {
+      // In a real app, this check would be an API call to avoid exposing env vars.
+      // For this project, we accept the security tradeoff for simplicity.
+      const adminCode = process.env.NEXT_PUBLIC_ADMIN_AUTH;
+      if (invitationCode === adminCode) {
           inviterId = ADMIN_USER_ID;
       } else {
           const inviter = Object.values(allUsers).find(u => u.invitation_code === invitationCode);
           if (inviter) {
               inviterId = inviter.id;
           } else if (invitationCode.length > 6 && /^\d+$/.test(invitationCode)) {
-               // This is a fallback for numeric codes, assuming they are from admin
               inviterId = ADMIN_USER_ID;
           }
       }
