@@ -7,7 +7,6 @@ import { useAuth } from '@/context/auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
-import axios from 'axios';
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -85,20 +84,6 @@ interface BalanceContextType {
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
-
-// Set up axios interceptor to add user ID to every request
-axios.interceptors.request.use(config => {
-    if (typeof window !== 'undefined') {
-        const session = localStorage.getItem('userSession');
-        if (session) {
-            const user = JSON.parse(session);
-            // This is a simplified way of passing auth info.
-            // In a real app, this would be a secure JWT.
-            config.headers.Authorization = `Bearer ${user.id}`;
-        }
-    }
-    return config;
-});
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById } = useAuth();
