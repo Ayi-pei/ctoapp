@@ -33,12 +33,11 @@ export default function AdminGeneralSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {supportedAssets.map((asset) => (
-                            <div key={asset}>
+                            <div key={asset} className="space-y-2">
                                 <Label htmlFor={`deposit-address-${asset}`} className="text-sm font-medium">在线充币地址 ({asset})</Label>
                                 <Input
                                     id={`deposit-address-${asset}`}
                                     type="text"
-                                    className="mt-2"
                                     value={systemSettings.depositAddresses[asset] || ''}
                                     onChange={(e) => updateDepositAddress(asset, e.target.value)}
                                     placeholder={`请输入您的 ${asset} 钱包或账户地址`}
