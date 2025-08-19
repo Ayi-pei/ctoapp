@@ -1,17 +1,26 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import type { AnyRequest } from '@/types';
+import type { AnyRequest, Transaction } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useRequests } from '@/context/requests-context';
+import { Edit2, Trash2 } from 'lucide-react';
+import { EditTransactionDialog } from '@/components/edit-transaction-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -30,16 +39,19 @@ export default function AdminRequestsPage() {
     const { isAdmin } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
-
-    const { requests, approveRequest, rejectRequest } = useRequests();
+    const { requests, approveRequest, rejectRequest, deleteRequest, updateRequest } = useRequests();
     
+    const [filter, setFilter] = useState('pending');
+    const [editingRequest, setEditingRequest] = useState<Transaction | null>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
     useEffect(() => {
         if (isAdmin === false) {
             router.push('/');
         }
     }, [isAdmin, router]);
 
-    const handleRequest = async (request: AnyRequest, newStatus: 'approved' | 'rejected') => {
+    const handleRequestAction = async (request: AnyRequest, newStatus: 'approved' | 'rejected') => {
         try {
             if (newStatus === 'approved') {
                 await approveRequest(request.id);
@@ -59,7 +71,29 @@ export default function AdminRequestsPage() {
             });
         }
     };
+    
+    const handleEditRequest = (request: AnyRequest) => {
+        if (request.type === 'password_reset') {
+            toast({ title: '提示', description: '密码重置请求不支持编辑。' });
+            return;
+        }
+        setEditingRequest(request as Transaction);
+        setIsEditDialogOpen(true);
+    };
 
+    const handleSaveRequest = (updatedRequest: Transaction) => {
+        updateRequest(updatedRequest.id, updatedRequest);
+        toast({ title: "成功", description: "请求已更新。" });
+    };
+
+    const handleDeleteRequest = async (requestId: string) => {
+        await deleteRequest(requestId);
+        toast({ title: "成功", description: "请求已删除。" });
+    }
+
+    const filteredRequests = useMemo(() => {
+        return requests.filter(r => r.status === filter);
+    }, [requests, filter]);
 
     if (!isAdmin) {
         return (
@@ -71,8 +105,67 @@ export default function AdminRequestsPage() {
         )
     }
 
-    const pendingRequests = requests.filter(r => r.status === 'pending');
+    const RequestTable = ({ requestList }: { requestList: AnyRequest[] }) => (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>用户</TableHead>
+                    <TableHead>类型</TableHead>
+                    <TableHead>详情</TableHead>
+                    <TableHead>时间</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {requestList.length > 0 ? requestList.map((r) => (
+                    <TableRow key={r.id}>
+                        <TableCell>{r.user?.username || r.user_id}</TableCell>
+                        <TableCell>
+                            <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', requestTypeColor[r.type])}>
+                                {requestTypeText[r.type]}
+                            </span>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                            {'amount' in r && r.amount ? (
+                                `金额: ${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}`
+                            ) : ('new_password' in r ? '请求重置密码' : '')}
+                            {'address' in r && r.address && <p className='truncate max-w-[150px]'>地址: {r.address}</p>}
+                            {'transaction_hash' in r && r.transaction_hash && <p className='truncate max-w-[150px]'>凭证: {r.transaction_hash}</p>}
+                        </TableCell>
+                        <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                             {r.status === 'pending' && (
+                                <>
+                                    <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequestAction(r, 'approved')}>
+                                        批准
+                                    </Button>
+                                     <Button variant="destructive" size="sm" onClick={() => handleRequestAction(r, 'rejected')}>
+                                        拒绝
+                                    </Button>
+                                </>
+                             )}
+                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRequest(r)}>
+                                <Edit2 className="h-4 w-4" />
+                            </Button>
+                             {r.status !== 'pending' && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteRequest(r.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                             )}
+                        </TableCell>
+                    </TableRow>
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
+                            没有找到符合条件的请求。
+                        </TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    );
 
+    const pendingRequests = requests.filter(r => r.status === 'pending');
 
     return (
         <DashboardLayout>
@@ -82,56 +175,55 @@ export default function AdminRequestsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>待处理队列 ({pendingRequests.length})</CardTitle>
+                        <CardDescription>需要管理员立即处理的请求。</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>用户</TableHead>
-                                    <TableHead>类型</TableHead>
-                                    <TableHead>详情</TableHead>
-                                    <TableHead>时间</TableHead>
-                                    <TableHead className="text-right">操作</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {pendingRequests.length > 0 ? pendingRequests.map((r) => (
-                                    <TableRow key={r.id}>
-                                        <TableCell>{r.user?.username || r.user_id}</TableCell>
-                                        <TableCell>
-                                            <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', requestTypeColor[r.type])}>
-                                                {requestTypeText[r.type]}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-xs">
-                                            {'amount' in r && r.amount ? (
-                                                `金额: ${r.amount.toFixed(2)} ${'asset' in r ? r.asset : ''}`
-                                            ) : ('new_password' in r ? '请求重置密码' : '')}
-                                            {'address' in r && r.address && <p className='truncate max-w-[150px]'>地址: {r.address}</p>}
-                                            {'transaction_hash' in r && r.transaction_hash && <p className='truncate max-w-[150px]'>凭证: {r.transaction_hash}</p>}
-                                        </TableCell>
-                                        <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                             <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequest(r, 'approved')}>
-                                                批准
-                                            </Button>
-                                             <Button variant="destructive" size="sm" onClick={() => handleRequest(r, 'rejected')}>
-                                                拒绝
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
-                                    <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                            当前没有待处理的请求。
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                       <RequestTable requestList={pendingRequests} />
                     </CardContent>
                 </Card>
+
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="history">
+                        <AccordionTrigger>
+                            <h2 className="text-xl font-bold">历史记录</h2>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                             <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle>已处理请求</CardTitle>
+                                            <CardDescription>查看已批准或已拒绝的请求历史。</CardDescription>
+                                        </div>
+                                         <Select value={filter} onValueChange={setFilter}>
+                                            <SelectTrigger className="w-[180px]">
+                                                <SelectValue placeholder="筛选状态" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="pending">待审核</SelectItem>
+                                                <SelectItem value="approved">已批准</SelectItem>
+                                                <SelectItem value="rejected">已拒绝</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <RequestTable requestList={filteredRequests} />
+                                </CardContent>
+                            </Card>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </div>
+            
+            {editingRequest && (
+                <EditTransactionDialog
+                    isOpen={isEditDialogOpen}
+                    onOpenChange={setIsEditDialogOpen}
+                    transaction={editingRequest}
+                    onSave={handleSaveRequest}
+                />
+            )}
         </DashboardLayout>
     );
 }
