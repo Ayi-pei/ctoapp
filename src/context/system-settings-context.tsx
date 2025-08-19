@@ -13,6 +13,7 @@ export type SystemSettings = {
         USD: string;
     };
     contractTradingEnabled: boolean;
+    aiAnalysisEnabled: boolean; // New setting for AI features
 };
 
 interface SystemSettingsContextType {
@@ -29,6 +30,7 @@ const defaultSystemSettings: SystemSettings = {
         USD: "",
     },
     contractTradingEnabled: true,
+    aiAnalysisEnabled: true, // Default to enabled
 };
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined);
