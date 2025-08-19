@@ -73,8 +73,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
     );
 };
 
-export default function UserDetailsPage({ params }: { params: { userId: string } }) {
-    const { userId } = params;
+export default function UserDetailsPage({ params: { userId } }: { params: { userId: string } }) {
     const router = useRouter();
     const { getUserById, updateUser } = useAuth();
     const { recalculateBalanceForUser, adjustBalance } = useBalance();
@@ -374,3 +373,5 @@ export default function UserDetailsPage({ params }: { params: { userId: string }
         </DashboardLayout>
     );
 }
+
+    
