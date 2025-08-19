@@ -1,3 +1,4 @@
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -244,18 +245,4 @@ export type LimitedTimeActivity = {
     imgSrc?: string;
     status: 'published' | 'draft';
     createdAt: string; // ISO date string
-};
-
-
-export type CarouselItemData = {
-    title: string;
-    description: string;
-    href: string;
-    imgSrc: string;
-};
-
-export type HornAnnouncement = {
-    id: string;
-    theme: '更新公告' | '重磅通知' | '庆贺';
-    content: string;
 };
