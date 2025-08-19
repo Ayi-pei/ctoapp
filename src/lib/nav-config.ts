@@ -1,4 +1,4 @@
-import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2 } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone } from 'lucide-react';
 
 export const userNavItems = [
   { href: '/dashboard', label: '首页', icon: Home },
@@ -17,9 +17,9 @@ export const adminNavItems = [
         icon: Landmark,
         subItems: [
             { href: '/admin/finance/dashboard', label: '数据报表', icon: BarChart2 },
-            { href: '/admin/settings/investment', label: '理财产品', icon: Package },
-            // Placeholder for future 'Activities & Benefits' page
-            // { href: '/admin/finance/benefits', label: '活动福利', icon: Gift },
+            { href: '/admin/finance/tasks', label: '日常任务', icon: ListChecks },
+            { href: '/admin/finance/announcements', label: '公告发布', icon: Megaphone },
+            { href: '/admin/finance/activities', label: '限时活动', icon: PartyPopper },
         ]
     },
     { href: '/admin/orders', label: '订单详情', icon: FileText },
@@ -30,8 +30,8 @@ export const adminNavItems = [
         subItems: [
             { href: '/admin/settings/general', label: '通用设置', icon: SlidersHorizontal },
             { href: '/admin/settings/market', label: '市场设置', icon: LineChart },
-            { href: '/admin/settings/investment', label: '理财产品', icon: Coins },
-            { href: '/admin/settings/presets', label: '定时预设', icon: ListChecks },
+            { href: '/admin/settings/investment', label: '理财产品', icon: Package },
+            { href: '/admin/settings/presets', label: '定时预设', icon: Coins },
         ]
     },
 ]
