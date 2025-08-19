@@ -12,7 +12,7 @@ const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
 
 const defaultTasks: DailyTask[] = [
   {
-    id: 'contract_trade',
+    id: 'task-contract-trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
     reward: 0.2,
@@ -23,7 +23,7 @@ const defaultTasks: DailyTask[] = [
     imgSrc: 'https://placehold.co/600x400.png'
   },
   {
-    id: 'spot_trade',
+    id: 'task-spot-trade',
     title: '进行一次币币交易',
     description: '在币币市场完成任意一笔买入或卖出操作。',
     reward: 0.2,
@@ -34,7 +34,7 @@ const defaultTasks: DailyTask[] = [
     imgSrc: 'https://placehold.co/600x400.png'
   },
   {
-    id: 'investment',
+    id: 'task-investment',
     title: '参与一次理财投资',
     description: '购买任意一款理财产品，体验稳定收益。',
     reward: 1,
@@ -54,8 +54,6 @@ interface TasksContextType {
   addDailyTask: () => void;
   removeDailyTask: (id: string) => void;
   updateDailyTask: (id: string, updates: Partial<DailyTask>) => void;
-  saveTasks: () => void;
-  getAllTaskCompletionsForDate: (date?: string) => number;
   // User functions
   userTasksState: UserTaskState[];
   // Wrapped functions that will also trigger task completion
@@ -68,7 +66,7 @@ interface TasksContextType {
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser, getAllUsers } = useAuth();
+  const { user, updateUser } = useAuth();
   const balanceContext = useBalance();
   const { adjustBalance } = balanceContext;
   const { addLog } = useLogs();
@@ -102,18 +100,16 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
     setIsLoaded(true);
   }, [user]);
-
-  const saveTasks = useCallback(() => {
-    try {
-      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(dailyTasks));
-    } catch (e) {
-      console.error("Failed to save tasks", e);
-    }
-  }, [dailyTasks]);
   
   useEffect(() => {
-    saveTasks();
-  }, [dailyTasks, saveTasks]);
+    if (isLoaded) {
+        try {
+            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(dailyTasks));
+        } catch (e) {
+            console.error("Failed to save tasks", e);
+        }
+    }
+  }, [dailyTasks, isLoaded]);
   
   useEffect(() => {
     if (user && isLoaded) {
@@ -149,29 +145,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
   }, []);
   
-  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    const allUsers = getAllUsers();
-    let totalCompletions = 0;
-
-    allUsers.forEach(u => {
-        try {
-            const key = `${USER_TASKS_STATE_KEY_PREFIX}${u.id}`;
-            const storedState = localStorage.getItem(key);
-            if (storedState) {
-                const userState: UserTaskState[] = JSON.parse(storedState);
-                const completionsForDate = userState.filter(s => s.date === targetDate && s.completed).length;
-                totalCompletions += completionsForDate;
-            }
-        } catch (e) {
-            console.error(`Failed to get task state for user ${u.id}`, e);
-        }
-    });
-
-    return totalCompletions;
-  }, [getAllUsers]);
-
-
   const triggerTaskCompletion = useCallback((type: TaskTriggerType) => {
     if (!user) return;
     
@@ -232,10 +205,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     addDailyTask,
     removeDailyTask,
     updateDailyTask,
-    saveTasks,
     userTasksState,
-    getAllTaskCompletionsForDate,
-    // Provide the wrapped functions
     placeContractTrade,
     placeSpotTrade,
     addDailyInvestment,

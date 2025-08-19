@@ -7,7 +7,8 @@ import { useAuth } from './auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
-// Removed useTasks import to break circular dependency
+import { useLogs } from './logs-context';
+
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -84,6 +85,7 @@ interface BalanceContextType {
   consecutiveCheckIns: number;
   getAllHistoricalTrades: () => (SpotTrade | ContractTrade)[];
   getAllUserInvestments: () => Investment[];
+  getAllTaskCompletionsForDate: (date?: string) => number;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -92,7 +94,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById, getAllUsers, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
-  // Removed useTasks call to break circular dependency
+  const { logs } = useLogs();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -336,7 +338,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    // Task completion is now handled by the TasksProvider wrapper
     return true;
   }
   
@@ -375,7 +376,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    // Task completion is now handled by the TasksProvider wrapper
     return true;
   }
 
@@ -418,8 +418,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         frozen: prev[quoteAsset].frozen + trade.amount
       }
     }));
-    
-    // Task completion is now handled by the TasksProvider wrapper
 
     if(quoteAsset === 'USDT') {
       distributeCommissions(user, trade.amount);
@@ -464,8 +462,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
       return newBalances;
     });
-
-    // Task completion is now handled by the TasksProvider wrapper
 
      if(quoteAsset === 'USDT') {
         distributeCommissions(user, trade.total);
@@ -588,6 +584,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     });
     return allInvestments;
   }, [getAllUsers]);
+
+  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    return logs.filter(log => 
+        log.entity_type === 'task_completion' && 
+        log.created_at.startsWith(targetDate)
+    ).length;
+  }, [logs]);
   
   const value = { 
       balances, 
@@ -610,6 +614,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       consecutiveCheckIns,
       getAllHistoricalTrades,
       getAllUserInvestments,
+      getAllTaskCompletionsForDate,
     };
 
     return (

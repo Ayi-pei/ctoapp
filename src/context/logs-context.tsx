@@ -8,9 +8,9 @@ import { useAuth } from './auth-context';
 const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
 
 type LogParams = {
-    entity_type: 'request';
+    entity_type: 'request' | 'task_completion' | 'activity_participation';
     entity_id: string;
-    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     details: string;
 };
 
@@ -22,7 +22,7 @@ interface LogsContextType {
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-    const { user } = useAuth(); // No need for isAdmin check here
+    const { user } = useAuth();
     const [logs, setLogs] = useState<ActionLog[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 

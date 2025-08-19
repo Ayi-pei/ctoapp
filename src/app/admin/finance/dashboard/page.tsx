@@ -10,7 +10,7 @@ import { User, Users, UserCheck, UserX, ArrowUpCircle, ArrowDownCircle, Briefcas
 import { User as UserType, AnyRequest } from '@/types';
 import { isToday, isThisMonth, parseISO } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useTasks } from '@/context/tasks-context';
+import { useBalance } from '@/context/balance-context';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -36,14 +36,14 @@ const getAllUsers = (): UserType[] => {
 export default function AdminFinanceDashboardPage() {
     const { getDownline } = useAuth();
     const { requests } = useRequests();
-    const { getAllTaskCompletionsForDate } = useTasks();
+    const { getAllTaskCompletionsForDate } = useBalance();
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
     const [dailyTaskCompletions, setDailyTaskCompletions] = useState(0);
 
     useEffect(() => {
         setAllUsers(getAllUsers());
         setDailyTaskCompletions(getAllTaskCompletionsForDate());
-    }, [getAllTaskCompletionsForDate]);
+    }, [getAllTaskCompletionsForDate, requests]);
     
     const financialStats = useMemo(() => {
         const approvedRequests = requests.filter(r => r.status === 'approved');
@@ -95,7 +95,7 @@ export default function AdminFinanceDashboardPage() {
 
     return (
         <DashboardLayout>
-             <div className="p-4 md:p-8 space-y-4 bg-card/80 backdrop-blur-sm">
+             <div className="p-4 md:p-8 space-y-4">
                  <h1 className="text-2xl font-bold">运营数据报表</h1>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
