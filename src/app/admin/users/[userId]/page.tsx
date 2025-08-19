@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { getUserData } from "@/lib/user-data";
 import type { Investment, User } from '@/types';
 import DashboardLayout from "@/components/dashboard-layout";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 type UserBalance = {
     [key: string]: {
@@ -73,8 +73,9 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
     );
 };
 
-export default function UserDetailsPage({ params }: { params: { userId: string } }) {
-    const { userId } = params;
+export default function UserDetailsPage() {
+    const params = useParams();
+    const userId = params.userId as string;
     const router = useRouter();
     const { getUserById, updateUser } = useAuth();
     const { recalculateBalanceForUser, adjustBalance } = useBalance();
@@ -92,6 +93,7 @@ export default function UserDetailsPage({ params }: { params: { userId: string }
     const [messageContent, setMessageContent] = useState("");
 
     const loadUserData = useCallback(async () => {
+        if (!userId) return;
         setIsLoading(true);
         const fetchedUser = getUserById(userId);
         if (fetchedUser) {
