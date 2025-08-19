@@ -40,6 +40,9 @@ const apiIdMap: Record<string, { coingecko?: string, yahoo?: string, tatum?: str
     'NAS100/USD': { yahoo: 'NQ=F', iconId: 'nas100' },
 };
 
+type ApiProvider = 'Tatum' | 'CoinDesk' | 'CoinGecko';
+const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinDesk', 'CoinGecko'];
+const ROTATION_INTERVAL_SECONDS = 20; // 20s * 3 providers = 60s cycle
 
 interface MarketContextType {
     tradingPair: string;
@@ -61,6 +64,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
+    const [apiProviderIndex, setApiProviderIndex] = useState(0);
     
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
@@ -107,44 +111,72 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             return { 
                 ...item, 
                 price: newPrice,
-                high: Math.max(item.high, newPrice),
-                low: Math.min(item.low, newPrice)
+                high: Math.max(item.high ?? newPrice, newPrice),
+                low: Math.min(item.low ?? newPrice, newPrice)
             };
         });
     }, [systemSettings.marketInterventions]);
+
+    const mergeSummaryData = useCallback((newData: Record<string, MarketSummary>) => {
+        if (Object.keys(newData).length === 0) return;
+
+        setSummaryData(prev => {
+            const updatedData = { ...prev.reduce((acc, item) => ({ ...acc, [item.pair]: item }), {}) };
+            for (const pair in newData) {
+                updatedData[pair] = { ...updatedData[pair], ...newData[pair] };
+            }
+            return Object.values(updatedData).sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+        });
+    }, []);
     
-    const fetchCryptoData = useCallback(async () => {
+    const fetchTatumData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
-        
         try {
             const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
             if (response.data && Object.keys(response.data).length > 0) {
-                const newSummaryData = Object.values(response.data).map((asset: any) => {
+                const mappedData = Object.values(response.data).reduce((acc: Record<string, MarketSummary>, asset: any) => {
                     const iconId = apiIdMap[`${asset.symbol}/USDT`]?.iconId || asset.symbol.toLowerCase();
-                    return {
-                        pair: `${asset.symbol}/USDT`,
+                    const pair = `${asset.symbol}/USDT`;
+                    acc[pair] = {
+                        pair: pair,
                         price: parseFloat(asset.priceUsd) || 0,
                         change: parseFloat(asset.changePercent24Hr) || 0,
                         volume: parseFloat(asset.volumeUsd24Hr) || 0,
                         high: parseFloat(asset.high) || 0,
                         low: parseFloat(asset.low) || 0,
                         icon: `https://static.tatum.io/assets/images/logo/crypto-logos/${iconId}.svg`,
-                    }
-                });
-                
-                const processedData = processDataWithClientOverrides(newSummaryData);
-
-                setSummaryData(prev => {
-                    const existingNonCrypto = prev.filter(d => !CRYPTO_PAIRS.includes(d.pair));
-                    return [...existingNonCrypto, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
-                });
-                return;
+                    };
+                    return acc;
+                }, {});
+                mergeSummaryData(mappedData);
             }
         } catch (error) {
-            console.warn("Tatum API fetch failed.", error);
+            console.warn("Tatum API fetch failed, will try next provider.", error);
         }
+    }, [mergeSummaryData]);
 
-    }, [processDataWithClientOverrides]);
+    const fetchCoinGeckoData = useCallback(async () => {
+        const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
+        try {
+            const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
+            if (response.data && Object.keys(response.data).length > 0) {
+                mergeSummaryData(response.data);
+            }
+        } catch (error) {
+            console.warn("CoinGecko API fetch failed, will try next provider.", error);
+        }
+    }, [mergeSummaryData]);
+
+    const fetchCoinDeskData = useCallback(async () => {
+        try {
+            const response = await axios.get('/api/coindesk');
+            if (response.data && Object.keys(response.data).length > 0) {
+                 mergeSummaryData(response.data);
+            }
+        } catch (error) {
+            console.warn("CoinDesk API fetch failed, will try next provider.", error);
+        }
+    }, [mergeSummaryData]);
 
     const fetchYahooData = useCallback(async () => {
         const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
@@ -160,7 +192,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return {
                     pair: pairKey,
                     price: parseFloat(data.regularMarketPrice) || 0,
-                    change: parseFloat(data.regularMarketChangePercent) * 100 || 0,
+                    change: (parseFloat(data.regularMarketChangePercent) || 0) * 100,
                     volume: parseFloat(data.regularMarketVolume) || 0,
                     high: parseFloat(data.regularMarketDayHigh) || 0,
                     low: parseFloat(data.regularMarketDayLow) || 0,
@@ -173,21 +205,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         });
         
         const results = await Promise.all(promises);
-        const newSummaryData = results.filter(Boolean) as MarketSummary[];
-        const processedData = processDataWithClientOverrides(newSummaryData);
-
-        setSummaryData(prev => {
-            const existingCrypto = prev.filter(p => CRYPTO_PAIRS.includes(p.pair));
-            return [...existingCrypto, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
-        });
-
-    }, [processDataWithClientOverrides]);
+        const yahooData = (results.filter(Boolean) as MarketSummary[]).reduce((acc: Record<string, MarketSummary>, item) => {
+            acc[item.pair] = item;
+            return acc;
+        }, {});
+        mergeSummaryData(yahooData);
+    }, [mergeSummaryData]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         try {
             if (!CRYPTO_PAIRS.includes(pair)) return;
             const response = await axios.get(`/api/market-data`, {
-                params: { type: 'kline', pair: pair }
+                params: { pair: pair }
             });
             setKlineData(prev => ({ ...prev, [pair]: response.data }));
         } catch (error) {
@@ -195,51 +224,73 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
     
+    // Main data fetching effect with rotation
      useEffect(() => {
-        const updateKlineWithSummary = () => {
-            setKlineData(prevKlineData => {
-                const newKlineData = { ...prevKlineData };
-                summaryData.forEach(summary => {
-                    if (!newKlineData[summary.pair]) {
-                        newKlineData[summary.pair] = [];
-                    }
-                    const latestOhlc: OHLC = {
-                        time: new Date().getTime(),
-                        open: summary.price,
-                        high: summary.high,
-                        low: summary.low,
-                        close: summary.price,
-                    };
-                    
-                    const pairData = newKlineData[summary.pair];
-                    const lastDataPoint = pairData[pairData.length - 1];
-
-                    if (lastDataPoint && new Date(lastDataPoint.time).getMinutes() === new Date().getMinutes()) {
-                        lastDataPoint.close = summary.price;
-                        lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
-                        lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
-                    } else {
-                        newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100);
-                    }
-                });
-                return newKlineData;
-            });
+        const fetchCryptoWithRotation = () => {
+            const provider = API_PROVIDERS[apiProviderIndex];
+            switch (provider) {
+                case 'Tatum':
+                    fetchTatumData();
+                    break;
+                case 'CoinDesk':
+                    fetchCoinDeskData();
+                    break;
+                case 'CoinGecko':
+                    fetchCoinGeckoData();
+                    break;
+            }
         };
 
-        const cryptoInterval = setInterval(fetchCryptoData, 5000);
-        const yahooInterval = setInterval(fetchYahooData, 5000);
+        const rotationTimer = setInterval(() => {
+            setApiProviderIndex(prev => (prev + 1) % API_PROVIDERS.length);
+        }, ROTATION_INTERVAL_SECONDS * 1000);
         
-        fetchCryptoData();
-        fetchYahooData();
-
-        const updateInterval = setInterval(updateKlineWithSummary, 2000);
+        fetchCryptoWithRotation(); // Initial fetch
+        const cryptoInterval = setInterval(fetchCryptoWithRotation, 5000);
+        
+        fetchYahooData(); // Non-crypto data
+        const yahooInterval = setInterval(fetchYahooData, 5000);
 
         return () => {
             clearInterval(cryptoInterval);
             clearInterval(yahooInterval);
-            clearInterval(updateInterval);
+            clearInterval(rotationTimer);
         };
-    }, [fetchCryptoData, fetchYahooData]);
+    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchCoinDeskData, fetchYahooData]);
+
+    // This effect runs after summaryData is updated by any provider
+    useEffect(() => {
+        const processedData = processDataWithClientOverrides(summaryData);
+        
+        setKlineData(prevKlineData => {
+            const newKlineData = { ...prevKlineData };
+            processedData.forEach(summary => {
+                if (!newKlineData[summary.pair]) {
+                    newKlineData[summary.pair] = [];
+                }
+                const latestOhlc: OHLC = {
+                    time: new Date().getTime(),
+                    open: summary.price,
+                    high: summary.high,
+                    low: summary.low,
+                    close: summary.price,
+                };
+                
+                const pairData = newKlineData[summary.pair];
+                const lastDataPoint = pairData[pairData.length - 1];
+
+                if (lastDataPoint && new Date(lastDataPoint.time).getMinutes() === new Date().getMinutes()) {
+                    lastDataPoint.close = summary.price;
+                    lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
+                    lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
+                } else {
+                    newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100);
+                }
+            });
+            return newKlineData;
+        });
+
+    }, [summaryData, processDataWithClientOverrides]);
 
 
     useEffect(() => {

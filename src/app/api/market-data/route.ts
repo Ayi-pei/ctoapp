@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY;
-const COINPAPRIKA_API_URL = 'https://api.coinpaprika.com/v1';
 
 const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
     'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin' },
@@ -29,78 +28,42 @@ const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string }> = {
 };
 
 
+// This route is now dedicated to fetching K-line data from CoinGecko.
+// Summary data fetching has been moved to dedicated, rotating API routes.
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const ids = searchParams.get('ids');
-    const type = searchParams.get('type'); // 'summary' or 'kline'
-    const pair = searchParams.get('pair'); // for kline
+    const pair = searchParams.get('pair');
 
-    if (!type) {
-        return NextResponse.json({ error: 'Request type is required' }, { status: 400 });
+    if (!pair) {
+        return NextResponse.json({ error: 'Trading pair is required' }, { status: 400 });
     }
 
-    // --- Summary Data Fetching ---
-    if (type === 'summary' && ids) {
-        try {
-            const coingeckoIds = ids.split(',');
-            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-                params: {
-                    ids: coingeckoIds.join(','),
-                    vs_currencies: 'usd',
-                    include_24hr_vol: 'true',
-                    include_24hr_change: 'true',
-                },
-                headers: {
-                    'x-cg-demo-api-key': COINGECKO_API_KEY
-                }
-            });
-            const data = response.data;
-            const summary = Object.entries(data).map(([id, value]: [string, any]) => {
-                const pairKey = Object.keys(apiIdMap).find(key => apiIdMap[key].coingecko === id);
-                return {
-                    id: id,
-                    pair: pairKey || id.toUpperCase(),
-                    price: value.usd,
-                    change: value.usd_24h_change || 0,
-                    volume: value.usd_24h_vol || 0,
-                };
-            });
-            return NextResponse.json(summary);
-        } catch (error) {
-             console.error("CoinGecko API error in proxy:", error);
-             return NextResponse.json({ error: 'Failed to fetch from CoinGecko' }, { status: 502 });
-        }
+    const coingeckoId = apiIdMap[pair]?.coingecko;
+    if (!coingeckoId) {
+        return NextResponse.json({ error: 'K-line data not available for this pair' }, { status: 404 });
     }
 
-    // --- Kline Data Fetching ---
-    if (type === 'kline' && pair) {
-        const coingeckoId = apiIdMap[pair]?.coingecko;
-        if (!coingeckoId) {
-            return NextResponse.json({ error: 'K-line data not available for this pair' }, { status: 404 });
-        }
-        try {
-            const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc`, {
-                params: {
-                    vs_currency: 'usd',
-                    days: '1',
-                },
-                 headers: {
-                    'x-cg-demo-api-key': COINGECKO_API_KEY
-                }
-            });
-             const ohlcData = response.data.map((d: number[]) => ({
-                time: d[0],
-                open: d[1],
-                high: d[2],
-                low: d[3],
-                close: d[4],
-            }));
-            return NextResponse.json(ohlcData);
-        } catch (error) {
-            console.error(`CoinGecko kline error for ${pair}:`, error);
-            return NextResponse.json({ error: 'Failed to fetch k-line data' }, { status: 502 });
-        }
+    try {
+        const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc`, {
+            params: {
+                vs_currency: 'usd',
+                days: '1',
+            },
+             headers: {
+                'x-cg-demo-api-key': COINGECKO_API_KEY
+            }
+        });
+        const ohlcData = response.data.map((d: number[]) => ({
+            time: d[0],
+            open: d[1],
+            high: d[2],
+            low: d[3],
+            close: d[4],
+        }));
+        return NextResponse.json(ohlcData);
+    } catch (error) {
+        console.error(`CoinGecko kline error for ${pair}:`, error);
+        return NextResponse.json({ error: 'Failed to fetch k-line data' }, { status: 502 });
     }
-
-    return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
 }
+
