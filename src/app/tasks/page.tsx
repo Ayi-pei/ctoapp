@@ -38,7 +38,7 @@ const TaskDetailsDialog = ({ task, isOpen, onOpenChange, onGo }: {
                 </DialogHeader>
                 {task.imgSrc && (
                     <div className="relative w-full h-48 my-4 rounded-lg overflow-hidden">
-                        <Image src={task.imgSrc} alt={task.title} layout="fill" objectFit="cover" />
+                        <Image src={task.imgSrc} alt={task.title} layout="fill" objectFit="cover" data-ai-hint="task reward" />
                     </div>
                 )}
                 <div className="text-sm space-y-2">
