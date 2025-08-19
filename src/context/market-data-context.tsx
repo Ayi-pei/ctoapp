@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import axios from 'axios';
+import { useSettings } from './settings-context';
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
@@ -56,6 +57,7 @@ interface MarketContextType {
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
+    const { settings } = useSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
@@ -63,11 +65,45 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
+
+    const processDataWithOverrides = useCallback((fetchedData: MarketSummary[]) => {
+        const now = new Date();
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+
+        return fetchedData.map(item => {
+            const pairSettings = settings[item.pair];
+            if (!pairSettings || !pairSettings.marketOverrides || pairSettings.marketOverrides.length === 0) {
+                return item; // No overrides, return original data
+            }
+
+            const activeOverride = pairSettings.marketOverrides.find(override => {
+                const [startH, startM] = override.startTime.split(':').map(Number);
+                const startTime = startH * 60 + startM;
+                const [endH, endM] = override.endTime.split(':').map(Number);
+                const endTime = endH * 60 + endM;
+                return currentTime >= startTime && currentTime <= endTime;
+            });
+            
+            if (activeOverride) {
+                // Generate a simulated price
+                const simulatedPrice = Math.random() * (activeOverride.maxPrice - activeOverride.minPrice) + activeOverride.minPrice;
+                return {
+                    ...item,
+                    price: simulatedPrice,
+                    high: activeOverride.maxPrice,
+                    low: activeOverride.minPrice,
+                    change: (Math.random() - 0.5) * 2, // Random change between -1% and +1%
+                };
+            }
+
+            return item;
+        });
+
+    }, [settings]);
     
     const fetchCryptoData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
         
-        // --- Primary Source: Tatum API via our backend ---
         try {
             const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
             if (response.data && Object.keys(response.data).length > 0) {
@@ -84,45 +120,19 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
                 });
                 
+                const processedData = processDataWithOverrides(newSummaryData);
+
                 setSummaryData(prev => {
                     const existingNonCrypto = prev.filter(d => !CRYPTO_PAIRS.includes(d.pair));
-                    return [...existingNonCrypto, ...newSummaryData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+                    return [...existingNonCrypto, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
                 });
-                return; // Exit if Tatum is successful
+                return;
             }
         } catch (error) {
             console.warn("Tatum API fetch failed, falling back to CoinGecko.", error);
         }
 
-        // --- Fallback Source: CoinGecko via our backend ---
-        const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean);
-        if (coingeckoIds.length === 0) return;
-
-        try {
-            const response = await axios.get('/api/market-data', {
-                params: { type: 'summary', ids: coingeckoIds.join(',') }
-            });
-            const fetchedSummaries = response.data;
-            const newSummaryData = fetchedSummaries.map((s: any) => ({
-                ...s,
-                price: parseFloat(s.price) || 0,
-                high: parseFloat(s.high) || 0,
-                low: parseFloat(s.low) || 0,
-                volume: parseFloat(s.volume) || 0,
-                change: parseFloat(s.change) || 0,
-                icon: `https://coin-images.coingecko.com/coins/images/${apiIdMap[s.pair]?.coingecko ? s.id : 'default'}/large.png`,
-            }));
-
-            setSummaryData(prev => {
-                const updatedData = [...prev.filter(d => !CRYPTO_PAIRS.includes(d.pair))];
-                updatedData.push(...newSummaryData);
-                return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
-            });
-
-        } catch (error) {
-            console.error("Error fetching crypto summary from CoinGecko fallback:", error);
-        }
-    }, []);
+    }, [processDataWithOverrides]);
 
     const fetchYahooData = useCallback(async () => {
         const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
@@ -151,13 +161,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         
         const results = await Promise.all(promises);
         const newSummaryData = results.filter(Boolean) as MarketSummary[];
+        const processedData = processDataWithOverrides(newSummaryData);
 
         setSummaryData(prev => {
             const nonCryptoPrev = prev.filter(p => !nonCryptoPairs.includes(p.pair));
-            return [...nonCryptoPrev, ...newSummaryData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+            return [...nonCryptoPrev, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
         });
 
-    }, []);
+    }, [processDataWithOverrides]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         try {
@@ -169,24 +180,77 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             console.error(`Error fetching k-line data for ${pair} from proxy:`, error);
         }
     }, []);
+    
+     useEffect(() => {
+        const updateKlineWithSummary = () => {
+            setKlineData(prevKlineData => {
+                const newKlineData = { ...prevKlineData };
+                summaryData.forEach(summary => {
+                    if (!newKlineData[summary.pair]) {
+                        newKlineData[summary.pair] = [];
+                    }
+                    const latestOhlc: OHLC = {
+                        time: new Date().getTime(),
+                        open: summary.price,
+                        high: summary.high,
+                        low: summary.low,
+                        close: summary.price,
+                    };
+                    
+                    const pairData = newKlineData[summary.pair];
+                    const lastDataPoint = pairData[pairData.length - 1];
 
-    useEffect(() => {
-        fetchCryptoData();
-        fetchYahooData();
-        const cryptoInterval = setInterval(fetchCryptoData, 60000); // 1 minute for crypto
-        const yahooInterval = setInterval(fetchYahooData, 15000); // 15 seconds for real markets
+                    if (lastDataPoint && new Date(lastDataPoint.time).getMinutes() === new Date().getMinutes()) {
+                        // Update the last point
+                        lastDataPoint.close = summary.price;
+                        lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
+                        lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
+                    } else {
+                        // Add a new point
+                        newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100); // Keep last 100 points
+                    }
+                });
+                return newKlineData;
+            });
+        };
+
+        const intervals = availablePairs.map(pair => {
+            const pairSettings = settings[pair];
+            let intervalTime = 5000; // Default day frequency
+            if (pairSettings && pairSettings.marketOverrides.length > 0) {
+                const activeOverride = pairSettings.marketOverrides.find(o => {
+                    const now = new Date();
+                    const currentTime = now.getHours() * 60 + now.getMinutes();
+                    const [startH, startM] = o.startTime.split(':').map(Number);
+                    const startTime = startH * 60 + startM;
+                    const [endH, endM] = o.endTime.split(':').map(Number);
+                    const endTime = endH * 60 + endM;
+                    return currentTime >= startTime && currentTime <= endTime;
+                });
+                if (activeOverride && activeOverride.frequency === 'night') {
+                    intervalTime = 15000;
+                }
+            }
+            return setInterval(() => {
+                if (CRYPTO_PAIRS.includes(pair)) fetchCryptoData();
+                else fetchYahooData();
+            }, intervalTime);
+        });
+
+        updateKlineWithSummary();
+        const updateInterval = setInterval(updateKlineWithSummary, 2000);
 
         return () => {
-            clearInterval(cryptoInterval);
-            clearInterval(yahooInterval);
+            intervals.forEach(clearInterval);
+            clearInterval(updateInterval);
         };
-    }, [fetchCryptoData, fetchYahooData]);
+    }, [fetchCryptoData, fetchYahooData, summaryData, settings]);
+
 
     useEffect(() => {
         if (tradingPair && CRYPTO_PAIRS.includes(tradingPair)) {
             fetchKlineData(tradingPair);
         }
-        // For non-crypto, k-line data is not supported by Yahoo proxy yet
     }, [tradingPair, fetchKlineData]);
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
