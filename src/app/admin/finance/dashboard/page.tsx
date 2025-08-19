@@ -126,14 +126,16 @@ export default function AdminFinanceDashboardPage() {
                                     <XAxis dataKey="name" />
                                     <YAxis />
                                     <Tooltip
+                                        cursor={{ fill: 'hsl(var(--muted))' }}
                                         contentStyle={{
                                             backgroundColor: 'hsl(var(--background))',
-                                            borderColor: 'hsl(var(--border))'
+                                            borderColor: 'hsl(var(--border))',
+                                            color: 'hsl(var(--foreground))'
                                         }}
                                     />
                                     <Legend />
-                                    <Bar dataKey="充值" fill="hsl(var(--chart-1))" />
-                                    <Bar dataKey="提现" fill="hsl(var(--chart-2))" />
+                                    <Bar dataKey="充值" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="提现" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
