@@ -78,9 +78,6 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
             description: `您的 ${amount} USDT 提币请求已发送给管理员审核。`,
         });
         
-        // This will be handled by the admin approval now
-        // requestWithdrawal('USDT', numericAmount, selectedAddress);
-        
         setSelectedAddress("");
         setAmount("");
         onOpenChange(false);
