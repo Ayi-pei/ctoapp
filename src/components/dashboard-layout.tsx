@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -18,6 +17,7 @@ type DashboardLayoutProps = {
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     // This component's primary job is to protect routes.
@@ -40,7 +40,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
   
-  const pathname = usePathname();
   const isDashboardPage = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
 
