@@ -20,29 +20,32 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        // If not authenticated and not already on a public page, redirect to login.
-        if (pathname !== '/login' && pathname !== '/register') {
-          router.replace('/login');
-        }
-      } else {
-        // User is authenticated, enforce correct dashboard.
-        const isAnAdminPage = pathname.startsWith('/admin');
+    if (isLoading) {
+      // Still loading, do nothing and wait.
+      return;
+    }
 
-        if (isAdmin && !isAnAdminPage) {
-            // Admin is on a non-admin page, redirect to admin area.
-            router.replace('/admin');
-        } else if (!isAdmin && isAnAdminPage) {
-            // Regular user on an admin page, redirect to user dashboard.
-            router.replace('/dashboard');
-        }
-      }
+    if (!isAuthenticated) {
+      // If not authenticated, always redirect to login page.
+      // This is the definitive gatekeeper.
+      router.replace('/login');
+      return;
+    }
+
+    // From here, user IS authenticated.
+    const isAnAdminPage = pathname.startsWith('/admin');
+
+    if (isAdmin && !isAnAdminPage) {
+      // Admin is on a non-admin page, redirect to admin root.
+      router.replace('/admin');
+    } else if (!isAdmin && isAnAdminPage) {
+      // Regular user on an admin page, redirect to user dashboard.
+      router.replace('/dashboard');
     }
   }, [isAuthenticated, isLoading, isAdmin, pathname, router]);
 
   // While loading auth state, show a full-screen loader.
-  if (isLoading) {
+  if (isLoading || !isAuthenticated) {
     return (
       <AuthLayout>
         <div className="flex flex-col items-center gap-4">
@@ -51,12 +54,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </div>
       </AuthLayout>
     );
-  }
-  
-  // If not authenticated and not loading, render children (e.g., login page) without the layout.
-  // The effect above handles redirection for protected routes.
-  if (!isAuthenticated) {
-     return <>{children}</>;
   }
   
   const isDashboardPage = pathname === '/dashboard';
