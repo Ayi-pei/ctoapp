@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { DailyTask, UserTaskState } from '@/types';
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
+import { useLogs } from './logs-context';
 
 const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
 const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
@@ -66,6 +67,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useAuth();
   const balanceContext = useBalance();
   const { adjustBalance } = balanceContext;
+  const { addLog } = useLogs();
 
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
@@ -154,10 +156,17 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       const newScore = (user.credit_score || 100) + task.reward;
       updateUser(user.id, { credit_score: newScore });
     }
+    
+    addLog({
+        entity_type: 'task_completion',
+        entity_id: task.id,
+        action: 'user_complete',
+        details: `User ${user.username} completed task: "${task.title}" and received ${task.reward} ${task.reward_type}.`
+    });
 
     const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
     setUserTasksState(prev => [...prev, newState]);
-  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser]);
+  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser, addLog]);
 
   // Wrap balance context functions to also trigger task completion
   const placeContractTrade: TasksContextType['placeContractTrade'] = useCallback((...args) => {

@@ -1,4 +1,5 @@
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -242,9 +243,9 @@ export type LimitedTimeActivity = {
 // Represents an action log for admin operations
 export type ActionLog = {
     id: string;
-    entity_type: 'request';
+    entity_type: 'request' | 'task_completion' | 'activity_participation';
     entity_id: string;
-    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     operator_id: string;
     operator_username: string;
     created_at: string;

@@ -3,6 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { LimitedTimeActivity } from '@/types';
+import { useLogs } from './logs-context';
+import { useAuth } from './auth-context';
 
 const ACTIVITIES_STORAGE_KEY = 'tradeflow_activities';
 
@@ -40,6 +42,7 @@ interface ActivitiesContextType {
   saveActivities: () => void;
   // User functions
   publishedActivities: LimitedTimeActivity[];
+  participateInActivity: (activityId: string) => void;
 }
 
 const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undefined);
@@ -47,6 +50,8 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undef
 export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<LimitedTimeActivity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useAuth();
+  const { addLog } = useLogs();
 
   // Load admin-defined activities
   useEffect(() => {
@@ -99,6 +104,22 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
     setActivities(prev => prev.map(activity => activity.id === id ? { ...activity, ...updates } : activity));
   }, []);
 
+  const participateInActivity = useCallback((activityId: string) => {
+    if (!user) return;
+    const activity = activities.find(a => a.id === activityId);
+    if (!activity) return;
+
+    // Here, you would check if the user is eligible.
+    // For now, we'll just log the participation.
+    addLog({
+      entity_type: 'activity_participation',
+      entity_id: activityId,
+      action: 'user_complete',
+      details: `User ${user.username} participated in activity: "${activity.title}".`
+    });
+
+  }, [addLog, user, activities]);
+
   const value = {
     activities,
     addActivity,
@@ -106,6 +127,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
     updateActivity,
     saveActivities,
     publishedActivities: activities.filter(a => a.status === 'published' && new Date(a.expiresAt) > new Date()),
+    participateInActivity,
   };
 
   return (

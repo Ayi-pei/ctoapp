@@ -5,12 +5,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import type { ActionLog, AnyRequest } from '@/types';
 import { useAuth } from './auth-context';
 
-const LOGS_STORAGE_KEY = 'tradeflow_action_logs';
+const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
 
 type LogParams = {
-    entity_type: 'request';
+    entity_type: 'request' | 'task_completion' | 'activity_participation';
     entity_id: string;
-    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     details: string;
 };
 
@@ -22,7 +22,7 @@ interface LogsContextType {
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-    const { user, isAdmin } = useAuth();
+    const { user } = useAuth(); // No need for isAdmin check here
     const [logs, setLogs] = useState<ActionLog[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -51,7 +51,7 @@ export function LogsProvider({ children }: { children: ReactNode }) {
     }, [logs, isLoaded]);
 
     const addLog = useCallback((params: LogParams) => {
-        if (!user || !isAdmin) return;
+        if (!user) return; // A log must be associated with a logged-in user
 
         const newLog: ActionLog = {
             id: `log_${Date.now()}`,
@@ -61,9 +61,9 @@ export function LogsProvider({ children }: { children: ReactNode }) {
             created_at: new Date().toISOString(),
         };
 
-        setLogs(prev => [newLog, ...prev]);
+        setLogs(prev => [newLog, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
 
-    }, [user, isAdmin]);
+    }, [user]);
 
     const value = { logs, addLog };
 
