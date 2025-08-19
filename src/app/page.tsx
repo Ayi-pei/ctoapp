@@ -19,18 +19,28 @@ export default function Home() {
     const router = useRouter();
 
     useEffect(() => {
+        // We only want to redirect when the authentication status is fully determined.
         if (!isLoading) {
             if (isAuthenticated) {
-                // If authenticated, redirect to the appropriate dashboard
-                router.replace(isAdmin ? '/admin' : '/dashboard');
+                // If the user is an admin, the single source of truth for their
+                // destination is the /admin page, which itself will handle
+                // redirecting to a specific sub-page like /admin/users.
+                if (isAdmin) {
+                    router.replace('/admin');
+                } else {
+                    // For regular users, the destination is the dashboard.
+                    router.replace('/dashboard');
+                }
             } else {
-                // If not authenticated, redirect to the login page
+                // If not authenticated, the only place to go is the login page.
                 router.replace('/login');
             }
         }
     }, [isAuthenticated, isLoading, isAdmin, router]);
 
-    // Display a loading indicator while the auth check is in progress
+    // Display a loading indicator while the auth check is in progress.
+    // This prevents any flicker or rendering of incorrect pages during the
+    // initial load or after a logout/login action.
     return (
         <AuthLayout>
              <div className="flex flex-col items-center gap-4">
