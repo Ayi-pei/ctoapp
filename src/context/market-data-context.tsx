@@ -11,32 +11,29 @@ const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
 const FUTURES_PAIRS = ['OIL/USD', 'XAG/USD', 'NAS100/USD'];
 
-
-const API_SOURCES = ['coingecko', 'coinpaprika'];
-
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
-const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string, yahoo?: string }> = {
-    'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin', yahoo: 'BTC-USD' },
-    'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum', yahoo: 'ETH-USD' },
-    'SOL/USDT': { coingecko: 'solana', coinpaprika: 'sol-solana', yahoo: 'SOL-USD' },
-    'XRP/USDT': { coingecko: 'ripple', coinpaprika: 'xrp-xrp', yahoo: 'XRP-USD' },
-    'LTC/USDT': { coingecko: 'litecoin', coinpaprika: 'ltc-litecoin', yahoo: 'LTC-USD' },
-    'BNB/USDT': { coingecko: 'binancecoin', coinpaprika: 'bnb-binance-coin', yahoo: 'BNB-USD' },
-    'MATIC/USDT': { coingecko: 'matic-network', coinpaprika: 'matic-polygon', yahoo: 'MATIC-USD' },
-    'DOGE/USDT': { coingecko: 'dogecoin', coinpaprika: 'doge-dogecoin', yahoo: 'DOGE-USD' },
-    'ADA/USDT': { coingecko: 'cardano', coinpaprika: 'ada-cardano', yahoo: 'ADA-USD' },
-    'SHIB/USDT': { coingecko: 'shiba-inu', coinpaprika: 'shib-shiba-inu', yahoo: 'SHIB-USD' },
-    'AVAX/USDT': { coingecko: 'avalanche-2', coinpaprika: 'avax-avalanche', yahoo: 'AVAX-USD' },
-    'LINK/USDT': { coingecko: 'chainlink', coinpaprika: 'link-chainlink', yahoo: 'LINK-USD' },
-    'DOT/USDT': { coingecko: 'polkadot', coinpaprika: 'dot-polkadot', yahoo: 'DOT-USD' },
-    'UNI/USDT': { coingecko: 'uniswap', coinpaprika: 'uni-uniswap', yahoo: 'UNI-USD' },
-    'TRX/USDT': { coingecko: 'tron', coinpaprika: 'trx-tron', yahoo: 'TRX-USD' },
-    'XLM/USDT': { coingecko: 'stellar', coinpaprika: 'xlm-stellar', yahoo: 'XLM-USD' },
-    'VET/USDT': { coingecko: 'vechain', coinpaprika: 'vet-vechain', yahoo: 'VET-USD' },
-    'EOS/USDT': { coingecko: 'eos', coinpaprika: 'eos-eos', yahoo: 'EOS-USD' },
-    'FIL/USDT': { coingecko: 'filecoin', coinpaprika: 'fil-filecoin', yahoo: 'FIL-USD' },
-    'ICP/USDT': { coingecko: 'internet-computer', coinpaprika: 'icp-internet-computer', yahoo: 'ICP-USD' },
+const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string, yahoo?: string, tatum?: string }> = {
+    'BTC/USDT': { coingecko: 'bitcoin', coinpaprika: 'btc-bitcoin', yahoo: 'BTC-USD', tatum: 'BTC' },
+    'ETH/USDT': { coingecko: 'ethereum', coinpaprika: 'eth-ethereum', yahoo: 'ETH-USD', tatum: 'ETH' },
+    'SOL/USDT': { coingecko: 'solana', coinpaprika: 'sol-solana', yahoo: 'SOL-USD', tatum: 'SOL' },
+    'XRP/USDT': { coingecko: 'ripple', coinpaprika: 'xrp-xrp', yahoo: 'XRP-USD', tatum: 'XRP' },
+    'LTC/USDT': { coingecko: 'litecoin', coinpaprika: 'ltc-litecoin', yahoo: 'LTC-USD', tatum: 'LTC' },
+    'BNB/USDT': { coingecko: 'binancecoin', coinpaprika: 'bnb-binance-coin', yahoo: 'BNB-USD', tatum: 'BNB' },
+    'MATIC/USDT': { coingecko: 'matic-network', coinpaprika: 'matic-polygon', yahoo: 'MATIC-USD', tatum: 'MATIC' },
+    'DOGE/USDT': { coingecko: 'dogecoin', coinpaprika: 'doge-dogecoin', yahoo: 'DOGE-USD', tatum: 'DOGE' },
+    'ADA/USDT': { coingecko: 'cardano', coinpaprika: 'ada-cardano', yahoo: 'ADA-USD', tatum: 'ADA' },
+    'SHIB/USDT': { coingecko: 'shiba-inu', coinpaprika: 'shib-shiba-inu', yahoo: 'SHIB-USD', tatum: 'SHIB' },
+    'AVAX/USDT': { coingecko: 'avalanche-2', coinpaprika: 'avax-avalanche', yahoo: 'AVAX-USD', tatum: 'AVAX' },
+    'LINK/USDT': { coingecko: 'chainlink', coinpaprika: 'link-chainlink', yahoo: 'LINK-USD', tatum: 'LINK' },
+    'DOT/USDT': { coingecko: 'polkadot', coinpaprika: 'dot-polkadot', yahoo: 'DOT-USD', tatum: 'DOT' },
+    'UNI/USDT': { coingecko: 'uniswap', coinpaprika: 'uni-uniswap', yahoo: 'UNI-USD', tatum: 'UNI' },
+    'TRX/USDT': { coingecko: 'tron', coinpaprika: 'trx-tron', yahoo: 'TRX-USD', tatum: 'TRON' },
+    'XLM/USDT': { coingecko: 'stellar', coinpaprika: 'xlm-stellar', yahoo: 'XLM-USD', tatum: 'XLM' },
+    'VET/USDT': { coingecko: 'vechain', coinpaprika: 'vet-vechain', yahoo: 'VET-USD', tatum: 'VET' },
+    'EOS/USDT': { coingecko: 'eos', coinpaprika: 'eos-eos', yahoo: 'EOS-USD', tatum: 'EOS' },
+    'FIL/USDT': { coingecko: 'filecoin', coinpaprika: 'fil-filecoin', yahoo: 'FIL-USD', tatum: 'FIL' },
+    'ICP/USDT': { coingecko: 'internet-computer', coinpaprika: 'icp-internet-computer', yahoo: 'ICP-USD', tatum: 'ICP' },
     // Non-crypto mappings
     'XAU/USD': { yahoo: 'GC=F' }, // Gold Futures
     'EUR/USD': { yahoo: 'EURUSD=X' },
@@ -45,10 +42,6 @@ const apiIdMap: Record<string, { coingecko?: string, coinpaprika?: string, yahoo
     'XAG/USD': { yahoo: 'SI=F' }, // Silver Futures
     'NAS100/USD': { yahoo: 'NQ=F' }, // Nasdaq 100 Futures
 };
-
-type ApiState = {
-    [key: string]: { remaining: number; weight: number };
-}
 
 interface MarketContextType {
     tradingPair: string;
@@ -76,49 +69,64 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
     
-    const fetchCryptoData = useCallback(async (isRetry = false) => {
-        const storedIndex = localStorage.getItem('apiSourceIndex');
-        const currentIndex = storedIndex ? parseInt(storedIndex, 10) : 0;
-        let currentSource = API_SOURCES[currentIndex];
+    const fetchCryptoData = useCallback(async () => {
+        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean);
+        if (tatumIds.length === 0) return;
 
-        const ids = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.[currentSource as keyof typeof apiIdMap['BTC/USDT']]).filter(Boolean);
-        
-        if (ids.length === 0) return;
+        const promises = tatumIds.map(async (tatumId) => {
+             const pair = Object.keys(apiIdMap).find(key => apiIdMap[key]?.tatum === tatumId) || "Unknown";
+             const coingeckoId = apiIdMap[pair]?.coingecko;
+             if (!coingeckoId) return null;
 
-        try {
-            const response = await axios.get('/api/market-data', {
-                params: {
-                    source: currentSource,
-                    endpoint: 'markets',
-                    ids: ids.join(','),
-                }
-            });
-
-            const newSummaryData = response.data as MarketSummary[];
-            
-            setSummaryData(prev => {
-                const updatedData = [...prev];
-                newSummaryData.forEach(newItem => {
-                    const index = updatedData.findIndex(item => item.pair === newItem.pair);
-                    if (index !== -1) {
-                        updatedData[index] = { ...updatedData[index], ...newItem};
-                    } else {
-                        updatedData.push(newItem);
-                    }
+             try {
+                // This call happens on the server via the AI flow, which can access process.env
+                const response = await fetch(`/api/genkit/flow/getMarketDataFlow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assetIds: [tatumId] }),
                 });
-                return updatedData;
-            });
-
-        } catch (error) {
-            console.error(`Error fetching crypto summary from ${currentSource}:`, error);
-             if (axios.isAxiosError(error) && (error.response?.status === 429 || error.response?.status === 403)) {
-                const nextIndex = (currentIndex + 1) % API_SOURCES.length;
-                localStorage.setItem('apiSourceIndex', nextIndex.toString());
-                if (!isRetry) {
-                   setTimeout(() => fetchCryptoData(true), 1000); 
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch data for ${tatumId}, status: ${response.status}`);
                 }
+                const result = await response.json();
+                const rateData = result?.data?.[tatumId.toLowerCase()];
+
+                if (rateData && rateData.priceUsd) {
+                    const price = parseFloat(rateData.priceUsd);
+                     return {
+                        pair: pair,
+                        price: price,
+                        change: parseFloat(rateData.changePercent24Hr) || 0,
+                        volume: parseFloat(rateData.volumeUsd24Hr) || 0,
+                        high: price, // V4 doesn't provide high/low
+                        low: price,
+                        icon: `https://assets.coingecko.com/coins/images/${coingeckoId}/large.png`,
+                    } as MarketSummary;
+                }
+                return null;
+
+            } catch (error) {
+                console.error(`Error fetching Tatum summary for ${tatumId}:`, error);
+                return null;
             }
-        }
+        });
+
+        const results = (await Promise.all(promises)).filter(Boolean) as MarketSummary[];
+        
+         setSummaryData(prev => {
+            const updatedData = [...prev];
+            results.forEach(newItem => {
+                const index = updatedData.findIndex(item => item.pair === newItem.pair);
+                if (index !== -1) {
+                    updatedData[index] = { ...updatedData[index], ...newItem};
+                } else {
+                    updatedData.push(newItem);
+                }
+            });
+            return updatedData;
+        });
+
     }, []);
 
     const fetchYahooData = useCallback(async () => {
@@ -169,19 +177,19 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         if (!coingeckoId) return;
 
         try {
-            const response = await axios.get('/api/market-data', {
-                params: {
-                    source: 'coingecko',
-                    endpoint: 'ohlc',
-                    pairId: coingeckoId,
-                }
-            });
-
-            const newOhlcData: OHLC[] = response.data;
+            // Using a simple proxy to bypass CORS for Coingecko's free API for k-line data
+            const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coingeckoId}/ohlc?vs_currency=usd&days=1`);
+            const newOhlcData: OHLC[] = response.data.map((d: number[]) => ({
+                time: d[0],
+                open: d[1],
+                high: d[2],
+                low: d[3],
+                close: d[4],
+            }));
             setKlineData(prev => ({ ...prev, [pair]: newOhlcData }));
 
         } catch (error) {
-            console.error(`Error fetching k-line data for ${pair} via coingecko proxy:`, error);
+            console.error(`Error fetching k-line data for ${pair} from coingecko:`, error);
         }
     }, []);
 
