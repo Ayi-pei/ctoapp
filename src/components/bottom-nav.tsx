@@ -16,14 +16,13 @@ export function BottomNav() {
   
   const itemsToShow = navItems.slice(0, 5);
 
-  // Return null if there are no items to show, which might happen during auth loading
   if (itemsToShow.length === 0) {
     return null;
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 bg-gradient-to-r from-gray-200 via-gray-400 to-blue-500 border-t border-blue-600/50">
-      <ul className="flex justify-around items-center h-16 px-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm md:hidden">
+      <ul className="flex h-16 items-center justify-around px-1">
         {itemsToShow.map((item) => {
              const isActive = (item.href === '/dashboard' && pathname === item.href) ||
                              (item.href === '/admin/users' && pathname === item.href) ||
@@ -31,16 +30,15 @@ export function BottomNav() {
             
             return (
               <li key={item.label} className="flex-1">
-                <Link href={item.href} className="flex justify-center">
-                  <div
-                    className={cn(
-                      'flex flex-col items-center justify-center gap-1 text-xs w-16 h-14 rounded-lg transition-all',
-                      isActive ? 'text-amber-400 bg-white/20' : 'text-white'
-                    )}
-                  >
-                    <item.icon className={cn("h-5 w-5", isActive ? 'text-amber-300' : 'text-white')} />
-                    <span className={cn(isActive ? 'font-bold' : '')}>{item.label}</span>
-                  </div>
+                <Link 
+                  href={item.href} 
+                  className={cn(
+                    'flex h-14 w-full flex-col items-center justify-center gap-1 rounded-lg text-xs transition-colors',
+                    isActive ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className={cn(isActive && 'font-bold')}>{item.label}</span>
                 </Link>
               </li>
             )

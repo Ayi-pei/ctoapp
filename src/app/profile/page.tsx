@@ -138,7 +138,7 @@ const ListItem = ({ icon, label, href }: { icon: React.ElementType, label: strin
         <Link href={href} passHref>
             <div className="flex items-center justify-between p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
                 <div className="flex items-center gap-4">
-                    {React.createElement(icon, { className: "[&_svg]:size-6 text-primary" })}
+                    {React.createElement(icon, { className: "w-5 h-5 text-primary" })}
                     <span className="font-medium text-card-foreground">{label}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -152,7 +152,7 @@ const ActionItem = ({ icon, label, action }: { icon: React.ElementType, label: s
     return (
         <div onClick={action} className="flex items-center justify-center p-4 bg-card/80 rounded-lg hover:bg-muted/80 cursor-pointer border border-border/50">
             <div className="flex items-center gap-2 text-destructive">
-                 {React.createElement(icon, { className: "[&_svg]:size-5" })}
+                 {React.createElement(icon, { className: "w-5 h-5" })}
                  <span className="font-medium">{label}</span>
             </div>
         </div>
