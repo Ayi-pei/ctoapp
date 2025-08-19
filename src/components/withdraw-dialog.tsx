@@ -61,6 +61,15 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
 
 
     const handleWithdraw = async () => {
+        if (user?.is_test_user) {
+            toast({
+                variant: "destructive",
+                title: "操作受限",
+                description: "测试账户无法进行提现操作。",
+            });
+            return;
+        }
+
         const numericAmount = parseFloat(amount);
 
         if (!selectedAddress || !numericAmount || numericAmount <= 0) {
@@ -106,6 +115,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     }
     
     const showCreditScoreWarning = user && user.credit_score < 90;
+    const isTestUser = user?.is_test_user === true;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -121,6 +131,12 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                         <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/20 text-yellow-700 flex items-center gap-3 text-xs">
                            <AlertCircle className="h-5 w-5 flex-shrink-0" />
                            您的信誉分较低，如遇审核峰值过高将延迟受理，感谢理解配合。
+                        </div>
+                    )}
+                    {isTestUser && (
+                        <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-3 text-xs">
+                           <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                           测试账户无法进行提现操作。
                         </div>
                     )}
 
@@ -184,7 +200,7 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                             取消
                         </Button>
                     </DialogClose>
-                    <Button type="button" onClick={handleWithdraw}>确定</Button>
+                    <Button type="button" onClick={handleWithdraw} disabled={isTestUser}>确定</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
