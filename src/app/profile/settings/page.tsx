@@ -16,7 +16,6 @@ import { LifeBuoy } from "lucide-react";
 
 
 const changePasswordSchema = z.object({
-    currentPassword: z.string().min(1, "请输入当前密码"),
     newPassword: z.string().min(8, "新密码必须至少8个字符"),
     confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
@@ -34,7 +33,6 @@ export default function ProfileSettingsPage() {
     const form = useForm<z.infer<typeof changePasswordSchema>>({
         resolver: zodResolver(changePasswordSchema),
         defaultValues: {
-            currentPassword: "",
             newPassword: "",
             confirmPassword: "",
         },
@@ -42,16 +40,6 @@ export default function ProfileSettingsPage() {
 
     const onSubmit = async (values: z.infer<typeof changePasswordSchema>) => {
         if (!user) return;
-        
-        // This is a mocked check. In a real app, you'd verify the currentPassword against the backend.
-        if (values.currentPassword !== user.password) {
-            toast({
-                variant: "destructive",
-                title: "错误",
-                description: "当前密码不正确。",
-            });
-            return;
-        }
 
         try {
             await addPasswordResetRequest(values.newPassword);
@@ -96,19 +84,6 @@ export default function ProfileSettingsPage() {
                     <CardContent>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-md">
-                                <FormField
-                                    control={form.control}
-                                    name="currentPassword"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>当前密码</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" placeholder="请输入当前密码" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                                 <FormField
                                     control={form.control}
                                     name="newPassword"
