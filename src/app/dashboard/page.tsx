@@ -49,7 +49,7 @@ export default function DashboardPage() {
         { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true), labelPosition: 'top' },
         { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion', labelPosition: 'top' },
         { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download', labelPosition: 'top' },
-        { name: '闪兑', imgSrc: '/images/dui.png', href: '/coming-soon', labelPosition: 'bottom' },
+        { name: '闪兑', imgSrc: '/images/dui.png', href: '/swap', labelPosition: 'bottom' },
         { name: '秒合约', imgSrc: '/images/tt.png', href: '/trade?tab=contract', labelPosition: 'bottom' },
         { name: '限时活动', imgSrc: '/images/time.png', href: '/activities', labelPosition: 'bottom' },
         { name: '关于我们', imgSrc: '/images/me.png', href: '/coming-soon', labelPosition: 'bottom' },

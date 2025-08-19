@@ -3,6 +3,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -255,9 +256,23 @@ export type LimitedTimeActivity = {
 export type ActionLog = {
     id: string;
     entity_type: 'request' | 'task_completion' | 'activity_participation';
+    entity_id: string;
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     operator_id: string;
     operator_username: string;
     created_at: string;
     details: string;
+};
+
+// Represents a P2P Swap Order
+export type SwapOrder = {
+    id: string;
+    userId: string;
+    username: string;
+    fromAsset: string;
+    fromAmount: number;
+    toAsset: string;
+    toAmount: number;
+    status: 'open' | 'filled' | 'cancelled';
+    createdAt: string;
 };

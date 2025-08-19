@@ -15,6 +15,7 @@ import { InvestmentSettingsProvider } from '@/context/investment-settings-contex
 import { TasksProvider } from '@/context/tasks-context';
 import { ActivitiesProvider } from '@/context/activities-context';
 import { LogsProvider } from '@/context/logs-context';
+import { SwapProvider } from '@/context/swap-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -45,7 +46,9 @@ export default function RootLayout({
                         <RequestsProvider>
                             <ActivitiesProvider>
                               <AnnouncementsProvider>
-                                {children}
+                                <SwapProvider>
+                                  {children}
+                                </SwapProvider>
                                 <Toaster />
                               </AnnouncementsProvider>
                             </ActivitiesProvider>
