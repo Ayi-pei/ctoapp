@@ -47,60 +47,60 @@ export default function AdminInvestmentSettingsPage() {
                      <ScrollArea className="h-[calc(100vh-22rem)]">
                         <CardContent className="pr-6">
                             {investmentProducts.map((product, index) => (
-                                <div key={product.id}>
+                                <div key={product.id} className="relative pt-4">
                                     {index > 0 && <Separator className="my-6" />}
-                                    <div className="space-y-4 relative pt-4">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="font-semibold text-xl text-primary">{product.name || '新产品'}</h3>
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                onClick={() => removeProduct(product.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                    
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="font-semibold text-xl text-primary">{product.name || '新产品'}</h3>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                            onClick={() => removeProduct(product.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`product-name-${product.id}`}>产品名称</Label>
+                                            <Input id={`product-name-${product.id}`} value={product.name} onChange={e => updateProduct(product.id, { name: e.target.value })} />
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor={`product-name-${product.id}`}>产品名称</Label>
-                                                <Input id={`product-name-${product.id}`} value={product.name} onChange={e => updateProduct(product.id, { name: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor={`product-price-${product.id}`}>每份金额 (USDT)</Label>
-                                                <Input id={`product-price-${product.id}`} type="number" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor={`product-rate-${product.id}`}>日收益率 (%)</Label>
-                                                <Input id={`product-rate-${product.id}`} type="number" value={(product.dailyRate || 0) * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor={`product-period-${product.id}`}>周期 (天)</Label>
-                                                <Input id={`product-period-${product.id}`} type="number" value={product.period} onChange={e => updateProduct(product.id, { period: parseInt(e.target.value) || 0 })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor={`product-max-${product.id}`}>最大购买次数</Label>
-                                                <Input id={`product-max-${product.id}`} type="number" value={product.maxPurchase} onChange={e => updateProduct(product.id, { maxPurchase: parseInt(e.target.value) || 0 })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>产品图片</Label>
-                                                <div className="flex items-center gap-4">
-                                                    {product.imgSrc && (
-                                                        <Image 
-                                                            src={product.imgSrc} 
-                                                            alt={product.name} 
-                                                            width={80} 
-                                                            height={80} 
-                                                            className="object-cover rounded-md border"
-                                                        />
-                                                    )}
-                                                    <Input 
-                                                        id={`product-img-upload-${product.id}`} 
-                                                        type="file" 
-                                                        accept="image/*"
-                                                        onChange={(e) => handleImageUpload(e, product.id)} 
-                                                        className="text-xs file:text-xs file:font-medium file:text-foreground file:border-0 file:bg-muted file:rounded-md file:px-2 file:py-1 file:mr-2 hover:file:bg-accent"
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`product-price-${product.id}`}>每份金额 (USDT)</Label>
+                                            <Input id={`product-price-${product.id}`} type="number" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`product-rate-${product.id}`}>日收益率 (%)</Label>
+                                            <Input id={`product-rate-${product.id}`} type="number" value={(product.dailyRate || 0) * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`product-period-${product.id}`}>周期 (天)</Label>
+                                            <Input id={`product-period-${product.id}`} type="number" value={product.period} onChange={e => updateProduct(product.id, { period: parseInt(e.target.value) || 0 })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`product-max-${product.id}`}>最大购买次数</Label>
+                                            <Input id={`product-max-${product.id}`} type="number" value={product.maxPurchase} onChange={e => updateProduct(product.id, { maxPurchase: parseInt(e.target.value) || 0 })} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>产品图片</Label>
+                                            <div className="flex items-center gap-4">
+                                                {product.imgSrc && (
+                                                    <Image 
+                                                        src={product.imgSrc} 
+                                                        alt={product.name} 
+                                                        width={80} 
+                                                        height={80} 
+                                                        className="object-cover rounded-md border"
                                                     />
-                                                </div>
+                                                )}
+                                                <Input 
+                                                    id={`product-img-upload-${product.id}`} 
+                                                    type="file" 
+                                                    accept="image/*"
+                                                    onChange={(e) => handleImageUpload(e, product.id)} 
+                                                    className="text-xs file:text-xs file:font-medium file:text-foreground file:border-0 file:bg-muted file:rounded-md file:px-2 file:py-1 file:mr-2 hover:file:bg-accent"
+                                                />
                                             </div>
                                         </div>
                                     </div>
