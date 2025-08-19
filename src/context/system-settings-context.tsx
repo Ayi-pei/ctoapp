@@ -12,11 +12,13 @@ export type SystemSettings = {
         BTC: string;
         USD: string;
     };
+    contractTradingEnabled: boolean;
 };
 
 interface SystemSettingsContextType {
     systemSettings: SystemSettings;
     updateDepositAddress: (asset: keyof SystemSettings['depositAddresses'], value: string) => void;
+    updateSetting: <K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => void;
 }
 
 const defaultSystemSettings: SystemSettings = {
@@ -26,6 +28,7 @@ const defaultSystemSettings: SystemSettings = {
         BTC: "",
         USD: "",
     },
+    contractTradingEnabled: true,
 };
 
 const SystemSettingsContext = createContext<SystemSettingsContextType | undefined>(undefined);
@@ -42,10 +45,10 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
                 // Merge stored settings with defaults to ensure all keys are present
                 const parsedSettings = JSON.parse(storedSettings);
                 setSystemSettings(prev => ({
-                    ...prev,
-                    ...parsedSettings,
+                    ...defaultSystemSettings, // Start with defaults
+                    ...parsedSettings,      // Override with stored settings
                     depositAddresses: {
-                        ...prev.depositAddresses,
+                        ...defaultSystemSettings.depositAddresses,
                         ...(parsedSettings.depositAddresses || {})
                     },
                 }));
@@ -76,10 +79,17 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
             }
         }));
     }, []);
+
+    const updateSetting = useCallback(<K extends keyof SystemSettings>(key: K, value: SystemSettings[K]) => {
+        setSystemSettings(prevSettings => ({
+            ...prevSettings,
+            [key]: value,
+        }));
+    }, []);
     
 
     return (
-        <SystemSettingsContext.Provider value={{ systemSettings, updateDepositAddress }}>
+        <SystemSettingsContext.Provider value={{ systemSettings, updateDepositAddress, updateSetting }}>
             {children}
         </SystemSettingsContext.Provider>
     );

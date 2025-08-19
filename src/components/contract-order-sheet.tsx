@@ -107,7 +107,14 @@ export function ContractOrderSheet({
   };
 
   const handleInitialConfirm = () => {
-    // Removed the global systemSettings.isContractTradingEnabled check
+    if (!systemSettings.contractTradingEnabled) {
+        toast({
+            variant: "destructive",
+            title: "交易暂停",
+            description: "秒合约交易功能当前已由管理员暂停。",
+        });
+        return;
+    }
     
     if (pairSettings?.isTradingHalted) {
         toast({
