@@ -16,9 +16,8 @@ export default function AdminFinanceRedirectPage() {
 
     useEffect(() => {
         if (!isLoading && isAdmin) {
-            // Redirect to the first available sub-page, e.g., promotions or benefits.
-            // As per nav-config, it currently points to /admin/settings.
-            router.replace('/admin/settings');
+            // Redirect to the new data dashboard by default
+            router.replace('/admin/finance/dashboard');
         } else if (!isLoading && !isAdmin) {
              router.replace('/');
         }
