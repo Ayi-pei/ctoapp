@@ -52,7 +52,7 @@ type BalanceAdjustments = {
     [key: string]: string;
 };
 
-const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/'))), 'USD'];
+const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 const DownlineTree = ({ userId }: { userId: string; }) => {
     const { getDownline } = useAuth();
