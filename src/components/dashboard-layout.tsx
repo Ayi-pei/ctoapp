@@ -48,7 +48,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className={cn("h-screen w-screen flex flex-col")}>
       <TradeHeader />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden bg-background">
           <Sidebar />
           <main className={cn(
             "flex-1 overflow-y-auto pb-16 md:pb-0",

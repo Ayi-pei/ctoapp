@@ -20,7 +20,7 @@ export function Sidebar() {
   const navItems = isAdmin && pathname.startsWith('/admin') ? adminNavItems : userNavItems;
   
   return (
-    <aside className="w-64 flex-shrink-0 border-r border-border p-4 hidden md:block">
+    <aside className="w-64 flex-shrink-0 border-r border-border p-4 hidden md:block bg-background">
       <nav>
         <ul className="space-y-2">
           {navItems.map((item) => {
@@ -35,11 +35,9 @@ export function Sidebar() {
                         isParentActive && 'bg-muted'
                       )}
                     >
-                        <div className="flex items-center gap-3">
-                            <item.icon className="h-5 w-5" />
-                            <span>{item.label}</span>
-                        </div>
-                      <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+                        <item.icon className="h-5 w-5" />
+                        <span className="flex-1 text-left ml-3">{item.label}</span>
+                        <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-90" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="py-1 pl-6 space-y-1">
                       {item.subItems.map(subItem => {
