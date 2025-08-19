@@ -5,14 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useToast } from "@/hooks/use-toast";
 
 const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
 export default function AdminGeneralSettingsPage() {
-    const { systemSettings, updateDepositAddress, updateSetting } = useSystemSettings();
+    const { systemSettings, updateDepositAddress } = useSystemSettings();
     const { toast } = useToast();
     
     const handleSaveSettings = () => {
@@ -27,29 +26,12 @@ export default function AdminGeneralSettingsPage() {
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-4">
                 <h1 className="text-2xl font-bold">通用设置</h1>
-                <Card className="bg-card/80 backdrop-blur-sm">
+                <Card>
                     <CardHeader>
-                        <CardTitle>通用设置</CardTitle>
-                        <CardDescription>影响整个平台的全局配置</CardDescription>
+                        <CardTitle>充值地址设置</CardTitle>
+                        <CardDescription>配置用户端用于充值的收款地址</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        
-                        <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
-                            <div>
-                                <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
-                                    开启秒合约交易
-                                </Label>
-                                <p className="text-xs font-normal text-muted-foreground mt-1">
-                                    关闭后，所有用户将无法进行秒合约交易。
-                                </p>
-                            </div>
-                            <Switch
-                                id="enable-contract-trading"
-                                checked={systemSettings.contractTradingEnabled}
-                                onCheckedChange={(checked: boolean) => updateSetting('contractTradingEnabled', checked)}
-                            />
-                        </div>
-                        
                         {supportedAssets.map((asset) => (
                             <div key={asset}>
                                 <Label htmlFor={`deposit-address-${asset}`} className="text-sm font-medium">在线充币地址 ({asset})</Label>
@@ -65,7 +47,7 @@ export default function AdminGeneralSettingsPage() {
                         ))}
                     </CardContent>
                      <CardFooter>
-                        <Button onClick={handleSaveSettings}>保存通用设置</Button>
+                        <Button onClick={handleSaveSettings}>保存设置</Button>
                     </CardFooter>
                 </Card>
             </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useSettings, TradingPairSettings, SpecialTimeFrame, MarketOverridePreset } from "@/context/settings-context";
+import { useSystemSettings } from "@/context/system-settings-context";
 import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -281,6 +282,7 @@ export default function AdminMarketSettingsPage() {
         updateMarketOverride,
         removeMarketOverride,
     } = useSettings();
+    const { systemSettings, updateSetting } = useSystemSettings();
     const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
@@ -307,14 +309,37 @@ export default function AdminMarketSettingsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
+            <div className="p-4 md:p-8 space-y-6">
                  <h1 className="text-2xl font-bold">市场设置</h1>
                  <Card>
                     <CardHeader>
-                        <CardTitle>市场设置</CardTitle>
+                        <CardTitle>全局市场设置</CardTitle>
+                         <CardDescription>影响所有交易对的全局市场配置</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
+                            <div>
+                                <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
+                                    开启秒合约交易
+                                </Label>
+                                <p className="text-xs font-normal text-muted-foreground mt-1">
+                                    关闭后，所有用户将无法进行秒合约交易。
+                                </p>
+                            </div>
+                            <Switch
+                                id="enable-contract-trading"
+                                checked={systemSettings.contractTradingEnabled}
+                                onCheckedChange={(checked: boolean) => updateSetting('contractTradingEnabled', checked)}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>交易对个性化设置</CardTitle>
                          <CardDescription>为每个交易对配置独特的市场行为</CardDescription>
                     </CardHeader>
-                    <ScrollArea className="h-[calc(100vh-16rem)]">
+                    <ScrollArea className="h-[calc(100vh-24rem)]">
                         <CardContent className="space-y-6 pr-6">
                             {availablePairs.map((pair) => {
                                 const pairSettings = settings[pair] || { 
