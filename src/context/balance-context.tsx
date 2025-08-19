@@ -41,14 +41,14 @@ const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
 const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
 
 
-type ContractTradeParams = {
+export type ContractTradeParams = {
   type: 'buy' | 'sell';
   amount: number;
   period: number;
   profitRate: number;
 }
 
-type DailyInvestmentParams = {
+export type DailyInvestmentParams = {
     productName: string;
     amount: number;
     dailyRate: number;
@@ -58,7 +58,7 @@ type DailyInvestmentParams = {
     stakingAmount?: number;
 }
 
-type HourlyInvestmentParams = {
+export type HourlyInvestmentParams = {
     productName: string;
     amount: number;
     durationHours: number;
@@ -93,9 +93,8 @@ interface BalanceContextType {
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
-
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, getAllUsers, updateUser } = useAuth();
+  const { user, getUserById, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   const { addLog } = useLogs();
@@ -109,34 +108,52 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
   const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
-  const getAllHistoricalTrades = useCallback((): (SpotTrade | ContractTrade)[] => {
-    const allUsers = getAllUsers();
-    const allTrades: (SpotTrade | ContractTrade)[] = [];
-    allUsers.forEach(u => {
-        const userData = getUserData(u.id);
-        if (userData.historicalTrades) {
-            allTrades.push(...userData.historicalTrades);
-        }
-    });
-    return allTrades;
-  }, [getAllUsers]);
+    const getAllHistoricalTrades = useCallback(() => {
+        if (typeof window === 'undefined') return [];
+        const allUsers = getUserById ? Object.values(localStorage.getItem('tradeflow_users') ? JSON.parse(localStorage.getItem('tradeflow_users')!) : {}) as User[] : [];
+        const allTrades: (SpotTrade | ContractTrade)[] = [];
+        allUsers.forEach((u: any) => {
+            const userData = getUserData(u.id);
+            if (userData.historicalTrades) {
+                allTrades.push(...userData.historicalTrades);
+            }
+        });
+        return allTrades;
+    }, [getUserById]);
 
-  const getAllUserInvestments = useCallback((): Investment[] => {
-    const allUsers = getAllUsers();
-    const allInvestments: Investment[] = [];
-    allUsers.forEach(u => {
-        const userData = getUserData(u.id);
-        if (userData.investments) {
-            const userInvestments = userData.investments.map(inv => ({
-                ...inv,
-                user_id: u.id 
-            }));
-            allInvestments.push(...userInvestments);
-        }
-    });
-    return allInvestments;
-  }, [getAllUsers]);
+    const getAllUserInvestments = useCallback(() => {
+        if (typeof window === 'undefined') return [];
+        const allUsers = getUserById ? Object.values(localStorage.getItem('tradeflow_users') ? JSON.parse(localStorage.getItem('tradeflow_users')!) : {}) as User[] : [];
+        const allInvestments: Investment[] = [];
+        allUsers.forEach((u: any) => {
+            const userData = getUserData(u.id);
+            if (userData.investments) {
+                const userInvestments = userData.investments.map(inv => ({
+                    ...inv,
+                    user_id: u.id
+                }));
+                allInvestments.push(...userInvestments);
+            }
+        });
+        return allInvestments;
+    }, [getUserById]);
 
+    const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
+        if (typeof window === 'undefined') return 0;
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        try {
+            const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
+            if (!storedLogs) return 0;
+            const allLogs: ActionLog[] = JSON.parse(storedLogs);
+            return allLogs.filter(log =>
+                log.entity_type === 'task_completion' &&
+                log.created_at.startsWith(targetDate)
+            ).length;
+        } catch (error) {
+            console.error("Failed to read or parse logs from localStorage", error);
+            return 0;
+        }
+    }, []);
 
   // Load user data from storage
   useEffect(() => {
@@ -387,7 +404,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [activeContractTrades, settleContractTrade]);
   
   
-  const addDailyInvestment = async (params: DailyInvestmentParams) => {
+  const addDailyInvestment = useCallback(async (params: DailyInvestmentParams) => {
     if (!user) return false;
 
     // Check purchase price
@@ -432,10 +449,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         stakingAmount: params.stakingAmount,
     }
     setInvestments(prev => [newInvestment, ...prev]);
+    
     return true;
-  }
+  }, [user, balances, adjustFrozenBalance]);
   
-  const addHourlyInvestment = async (params: HourlyInvestmentParams) => {
+  const addHourlyInvestment = useCallback(async (params: HourlyInvestmentParams) => {
      if (!user) return false;
     
     if (balances.USDT.available < params.amount) {
@@ -470,10 +488,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: 'finance',
     }
     setInvestments(prev => [newInvestment, ...prev]);
+    
     return true;
-  }
+  }, [user, balances]);
 
-  const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
+  const placeContractTrade = useCallback(async (trade: ContractTradeParams, tradingPair: string) => {
     if (!user) return;
 
     if (user.is_frozen) {
@@ -516,9 +535,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if(quoteAsset === 'USDT') {
       distributeCommissions(user, trade.amount);
     }
-  };
+  }, [user, balances, getLatestPrice, toast, distributeCommissions]);
   
-  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
+  const placeSpotTrade = useCallback(async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
      if (!user) return;
     
      if (user.is_frozen) {
@@ -560,7 +579,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
      if(quoteAsset === 'USDT') {
         distributeCommissions(user, trade.total);
      }
-  };
+  }, [user, getLatestPrice, toast, distributeCommissions]);
 
     const handleCheckIn = useCallback(async (): Promise<{ success: boolean; reward: number; message?: string; }> => {
         if (!user) {
@@ -632,27 +651,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
     return getUserData(userId).balances;
-  }, []);
-
-  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
-    if (typeof window === 'undefined') return 0;
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    
-    try {
-        const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
-        if (!storedLogs) return 0;
-        
-        const allLogs: ActionLog[] = JSON.parse(storedLogs);
-        
-        return allLogs.filter(log => 
-            log.entity_type === 'task_completion' && 
-            log.created_at.startsWith(targetDate)
-        ).length;
-
-    } catch (error) {
-        console.error("Failed to read or parse logs from localStorage", error);
-        return 0;
-    }
   }, []);
   
   const value = { 
