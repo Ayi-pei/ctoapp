@@ -1,5 +1,5 @@
 
-import { Investment, CommissionLog, ContractTrade, SpotTrade, availablePairs } from '@/types';
+import { Investment, CommissionLog, ContractTrade, SpotTrade } from '@/types';
 
 const INITIAL_BALANCES: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },

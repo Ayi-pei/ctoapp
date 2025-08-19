@@ -63,7 +63,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>({});
+    const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>({
+        // Set initial default prices for non-crypto assets
+        'XAU/USD': 2300,
+        'EUR/USD': 1.07,
+        'GBP/USD': 1.25,
+        'OIL/USD': 80,
+        'XAG/USD': 29,
+        'NAS100/USD': 19000,
+    });
     
     // THIS IS THE NEW SOURCE OF TRUTH FOR ALL TRADING LOGIC
     const getLatestPrice = useCallback((pair: string): number => {
@@ -156,21 +164,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // useEffect(() => {
-        // const marketInterval = setInterval(fetchMarketData, 60000);
-        // const klineInterval = setInterval(() => {
-        //      availablePairs.forEach(pair => fetchKlineData(pair));
-        // }, 300000);
-
-        // fetchMarketData();
-        // availablePairs.forEach(pair => fetchKlineData(pair));
-
-        // return () => {
-        //     clearInterval(marketInterval);
-        //     clearInterval(klineInterval);
-        // };
-    // }, [fetchMarketData, fetchKlineData]);
-
 
     // Second-by-second simulation engine
     useEffect(() => {
@@ -182,8 +175,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
             availablePairs.forEach(pair => {
                 const pairSettings = settings[pair];
-                const lastSimulatedPrice = simulatedPrices[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
+                const lastSimulatedPrice = getLatestPrice(pair);
                 
+                if (lastSimulatedPrice === 0) return; // Don't simulate if no base price
+
                 let nextPrice = lastSimulatedPrice;
                 let overrideApplied = false;
 
@@ -235,47 +230,53 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     const randomFactor = (Math.random() - 0.5) * volatility;
                     nextPrice = lastSimulatedPrice * (1 + trendEffect + randomFactor);
                 }
-
-                if (!CRYPTO_PAIRS.includes(pair) && nextPrice === 0) {
-                     if (pair.startsWith('XAU')) nextPrice = 2300;
-                     else if (pair.startsWith('OIL')) nextPrice = 80;
-                     else if (pair.startsWith('XAG')) nextPrice = 29;
-                     else if (pair.startsWith('NAS100')) nextPrice = 19000;
-                     else nextPrice = 1.1; // Forex default
-                }
                 
                 newPrices[pair] = nextPrice;
             });
             
             setSimulatedPrices(prev => ({...prev, ...newPrices}));
 
-        }, 1000);
+        }, 3000); // Refresh prices every 3 seconds for a more realistic feel
 
         return () => clearInterval(simulationInterval);
-    }, [settings, simulatedPrices, summaryData, timedMarketPresets]);
+    }, [settings, getLatestPrice, timedMarketPresets]);
 
     // This effect ensures that summary data for non-crypto assets is initialized
-    // even if the API calls fail or don't return data for them.
+    // and updated based on simulated prices.
     useEffect(() => {
-        const allAssetPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
-        const missingPairs = allAssetPairs.filter(pair => !summaryData.some(s => s.pair === pair));
+        const allAssetPairs = [...CRYPTO_PAIRS, ...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
+        
+        const updatedSummaryData = allAssetPairs.map(pair => {
+            const existingSummary = summaryData.find(s => s.pair === pair);
+            const currentPrice = getLatestPrice(pair);
 
-        if (missingPairs.length > 0) {
-            const newEntries = missingPairs.map(pair => {
-                const price = getLatestPrice(pair) || 0; // Use simulated or default
+            if (existingSummary) {
+                const oldPrice = existingSummary.price;
+                const change = oldPrice > 0 ? ((currentPrice - oldPrice) / oldPrice) * 100 : 0;
                 return {
+                    ...existingSummary,
+                    price: currentPrice,
+                    change: isNaN(change) ? 0 : change,
+                    high: Math.max(existingSummary.high, currentPrice),
+                    low: existingSummary.low > 0 ? Math.min(existingSummary.low, currentPrice) : currentPrice,
+                };
+            } else {
+                 return {
                     pair,
-                    price,
+                    price: currentPrice,
                     change: 0,
                     volume: 0,
-                    high: price,
-                    low: price,
+                    high: currentPrice,
+                    low: currentPrice,
                     icon: `https://placehold.co/32x32.png` // Placeholder icon
                 };
-            });
-            setSummaryData(prev => [...prev, ...newEntries]);
-        }
-    }, [summaryData, getLatestPrice]);
+            }
+        });
+
+        setSummaryData(updatedSummaryData);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [simulatedPrices]);
 
 
     const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
