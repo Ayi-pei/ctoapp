@@ -10,6 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import type { Investment, User } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -236,191 +242,200 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>用户详情: {user.username}</DialogTitle>
                     <DialogDescription>
                         查看用户的详细信息、资产余额并管理用户。
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
-                    <div>
-                        <h4 className="font-semibold mb-2">基本信息</h4>
-                        <p className="text-sm"><strong>用户名:</strong> {user.username}</p>
-                        <p className="text-sm"><strong>昵称:</strong> {user.nickname}</p>
-                        <p className="text-sm"><strong>邀请码:</strong> {user.invitation_code || 'N/A'}</p>
-                        <p className="text-sm"><strong>信誉分:</strong> {user.credit_score}</p>
-                        <p className="text-sm"><strong>账户类型:</strong> {user.is_test_user ? '测试账户' : '真实账户'}</p>
-                        <p className="text-sm"><strong>注册日期:</strong> {registeredAtDate}</p>
-                        <p className="text-sm"><strong>邀请人ID:</strong> {user.inviter_id || '无'}</p>
-                        <p className="text-sm"><strong>账户状态:</strong> {user.is_frozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
-                    </div>
+                <div className="py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <Accordion type="multiple" defaultValue={['item-1']} className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>基本信息</AccordionTrigger>
+                            <AccordionContent>
+                                <div className="space-y-1 text-sm p-2">
+                                    <p><strong>用户名:</strong> {user.username}</p>
+                                    <p><strong>昵称:</strong> {user.nickname}</p>
+                                    <p><strong>邀请码:</strong> {user.invitation_code || 'N/A'}</p>
+                                    <p><strong>信誉分:</strong> {user.credit_score}</p>
+                                    <p><strong>账户类型:</strong> {user.is_test_user ? '测试账户' : '真实账户'}</p>
+                                    <p><strong>注册日期:</strong> {registeredAtDate}</p>
+                                    <p><strong>邀请人ID:</strong> {user.inviter_id || '无'}</p>
+                                    <p><strong>账户状态:</strong> {user.is_frozen ? <span className="text-red-500">已冻结</span> : <span className="text-green-500">正常</span>}</p>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
 
-                     <div>
-                        <div className="flex justify-between items-center mb-2">
-                           <h4 className="font-semibold">资产余额</h4>
-                        </div>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>资产</TableHead>
-                                    <TableHead>可用</TableHead>
-                                    <TableHead>冻结</TableHead>
-                                    <TableHead className="w-[250px]">调整可用余额</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                             <TableBody>
-                                {allAssets.map(asset => {
-                                    const balance = calculatedBalances?.[asset] || { available: 0, frozen: 0 };
-                                    return (
-                                        <TableRow key={asset}>
-                                            <TableCell className="font-medium">{asset}</TableCell>
-                                            <TableCell>{balance.available.toFixed(4)}</TableCell>
-                                            <TableCell>{balance.frozen.toFixed(4)}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        type="text"
-                                                        placeholder="输入 +/- 调整值"
-                                                        value={balanceAdjustments[asset] || ''}
-                                                        onChange={(e) => handleAdjustmentChange(asset, e.target.value)}
-                                                        className="h-8"
-                                                        id={`balance-adjustment-${asset}`}
-                                                        name={`balance-adjustment-${asset}`}
-                                                    />
-                                                    <Button size="sm" onClick={() => handleAdjustBalance(asset)}>调整</Button>
-                                                </div>
-                                            </TableCell>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger>资产余额</AccordionTrigger>
+                            <AccordionContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>资产</TableHead>
+                                            <TableHead>可用</TableHead>
+                                            <TableHead>冻结</TableHead>
+                                            <TableHead className="w-[250px]">调整可用余额</TableHead>
                                         </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {allAssets.map(asset => {
+                                            const balance = calculatedBalances?.[asset] || { available: 0, frozen: 0 };
+                                            return (
+                                                <TableRow key={asset}>
+                                                    <TableCell className="font-medium">{asset}</TableCell>
+                                                    <TableCell>{balance.available.toFixed(4)}</TableCell>
+                                                    <TableCell>{balance.frozen.toFixed(4)}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                type="text"
+                                                                placeholder="输入 +/- 调整值"
+                                                                value={balanceAdjustments[asset] || ''}
+                                                                onChange={(e) => handleAdjustmentChange(asset, e.target.value)}
+                                                                className="h-8"
+                                                                id={`balance-adjustment-${asset}`}
+                                                                name={`balance-adjustment-${asset}`}
+                                                            />
+                                                            <Button size="sm" onClick={() => handleAdjustBalance(asset)}>调整</Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </AccordionContent>
+                        </AccordionItem>
 
-                    <div>
-                        <h4 className="font-semibold mb-2">理财订单</h4>
-                         {userInvestments.length > 0 ? (
-                           <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>产品名称</TableHead>
-                                        <TableHead>投资金额 (USDT)</TableHead>
-                                        <TableHead>状态</TableHead>
-                                        <TableHead>结算日期</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {userInvestments.map(inv => (
-                                        <TableRow key={inv.id}>
-                                            <TableCell>{inv.product_name}</TableCell>
-                                            <TableCell>{inv.amount.toFixed(2)}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={cn(inv.status === 'active' ? 'text-yellow-500' : 'text-green-500')}>
-                                                    {inv.status === 'active' ? '进行中' : `已结算 (+${(inv.profit || 0).toFixed(2)})`}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-xs">{new Date(inv.settlement_date).toLocaleDateString()}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                         ) : (
-                             <div className="text-center py-10 text-muted-foreground bg-muted/50 rounded-md">
-                                <Archive className="mx-auto h-12 w-12" />
-                                <p className="mt-4">该用户暂无理财记录。</p>
-                            </div>
-                         )}
-                    </div>
+                        <AccordionItem value="item-3">
+                            <AccordionTrigger>理财订单</AccordionTrigger>
+                            <AccordionContent>
+                                {userInvestments.length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>产品名称</TableHead>
+                                                <TableHead>投资金额 (USDT)</TableHead>
+                                                <TableHead>状态</TableHead>
+                                                <TableHead>结算日期</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {userInvestments.map(inv => (
+                                                <TableRow key={inv.id}>
+                                                    <TableCell>{inv.product_name}</TableCell>
+                                                    <TableCell>{inv.amount.toFixed(2)}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className={cn(inv.status === 'active' ? 'text-yellow-500' : 'text-green-500')}>
+                                                            {inv.status === 'active' ? '进行中' : `已结算 (+${(inv.profit || 0).toFixed(2)})`}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">{new Date(inv.settlement_date).toLocaleDateString()}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <div className="text-center py-10 text-muted-foreground bg-muted/50 rounded-md">
+                                        <Archive className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">该用户暂无理财记录。</p>
+                                    </div>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="item-4">
+                            <AccordionTrigger>团队信息</AccordionTrigger>
+                             <AccordionContent>
+                                <DownlineTree userId={user.id} />
+                            </AccordionContent>
+                        </AccordionItem>
 
+                        <AccordionItem value="item-5">
+                            <AccordionTrigger>管理操作</AccordionTrigger>
+                            <AccordionContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 p-2">
+                                    <div className="space-y-4">
+                                       <h5 className="text-sm font-medium">账户操作</h5>
+                                        <div className="flex items-center space-x-2">
+                                             <Label htmlFor="new-password" className="flex-shrink-0">
+                                                重置密码:
+                                            </Label>
+                                            <Input 
+                                                id="new-password"
+                                                name="new-password"
+                                                type="text"
+                                                placeholder="输入新密码"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                            />
+                                            <Button onClick={handlePasswordChange}>确认</Button>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Label htmlFor="credit-score" className="flex-shrink-0">
+                                                信誉分:
+                                            </Label>
+                                            <Input
+                                                id="credit-score"
+                                                name="credit-score"
+                                                type="number"
+                                                value={creditScore}
+                                                onChange={(e) => setCreditScore(e.target.value)}
+                                            />
+                                            <Button onClick={handleCreditScoreSave}>保存</Button>
+                                        </div>
+                                         <div className="flex items-center justify-between">
+                                            <Label>账户状态:</Label>
+                                             {user.is_frozen ? (
+                                                <Button onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
+                                                    解冻账户
+                                                </Button>
+                                            ) : (
+                                                <Button onClick={() => handleToggleFreeze(true)} variant="destructive">
+                                                    冻结账户
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <Label>账户类型:</Label>
+                                            <Button onClick={handleToggleAccountType} variant="outline">
+                                                <Repeat className="w-4 h-4 mr-2"/>
+                                                切换为 {user.is_test_user ? '真实账户' : '真实账户'}
+                                            </Button>
+                                        </div>
+                                    </div>
 
-                    <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2"><Users className="w-5 h-5" />团队信息</h4>
-                        <DownlineTree userId={user.id} />
-                    </div>
-
-                    <Separator />
-                    
-                    <div className="space-y-6">
-                        <h4 className="font-semibold">管理操作</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                               <h5 className="text-sm font-medium">账户操作</h5>
-                                <div className="flex items-center space-x-2">
-                                     <Label htmlFor="new-password" className="flex-shrink-0">
-                                        重置密码:
-                                    </Label>
-                                    <Input 
-                                        id="new-password"
-                                        name="new-password"
-                                        type="text"
-                                        placeholder="输入新密码"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                    />
-                                    <Button onClick={handlePasswordChange}>确认</Button>
+                                     <div className="space-y-4">
+                                        <h5 className="text-sm font-medium flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 发送专属公告</h5>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="message-title">标题</Label>
+                                            <Input 
+                                                id="message-title"
+                                                value={messageTitle}
+                                                onChange={(e) => setMessageTitle(e.target.value)}
+                                                placeholder="输入消息标题"
+                                            />
+                                         </div>
+                                          <div className="space-y-2">
+                                            <Label htmlFor="message-content">内容</Label>
+                                            <Textarea
+                                                id="message-content"
+                                                value={messageContent}
+                                                onChange={(e) => setMessageContent(e.target.value)}
+                                                placeholder="输入消息内容..."
+                                            />
+                                         </div>
+                                         <Button onClick={handleSendMessage} className="w-full">
+                                            <Send className="w-4 h-4 mr-2"/>
+                                            发送消息
+                                         </Button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    <Label htmlFor="credit-score" className="flex-shrink-0">
-                                        信誉分:
-                                    </Label>
-                                    <Input
-                                        id="credit-score"
-                                        name="credit-score"
-                                        type="number"
-                                        value={creditScore}
-                                        onChange={(e) => setCreditScore(e.target.value)}
-                                    />
-                                    <Button onClick={handleCreditScoreSave}>保存</Button>
-                                </div>
-                                 <div className="flex items-center justify-between">
-                                    <Label>账户状态:</Label>
-                                     {user.is_frozen ? (
-                                        <Button onClick={() => handleToggleFreeze(false)} variant="outline" className="text-green-600 border-green-600 hover:bg-green-500/10">
-                                            解冻账户
-                                        </Button>
-                                    ) : (
-                                        <Button onClick={() => handleToggleFreeze(true)} variant="destructive">
-                                            冻结账户
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <Label>账户类型:</Label>
-                                    <Button onClick={handleToggleAccountType} variant="outline">
-                                        <Repeat className="w-4 h-4 mr-2"/>
-                                        切换为 {user.is_test_user ? '真实账户' : '真实账户'}
-                                    </Button>
-                                </div>
-                            </div>
-
-                             <div className="space-y-4">
-                                <h5 className="text-sm font-medium flex items-center gap-2"><MessageSquare className="w-4 h-4" /> 为用户发送专属公告内容</h5>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="message-title">标题</Label>
-                                    <Input 
-                                        id="message-title"
-                                        value={messageTitle}
-                                        onChange={(e) => setMessageTitle(e.target.value)}
-                                        placeholder="输入消息标题"
-                                    />
-                                 </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="message-content">内容</Label>
-                                    <Textarea
-                                        id="message-content"
-                                        value={messageContent}
-                                        onChange={(e) => setMessageContent(e.target.value)}
-                                        placeholder="输入消息内容..."
-                                    />
-                                 </div>
-                                 <Button onClick={handleSendMessage} className="w-full">
-                                    <Send className="w-4 h-4 mr-2"/>
-                                    发送消息
-                                 </Button>
-                            </div>
-                        </div>
-                    </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 </div>
                 <DialogFooter>
                     <Button onClick={() => onOpenChange(false)} variant="outline">关闭</Button>
