@@ -2,6 +2,21 @@
 import { NextResponse } from 'next/server';
 import yahooFinance from 'yahoo-finance2';
 
+/**
+ * Next.js API Route: /api/quote/[symbol]
+ *
+ * This route acts as a server-side proxy to the Yahoo Finance API.
+ * Its primary responsibilities are:
+ * 1.  Receiving a symbol from a client-side request.
+ * 2.  Securely fetching the corresponding data from the external Yahoo Finance service.
+ * 3.  Formatting the response and sending it back to the client.
+ *
+ * This proxy pattern is crucial for several reasons:
+ * - It hides sensitive information, like potential API keys, from the client-side.
+ * - It abstracts the external data source, allowing us to change or add sources
+ *   without altering the client-side code.
+ * - It does NOT store any data. It's a pass-through for live market information.
+ */
 export async function GET(
   request: Request,
   { params }: { params: { symbol: string } }
