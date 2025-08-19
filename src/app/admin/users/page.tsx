@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserDetailsDialog } from '@/components/user-details-dialog';
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/types';
 import DashboardLayout from '@/components/dashboard-layout';
@@ -24,8 +23,6 @@ export default function AdminUsersPage() {
     
     const [users, setUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
     
     const loadData = useCallback(() => {
@@ -49,15 +46,8 @@ export default function AdminUsersPage() {
     }, [users, searchQuery]);
 
     const handleViewDetails = (userToView: User) => {
-        setSelectedUser(userToView);
-        setIsDetailsOpen(true);
+        router.push(`/admin/users/${userToView.id}`);
     };
-
-    const handleSuccessfulUpdate = useCallback(() => {
-        // Mock update - just show a toast and reload data
-        toast({ title: '成功', description: '用户数据已更新。' });
-        loadData();
-    }, [loadData, toast]);
 
     const generateInvitationCode = () => {
         const now = new Date();
@@ -83,19 +73,14 @@ export default function AdminUsersPage() {
                 description: "邀请码已成功复制到剪贴板。",
             });
         } catch (err) {
-            // Fallback for browsers that don't support the Clipboard API or when it's blocked.
             const textArea = document.createElement("textarea");
             textArea.value = text;
-            
-            // Avoid scrolling to bottom
             textArea.style.top = "0";
             textArea.style.left = "0";
             textArea.style.position = "fixed";
-
             document.body.appendChild(textArea);
             textArea.focus();
             textArea.select();
-
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
@@ -117,7 +102,6 @@ export default function AdminUsersPage() {
                     description: "无法将邀请码复制到剪贴板。",
                 });
             }
-
             document.body.removeChild(textArea);
         }
     };
@@ -215,14 +199,6 @@ export default function AdminUsersPage() {
                     </CardContent>
                 </Card>
             </div>
-            {selectedUser && (
-                <UserDetailsDialog
-                    isOpen={isDetailsOpen}
-                    onOpenChange={setIsDetailsOpen}
-                    user={selectedUser}
-                    onUpdate={handleSuccessfulUpdate}
-                />
-            )}
         </DashboardLayout>
     );
 
