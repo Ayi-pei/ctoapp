@@ -56,7 +56,7 @@ const TaskDetailsDialog = ({ task, isOpen, onOpenChange, onGo }: {
 
 
 export default function TasksPage() {
-    const { dailyTasks, userTasksState, completeTask } = useTasks();
+    const { dailyTasks, userTasksState } = useTasks();
     const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const router = useRouter();
@@ -90,10 +90,6 @@ export default function TasksPage() {
 
     const handleGoToTask = (link: string) => {
         setIsDetailsOpen(false);
-        // This is a mock completion. In a real app, you'd navigate and listen for an event.
-        if (selectedTask) {
-            completeTask(selectedTask.id); 
-        }
         router.push(link);
     };
     

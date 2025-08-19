@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           invitation_code: generateInvitationCode(),
           inviter_id: inviterId,
           created_at: new Date().toISOString(),
-          credit_score: 100,
+          credit_score: 95, // Default credit score
           avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${newUserId}`,
       };
       

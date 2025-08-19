@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { useAnnouncements, CarouselItemData, HornAnnouncement } from "@/context/
 import { PlusCircle, Trash2, Edit2, GripVertical, ArrowDown, ArrowUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 
 const HornAnnouncementEditor = ({ announcements, updateHornAnnouncement, removeHornAnnouncement, reorderHornAnnouncements }: {
@@ -60,6 +62,25 @@ const HornAnnouncementEditor = ({ announcements, updateHornAnnouncement, removeH
                                         value={ann.content}
                                         onChange={(e) => updateHornAnnouncement(ann.id, { content: e.target.value })}
                                         placeholder="输入公告内容"
+                                    />
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor={`horn-priority-${ann.id}`}>优先级</Label>
+                                    <Input 
+                                        id={`horn-priority-${ann.id}`}
+                                        type="number"
+                                        value={ann.priority}
+                                        onChange={(e) => updateHornAnnouncement(ann.id, { priority: parseInt(e.target.value) || 0 })}
+                                        placeholder="数字越大越靠前"
+                                    />
+                                </div>
+                                 <div className="space-y-2 md:col-span-3">
+                                    <Label htmlFor={`horn-expires-${ann.id}`}>过期时间</Label>
+                                    <Input 
+                                        id={`horn-expires-${ann.id}`}
+                                        type="datetime-local"
+                                        value={ann.expires_at ? ann.expires_at.slice(0, 16) : ''}
+                                        onChange={(e) => updateHornAnnouncement(ann.id, { expires_at: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                                     />
                                 </div>
                             </div>
@@ -167,7 +188,7 @@ export default function AdminAnnouncementsPage() {
                     <CardContent>
                         <div className="space-y-4">
                             {hornAnnouncements.map((ann, index) => (
-                                <Card key={ann.id} className="p-4 bg-muted/50">
+                                <Card key={ann.id} className={cn("p-4 bg-muted/50 transition-colors", ann.expires_at && new Date(ann.expires_at) < new Date() && "border-dashed border-muted-foreground opacity-60")}>
                                     <div className="flex gap-4">
                                         <div className="flex flex-col items-center gap-1 text-muted-foreground pt-1">
                                             <Button variant="ghost" size="icon" className="h-6 w-6" disabled={index === 0} onClick={() => reorderHornAnnouncements(ann.id, 'up')}>
@@ -206,6 +227,25 @@ export default function AdminAnnouncementsPage() {
                                                         value={ann.content}
                                                         onChange={(e) => updateHornAnnouncement(ann.id, { content: e.target.value })}
                                                         placeholder="输入公告内容"
+                                                    />
+                                                </div>
+                                                 <div className="space-y-2 md:col-span-2">
+                                                    <Label htmlFor={`horn-priority-${ann.id}`}>优先级</Label>
+                                                    <Input 
+                                                        id={`horn-priority-${ann.id}`}
+                                                        type="number"
+                                                        value={ann.priority}
+                                                        onChange={(e) => updateHornAnnouncement(ann.id, { priority: parseInt(e.target.value) || 0 })}
+                                                        placeholder="数字越大越靠前"
+                                                    />
+                                                </div>
+                                                 <div className="space-y-2 md:col-span-3">
+                                                    <Label htmlFor={`horn-expires-${ann.id}`}>过期时间 (选填)</Label>
+                                                    <Input 
+                                                        id={`horn-expires-${ann.id}`}
+                                                        type="datetime-local"
+                                                        value={ann.expires_at ? ann.expires_at.slice(0, 16) : ''}
+                                                        onChange={(e) => updateHornAnnouncement(ann.id, { expires_at: e.target.value ? new Date(e.target.value).toISOString() : undefined })}
                                                     />
                                                 </div>
                                             </div>

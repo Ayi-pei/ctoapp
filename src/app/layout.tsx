@@ -13,6 +13,7 @@ import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
 import { TasksProvider } from '@/context/tasks-context';
 import { ActivitiesProvider } from '@/context/activities-context';
+import { LogsProvider } from '@/context/logs-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -33,26 +34,28 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased text-foreground">
         <AuthProvider>
-          <SystemSettingsProvider>
-            <SettingsProvider>
-              <InvestmentSettingsProvider>
-                <MarketDataProvider>
-                  <BalanceProvider>
-                    <RequestsProvider>
+          <LogsProvider>
+            <SystemSettingsProvider>
+              <SettingsProvider>
+                <InvestmentSettingsProvider>
+                  <MarketDataProvider>
+                    <BalanceProvider>
                       <TasksProvider>
-                        <ActivitiesProvider>
-                          <AnnouncementsProvider>
-                            {children}
-                            <Toaster />
-                          </AnnouncementsProvider>
-                        </ActivitiesProvider>
+                        <RequestsProvider>
+                          <ActivitiesProvider>
+                            <AnnouncementsProvider>
+                              {children}
+                              <Toaster />
+                            </AnnouncementsProvider>
+                          </ActivitiesProvider>
+                        </RequestsProvider>
                       </TasksProvider>
-                    </RequestsProvider>
-                  </BalanceProvider>
-                </MarketDataProvider>
-              </InvestmentSettingsProvider>
-            </SettingsProvider>
-          </SystemSettingsProvider>
+                    </BalanceProvider>
+                  </MarketDataProvider>
+                </InvestmentSettingsProvider>
+              </SettingsProvider>
+            </SystemSettingsProvider>
+          </LogsProvider>
         </AuthProvider>
       </body>
     </html>

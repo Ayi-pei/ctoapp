@@ -61,15 +61,6 @@ export type User = {
     avatar_url?: string;
 };
 
-export type Announcement = {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  user_id?: string; // Optional: for user-specific announcements
-  is_read?: boolean; // Optional: for user to mark as read
-}
-
 // Represents an order in the order book
 export type Order = {
   price: number;
@@ -224,6 +215,7 @@ export type DailyTask = {
   link: string; // e.g. /trade?tab=contract
   imgSrc?: string;
   status: 'published' | 'draft';
+  trigger: 'contract_trade' | 'spot_trade' | 'investment';
 };
 
 
@@ -245,4 +237,16 @@ export type LimitedTimeActivity = {
     imgSrc?: string;
     status: 'published' | 'draft';
     createdAt: string; // ISO date string
+};
+
+// Represents an action log for admin operations
+export type ActionLog = {
+    id: string;
+    entity_type: 'request';
+    entity_id: string;
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
+    operator_id: string;
+    operator_username: string;
+    created_at: string;
+    details: string;
 };

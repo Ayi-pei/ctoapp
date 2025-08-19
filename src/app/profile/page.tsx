@@ -69,8 +69,8 @@ const ProfileHeader = () => {
 
     return (
         <div className="w-full flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-                <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+            <div className="flex items-center gap-4 w-3/4">
+                 <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
                     <Avatar className="h-16 w-16 border-4 border-primary/50">
                         <AvatarImage src={user?.avatar_url} alt={user?.username} />
                         <AvatarFallback>
@@ -78,7 +78,7 @@ const ProfileHeader = () => {
                         </AvatarFallback>
                     </Avatar>
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                        <span className="text-xs text-white">更换头像</span>
+                        <span className="text-xs text-white">更换</span>
                     </div>
                     <input
                         ref={avatarInputRef}
@@ -112,7 +112,7 @@ const ProfileHeader = () => {
                 </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 w-1/4">
                 <Button 
                     onClick={() => setIsDepositOpen(true)} 
                     className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-10 px-6 text-sm rounded-md shadow-lg"

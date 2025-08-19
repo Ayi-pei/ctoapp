@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import type { AnyRequest, PasswordResetRequest, Transaction } from '@/types';
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
+import { useLogs } from './logs-context';
 
 const REQUESTS_STORAGE_KEY = 'tradeflow_requests';
 
@@ -36,6 +37,7 @@ const RequestsContext = createContext<RequestsContextType | undefined>(undefined
 export function RequestsProvider({ children }: { children: ReactNode }) {
     const { user, getUserById, updateUser } = useAuth();
     const { adjustBalance, adjustFrozenBalance, confirmWithdrawal, revertWithdrawal } = useBalance();
+    const { addLog } = useLogs();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -120,9 +122,18 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
 
     const updateRequestStatus = (requestId: string, status: 'approved' | 'rejected') => {
+        const request = requests.find(r => r.id === requestId);
+        if (!request) return;
+
         setRequests(prev => prev.map(req => 
             req.id === requestId ? { ...req, status } : req
         ));
+        addLog({
+            entity_type: 'request',
+            entity_id: requestId,
+            action: status === 'approved' ? 'approve' : 'reject',
+            details: `Request for user ${request.user?.username || request.user_id} was ${status}.`
+        });
     };
 
     const approveRequest = async (requestId: string) => {
@@ -152,26 +163,30 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     };
 
     const deleteRequest = async (requestId: string) => {
+        const request = requests.find(r => r.id === requestId);
+        if (!request) return;
+
         setRequests(prev => prev.filter(r => r.id !== requestId));
+        addLog({
+            entity_type: 'request',
+            entity_id: requestId,
+            action: 'delete',
+            details: `Request for user ${request.user?.username || request.user_id} was deleted.`
+        });
     }
     
     const updateRequest = async (requestId: string, updates: Partial<AnyRequest>) => {
-        setRequests(prev => prev.map(r => {
-            if (r.id === requestId) {
-                const originalRequest = r;
-                const updatedRequest = { ...r, ...updates } as AnyRequest;
+        const originalRequest = requests.find(r => r.id === requestId);
+        if (!originalRequest) return;
+        
+        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updates } : r ));
 
-                // If status is changed to approved, handle balance changes
-                if (originalRequest.status !== 'approved' && updatedRequest.status === 'approved') {
-                    if (updatedRequest.type === 'deposit') {
-                         adjustBalance(updatedRequest.user_id, (updatedRequest as Transaction).asset, (updatedRequest as Transaction).amount);
-                    }
-                }
-
-                return updatedRequest;
-            }
-            return r;
-        }));
+        addLog({
+            entity_type: 'request',
+            entity_id: requestId,
+            action: 'update',
+            details: `Request for user ${originalRequest.user?.username || originalRequest.user_id} was updated.`
+        });
     }
 
 

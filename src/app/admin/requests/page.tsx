@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/context/auth-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import type { AnyRequest, Transaction } from '@/types';
+import type { AnyRequest, Transaction, ActionLog } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useRequests } from '@/context/requests-context';
+import { useLogs } from '@/context/logs-context';
 import { Edit2, Trash2 } from 'lucide-react';
 import { EditTransactionDialog } from '@/components/edit-transaction-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +22,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
@@ -40,6 +43,7 @@ export default function AdminRequestsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { requests, approveRequest, rejectRequest, deleteRequest, updateRequest } = useRequests();
+    const { logs } = useLogs();
     
     const [filter, setFilter] = useState('pending');
     const [editingRequest, setEditingRequest] = useState<Transaction | null>(null);
@@ -170,50 +174,92 @@ export default function AdminRequestsPage() {
     return (
         <DashboardLayout>
             <div className="p-4 md:p-8 space-y-6">
-                <h1 className="text-2xl font-bold">审核请求</h1>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>待处理队列 ({pendingRequests.length})</CardTitle>
-                        <CardDescription>需要管理员立即处理的请求。</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <RequestTable requestList={pendingRequests} />
-                    </CardContent>
-                </Card>
+                <Tabs defaultValue="requests" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="requests">审核中心</TabsTrigger>
+                        <TabsTrigger value="logs">操作日志</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="requests" className="space-y-6 mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>待处理队列 ({pendingRequests.length})</CardTitle>
+                                <CardDescription>需要管理员立即处理的请求。</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                            <RequestTable requestList={pendingRequests} />
+                            </CardContent>
+                        </Card>
 
-                <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="history">
-                        <AccordionTrigger>
-                            <h2 className="text-xl font-bold">历史记录</h2>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <Card>
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <CardTitle>已处理请求</CardTitle>
-                                            <CardDescription>查看已批准或已拒绝的请求历史。</CardDescription>
-                                        </div>
-                                         <Select value={filter} onValueChange={setFilter}>
-                                            <SelectTrigger className="w-[180px]">
-                                                <SelectValue placeholder="筛选状态" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="pending">待审核</SelectItem>
-                                                <SelectItem value="approved">已批准</SelectItem>
-                                                <SelectItem value="rejected">已拒绝</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <RequestTable requestList={filteredRequests} />
-                                </CardContent>
-                            </Card>
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="history">
+                                <AccordionTrigger>
+                                    <h2 className="text-xl font-bold">历史记录</h2>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <Card>
+                                        <CardHeader>
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <CardTitle>已处理请求</CardTitle>
+                                                    <CardDescription>查看已批准或已拒绝的请求历史。</CardDescription>
+                                                </div>
+                                                <Select value={filter} onValueChange={setFilter}>
+                                                    <SelectTrigger className="w-[180px]">
+                                                        <SelectValue placeholder="筛选状态" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pending">待审核</SelectItem>
+                                                        <SelectItem value="approved">已批准</SelectItem>
+                                                        <SelectItem value="rejected">已拒绝</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <RequestTable requestList={filteredRequests} />
+                                        </CardContent>
+                                    </Card>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </TabsContent>
+                    <TabsContent value="logs" className="mt-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>管理员操作日志</CardTitle>
+                                <CardDescription>所有对请求和交易的后台操作记录。</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ScrollArea className="h-[60vh]">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>操作员</TableHead>
+                                            <TableHead>操作</TableHead>
+                                            <TableHead>详情</TableHead>
+                                            <TableHead>时间</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {logs.map(log => (
+                                            <TableRow key={log.id}>
+                                                <TableCell>{log.operator_username}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant={log.action === 'approve' ? 'default' : log.action === 'reject' ? 'destructive' : 'secondary'} className={cn(log.action === 'approve' && 'bg-green-500/80')}>
+                                                        {log.action}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">{log.details}</TableCell>
+                                                <TableCell className="text-xs">{new Date(log.created_at).toLocaleString()}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
             
             {editingRequest && (

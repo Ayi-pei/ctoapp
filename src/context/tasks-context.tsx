@@ -9,35 +9,41 @@ import { useBalance } from './balance-context';
 const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
 const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
 
+// IMPORTANT: The IDs are now used programmatically to trigger completion.
 const defaultTasks: DailyTask[] = [
   {
-    id: 'task-1',
+    id: 'complete_contract_trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
     reward: 0.2,
     reward_type: 'usdt',
     link: '/trade?tab=contract',
-    status: 'published'
+    status: 'published',
+    trigger: 'contract_trade',
   },
   {
-    id: 'task-2',
+    id: 'complete_spot_trade',
     title: '进行一次币币交易',
     description: '在币币市场完成任意一笔买入或卖出操作。',
     reward: 0.2,
     reward_type: 'usdt',
     link: '/trade?tab=spot',
-    status: 'published'
+    status: 'published',
+    trigger: 'spot_trade',
   },
   {
-    id: 'task-3',
+    id: 'complete_investment',
     title: '参与一次理财投资',
     description: '购买任意一款理财产品，体验稳定收益。',
     reward: 1,
     reward_type: 'credit_score',
     link: '/finance',
-    status: 'draft'
+    status: 'published',
+    trigger: 'investment',
   }
 ];
+
+export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';
 
 interface TasksContextType {
   // Admin functions
@@ -48,7 +54,7 @@ interface TasksContextType {
   saveTasks: () => void;
   // User functions
   userTasksState: UserTaskState[];
-  completeTask: (taskId: string) => void;
+  triggerTaskCompletion: (type: TaskTriggerType) => void;
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
@@ -119,6 +125,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       reward_type: 'usdt',
       link: '/',
       status: 'draft',
+      trigger: 'contract_trade' // Default trigger
     };
     setDailyTasks(prev => [...prev, newTask]);
   }, []);
@@ -136,14 +143,12 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const today = new Date().toISOString().split('T')[0];
 
-    // Check if already completed today
     const alreadyCompleted = userTasksState.some(state => state.taskId === taskId && state.date === today);
     if (alreadyCompleted) return;
 
     const task = dailyTasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Grant reward
     if (task.reward_type === 'usdt') {
       adjustBalance(user.id, 'USDT', task.reward);
     } else if (task.reward_type === 'credit_score') {
@@ -151,11 +156,25 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       updateUser(user.id, { credit_score: newScore });
     }
 
-    // Update state
     const newState: UserTaskState = { taskId, date: today, completed: true };
     setUserTasksState(prev => [...prev, newState]);
-
   }, [user, userTasksState, dailyTasks, adjustBalance, updateUser]);
+
+  const triggerTaskCompletion = useCallback((type: TaskTriggerType) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find published tasks that match the trigger type
+    const matchingTasks = dailyTasks.filter(task => task.status === 'published' && task.trigger === type);
+    
+    matchingTasks.forEach(task => {
+        // Check if this task is already completed for today
+        const isCompleted = userTasksState.some(state => state.taskId === task.id && state.date === today);
+        if (!isCompleted) {
+            console.log(`Completing task: ${task.title}`);
+            completeTask(task.id);
+        }
+    });
+  }, [dailyTasks, userTasksState, completeTask]);
 
 
   const value = {
@@ -165,7 +184,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     updateDailyTask,
     saveTasks,
     userTasksState,
-    completeTask,
+    triggerTaskCompletion,
   };
 
   return (

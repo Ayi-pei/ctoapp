@@ -3,10 +3,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier } from '@/types';
-import { useAuth } from '@/context/auth-context';
+import { useAuth } from './auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
+import { useTasks } from './tasks-context';
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -88,9 +89,10 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, getAllUsers } = useAuth();
+  const { user, getUserById, getAllUsers, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
+  const { triggerTaskCompletion } = useTasks();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -334,6 +336,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
+    triggerTaskCompletion('investment');
     return true;
   }
   
@@ -373,6 +376,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
+    triggerTaskCompletion('investment');
     return true;
   }
 
@@ -415,6 +419,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         frozen: prev[quoteAsset].frozen + trade.amount
       }
     }));
+    
+    triggerTaskCompletion('contract_trade');
 
     if(quoteAsset === 'USDT') {
       distributeCommissions(user, trade.amount);
@@ -460,6 +466,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return newBalances;
     });
 
+    triggerTaskCompletion('spot_trade');
+
      if(quoteAsset === 'USDT') {
         distributeCommissions(user, trade.total);
      }
@@ -490,12 +498,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const reward = baseReward * Math.pow(1.5, newConsecutiveCheckIns - 1);
 
         adjustBalance(user.id, 'USDT', reward);
+        
+        // Add credit score
+        updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
 
         setLastCheckInDate(todayStr);
         setConsecutiveCheckIns(newConsecutiveCheckIns);
 
         return { success: true, reward };
-    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance]);
+    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser]);
   
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;
@@ -603,11 +614,11 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       getAllUserInvestments,
     };
 
-  return (
-    <BalanceContext.Provider value={value}>
-      {children}
-    </BalanceContext.Provider>
-  );
+    return (
+        <BalanceContext.Provider value={value}>
+            {children}
+        </BalanceContext.Provider>
+    )
 }
 
 export function useBalance() {

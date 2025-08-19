@@ -57,6 +57,19 @@ const TaskEditorCard = ({ task, updateTask, removeTask }: {
                         <Label htmlFor={`task-desc-${task.id}`}>任务描述</Label>
                         <Textarea id={`task-desc-${task.id}`} value={task.description} onChange={e => updateTask(task.id, { description: e.target.value })} />
                     </div>
+                     <div className="space-y-2">
+                        <Label htmlFor={`task-trigger-${task.id}`}>完成条件 (触发器)</Label>
+                        <Select value={task.trigger} onValueChange={(v) => updateTask(task.id, { trigger: v as any })}>
+                            <SelectTrigger id={`task-trigger-${task.id}`}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="contract_trade">完成一次合约交易</SelectItem>
+                                <SelectItem value="spot_trade">完成一次币币交易</SelectItem>
+                                <SelectItem value="investment">完成一次理财投资</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <div className="space-y-4">
                      <div className="space-y-2">

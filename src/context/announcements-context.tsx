@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
-const ANNOUNCEMENTS_STORAGE_KEY = 'tradeflow_announcements_v2'; // Updated key
+const ANNOUNCEMENTS_STORAGE_KEY = 'tradeflow_announcements_v3'; // Updated key
 
 export type Announcement = {
     id: string;
@@ -25,6 +25,8 @@ export type HornAnnouncement = {
     id: string;
     theme: '更新公告' | '重磅通知' | '庆贺';
     content: string;
+    priority: number;
+    expires_at?: string;
 };
 
 
@@ -51,8 +53,8 @@ const defaultCarouselItems: CarouselItemData[] = [
 ];
 
 const defaultHornAnnouncements: HornAnnouncement[] = [
-    { id: 'horn-1', theme: '重磅通知', content: '平台已于2024年8月5日正式上线 DOGE/USDT, ADA/USDT, 和 SHIB/USDT 交易对。' },
-    { id: 'horn-2', theme: '更新公告', content: '为了提供更优质的服务，我们将在2024年8月15日凌晨2:00至4:00进行系统升级维护。' },
+    { id: 'horn-1', theme: '重磅通知', content: '平台已于2024年8月5日正式上线 DOGE/USDT, ADA/USDT, 和 SHIB/USDT 交易对。', priority: 10, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() },
+    { id: 'horn-2', theme: '更新公告', content: '为了提供更优质的服务，我们将在2024年8月15日凌晨2:00至4:00进行系统升级维护。', priority: 5, expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() },
 ];
 
 
@@ -88,16 +90,16 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
             const storedData = localStorage.getItem(ANNOUNCEMENTS_STORAGE_KEY);
             if (storedData) {
                 const parsed = JSON.parse(storedData);
-                // Update state only with what was stored, falling back to defaults if keys are missing
                 setAnnouncements(parsed.announcements || []);
-                // Important: Keep default images for carousel, only update text content
                 setCarouselItems(prevItems => 
                     prevItems.map((item, index) => ({
-                        ...item, // Keep default imgSrc
-                        ...(parsed.carouselItems?.[index] || {}) // Overwrite with saved text
+                        ...item,
+                        ...(parsed.carouselItems?.[index] || {})
                     }))
                 );
-                setHornAnnouncements(parsed.hornAnnouncements || defaultHornAnnouncements);
+                // Ensure priority is a number
+                const loadedHorns = (parsed.hornAnnouncements || defaultHornAnnouncements).map((h: HornAnnouncement) => ({...h, priority: Number(h.priority) || 0}));
+                setHornAnnouncements(loadedHorns);
             }
         } catch (error) {
             console.error("Failed to load announcements from localStorage", error);
@@ -142,7 +144,9 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         const newHorn: HornAnnouncement = {
             id: `horn-${Date.now()}`,
             theme: '更新公告',
-            content: '新的公告内容...'
+            content: '新的公告内容...',
+            priority: 0,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
         setHornAnnouncements(prev => [...prev, newHorn]);
     }, [hornAnnouncements.length]);
@@ -169,6 +173,12 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
             return newArray;
         });
     }, []);
+    
+    const getActiveSortedAnnouncements = () => {
+        return hornAnnouncements
+            .filter(ann => !ann.expires_at || new Date(ann.expires_at) > new Date())
+            .sort((a, b) => b.priority - a.priority);
+    };
 
 
     const value = {
@@ -177,7 +187,8 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         addAnnouncement,
         carouselItems,
         updateCarouselItem,
-        hornAnnouncements,
+        hornAnnouncements, // For admin page
+        activeHornAnnouncements: getActiveSortedAnnouncements(), // For user-facing pages
         addHornAnnouncement,
         removeHornAnnouncement,
         updateHornAnnouncement,

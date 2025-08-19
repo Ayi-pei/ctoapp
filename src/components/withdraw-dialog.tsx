@@ -11,6 +11,18 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +32,8 @@ import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
 import { useRequests } from "@/context/requests-context";
+import { AlertCircle } from "lucide-react";
+
 
 type WithdrawDialogProps = {
     isOpen: boolean;
@@ -90,6 +104,8 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
         }
         onOpenChange(open);
     }
+    
+    const showCreditScoreWarning = user && user.credit_score < 90;
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -101,6 +117,13 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                     {showCreditScoreWarning && (
+                        <div className="p-3 rounded-md bg-yellow-500/10 border border-yellow-500/20 text-yellow-700 flex items-center gap-3 text-xs">
+                           <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                           您的信誉分较低，如遇审核峰值过高将延迟受理，感谢理解配合。
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="address" className="text-right">
                             地址
@@ -137,6 +160,24 @@ export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
                         />
                     </div>
                 </div>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="link" className="p-0 h-auto text-xs self-start text-muted-foreground">提现规则说明</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>提现规则说明</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <div className="text-sm space-y-3">
+                           <p><strong>RMB收款 (微信/支付宝/银行卡):</strong> 工作日3-12小时到账。如遇节假日峰值过高审核延迟≤24h。</p>
+                           <p><strong>数字货币 (USDT/ETH):</strong> 15分钟-3小时到账。如遇节假日峰值过高审核延迟&lt;20h。</p>
+                           <p className="text-xs text-muted-foreground">具体时间将根据当前待审核订单数（含安全审核、充/提审核、问题反馈审核），以及用户信誉分排序受理优先权。感谢您长久对我们的信任与支持。</p>
+                        </div>
+                        <AlertDialogFooter>
+                           <AlertDialogAction>我明白了</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
                 <DialogFooter>
                      <DialogClose asChild>
                         <Button type="button" variant="secondary">
