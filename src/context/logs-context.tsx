@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { ActionLog, AnyRequest } from '@/types';
+import type { ActionLog, AnyRequest, User } from '@/types';
 import { useAuth } from './auth-context';
 
 const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
@@ -12,6 +12,7 @@ type LogParams = {
     entity_id: string;
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     details: string;
+    actor?: User; // Optional: specify the user performing the action, defaults to logged-in admin
 };
 
 interface LogsContextType {
@@ -22,7 +23,7 @@ interface LogsContextType {
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-    const { user } = useAuth();
+    const { user: adminUser } = useAuth(); // Renamed to avoid confusion
     const [logs, setLogs] = useState<ActionLog[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
@@ -51,19 +52,28 @@ export function LogsProvider({ children }: { children: ReactNode }) {
     }, [logs, isLoaded]);
 
     const addLog = useCallback((params: LogParams) => {
-        if (!user) return; // A log must be associated with a logged-in user
+        // The user performing the action can be specified, otherwise it's the logged-in admin
+        const actor = params.actor || adminUser;
+
+        if (!actor) {
+             console.warn("Log not added: No actor (neither specified nor logged in admin) found.");
+             return; 
+        }
 
         const newLog: ActionLog = {
             id: `log_${Date.now()}`,
-            ...params,
-            operator_id: user.id,
-            operator_username: user.username,
+            entity_type: params.entity_type,
+            entity_id: params.entity_id,
+            action: params.action,
+            details: params.details,
+            operator_id: actor.id,
+            operator_username: actor.username,
             created_at: new Date().toISOString(),
         };
 
         setLogs(prev => [newLog, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
 
-    }, [user]);
+    }, [adminUser]);
 
     const value = { logs, addLog };
 

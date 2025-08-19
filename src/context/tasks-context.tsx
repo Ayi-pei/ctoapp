@@ -166,7 +166,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         entity_type: 'task_completion',
         entity_id: task.id,
         action: 'user_complete',
-        details: `User ${user.username} completed task: "${task.title}" and received ${task.reward} ${task.reward_type}.`
+        details: `User ${user.username} completed task: "${task.title}" and received ${task.reward} ${task.reward_type}.`,
+        actor: user, // Explicitly log this action on behalf of the user
     });
 
     const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
