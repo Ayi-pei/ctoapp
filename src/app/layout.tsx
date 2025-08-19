@@ -7,7 +7,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { BalanceProvider } from '@/context/balance-context';
 import { MarketDataProvider } from '@/context/market-data-context';
-import { SettingsProvider } from '@/context/settings-context';
 import { SystemSettingsProvider } from '@/context/system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
@@ -38,8 +37,7 @@ export default function RootLayout({
         <AuthProvider>
           <LogsProvider>
             <SystemSettingsProvider>
-              <SettingsProvider>
-                <InvestmentSettingsProvider>
+              <InvestmentSettingsProvider>
                   <MarketDataProvider>
                     <BalanceProvider>
                       <TasksProvider>
@@ -56,8 +54,7 @@ export default function RootLayout({
                       </TasksProvider>
                     </BalanceProvider>
                   </MarketDataProvider>
-                </InvestmentSettingsProvider>
-              </SettingsProvider>
+              </InvestmentSettingsProvider>
             </SystemSettingsProvider>
           </LogsProvider>
         </AuthProvider>

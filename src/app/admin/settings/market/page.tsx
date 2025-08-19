@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useSettings, TradingPairSettings, SpecialTimeFrame, MarketOverridePreset } from "@/context/settings-context";
-import { useSystemSettings } from "@/context/system-settings-context";
+import { useSystemSettings, TradingPairSettings, SpecialTimeFrame, MarketOverridePreset } from "@/context/system-settings-context";
 import { availablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -273,30 +272,30 @@ const PairSettingsCard = ({
 
 export default function AdminMarketSettingsPage() {
     const { 
-        settings, 
-        updateSettings, 
+        systemSettings, 
+        updatePairSettings, 
         addSpecialTimeFrame, 
         removeSpecialTimeFrame,
         updateSpecialTimeFrame,
         addMarketOverride,
         updateMarketOverride,
         removeMarketOverride,
-    } = useSettings();
-    const { systemSettings, updateSetting } = useSystemSettings();
+        updateSetting,
+    } = useSystemSettings();
     const { toast } = useToast();
 
     const handleTrendChange = (pair: string, newTrend: 'up' | 'down' | 'normal') => {
-        const currentTrend = settings[pair]?.trend;
+        const currentTrend = systemSettings.marketSettings[pair]?.trend;
         const finalTrend = currentTrend === newTrend ? 'normal' : newTrend;
-        updateSettings(pair, { trend: finalTrend });
+        updatePairSettings(pair, { trend: finalTrend });
     };
     
     const handleSettingChange = (pair: string, key: keyof TradingPairSettings, value: any) => {
-        updateSettings(pair, { [key]: value });
+        updatePairSettings(pair, { [key]: value });
     };
 
     const handleVolatilityChange = (pair: string, value: number[]) => {
-        updateSettings(pair, { volatility: value[0] });
+        updatePairSettings(pair, { volatility: value[0] });
     }
     
     const handleSaveChanges = () => {
@@ -342,7 +341,7 @@ export default function AdminMarketSettingsPage() {
                     <ScrollArea className="h-[calc(100vh-24rem)]">
                         <CardContent className="space-y-6 pr-6">
                             {availablePairs.map((pair) => {
-                                const pairSettings = settings[pair] || { 
+                                const pairSettings = systemSettings.marketSettings[pair] || { 
                                     trend: 'normal', 
                                     tradingDisabled: false, 
                                     baseProfitRate: 0.85,

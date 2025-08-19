@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
 import { Clock, ListTodo, Trash2 } from "lucide-react";
-import { useSettings } from "@/context/settings-context";
+import { useSystemSettings } from "@/context/system-settings-context";
 import { useMarket } from "@/context/market-data-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { availablePairs as allAvailablePairs } from "@/types"; // Renamed to avoid conflict
@@ -30,7 +31,7 @@ type SmartTradeProps = {
 export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps) {
   const { toast } = useToast();
   const { balances, placeContractTrade } = useBalance();
-  const { settings } = useSettings();
+  const { systemSettings } = useSystemSettings();
   const { summaryData } = useMarket();
 
   const marketData = useMemo(() => {
@@ -45,10 +46,10 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
   const [executionTime, setExecutionTime] = useState("");
   const [scheduledTrades, setScheduledTrades] = useState<ScheduledTrade[]>([]);
 
-  const availablePairs = Object.keys(settings);
+  const availablePairs = Object.keys(systemSettings.marketSettings);
   const baseAsset = selectedPair.split('/')[0];
   const quoteAsset = selectedPair.split('/')[1];
-  const pairSettings = settings[selectedPair];
+  const pairSettings = systemSettings.marketSettings[selectedPair];
 
   useEffect(() => {
     // Cleanup timeouts when component unmounts

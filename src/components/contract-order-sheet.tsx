@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
-import { useSettings } from "@/context/settings-context";
 import { useSystemSettings } from "@/context/system-settings-context";
 import { useTasks } from "@/context/tasks-context";
 
@@ -57,7 +56,6 @@ export function ContractOrderSheet({
   quoteAsset
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
-  const { settings } = useSettings();
   const { systemSettings } = useSystemSettings();
   const { triggerTaskCompletion } = useTasks();
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
@@ -65,7 +63,7 @@ export function ContractOrderSheet({
   const [isConfirming, setIsConfirming] = useState(false);
   const [currentProfitRate, setCurrentProfitRate] = useState(0.85);
 
-  const pairSettings = settings[tradingPair];
+  const pairSettings = systemSettings.marketSettings[tradingPair];
   
   useEffect(() => {
     if (!pairSettings) return;

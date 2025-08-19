@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { availablePairs, MarketSummary, OHLC } from '@/types';
 import axios from 'axios';
-import { useSettings } from './settings-context';
+import { useSystemSettings } from './system-settings-context';
 
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
@@ -57,7 +57,7 @@ interface MarketContextType {
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
-    const { settings } = useSettings();
+    const { systemSettings } = useSystemSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
@@ -66,40 +66,23 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
 
-    const processDataWithOverrides = useCallback((fetchedData: MarketSummary[]) => {
-        const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes();
-
+    const processDataWithClientOverrides = useCallback((fetchedData: MarketSummary[]) => {
         return fetchedData.map(item => {
-            const pairSettings = settings[item.pair];
-            if (!pairSettings || !pairSettings.marketOverrides || pairSettings.marketOverrides.length === 0) {
-                return item; // No overrides, return original data
+            const pairSettings = systemSettings.marketSettings[item.pair];
+            if (!pairSettings || !pairSettings.trend || pairSettings.trend === 'normal') {
+                return item;
             }
 
-            const activeOverride = pairSettings.marketOverrides.find(override => {
-                const [startH, startM] = override.startTime.split(':').map(Number);
-                const startTime = startH * 60 + startM;
-                const [endH, endM] = override.endTime.split(':').map(Number);
-                const endTime = endH * 60 + endM;
-                return currentTime >= startTime && currentTime <= endTime;
-            });
+            let newPrice = item.price;
+            const trendFactor = pairSettings.trend === 'up' ? 1.0001 : 0.9999;
+            const volatility = pairSettings.volatility || 0.05;
+            const randomFactor = 1 + (Math.random() - 0.5) * volatility;
             
-            if (activeOverride) {
-                // Generate a simulated price
-                const simulatedPrice = Math.random() * (activeOverride.maxPrice - activeOverride.minPrice) + activeOverride.minPrice;
-                return {
-                    ...item,
-                    price: simulatedPrice,
-                    high: activeOverride.maxPrice,
-                    low: activeOverride.minPrice,
-                    change: (Math.random() - 0.5) * 2, // Random change between -1% and +1%
-                };
-            }
+            newPrice = newPrice * trendFactor * randomFactor;
 
-            return item;
+            return { ...item, price: newPrice };
         });
-
-    }, [settings]);
+    }, [systemSettings.marketSettings]);
     
     const fetchCryptoData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
@@ -120,7 +103,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
                 });
                 
-                const processedData = processDataWithOverrides(newSummaryData);
+                const processedData = processDataWithClientOverrides(newSummaryData);
 
                 setSummaryData(prev => {
                     const existingNonCrypto = prev.filter(d => !CRYPTO_PAIRS.includes(d.pair));
@@ -129,10 +112,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return;
             }
         } catch (error) {
-            console.warn("Tatum API fetch failed, falling back to CoinGecko.", error);
+            console.warn("Tatum API fetch failed.", error);
         }
 
-    }, [processDataWithOverrides]);
+    }, [processDataWithClientOverrides]);
 
     const fetchYahooData = useCallback(async () => {
         const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
@@ -162,19 +145,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         
         const results = await Promise.all(promises);
         const newSummaryData = results.filter(Boolean) as MarketSummary[];
-        const processedData = processDataWithOverrides(newSummaryData);
+        const processedData = processDataWithClientOverrides(newSummaryData);
 
         setSummaryData(prev => {
             const existingCrypto = prev.filter(p => CRYPTO_PAIRS.includes(p.pair));
             return [...existingCrypto, ...processedData].sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
         });
 
-    }, [processDataWithOverrides]);
+    }, [processDataWithClientOverrides]);
 
     const fetchKlineData = useCallback(async (pair: string) => {
         try {
-            // For non-crypto, kline data is built from summary data, no separate API call needed for now.
-             if (!CRYPTO_PAIRS.includes(pair)) return;
+            if (!CRYPTO_PAIRS.includes(pair)) return;
             const response = await axios.get(`/api/market-data`, {
                 params: { type: 'kline', pair: pair }
             });
@@ -204,13 +186,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     const lastDataPoint = pairData[pairData.length - 1];
 
                     if (lastDataPoint && new Date(lastDataPoint.time).getMinutes() === new Date().getMinutes()) {
-                        // Update the last point
                         lastDataPoint.close = summary.price;
                         lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
                         lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
                     } else {
-                        // Add a new point
-                        newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100); // Keep last 100 points
+                        newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100);
                     }
                 });
                 return newKlineData;

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { z } from 'zod';
+import type { SystemSettings } from '@/context/system-settings-context';
 
 const TATUM_API_KEY = process.env.TATUM_API_KEY;
 
@@ -18,6 +19,16 @@ const AssetDataSchema = z.object({
 const InputSchema = z.object({
   assetIds: z.array(z.string()),
 });
+
+// This is a server-side simulation. In a real app, this would be a DB call.
+// We are assuming the client (admin) has saved the settings to a known key.
+const getSystemSettings = (): SystemSettings | null => {
+    // This is a placeholder. On a server, you can't access localStorage.
+    // When moving to a real DB like Supabase, you would fetch this from the DB.
+    // For now, we return null to indicate we should use real data.
+    // The logic to apply overrides is here, but it needs a real data source.
+    return null;
+}
 
 export async function POST(request: Request) {
   if (!TATUM_API_KEY) {
@@ -56,7 +67,7 @@ export async function POST(request: Request) {
           changePercent24Hr: ticker.change || '0',
           volumeUsd24Hr: ticker.volume || '0',
           high: ticker.high || '0',
-          low: ticker.low || '0',
+      low: ticker.low || '0',
         };
       }
       return null;
