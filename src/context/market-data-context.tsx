@@ -67,22 +67,51 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [summaryData]);
 
     const processDataWithClientOverrides = useCallback((fetchedData: MarketSummary[]) => {
+        const interventions = systemSettings.marketInterventions || [];
+        if (interventions.length === 0) return fetchedData;
+
         return fetchedData.map(item => {
-            const pairSettings = systemSettings.marketSettings[item.pair];
-            if (!pairSettings || !pairSettings.trend || pairSettings.trend === 'normal') {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+
+            const activeIntervention = interventions.find(i => {
+                if (i.tradingPair !== item.pair) return false;
+                const [startH, startM] = i.startTime.split(':').map(Number);
+                const startTime = startH * 60 + startM;
+                const [endH, endM] = i.endTime.split(':').map(Number);
+                const endTime = endH * 60 + endM;
+                return currentTime >= startTime && currentTime <= endTime;
+            });
+            
+            if (!activeIntervention) {
                 return item;
             }
 
-            let newPrice = item.price;
-            const trendFactor = pairSettings.trend === 'up' ? 1.0001 : 0.9999;
-            const volatility = pairSettings.volatility || 0.05;
-            const randomFactor = 1 + (Math.random() - 0.5) * volatility;
+            let newPrice;
+            const { minPrice, maxPrice, trend } = activeIntervention;
             
-            newPrice = newPrice * trendFactor * randomFactor;
+            const timePassed = currentTime - (activeIntervention.startTime.split(':').map(Number)[0] * 60 + activeIntervention.startTime.split(':').map(Number)[1]);
+            const totalDuration = (activeIntervention.endTime.split(':').map(Number)[0] * 60 + activeIntervention.endTime.split(':').map(Number)[1]) - (activeIntervention.startTime.split(':').map(Number)[0] * 60 + activeIntervention.startTime.split(':').map(Number)[1]);
+            const progress = totalDuration > 0 ? timePassed / totalDuration : 0;
 
-            return { ...item, price: newPrice };
+            if (trend === 'up') {
+                newPrice = minPrice + (maxPrice - minPrice) * progress;
+            } else if (trend === 'down') {
+                newPrice = maxPrice - (maxPrice - minPrice) * progress;
+            } else { // random
+                newPrice = minPrice + Math.random() * (maxPrice - minPrice);
+            }
+            
+            newPrice *= (1 + (Math.random() - 0.5) * 0.001);
+
+            return { 
+                ...item, 
+                price: newPrice,
+                high: Math.max(item.high, newPrice),
+                low: Math.min(item.low, newPrice)
+            };
         });
-    }, [systemSettings.marketSettings]);
+    }, [systemSettings.marketInterventions]);
     
     const fetchCryptoData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
@@ -130,15 +159,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
                 return {
                     pair: pairKey,
-                    price: data.regularMarketPrice || 0,
-                    change: (data.regularMarketChangePercent || 0) * 100,
-                    volume: data.regularMarketVolume || 0,
-                    high: data.regularMarketDayHigh || 0,
-                    low: data.regularMarketDayLow || 0,
+                    price: parseFloat(data.regularMarketPrice) || 0,
+                    change: parseFloat(data.regularMarketChangePercent) * 100 || 0,
+                    volume: parseFloat(data.regularMarketVolume) || 0,
+                    high: parseFloat(data.regularMarketDayHigh) || 0,
+                    low: parseFloat(data.regularMarketDayLow) || 0,
                     icon: iconId ? `/images/instrument-icons/${iconId}.png` : `https://placehold.co/32x32.png`,
                 } as MarketSummary;
             } catch (error) {
-                console.error(`Failed to fetch from Yahoo for ${symbol}`);
+                console.error(`Failed to fetch from Yahoo for ${symbol}.`, error);
                 return null;
             }
         });
