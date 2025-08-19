@@ -23,7 +23,7 @@ export default function AdminUsersPage() {
     
     const [users, setUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+    const [displayedCode, setDisplayedCode] = useState<string | null>(null);
     
     const loadData = useCallback(() => {
         if (!isAdmin) return;
@@ -48,22 +48,13 @@ export default function AdminUsersPage() {
     const handleViewDetails = (userToView: User) => {
         router.push(`/admin/users/${userToView.id}`);
     };
-
-    const generateInvitationCode = () => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        
-        const timestamp = `${year}${month}${day}${hours}${minutes}${seconds}`;
-        
-        const randomNumbers = Math.floor(100000 + Math.random() * 900000).toString();
-
-        setGeneratedCode(`${timestamp}${randomNumbers}`);
+    
+    const showAdminInvitationCode = () => {
+        if (user?.invitation_code) {
+            setDisplayedCode(user.invitation_code);
+        }
     };
+
 
     const copyToClipboard = async (text: string) => {
         try {
@@ -131,14 +122,14 @@ export default function AdminUsersPage() {
                         </div>
                         <div className='flex items-center gap-4 w-full md:w-auto'>
                              <div className="flex items-center gap-2">
-                                <Button onClick={generateInvitationCode} variant="outline">
+                                <Button onClick={showAdminInvitationCode} variant="outline">
                                     <Ticket className="mr-2 h-4 w-4" />
-                                    获取邀请码
+                                    我的邀请码
                                 </Button>
-                                {generatedCode && (
+                                {displayedCode && (
                                     <div className="flex items-center gap-2 p-2 border rounded-md bg-muted h-10">
-                                        <span className="font-mono font-semibold text-primary">{generatedCode}</span>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(generatedCode)}>
+                                        <span className="font-mono font-semibold text-primary">{displayedCode}</span>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(displayedCode)}>
                                             <Copy className="h-4 w-4" />
                                         </Button>
                                     </div>
