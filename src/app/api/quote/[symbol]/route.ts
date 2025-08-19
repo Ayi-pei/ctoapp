@@ -13,16 +13,15 @@ export async function GET(
   }
 
   try {
-    // Switched to quoteSummary which is more robust for different asset types.
-    const results = await yahooFinance.quoteSummary(symbol, {
-      modules: ["price"],
-    });
+    // Switched to `quote` which is more reliable for various symbols including commodities.
+    const result = await yahooFinance.quote(symbol);
 
-    if (!results || !results.price) {
+    if (!result) {
          return NextResponse.json({ error: 'Symbol not found or no price data available' }, { status: 404 });
     }
     
-    return NextResponse.json(results.price);
+    // The `quote` method returns the full object, which is what we need.
+    return NextResponse.json(result);
   } catch (error) {
     console.error(`Yahoo Finance API error for symbol ${symbol}:`, error);
     if (error instanceof Error && (error.message.includes('404') || error.message.includes('No data found'))) {
