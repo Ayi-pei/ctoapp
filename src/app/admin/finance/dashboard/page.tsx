@@ -121,29 +121,14 @@ export default function AdminFinanceDashboardPage() {
         <DashboardLayout>
              <div className="p-4 md:p-8 space-y-4">
                  <h1 className="text-2xl font-bold">运营数据报表</h1>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <StatCard title="历史注册用户" value={userStats.totalUsers} icon={Users} description="平台所有注册用户总数" />
-                    <StatCard title="当前在线人数" value={userStats.onlineUsers} icon={UserCheck} description="5分钟内有活动的用户" />
-                    <StatCard title="大于48h离线" value={userStats.offline48h} icon={UserX} description="超过两天未登录的用户" />
-                </div>
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>出入款统计</CardTitle>
+                        <CardTitle>出入款统计 (总用户数: {userStats.totalUsers})</CardTitle>
                         <CardDescription>历史、当月及当日的充值与提现金额汇总</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                             <StatCard title="历史总充值" value={`$${financialStats.totalDeposits.toFixed(2)}`} icon={ArrowUpCircle} />
-                             <StatCard title="当月充值" value={`$${financialStats.monthlyDeposits.toFixed(2)}`} icon={CalendarDays} />
-                             <StatCard title="当日充值" value={`$${financialStats.dailyDeposits.toFixed(2)}`} icon={User} />
-
-                             <StatCard title="历史总提现" value={`$${financialStats.totalWithdrawals.toFixed(2)}`} icon={ArrowDownCircle} />
-                             <StatCard title="当月提现" value={`$${financialStats.monthlyWithdrawals.toFixed(2)}`} icon={CalendarDays} />
-                             <StatCard title="当日提现" value={`$${financialStats.dailyWithdrawals.toFixed(2)}`} icon={User} />
-                        </div>
-                        <div className="h-80">
+                         <div className="h-80">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData}>
                                     <CartesianGrid strokeDasharray="3 3" />
