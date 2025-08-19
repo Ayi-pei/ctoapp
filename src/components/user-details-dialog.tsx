@@ -397,7 +397,7 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
                                             <Label>账户类型:</Label>
                                             <Button onClick={handleToggleAccountType} variant="outline">
                                                 <Repeat className="w-4 h-4 mr-2"/>
-                                                切换为 {user.is_test_user ? '真实账户' : '真实账户'}
+                                                切换为 {user.is_test_user ? '真实账户' : '测试账户'}
                                             </Button>
                                         </div>
                                     </div>
