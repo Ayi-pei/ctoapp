@@ -109,6 +109,34 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
   const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
+  const getAllHistoricalTrades = useCallback((): (SpotTrade | ContractTrade)[] => {
+    const allUsers = getAllUsers();
+    const allTrades: (SpotTrade | ContractTrade)[] = [];
+    allUsers.forEach(u => {
+        const userData = getUserData(u.id);
+        if (userData.historicalTrades) {
+            allTrades.push(...userData.historicalTrades);
+        }
+    });
+    return allTrades;
+  }, [getAllUsers]);
+
+  const getAllUserInvestments = useCallback((): Investment[] => {
+    const allUsers = getAllUsers();
+    const allInvestments: Investment[] = [];
+    allUsers.forEach(u => {
+        const userData = getUserData(u.id);
+        if (userData.investments) {
+            const userInvestments = userData.investments.map(inv => ({
+                ...inv,
+                user_id: u.id 
+            }));
+            allInvestments.push(...userInvestments);
+        }
+    });
+    return allInvestments;
+  }, [getAllUsers]);
+
 
   // Load user data from storage
   useEffect(() => {
@@ -210,54 +238,94 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   }, [getUserById, adjustBalance, user?.id]);
 
+  const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
+      const targetUserId = userId || user?.id;
+      if (!targetUserId) return;
+
+      const userData = getUserData(targetUserId);
+      const userBalances = userData.balances;
+      
+      const currentAvailable = userBalances[asset]?.available || 0;
+      const currentFrozen = userBalances[asset]?.frozen || 0;
+
+      userBalances[asset] = {
+          available: currentAvailable - amount,
+          frozen: currentFrozen + amount,
+      };
+      saveUserData(targetUserId, { ...userData, balances: userBalances });
+      
+      if (user?.id === targetUserId) {
+          setBalances(userBalances);
+      }
+  }, [user]);
+
   const settleInvestment = useCallback((investmentId: string) => {
-        setInvestments(prev => {
-            const investmentToSettle = prev.find(inv => inv.id === investmentId);
-            if (!investmentToSettle || investmentToSettle.status !== 'active') {
-                return prev;
-            }
+        const allInvestments = getAllUserInvestments();
+        const investmentToSettle = allInvestments.find(inv => inv.id === investmentId);
+        
+        if (!investmentToSettle || investmentToSettle.status !== 'active') {
+            return;
+        }
+
+        let profit = 0;
+        if (investmentToSettle.productType === 'hourly' && investmentToSettle.hourly_rate && investmentToSettle.duration_hours) {
+            profit = investmentToSettle.amount * investmentToSettle.hourly_rate;
+        } else if (investmentToSettle.productType === 'daily' && investmentToSettle.daily_rate && investmentToSettle.period) {
+            profit = investmentToSettle.amount * investmentToSettle.daily_rate * investmentToSettle.period;
+        }
+        
+        const totalReturn = investmentToSettle.amount + profit;
+
+        adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
+
+        if (investmentToSettle.stakingAsset && investmentToSettle.stakingAmount) {
+            const currentData = getUserData(investmentToSettle.user_id);
+            const currentFrozen = currentData.balances[investmentToSettle.stakingAsset]?.frozen || 0;
+            const currentAvailable = currentData.balances[investmentToSettle.stakingAsset]?.available || 0;
+
+            currentData.balances[investmentToSettle.stakingAsset] = {
+                available: currentAvailable + investmentToSettle.stakingAmount,
+                frozen: currentFrozen - investmentToSettle.stakingAmount
+            };
+            saveUserData(investmentToSettle.user_id, currentData);
             
-            let profit = 0;
-            if (investmentToSettle.productType === 'hourly' && investmentToSettle.hourly_rate && investmentToSettle.duration_hours) {
-                profit = investmentToSettle.amount * investmentToSettle.hourly_rate;
-            } else if (investmentToSettle.productType === 'daily' && investmentToSettle.daily_rate && investmentToSettle.period) {
-                profit = investmentToSettle.amount * investmentToSettle.daily_rate * investmentToSettle.period;
+            if(user?.id === investmentToSettle.user_id) {
+                setBalances(currentData.balances);
             }
+        }
+        
+        const userData = getUserData(investmentToSettle.user_id);
+        const updatedInvestments = userData.investments.map(inv => 
+            inv.id === investmentId ? { ...inv, status: 'settled', profit } : inv
+        );
+        saveUserData(investmentToSettle.user_id, { ...userData, investments: updatedInvestments });
 
-            const totalReturn = investmentToSettle.amount + profit;
-
-            adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
-
-            // Unfreeze staked assets if any
-            if (investmentToSettle.stakingAsset && investmentToSettle.stakingAmount) {
-                adjustBalance(investmentToSettle.user_id, investmentToSettle.stakingAsset, investmentToSettle.stakingAmount);
-                adjustFrozenBalance(investmentToSettle.stakingAsset, -investmentToSettle.stakingAmount, investmentToSettle.user_id);
-            }
-
+        if (user?.id === investmentToSettle.user_id) {
+            setInvestments(updatedInvestments);
             toast({
                 title: '理财订单已结算',
                 description: `您的 “${investmentToSettle.product_name}” 订单已到期，本金和收益共 ${totalReturn.toFixed(2)} USDT 已返还至您的余额。`
             });
-            
-            return prev.map(inv => inv.id === investmentId ? { ...inv, status: 'settled', profit } : inv);
-        })
-  }, [adjustBalance, toast]);
+        }
+        
+  }, [adjustBalance, toast, user?.id, getAllUserInvestments]);
 
   // Effect to handle investment settlement
   useEffect(() => {
-    if (!investments.length) return;
+    const allInvestments = getAllUserInvestments();
+    if (!allInvestments.length) return;
     
     const interval = setInterval(() => {
         const now = new Date();
-        investments.forEach(inv => {
+        allInvestments.forEach(inv => {
             if (inv.status === 'active' && new Date(inv.settlement_date) <= now) {
                 settleInvestment(inv.id);
             }
         });
-    }, 5000); // Check every 5 seconds
+    }, 5000); 
 
     return () => clearInterval(interval);
-  }, [investments, settleInvestment]);
+  }, [investments, settleInvestment, getAllUserInvestments]);
 
 
   const settleContractTrade = useCallback((tradeId: string) => {
@@ -359,7 +427,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         period: params.period,
         status: 'active',
         productType: 'daily',
-        category: params.category,
+        category: 'staking',
         stakingAsset: params.stakingAsset,
         stakingAmount: params.stakingAmount,
     }
@@ -399,7 +467,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         productType: 'hourly',
         duration_hours: params.durationHours,
         hourly_rate: selectedTier.rate,
-        category: params.category,
+        category: 'finance',
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;
@@ -529,27 +597,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         return { success: true, reward };
     }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser, reloadUser]);
   
-  const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
-      const targetUserId = userId || user?.id;
-      if (!targetUserId) return;
-
-      const userData = getUserData(targetUserId);
-      const userBalances = userData.balances;
-      
-      const currentAvailable = userBalances[asset]?.available || 0;
-      const currentFrozen = userBalances[asset]?.frozen || 0;
-
-      userBalances[asset] = {
-          available: currentAvailable - amount,
-          frozen: currentFrozen + amount,
-      };
-      saveUserData(targetUserId, { ...userData, balances: userBalances });
-      
-      if (user?.id === targetUserId) {
-          setBalances(userBalances);
-      }
-  }, [user]);
-  
   const confirmWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;
       if (!targetUserId) return;
@@ -587,34 +634,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const recalculateBalanceForUser = useCallback(async (userId: string) => {
     return getUserData(userId).balances;
   }, []);
-
-  const getAllHistoricalTrades = useCallback((): (SpotTrade | ContractTrade)[] => {
-    const allUsers = getAllUsers();
-    const allTrades: (SpotTrade | ContractTrade)[] = [];
-    allUsers.forEach(u => {
-        const userData = getUserData(u.id);
-        if (userData.historicalTrades) {
-            allTrades.push(...userData.historicalTrades);
-        }
-    });
-    return allTrades;
-  }, [getAllUsers]);
-
-  const getAllUserInvestments = useCallback((): Investment[] => {
-    const allUsers = getAllUsers();
-    const allInvestments: Investment[] = [];
-    allUsers.forEach(u => {
-        const userData = getUserData(u.id);
-        if (userData.investments) {
-            const userInvestments = userData.investments.map(inv => ({
-                ...inv,
-                user_id: u.id 
-            }));
-            allInvestments.push(...userInvestments);
-        }
-    });
-    return allInvestments;
-  }, [getAllUsers]);
 
   const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
     if (typeof window === 'undefined') return 0;
