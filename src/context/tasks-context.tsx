@@ -55,6 +55,7 @@ interface TasksContextType {
   removeDailyTask: (id: string) => void;
   updateDailyTask: (id: string, updates: Partial<DailyTask>) => void;
   saveTasks: () => void;
+  getAllTaskCompletionsForDate: (date?: string) => number;
   // User functions
   userTasksState: UserTaskState[];
   // Wrapped functions that will also trigger task completion
@@ -67,7 +68,7 @@ interface TasksContextType {
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, getAllUsers } = useAuth();
   const balanceContext = useBalance();
   const { adjustBalance } = balanceContext;
   const { addLog } = useLogs();
@@ -147,6 +148,29 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const updateDailyTask = useCallback((id:string, updates: Partial<DailyTask>) => {
     setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
   }, []);
+  
+  const getAllTaskCompletionsForDate = useCallback((date?: string): number => {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const allUsers = getAllUsers();
+    let totalCompletions = 0;
+
+    allUsers.forEach(u => {
+        try {
+            const key = `${USER_TASKS_STATE_KEY_PREFIX}${u.id}`;
+            const storedState = localStorage.getItem(key);
+            if (storedState) {
+                const userState: UserTaskState[] = JSON.parse(storedState);
+                const completionsForDate = userState.filter(s => s.date === targetDate && s.completed).length;
+                totalCompletions += completionsForDate;
+            }
+        } catch (e) {
+            console.error(`Failed to get task state for user ${u.id}`, e);
+        }
+    });
+
+    return totalCompletions;
+  }, [getAllUsers]);
+
 
   const triggerTaskCompletion = useCallback((type: TaskTriggerType) => {
     if (!user) return;
@@ -210,6 +234,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     updateDailyTask,
     saveTasks,
     userTasksState,
+    getAllTaskCompletionsForDate,
     // Provide the wrapped functions
     placeContractTrade,
     placeSpotTrade,

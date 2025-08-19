@@ -10,6 +10,7 @@ import { User, Users, UserCheck, UserX, ArrowUpCircle, ArrowDownCircle, Briefcas
 import { User as UserType, AnyRequest } from '@/types';
 import { isToday, isThisMonth, parseISO } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useTasks } from '@/context/tasks-context';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -35,11 +36,14 @@ const getAllUsers = (): UserType[] => {
 export default function AdminFinanceDashboardPage() {
     const { getDownline } = useAuth();
     const { requests } = useRequests();
+    const { getAllTaskCompletionsForDate } = useTasks();
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
+    const [dailyTaskCompletions, setDailyTaskCompletions] = useState(0);
 
     useEffect(() => {
         setAllUsers(getAllUsers());
-    }, []);
+        setDailyTaskCompletions(getAllTaskCompletionsForDate());
+    }, [getAllTaskCompletionsForDate]);
     
     const financialStats = useMemo(() => {
         const approvedRequests = requests.filter(r => r.status === 'approved');
@@ -140,7 +144,7 @@ export default function AdminFinanceDashboardPage() {
                     <StatCard title="一级代理人数" value={userStats.level1} icon={Briefcase} />
                     <StatCard title="二级代理人数" value={userStats.level2} icon={Briefcase} />
                     <StatCard title="三级代理人数" value={userStats.level3} icon={Briefcase} />
-                    <StatCard title="日常任务完成数" value="N/A" icon={ClipboardList} description="此功能即将推出"/>
+                    <StatCard title="今日任务完成数" value={dailyTaskCompletions} icon={ClipboardList} description="所有用户今日完成任务总数"/>
                 </div>
              </div>
         </DashboardLayout>
