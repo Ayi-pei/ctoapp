@@ -1,6 +1,6 @@
 
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,37 +18,27 @@ import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-
-
-const carouselItems = [
-    {
-        title: "智能秒合约",
-        description: "预测市场，秒速盈利",
-        href: "/trade?tab=contract",
-        imgSrc: "/images/lun.png",
-    },
-    {
-        title: "高收益理财",
-        description: "稳定增值，安心之选",
-        href: "/finance",
-        imgSrc: "/images/lun01.png",
-    },
-    {
-        title: "邀请好友赚佣金",
-        description: "分享链接，共享收益",
-        href: "/profile/promotion",
-        imgSrc: "/images/lun02.png",
-    }
-];
+import Autoplay from "embla-carousel-autoplay"
 
 
 export default function DashboardPage() {
     const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
     const { balances } = useBalance();
-    const { platformAnnouncements } = useAnnouncements();
+    const { platformAnnouncements, carouselItems, hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+    const [currentHornIndex, setCurrentHornIndex] = useState(0);
+
+    useEffect(() => {
+        if (hornAnnouncements.length === 0) return;
+
+        const timer = setInterval(() => {
+            setCurrentHornIndex(prevIndex => (prevIndex + 1) % hornAnnouncements.length);
+        }, 5000); // Change announcement every 5 seconds
+
+        return () => clearInterval(timer);
+    }, [hornAnnouncements]);
 
     const features = [
         { name: '每日任务', imgSrc: '/images/book.png', href: '/tasks', labelPosition: 'top' },
@@ -93,12 +83,22 @@ export default function DashboardPage() {
         return <MarketList summary={data} klineData={klineData} />
     }
 
+    const currentHornAnnouncement = hornAnnouncements.length > 0 ? hornAnnouncements[currentHornIndex] : null;
+
 
     return (
         <DashboardLayout>
             <div className="p-4 space-y-6">
                 {/* Smart Contract Carousel */}
-                <Carousel className="w-full" opts={{ loop: true }}>
+                <Carousel 
+                    className="w-full" 
+                    opts={{ loop: true }}
+                    plugins={[
+                        Autoplay({
+                            delay: 5000,
+                        }),
+                    ]}
+                >
                     <CarouselContent>
                         {carouselItems.map((item, index) => (
                              <CarouselItem key={index}>
@@ -131,7 +131,12 @@ export default function DashboardPage() {
                         <div className="bg-card/80 backdrop-blur-sm border-l-4 border-primary p-3 rounded-r-lg flex items-center space-x-3 overflow-hidden cursor-pointer hover:bg-card/90 transition-opacity">
                         <Megaphone className="h-5 w-5 text-primary flex-shrink-0" />
                         <div className="text-sm text-foreground flex-1 truncate whitespace-nowrap">
-                            {platformAnnouncements.length > 0 ? platformAnnouncements[0].title : "欢迎来到TradeFlow！"}
+                            {currentHornAnnouncement ? (
+                                <span className="font-semibold text-primary mr-2">【{currentHornAnnouncement.theme}】</span>
+                            ) : (
+                                <span className="font-semibold text-primary mr-2">【平台公告】</span>
+                            )}
+                            {currentHornAnnouncement ? currentHornAnnouncement.content : (platformAnnouncements[0]?.title || "欢迎来到TradeFlow！")}
                         </div>
                     </div>
                 </Link>

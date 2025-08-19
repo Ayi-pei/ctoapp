@@ -69,7 +69,6 @@ export type Announcement = {
   is_read?: boolean; // Optional: for user to mark as read
 }
 
-
 // Represents an order in the order book
 export type Order = {
   price: number;
@@ -245,4 +244,18 @@ export type LimitedTimeActivity = {
     imgSrc?: string;
     status: 'published' | 'draft';
     createdAt: string; // ISO date string
+};
+
+
+export type CarouselItemData = {
+    title: string;
+    description: string;
+    href: string;
+    imgSrc: string;
+};
+
+export type HornAnnouncement = {
+    id: string;
+    theme: '更新公告' | '重磅通知' | '庆贺';
+    content: string;
 };
