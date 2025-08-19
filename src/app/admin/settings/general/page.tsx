@@ -25,9 +25,9 @@ export default function AdminGeneralSettingsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
+            <div className="p-4 md:p-8 space-y-4">
                 <h1 className="text-2xl font-bold">通用设置</h1>
-                <Card>
+                <Card className="bg-card/80 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>通用设置</CardTitle>
                         <CardDescription>影响整个平台的全局配置</CardDescription>
@@ -35,12 +35,14 @@ export default function AdminGeneralSettingsPage() {
                     <CardContent className="space-y-6">
                         
                         <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
-                            <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
-                                开启秒合约交易
+                            <div>
+                                <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
+                                    开启秒合约交易
+                                </Label>
                                 <p className="text-xs font-normal text-muted-foreground mt-1">
                                     关闭后，所有用户将无法进行秒合约交易。
                                 </p>
-                            </Label>
+                            </div>
                             <Switch
                                 id="enable-contract-trading"
                                 checked={systemSettings.contractTradingEnabled}
@@ -49,11 +51,12 @@ export default function AdminGeneralSettingsPage() {
                         </div>
                         
                         {supportedAssets.map((asset) => (
-                            <div className="space-y-2" key={asset}>
-                                <Label htmlFor={`deposit-address-${asset}`}>在线充币地址 ({asset})</Label>
+                            <div key={asset}>
+                                <Label htmlFor={`deposit-address-${asset}`} className="text-sm font-medium">在线充币地址 ({asset})</Label>
                                 <Input
                                     id={`deposit-address-${asset}`}
                                     type="text"
+                                    className="mt-2"
                                     value={systemSettings.depositAddresses[asset] || ''}
                                     onChange={(e) => updateDepositAddress(asset, e.target.value)}
                                     placeholder={`请输入您的 ${asset} 钱包或账户地址`}
