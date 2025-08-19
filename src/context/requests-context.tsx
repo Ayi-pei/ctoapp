@@ -22,7 +22,7 @@ type WithdrawalRequestParams = {
 
 interface RequestsContextType {
     requests: AnyRequest[];
-    addDepositRequest: (params: DepositRequestParams, type?: 'deposit' | 'adjustment', forUserId?: string) => void;
+    addDepositRequest: (params: DepositRequestParams) => void;
     addWithdrawalRequest: (params: WithdrawalRequestParams) => void;
     addPasswordResetRequest: (newPassword: string) => Promise<void>;
     approveRequest: (requestId: string) => Promise<void>;
@@ -71,36 +71,27 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         }
     }, [requests, isLoaded]);
 
-    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user' | 'user_id'>, forUserId?: string) => {
-        const targetUser = forUserId ? getUserById(forUserId) : user;
-        if (!targetUser) return;
+    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user' | 'user_id'>) => {
+        if (!user) return;
     
         const fullRequest = {
             ...newRequest,
             id: `req_${Date.now()}`,
-            user_id: targetUser.id,
+            user_id: user.id,
             status: 'pending' as const,
             created_at: new Date().toISOString(),
-            user: { username: targetUser.username },
+            user: { username: user.username },
         };
-    
-        if (fullRequest.type === 'adjustment') {
-            (fullRequest as any).status = 'approved' as const;
-        }
     
         setRequests(prev => [fullRequest as AnyRequest, ...prev]);
     
-        if (fullRequest.type === 'adjustment' && (fullRequest as any).status === 'approved') {
-            adjustBalance(fullRequest.user_id, (fullRequest as Transaction).asset, (fullRequest as Transaction).amount);
-        }
-    
-    }, [user, getUserById, adjustBalance]);
+    }, [user]);
 
-    const addDepositRequest = useCallback((params: DepositRequestParams, type: 'deposit' | 'adjustment' = 'deposit', forUserId?: string) => {
+    const addDepositRequest = useCallback((params: DepositRequestParams) => {
         addRequest({
-            type,
+            type: 'deposit',
             ...params
-        }, forUserId);
+        });
     }, [addRequest]);
 
     const addWithdrawalRequest = useCallback((params: WithdrawalRequestParams) => {
@@ -172,7 +163,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
                 // If status is changed to approved, handle balance changes
                 if (originalRequest.status !== 'approved' && updatedRequest.status === 'approved') {
-                    if (updatedRequest.type === 'deposit' || updatedRequest.type === 'adjustment') {
+                    if (updatedRequest.type === 'deposit') {
                          adjustBalance(updatedRequest.user_id, (updatedRequest as Transaction).asset, (updatedRequest as Transaction).amount);
                     }
                 }

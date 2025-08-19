@@ -12,7 +12,7 @@ import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
-import { getUserAssets } from "@/services/userService";
+import { useBalance } from "@/context/balance-context";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB"];
 const FOREX_ASSETS = ["EUR", "GBP"];
@@ -110,29 +110,7 @@ const EmptyState = ({ text }: { text: string }) => (
 
 export default function AssetsPage() {
     const router = useRouter();
-    const { user } = useAuth();
-    const [balances, setBalances] = useState<Balances>({});
-    const [investments, setInvestments] = useState<Investment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchAssets = async () => {
-            if (!user) return;
-            setIsLoading(true);
-            try {
-                // Use the new service layer to fetch data
-                const data = await getUserAssets();
-                setBalances(data.balances || {});
-                setInvestments(data.investments || []);
-            } catch (error) {
-                console.error("Failed to fetch assets via service:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchAssets();
-    }, [user]);
+    const { balances, investments, isLoading } = useBalance();
 
     return (
         <DashboardLayout>

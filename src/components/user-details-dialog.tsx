@@ -22,7 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "./ui/separator";
 import { MessageSquare, Send, Users, Repeat, Archive } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { useAuth } from "@/context/auth-context";
@@ -99,9 +98,8 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
     const { toast } = useToast();
-    const { recalculateBalanceForUser } = useBalance();
+    const { recalculateBalanceForUser, adjustBalance } = useBalance();
     const { updateUser } = useAuth();
-    const { addDepositRequest } = useRequests();
     const { addAnnouncement } = useAnnouncements();
     const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
     const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
@@ -154,16 +152,13 @@ export function UserDetailsDialog({ isOpen, onOpenChange, user: initialUser, onU
             return;
         }
         
-        addDepositRequest({
-            asset: asset,
-            amount: amount,
-            transaction_hash: `管理员调整: ${user.username}`
-        }, 'adjustment', user.id);
+        adjustBalance(user.id, asset, amount);
 
-
-        toast({ title: "成功", description: `为 ${user.username} 的 ${asset} 余额调整请求已提交。请在资金管理页面审核。` });
+        toast({ title: "成功", description: `为 ${user.username} 的 ${asset} 余额调整了 ${amount}。` });
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
         
+        const bal = await recalculateBalanceForUser(user.id);
+        setCalculatedBalances(bal);
         onUpdate(); 
     };
 
