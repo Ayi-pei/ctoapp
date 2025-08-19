@@ -172,7 +172,10 @@ export default function AdminAnnouncementsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>首页轮播图设置</CardTitle>
-                        <CardDescription>编辑首页顶部轮播图的文字内容和跳转链接。图片资源为系统内置，不可修改。</CardDescription>
+                        <CardDescription>
+                            编辑首页顶部轮播图的文字内容和跳转链接。
+                            <span className="font-bold text-destructive">图片资源为系统内置，不可修改。</span>
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <CarouselEditor items={carouselItems} updateCarouselItem={updateCarouselItem} />
