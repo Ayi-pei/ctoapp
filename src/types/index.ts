@@ -2,6 +2,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -63,6 +64,11 @@ export type User = {
     last_login_at?: string;
     avatar_url?: string;
 };
+
+// A secure version of the User type, without the password.
+// This should be used in the frontend application state.
+export type SecureUser = Omit<User, 'password'>;
+
 
 // Represents an order in the order book
 export type Order = {
@@ -249,7 +255,6 @@ export type LimitedTimeActivity = {
 export type ActionLog = {
     id: string;
     entity_type: 'request' | 'task_completion' | 'activity_participation';
-    entity_id: string;
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     operator_id: string;
     operator_username: string;

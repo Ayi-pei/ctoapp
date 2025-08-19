@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier, ActionLog } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier, ActionLog, SecureUser } from '@/types';
 import { useAuth } from './auth-context';
 import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -95,7 +95,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, getAllUsers, updateUser, reloadUser } = useAuth();
+  const { user, getUserById, getAllUsers, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   const { addLog } = useLogs();
@@ -196,7 +196,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
   }, [user?.id]);
 
-  const distributeCommissions = useCallback((sourceUser: User, tradeAmount: number) => {
+  const distributeCommissions = useCallback((sourceUser: SecureUser, tradeAmount: number) => {
     if (!sourceUser.inviter_id) return;
 
     let currentUplineId: string | null = sourceUser.inviter_id;
@@ -589,13 +589,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         adjustBalance(user.id, 'USDT', reward);
         
         await updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
-        reloadUser(); // Force reload user state from AuthContext
 
         setLastCheckInDate(todayStr);
         setConsecutiveCheckIns(newConsecutiveCheckIns);
 
         return { success: true, reward };
-    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser, reloadUser]);
+    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser]);
   
   const confirmWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;

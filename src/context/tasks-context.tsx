@@ -66,7 +66,7 @@ interface TasksContextType {
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser, reloadUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const balanceContext = useBalance();
   const { adjustBalance } = balanceContext;
   const { addLog } = useLogs();
@@ -160,7 +160,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     } else if (task.reward_type === 'credit_score') {
       const newScore = (user.credit_score || 100) + task.reward;
       await updateUser(user.id, { credit_score: newScore });
-      reloadUser(); // Force reload user state to reflect new score
     }
     
     addLog({
@@ -173,7 +172,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
     setUserTasksState(prev => [...prev, newState]);
-  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser, addLog, reloadUser]);
+  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser, addLog]);
 
   // Wrap balance context functions to also trigger task completion
   const placeContractTrade: TasksContextType['placeContractTrade'] = useCallback((...args) => {

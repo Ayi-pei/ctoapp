@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { User as UserType } from '@/types';
+import type { User as UserType, SecureUser } from '@/types';
 
 // Re-exporting the type from types/index.ts to avoid circular dependencies
 // and to be the single source of truth.
@@ -12,7 +12,7 @@ export type User = UserType;
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null;
+  user: SecureUser | null;
   isAdmin: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -22,7 +22,6 @@ interface AuthContextType {
   getAllUsers: () => User[];
   getDownline: (userId: string) => User[];
   updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
-  reloadUser: () => void; // New function to reload user state from storage
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,7 +53,7 @@ const saveMockUsers = (users: { [id: string]: User }) => {
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SecureUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -87,13 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(false);
   }, []);
-  
-  const reloadUser = () => {
-    const storedUser = localStorage.getItem('userSession');
-    if (storedUser) {
-        setUser(JSON.parse(storedUser));
-    }
-  };
 
   const login = async (username: string, password: string): Promise<boolean> => {
     const allUsers = getMockUsers();
@@ -101,13 +93,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (foundUser) {
         const now = new Date().toISOString();
-        const loggedInUser = { ...foundUser, last_login_at: now };
+        const { password, ...secureUser } = { ...foundUser, last_login_at: now };
         
-        allUsers[loggedInUser.id] = { ...allUsers[loggedInUser.id], ...loggedInUser };
+        allUsers[secureUser.id] = { ...allUsers[secureUser.id], ...secureUser, password: foundUser.password };
         saveMockUsers(allUsers);
         
-        setUser(loggedInUser);
-        localStorage.setItem('userSession', JSON.stringify(loggedInUser));
+        setUser(secureUser);
+        localStorage.setItem('userSession', JSON.stringify(secureUser));
         return true;
     }
 
@@ -207,14 +199,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!allUsers[userId]) {
           return false;
       }
+      
+      const originalPassword = allUsers[userId].password;
       allUsers[userId] = { ...allUsers[userId], ...updates };
+      // Ensure password is not overwritten if not provided in updates
+      if (!updates.password) {
+        allUsers[userId].password = originalPassword;
+      }
+
       saveMockUsers(allUsers);
 
       // If the updated user is the current user, update the state and session storage
       if (user && user.id === userId) {
-        const updatedCurrentUser = { ...user, ...updates };
-        setUser(updatedCurrentUser);
-        localStorage.setItem('userSession', JSON.stringify(updatedCurrentUser));
+        const { password, ...secureUser } = allUsers[userId];
+        setUser(secureUser);
+        localStorage.setItem('userSession', JSON.stringify(secureUser));
       }
 
       return true;
@@ -232,7 +231,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getAllUsers,
     getDownline,
     updateUser,
-    reloadUser,
   };
 
   return (
