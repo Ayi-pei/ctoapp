@@ -83,6 +83,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: true, isAdmin: loggedInUser.is_admin };
     }
     
+    // Fallback to localStorage check for regular users since API only handles admin/mock
+    const allUsers = getMockUsers();
+    const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
+    if (foundUser) {
+        const now = new Date().toISOString();
+        const loggedInUser = { ...foundUser, last_login_at: now };
+        
+        allUsers[loggedInUser.id] = loggedInUser;
+        saveMockUsers(allUsers);
+        
+        setUser(loggedInUser);
+        localStorage.setItem('userSession', JSON.stringify(loggedInUser));
+        return { success: true, isAdmin: loggedInUser.is_admin };
+    }
+
     return { success: false, isAdmin: false };
   };
   
