@@ -174,7 +174,7 @@ export default function AdminRequestsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6">
+            <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
                 <Tabs defaultValue="requests" className="w-full">
                     <TabsList>
                         <TabsTrigger value="requests">审核中心</TabsTrigger>

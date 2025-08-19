@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -42,6 +43,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   
   const isDashboardPage = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
+  const isAdminPage = pathname.startsWith('/admin');
 
   return (
     <div className={cn("h-screen w-screen flex flex-col")}>
@@ -51,7 +53,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <main className={cn(
             "flex-1 overflow-y-auto pb-16 md:pb-0",
             isDashboardPage && "gold-gradient-background home-background",
-            isTradePage && "trade-background"
+            isTradePage && "trade-background",
+            isAdminPage && "admin-background"
           )}>
             {children}
           </main>

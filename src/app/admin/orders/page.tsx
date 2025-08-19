@@ -185,7 +185,7 @@ export default function AdminOrdersPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6">
+            <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
                 <h1 className="text-2xl font-bold">订单详情</h1>
 
                 <Card>

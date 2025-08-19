@@ -1,3 +1,4 @@
+
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ export default function AdminGeneralSettingsPage() {
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6">
+            <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
                 <h1 className="text-2xl font-bold">通用设置</h1>
                 <Card>
                     <CardHeader>
