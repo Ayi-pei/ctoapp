@@ -8,9 +8,9 @@ import { useAuth } from './auth-context';
 const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
 
 type LogParams = {
-    entity_type: 'request' | 'task_completion' | 'activity_participation';
+    entity_type: 'request';
     entity_id: string;
-    action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
     details: string;
 };
 

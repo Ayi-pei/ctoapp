@@ -40,16 +40,16 @@ export default function RootLayout({
                 <InvestmentSettingsProvider>
                   <MarketDataProvider>
                     <BalanceProvider>
-                       <TasksProvider>
-                        <RequestsProvider>
+                      <RequestsProvider>
+                         <TasksProvider>
                           <ActivitiesProvider>
                             <AnnouncementsProvider>
                               {children}
                               <Toaster />
                             </AnnouncementsProvider>
                           </ActivitiesProvider>
-                        </RequestsProvider>
-                      </TasksProvider>
+                        </TasksProvider>
+                      </RequestsProvider>
                     </BalanceProvider>
                   </MarketDataProvider>
                 </InvestmentSettingsProvider>

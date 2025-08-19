@@ -243,9 +243,9 @@ export type LimitedTimeActivity = {
 // Represents an action log for admin operations
 export type ActionLog = {
     id: string;
-    entity_type: 'request' | 'task_completion' | 'activity_participation';
+    entity_type: 'request';
     entity_id: string;
-    action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
+    action: 'approve' | 'reject' | 'update' | 'delete' | 'create';
     operator_id: string;
     operator_username: string;
     created_at: string;

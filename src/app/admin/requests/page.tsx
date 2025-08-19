@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
