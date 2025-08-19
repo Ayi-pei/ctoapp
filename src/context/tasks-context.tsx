@@ -9,10 +9,9 @@ import { useBalance } from './balance-context';
 const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
 const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
 
-// IMPORTANT: The IDs are now used programmatically to trigger completion.
 const defaultTasks: DailyTask[] = [
   {
-    id: 'complete_contract_trade',
+    id: 'contract_trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
     reward: 0.2,
@@ -22,7 +21,7 @@ const defaultTasks: DailyTask[] = [
     trigger: 'contract_trade',
   },
   {
-    id: 'complete_spot_trade',
+    id: 'spot_trade',
     title: '进行一次币币交易',
     description: '在币币市场完成任意一笔买入或卖出操作。',
     reward: 0.2,
@@ -32,7 +31,7 @@ const defaultTasks: DailyTask[] = [
     trigger: 'spot_trade',
   },
   {
-    id: 'complete_investment',
+    id: 'investment',
     title: '参与一次理财投资',
     description: '购买任意一款理财产品，体验稳定收益。',
     reward: 1,
@@ -54,19 +53,24 @@ interface TasksContextType {
   saveTasks: () => void;
   // User functions
   userTasksState: UserTaskState[];
-  triggerTaskCompletion: (type: TaskTriggerType) => void;
+  // Wrapped functions that will also trigger task completion
+  placeContractTrade: ReturnType<typeof useBalance>['placeContractTrade'];
+  placeSpotTrade: ReturnType<typeof useBalance>['placeSpotTrade'];
+  addDailyInvestment: ReturnType<typeof useBalance>['addDailyInvestment'];
+  addHourlyInvestment: ReturnType<typeof useBalance>['addHourlyInvestment'];
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useAuth();
-  const { adjustBalance } = useBalance();
+  const balanceContext = useBalance();
+  const { adjustBalance } = balanceContext;
+
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load admin-defined tasks
   useEffect(() => {
     try {
       const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
@@ -77,7 +81,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load user-specific task completion state
   useEffect(() => {
     if (user) {
       try {
@@ -94,7 +97,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setIsLoaded(true);
   }, [user]);
 
-  // Save admin-defined tasks
   const saveTasks = useCallback(() => {
     try {
       localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(dailyTasks));
@@ -103,7 +105,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
   }, [dailyTasks]);
   
-  // Save user-specific task completion state
   useEffect(() => {
     if (user && isLoaded) {
        try {
@@ -115,7 +116,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
   }, [userTasksState, user, isLoaded]);
 
-  // --- Admin Functions ---
   const addDailyTask = useCallback(() => {
     const newTask: DailyTask = {
       id: `task-${Date.now()}`,
@@ -125,7 +125,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       reward_type: 'usdt',
       link: '/',
       status: 'draft',
-      trigger: 'contract_trade' // Default trigger
+      trigger: 'contract_trade'
     };
     setDailyTasks(prev => [...prev, newTask]);
   }, []);
@@ -138,16 +138,15 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
   }, []);
 
-  // --- User Functions ---
-  const completeTask = useCallback((taskId: string) => {
+  const triggerTaskCompletion = useCallback((type: TaskTriggerType) => {
     if (!user) return;
+    
     const today = new Date().toISOString().split('T')[0];
-
-    const alreadyCompleted = userTasksState.some(state => state.taskId === taskId && state.date === today);
-    if (alreadyCompleted) return;
-
-    const task = dailyTasks.find(t => t.id === taskId);
+    const task = dailyTasks.find(t => t.id === type && t.status === 'published');
     if (!task) return;
+
+    const isAlreadyCompleted = userTasksState.some(state => state.taskId === task.id && state.date === today);
+    if (isAlreadyCompleted) return;
 
     if (task.reward_type === 'usdt') {
       adjustBalance(user.id, 'USDT', task.reward);
@@ -156,35 +155,49 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       updateUser(user.id, { credit_score: newScore });
     }
 
-    const newState: UserTaskState = { taskId, date: today, completed: true };
+    const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
     setUserTasksState(prev => [...prev, newState]);
-  }, [user, userTasksState, dailyTasks, adjustBalance, updateUser]);
+  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser]);
 
-  const triggerTaskCompletion = useCallback((type: TaskTriggerType) => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Find published tasks that match the trigger type
-    const matchingTasks = dailyTasks.filter(task => task.status === 'published' && task.trigger === type);
-    
-    matchingTasks.forEach(task => {
-        // Check if this task is already completed for today
-        const isCompleted = userTasksState.some(state => state.taskId === task.id && state.date === today);
-        if (!isCompleted) {
-            console.log(`Completing task: ${task.title}`);
-            completeTask(task.id);
-        }
-    });
-  }, [dailyTasks, userTasksState, completeTask]);
+  // Wrap balance context functions to also trigger task completion
+  const placeContractTrade: TasksContextType['placeContractTrade'] = useCallback((...args) => {
+    balanceContext.placeContractTrade(...args);
+    triggerTaskCompletion('contract_trade');
+  }, [balanceContext, triggerTaskCompletion]);
 
+  const placeSpotTrade: TasksContextType['placeSpotTrade'] = useCallback((...args) => {
+    balanceContext.placeSpotTrade(...args);
+    triggerTaskCompletion('spot_trade');
+  }, [balanceContext, triggerTaskCompletion]);
 
-  const value = {
+  const addDailyInvestment: TasksContextType['addDailyInvestment'] = useCallback(async (...args) => {
+    const result = await balanceContext.addDailyInvestment(...args);
+    if (result) {
+      triggerTaskCompletion('investment');
+    }
+    return result;
+  }, [balanceContext, triggerTaskCompletion]);
+
+  const addHourlyInvestment: TasksContextType['addHourlyInvestment'] = useCallback(async (...args) => {
+    const result = await balanceContext.addHourlyInvestment(...args);
+    if (result) {
+      triggerTaskCompletion('investment');
+    }
+    return result;
+  }, [balanceContext, triggerTaskCompletion]);
+
+  const value: TasksContextType = {
     dailyTasks,
     addDailyTask,
     removeDailyTask,
     updateDailyTask,
     saveTasks,
     userTasksState,
-    triggerTaskCompletion,
+    // Provide the wrapped functions
+    placeContractTrade,
+    placeSpotTrade,
+    addDailyInvestment,
+    addHourlyInvestment,
   };
 
   return (

@@ -40,7 +40,7 @@ export default function RootLayout({
                 <InvestmentSettingsProvider>
                   <MarketDataProvider>
                     <BalanceProvider>
-                      <TasksProvider>
+                       <TasksProvider>
                         <RequestsProvider>
                           <ActivitiesProvider>
                             <AnnouncementsProvider>

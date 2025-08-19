@@ -7,7 +7,7 @@ import { useAuth } from './auth-context';
 import { useMarket } from '@/context/market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
-import { useTasks } from './tasks-context';
+// Removed useTasks import to break circular dependency
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -92,7 +92,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById, getAllUsers, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
-  const { triggerTaskCompletion } = useTasks();
+  // Removed useTasks call to break circular dependency
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -336,7 +336,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    triggerTaskCompletion('investment');
+    // Task completion is now handled by the TasksProvider wrapper
     return true;
   }
   
@@ -347,7 +347,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return false;
     }
     
-    // Find the correct rate for the selected duration
     const selectedTier = params.tiers.find(t => t.hours === params.durationHours);
     if (!selectedTier) {
         console.error("Invalid duration or tier not found for hourly investment");
@@ -376,7 +375,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: params.category,
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    triggerTaskCompletion('investment');
+    // Task completion is now handled by the TasksProvider wrapper
     return true;
   }
 
@@ -420,7 +419,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
     }));
     
-    triggerTaskCompletion('contract_trade');
+    // Task completion is now handled by the TasksProvider wrapper
 
     if(quoteAsset === 'USDT') {
       distributeCommissions(user, trade.amount);
@@ -466,7 +465,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return newBalances;
     });
 
-    triggerTaskCompletion('spot_trade');
+    // Task completion is now handled by the TasksProvider wrapper
 
      if(quoteAsset === 'USDT') {
         distributeCommissions(user, trade.total);
@@ -499,7 +498,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
         adjustBalance(user.id, 'USDT', reward);
         
-        // Add credit score
         updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
 
         setLastCheckInDate(todayStr);
