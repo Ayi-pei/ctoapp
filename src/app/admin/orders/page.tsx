@@ -197,9 +197,9 @@ export default function AdminOrdersPage() {
                     <CardHeader>
                         <CardTitle>所有用户订单</CardTitle>
                         <CardDescription>按类型、状态和日期筛选和查看所有订单。</CardDescription>
-                         <div className="flex items-center space-x-4 pt-4">
+                         <div className="flex flex-wrap items-center gap-4 pt-4">
                             <Select value={typeFilter} onValueChange={setTypeFilter}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="所有类型" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -211,7 +211,7 @@ export default function AdminOrdersPage() {
                             </Select>
                             
                              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-[180px]">
+                                <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="所有状态" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -230,7 +230,7 @@ export default function AdminOrdersPage() {
                                     id="date"
                                     variant={"outline"}
                                     className={cn(
-                                    "w-[300px] justify-start text-left font-normal",
+                                    "w-full sm:w-[300px] justify-start text-left font-normal",
                                     !dateFilter && "text-muted-foreground"
                                     )}
                                 >

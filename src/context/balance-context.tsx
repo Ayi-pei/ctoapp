@@ -8,7 +8,6 @@ import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
 import { useLogs } from './logs-context';
-import { useTasks } from './tasks-context';
 
 const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -305,12 +304,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         
   }, [adjustBalance, toast, user?.id, getAllUserInvestments, adjustFrozenBalance]);
 
-  // Effect to handle investment settlement
+  // Effect to handle investment settlement for ALL users
   useEffect(() => {
-    const allInvestments = getAllUserInvestments();
-    if (!allInvestments.length) return;
-    
     const interval = setInterval(() => {
+        const allInvestments = getAllUserInvestments();
+        if (!allInvestments.length) return;
+        
         const now = new Date();
         allInvestments.forEach(inv => {
             if (inv.status === 'active' && new Date(inv.settlement_date) <= now) {
@@ -320,7 +319,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }, 5000); 
 
     return () => clearInterval(interval);
-  }, [investments, settleInvestment, getAllUserInvestments]);
+  }, [getAllUserInvestments, settleInvestment]);
 
 
   const settleContractTrade = useCallback((tradeId: string) => {
@@ -365,7 +364,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     });
   }, [activeContractTrades, getLatestPrice, toast]);
 
-  // Effect to handle contract trade settlement
+  // Effect to handle contract trade settlement for the current user
   useEffect(() => {
     if (activeContractTrades.length === 0) return;
 
