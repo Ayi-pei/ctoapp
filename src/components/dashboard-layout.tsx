@@ -20,20 +20,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // This effect handles redirection for users who are already logged in
-    // or are not logged in and trying to access a protected page.
     if (!isLoading) {
-      if (isAuthenticated) {
-        // If logged in and on a public page like login/register, redirect away.
-        if (pathname === '/login' || pathname === '/register') {
-          router.replace(isAdmin ? '/admin' : '/dashboard');
-        }
-      } else {
-        // If not logged in, redirect to the login page.
-        // The root page ('/') will handle the initial redirect to '/login'.
-        // This handles cases where user tries to access other protected routes directly.
+      if (!isAuthenticated) {
+        // If not authenticated and not already on a public page, redirect to login.
         if (pathname !== '/login' && pathname !== '/register') {
           router.replace('/login');
+        }
+      } else {
+        // User is authenticated, enforce correct dashboard.
+        const isAnAdminPage = pathname.startsWith('/admin');
+
+        if (isAdmin && !isAnAdminPage) {
+            // Admin is on a non-admin page, redirect to admin area.
+            router.replace('/admin');
+        } else if (!isAdmin && isAnAdminPage) {
+            // Regular user on an admin page, redirect to user dashboard.
+            router.replace('/dashboard');
         }
       }
     }
@@ -51,9 +53,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
   
-  // If not authenticated and not loading, the user should be on login/register.
-  // The effect above will handle redirection if they aren't.
-  // We return null here to let the login/register pages render themselves without the layout.
+  // If not authenticated and not loading, render children (e.g., login page) without the layout.
+  // The effect above handles redirection for protected routes.
   if (!isAuthenticated) {
      return <>{children}</>;
   }

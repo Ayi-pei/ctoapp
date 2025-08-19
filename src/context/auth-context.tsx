@@ -15,7 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; isAdmin: boolean }>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   isLoading: boolean;
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     const result = await apiLogin(username, password);
 
     if (result.success && result.user) {
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(loggedInUser);
         localStorage.setItem('userSession', JSON.stringify(loggedInUser));
-        return { success: true, isAdmin: loggedInUser.is_admin };
+        return true;
     }
     
     // Fallback to localStorage check for regular users since API only handles admin/mock
@@ -95,10 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(loggedInUser);
         localStorage.setItem('userSession', JSON.stringify(loggedInUser));
-        return { success: true, isAdmin: loggedInUser.is_admin };
+        return true;
     }
 
-    return { success: false, isAdmin: false };
+    return false;
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
@@ -110,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       let inviterId: string | null = null;
       
-      // Use the secure server action to check for the admin invite code
       const isAdminCode = await checkAdminInviteCode(invitationCode);
       if (isAdminCode) {
           inviterId = ADMIN_USER_ID;

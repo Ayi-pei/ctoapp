@@ -35,14 +35,16 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const result = await login(values.username, values.password);
+    const success = await login(values.username, values.password);
 
-    if (result.success) {
+    if (success) {
        toast({
         title: '登录成功',
+        description: '正在跳转到您的仪表盘...',
       });
-       // Redirect immediately after successful login
-       router.replace(result.isAdmin ? '/admin' : '/dashboard');
+       // The redirect is now handled by the DashboardLayout or root page effect.
+       // We can force a router push to trigger the check if needed.
+       router.push('/');
     } else {
       toast({
         variant: 'destructive',
@@ -64,7 +66,10 @@ export default function LoginPage() {
   if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
-            <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+            <div className="flex flex-col items-center gap-4">
+                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">正在加载，请稍候...</p>
+            </div>
         </AuthLayout>
      )
   }

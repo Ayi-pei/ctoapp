@@ -5,6 +5,8 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import AuthLayout from '@/components/auth-layout';
+import { LoaderCircle } from 'lucide-react';
 
 export default function AdminPage() {
     const { isAdmin, isLoading } = useAuth();
@@ -12,8 +14,8 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (!isLoading) {
-            // Once loading is complete, always redirect from /admin to /admin/users
-            // This simplifies the logic and makes /admin/users the default admin page.
+            // This page is the designated entry point for admins.
+            // If an admin lands here, send them to the default admin page.
             if (isAdmin) {
                 router.replace('/admin/users');
             } else {
@@ -25,9 +27,11 @@ export default function AdminPage() {
 
     // Show a skeleton loader while the auth state is being determined.
     return (
-        <div className="p-8">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-64 w-full mt-6" />
-        </div>
+        <AuthLayout>
+            <div className="flex flex-col items-center gap-4">
+                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">正在加载管理员面板...</p>
+            </div>
+        </AuthLayout>
     );
 }
