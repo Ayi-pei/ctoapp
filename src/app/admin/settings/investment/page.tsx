@@ -37,7 +37,7 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
                 <div className="space-y-2">
                     <Label htmlFor={`product-name-${product.id}`}>产品名称</Label>
                     <Input id={`product-name-${product.id}`} value={product.name} onChange={e => updateProduct(product.id, { name: e.target.value })} />
@@ -59,6 +59,14 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                     <Input id={`product-max-${product.id}`} type="number" value={product.maxPurchase} onChange={e => updateProduct(product.id, { maxPurchase: parseInt(e.target.value) || 0 })} />
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor={`staking-asset-${product.id}`}>质押币种 (选填)</Label>
+                    <Input id={`staking-asset-${product.id}`} value={product.stakingAsset || ''} onChange={e => updateProduct(product.id, { stakingAsset: e.target.value })} placeholder="例如: USDT" />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor={`staking-amount-${product.id}`}>质押数量 (选填)</Label>
+                    <Input id={`staking-amount-${product.id}`} type="number" value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || 0 })} placeholder="输入需要质押的数量" />
+                </div>
+                <div className="lg:col-span-3 space-y-2">
                     <Label>产品图片</Label>
                     <div className="flex items-center gap-4">
                         {product.imgSrc && (
@@ -74,7 +82,7 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                             id={`product-img-upload-${product.id}`} 
                             type="file" 
                             accept="image/*"
-                            onChange={(e) => handleImageUpload(e, product.id)} 
+                            onChange={handleImageUpload} 
                             className="text-xs file:text-xs file:font-medium file:text-foreground file:border-0 file:bg-muted file:rounded-md file:px-2 file:py-1 file:mr-2 hover:file:bg-accent"
                         />
                     </div>

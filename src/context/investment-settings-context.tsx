@@ -14,16 +14,18 @@ export type InvestmentProduct = {
     id: string;
     name: string;
     price: number;
-    dailyRate?: number; // Optional for daily products
-    period?: number; // Optional for daily products
+    dailyRate?: number;
+    period?: number;
     maxPurchase: number;
     imgSrc: string;
-    category: 'staking' | 'finance'; // Added category
-    // New fields for hourly products
+    category: 'staking' | 'finance';
     productType?: 'daily' | 'hourly';
-    activeStartTime?: string; // e.g., "18:00"
-    activeEndTime?: string; // e.g., "06:00"
+    activeStartTime?: string; 
+    activeEndTime?: string; 
     hourlyTiers?: InvestmentTier[];
+    // New fields for staking requirements
+    stakingAsset?: string; // e.g., 'USDT', 'BTC'
+    stakingAmount?: number;
 };
 
 
@@ -45,7 +47,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
             { hours: 6, rate: 0.025 }, // 2.5%
         ]
     },
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily' },
+    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily', stakingAsset: 'USDT', stakingAmount: 50 },
     { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily' },
     { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily' },
     { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily' },

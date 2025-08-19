@@ -1,6 +1,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -176,6 +177,9 @@ export type Investment = {
     // Daily product fields
     daily_rate?: number;
     period?: number;
+    // Staking requirement fields
+    stakingAsset?: string;
+    stakingAmount?: number;
     // Hourly product fields
     duration_hours?: number;
     hourly_rate?: number;

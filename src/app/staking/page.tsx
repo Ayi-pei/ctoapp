@@ -63,19 +63,25 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                                     质押
                                 </Button>
                             </div>
-                            <div className="grid grid-cols-3 text-left text-sm mt-3 gap-y-2">
+                             <div className="grid grid-cols-2 md:grid-cols-3 text-left text-sm mt-3 gap-y-2">
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground">每份金额</p>
-                                    <p className="font-semibold">{product.price}</p>
+                                    <p className="font-semibold">{product.price} USDT</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground">周期</p>
                                     <p className="font-semibold">{product.period} 天</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground">收益率</p>
+                                    <p className="text-xs text-muted-foreground">日收益率</p>
                                     <p className="font-semibold text-green-400">{(product.dailyRate ?? 0) * 100}%/天</p>
                                 </div>
+                                {product.stakingAsset && product.stakingAmount && (
+                                    <div className="space-y-1 col-span-2 md:col-span-3">
+                                        <p className="text-xs text-muted-foreground">质押要求</p>
+                                        <p className="font-semibold text-amber-300">{product.stakingAmount} {product.stakingAsset}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -115,7 +121,9 @@ export default function StakingPage() {
             amount: selectedProduct.price,
             dailyRate: selectedProduct.dailyRate,
             period: selectedProduct.period,
-            category: 'staking'
+            category: 'staking',
+            stakingAsset: selectedProduct.stakingAsset,
+            stakingAmount: selectedProduct.stakingAmount,
         });
         
         if (success) {
@@ -127,7 +135,7 @@ export default function StakingPage() {
              toast({
                 variant: "destructive",
                 title: "购买失败",
-                description: "您的余额不足。"
+                description: "您的余额不足以支付价格或满足质押要求。",
             });
         }
         setIsInvestmentDialogOpen(false);

@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier, ActionLog } from '@/types';
 import { useAuth } from './auth-context';
-import { useMarket } from '@/context/market-data-context';
+import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
 
@@ -53,6 +53,8 @@ type DailyInvestmentParams = {
     dailyRate: number;
     period: number;
     category: 'staking' | 'finance';
+    stakingAsset?: string;
+    stakingAmount?: number;
 }
 
 type HourlyInvestmentParams = {
@@ -224,6 +226,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
             adjustBalance(investmentToSettle.user_id, 'USDT', totalReturn);
 
+            // Unfreeze staked assets if any
+            if (investmentToSettle.stakingAsset && investmentToSettle.stakingAmount) {
+                adjustBalance(investmentToSettle.user_id, investmentToSettle.stakingAsset, investmentToSettle.stakingAmount);
+                adjustFrozenBalance(investmentToSettle.stakingAsset, -investmentToSettle.stakingAmount, investmentToSettle.user_id);
+            }
+
             toast({
                 title: '理财订单已结算',
                 description: `您的 “${investmentToSettle.product_name}” 订单已到期，本金和收益共 ${totalReturn.toFixed(2)} USDT 已返还至您的余额。`
@@ -311,15 +319,29 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
   const addDailyInvestment = async (params: DailyInvestmentParams) => {
     if (!user) return false;
-    
+
+    // Check purchase price
     if (balances.USDT.available < params.amount) {
       return false;
     }
     
+    // Check staking requirement
+    if (params.stakingAsset && params.stakingAmount) {
+        if ((balances[params.stakingAsset]?.available || 0) < params.stakingAmount) {
+            return false;
+        }
+    }
+    
+    // Deduct purchase price
     setBalances(prev => ({
       ...prev,
       USDT: { ...prev.USDT, available: prev.USDT.available - params.amount, frozen: prev.USDT.frozen }
     }));
+
+    // Freeze staked asset
+    if (params.stakingAsset && params.stakingAmount) {
+        adjustFrozenBalance(params.stakingAsset, params.stakingAmount, user.id);
+    }
 
     const now = new Date();
     const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
@@ -336,6 +358,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         status: 'active',
         productType: 'daily',
         category: params.category,
+        stakingAsset: params.stakingAsset,
+        stakingAmount: params.stakingAmount,
     }
     setInvestments(prev => [newInvestment, ...prev]);
     return true;
@@ -508,9 +532,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
       const userData = getUserData(targetUserId);
       const userBalances = userData.balances;
+      
+      const currentAvailable = userBalances[asset]?.available || 0;
+      const currentFrozen = userBalances[asset]?.frozen || 0;
+
       userBalances[asset] = {
-          available: (userBalances[asset]?.available || 0) - amount,
-          frozen: (userBalances[asset]?.frozen || 0) + amount,
+          available: currentAvailable - amount,
+          frozen: currentFrozen + amount,
       };
       saveUserData(targetUserId, { ...userData, balances: userBalances });
       
