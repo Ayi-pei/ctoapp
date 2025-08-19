@@ -48,8 +48,8 @@ export default function RootLayout({
                               <AnnouncementsProvider>
                                 <SwapProvider>
                                   {children}
+                                  <Toaster />
                                 </SwapProvider>
-                                <Toaster />
                               </AnnouncementsProvider>
                             </ActivitiesProvider>
                         </RequestsProvider>

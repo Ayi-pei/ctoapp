@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -440,7 +439,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         stakingAmount: params.stakingAmount,
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    
     return true;
   }, [user, balances, adjustFrozenBalance]);
   
@@ -479,7 +477,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         category: 'finance',
     }
     setInvestments(prev => [newInvestment, ...prev]);
-    
     return true;
   }, [user, balances]);
 

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -64,8 +63,8 @@ const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useAuth();
-  const { adjustBalance } = useBalance();
   const { addLog } = useLogs();
+  const { adjustBalance } = useBalance();
 
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
