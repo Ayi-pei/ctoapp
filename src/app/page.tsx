@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -7,9 +8,10 @@ import { LoaderCircle } from 'lucide-react';
 import AuthLayout from '@/components/auth-layout';
 
 /**
- * The root page of the application.
+ * The root page of the application, now acting as the primary router.
  *
- * It checks the authentication status and redirects the user to the appropriate page.
+ * It checks the authentication status and redirects the user to the appropriate page,
+ * ensuring a single source of truth for initial routing decisions.
  * While checking, it displays a full-screen loading indicator.
  */
 export default function Home() {

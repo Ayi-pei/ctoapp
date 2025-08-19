@@ -42,8 +42,7 @@ export default function LoginPage() {
         title: '登录成功',
         description: '正在跳转到您的仪表盘...',
       });
-       // The redirect is now handled by the DashboardLayout or root page effect.
-       // We can force a router push to trigger the check if needed.
+       // Defer the redirection decision to the root page for consistency.
        router.push('/');
     } else {
       toast({
@@ -55,14 +54,14 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    // This effect handles the case where a logged-in user tries to access the login page.
+    // This effect handles redirecting an already-authenticated user away from the login page.
     if (!isLoading && isAuthenticated) {
         router.replace(isAdmin ? '/admin' : '/dashboard');
     }
   }, [isAuthenticated, isAdmin, isLoading, router]);
 
-  // While loading or if already authenticated, show a loader.
-  // The effect above will handle the redirect.
+  // While loading auth state or if already authenticated, show a loader.
+  // The effect above will handle redirecting away if authenticated.
   if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>

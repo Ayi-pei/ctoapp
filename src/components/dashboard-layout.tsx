@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -15,36 +16,19 @@ type DashboardLayoutProps = {
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading, isAdmin } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    if (isLoading) {
-      // Still loading, do nothing and wait.
-      return;
-    }
-
-    if (!isAuthenticated) {
-      // If not authenticated, always redirect to login page.
-      // This is the definitive gatekeeper.
+    // This component's primary job is to protect routes.
+    // If auth state is loading, we wait.
+    // If not loading and not authenticated, we redirect to login.
+    if (!isLoading && !isAuthenticated) {
       router.replace('/login');
-      return;
     }
+  }, [isAuthenticated, isLoading, router]);
 
-    // From here, user IS authenticated.
-    const isAnAdminPage = pathname.startsWith('/admin');
-
-    if (isAdmin && !isAnAdminPage) {
-      // Admin is on a non-admin page, redirect to admin root.
-      router.replace('/admin');
-    } else if (!isAdmin && isAnAdminPage) {
-      // Regular user on an admin page, redirect to user dashboard.
-      router.replace('/dashboard');
-    }
-  }, [isAuthenticated, isLoading, isAdmin, pathname, router]);
-
-  // While loading auth state, show a full-screen loader.
+  // While loading auth state, or if we are about to redirect, show a full-screen loader.
   if (isLoading || !isAuthenticated) {
     return (
       <AuthLayout>
@@ -56,6 +40,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
   
+  const pathname = usePathname();
   const isDashboardPage = pathname === '/dashboard';
   const isTradePage = pathname === '/trade';
 
