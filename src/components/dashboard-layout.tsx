@@ -21,15 +21,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // This component's primary job is to protect routes.
-    // If auth state is loading, we wait.
-    // If not loading and not authenticated, we redirect to login.
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
-  // While loading auth state, or if we are about to redirect, show a full-screen loader.
   if (isLoading || !isAuthenticated) {
     return (
       <AuthLayout>
@@ -41,21 +37,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
   
-  const isDashboardPage = pathname === '/dashboard';
-  const isTradePage = pathname === '/trade';
-  const isAdminPage = pathname.startsWith('/admin');
+  const getBackgroundClass = () => {
+    if (pathname === '/dashboard') return "gold-gradient-background home-background";
+    if (pathname === '/trade') return "trade-background";
+    if (pathname.startsWith('/admin')) return "admin-background";
+    return "";
+  }
 
   return (
     <div className={cn("h-screen w-screen flex flex-col")}>
+       <div className={cn("fixed inset-0 -z-10", getBackgroundClass())} />
       <TradeHeader />
-      <div className="flex flex-1 overflow-hidden bg-background">
+      <div className="flex flex-1 overflow-hidden bg-transparent">
           <Sidebar />
-          <main className={cn(
-            "flex-1 overflow-y-auto pb-16 md:pb-0",
-            isDashboardPage && "gold-gradient-background home-background",
-            isTradePage && "trade-background",
-            isAdminPage && "admin-background"
-          )}>
+          <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
             {children}
           </main>
       </div>

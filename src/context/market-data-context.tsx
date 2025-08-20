@@ -125,6 +125,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     
+    // This is the "buffer" for real data fetched from APIs
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
     const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
 
@@ -132,44 +133,36 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
     
-    // Low-frequency fetch for real data from external APIs
+    // Low-frequency fetch for real data from ALL external APIs
     useEffect(() => {
-        const fetchRealData = async () => {
-            console.log(`Fetching real data with crypto provider: ${cryptoProvider}`);
+        const fetchAllRealData = async () => {
+            console.log(`Fetching all real data. Crypto provider: ${cryptoProvider}`);
             
-            let cryptoData;
-            if (cryptoProvider === 'coingecko') {
-                cryptoData = await fetchCoinGeckoData();
-            } else {
-                cryptoData = await fetchCoinDeskData();
-            }
-            
-            setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
+            const cryptoPromise = cryptoProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
+            const nonCryptoPromise = fetchAlphaVantageData();
+            const futuresPromise = fetchCoinDeskFuturesData();
 
-            const allData = { ...cryptoData };
+            const [cryptoData, nonCryptoData, futuresData] = await Promise.all([
+                cryptoPromise,
+                nonCryptoPromise,
+                futuresPromise
+            ]);
+
+            // Safely merge all data sources
+            const allData = { ...cryptoData, ...nonCryptoData, ...futuresData };
 
             if(Object.keys(allData).length > 0) {
                  setBaseApiData(prev => ({ ...prev, ...allData }));
             }
+
+            // Alternate the crypto provider for the next fetch
+            setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
-        
-        const fetchNonCryptoData = async () => {
-             console.log(`Fetching non-crypto data (Gold, Forex, Futures)`);
-             const avData = await fetchAlphaVantageData();
-             const futuresData = await fetchCoinDeskFuturesData();
-             const allData = { ...avData, ...futuresData };
-             
-             if(Object.keys(allData).length > 0) {
-                 setBaseApiData(prev => ({ ...prev, ...allData }));
-            }
-        }
 
-        fetchRealData();
-        fetchNonCryptoData();
-        const cryptoInterval = setInterval(fetchRealData, 30000); // Crypto data every 30s
-        // Non-crypto data is fetched only once on load, then simulated.
+        fetchAllRealData(); // Initial fetch
+        const interval = setInterval(fetchAllRealData, 30000); // Fetch every 30 seconds
 
-        return () => clearInterval(cryptoInterval);
+        return () => clearInterval(interval);
     }, [cryptoProvider]);
 
     // High-frequency simulation logic for smooth UI updates for ALL assets
