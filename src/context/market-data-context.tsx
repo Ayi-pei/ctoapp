@@ -9,36 +9,38 @@ import { useSystemSettings } from './system-settings-context';
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
-const FUTURES_PAIRS = ['OIL/USD', 'XAG/USD', 'NAS100/USD'];
+const FUTURES_PAIRS = ['OIL/USD', 'XAG/USD', 'NAS100/USD']; // Note: OIL and NAS100 are placeholders as we don't have a free API for them now.
 
-const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; tatum?: string; iconId?: string; }> = {
-    'BTC/USDT': { coingecko: 'bitcoin', tatum: 'BTC' },
-    'ETH/USDT': { coingecko: 'ethereum', tatum: 'ETH' },
-    'SOL/USDT': { coingecko: 'solana', tatum: 'SOL' },
-    'XRP/USDT': { coingecko: 'ripple', tatum: 'XRP' },
-    'LTC/USDT': { coingecko: 'litecoin', tatum: 'LTC' },
-    'BNB/USDT': { coingecko: 'binancecoin', tatum: 'BNB' },
-    'MATIC/USDT': { coingecko: 'matic-network', tatum: 'MATIC' },
-    'DOGE/USDT': { coingecko: 'dogecoin', tatum: 'DOGE' },
-    'ADA/USDT': { coingecko: 'cardano', tatum: 'ADA' },
-    'SHIB/USDT': { coingecko: 'shiba-inu', tatum: 'SHIB' },
-    'AVAX/USDT': { coingecko: 'avalanche-2', tatum: 'AVAX' },
-    'LINK/USDT': { coingecko: 'chainlink', tatum: 'LINK' },
-    'DOT/USDT': { coingecko: 'polkadot', tatum: 'DOT' },
-    'UNI/USDT': { coingecko: 'uniswap', tatum: 'UNI' },
-    'TRX/USDT': { coingecko: 'tron', tatum: 'TRX' },
-    'XLM/USDT': { coingecko: 'stellar', tatum: 'XLM' },
-    'VET/USDT': { coingecko: 'vechain', tatum: 'VET' },
-    'EOS/USDT': { coingecko: 'eos', tatum: 'EOS' },
-    'FIL/USDT': { coingecko: 'filecoin', tatum: 'FIL' },
-    'ICP/USDT': { coingecko: 'internet-computer', tatum: 'ICP' },
-    'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD' }, tatum: 'XAU', iconId: 'xau' },
+const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; iconId?: string; }> = {
+    'BTC/USDT': { coingecko: 'bitcoin' },
+    'ETH/USDT': { coingecko: 'ethereum' },
+    'SOL/USDT': { coingecko: 'solana' },
+    'XRP/USDT': { coingecko: 'ripple' },
+    'LTC/USDT': { coingecko: 'litecoin' },
+    'BNB/USDT': { coingecko: 'binancecoin' },
+    'MATIC/USDT': { coingecko: 'matic-network' },
+    'DOGE/USDT': { coingecko: 'dogecoin' },
+    'ADA/USDT': { coingecko: 'cardano' },
+    'SHIB/USDT': { coingecko: 'shiba-inu' },
+    'AVAX/USDT': { coingecko: 'avalanche-2' },
+    'LINK/USDT': { coingecko: 'chainlink' },
+    'DOT/USDT': { coingecko: 'polkadot' },
+    'UNI/USDT': { coingecko: 'uniswap' },
+    'TRX/USDT': { coingecko: 'tron' },
+    'XLM/USDT': { coingecko: 'stellar' },
+    'VET/USDT': { coingecko: 'vechain' },
+    'EOS/USDT': { coingecko: 'eos' },
+    'FIL/USDT': { coingecko: 'filecoin' },
+    'ICP/USDT': { coingecko: 'internet-computer' },
+    'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD' }, iconId: 'xau' },
     'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
     'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
+    // Placeholders for now, as AlphaVantage doesn't provide them easily for free
     'OIL/USD': { iconId: 'oil' },
-    'XAG/USD': { tatum: 'XAG', iconId: 'xag' },
+    'XAG/USD': { iconId: 'xag' }, // Silver
     'NAS100/USD': { iconId: 'nas100' },
 };
+
 
 interface MarketContextType {
     tradingPair: string;
@@ -55,6 +57,57 @@ interface MarketContextType {
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
+// --- Data Fetching Functions ---
+const fetchCoinGeckoData = async (): Promise<Record<string, MarketSummary>> => {
+    const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
+    try {
+        const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
+        return response.data;
+    } catch (error) {
+        console.warn("CoinGecko API fetch failed. It will be retried.", error);
+        return {}; // Return empty on error
+    }
+}
+
+const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
+     try {
+        const response = await axios.get('/api/coindesk');
+        return response.data;
+    } catch (error) {
+        console.warn("CoinDesk API fetch failed. It will be retried.", error);
+        return {};
+    }
+}
+
+const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> => {
+    const avPairs = FOREX_PAIRS.concat(GOLD_PAIRS);
+    const avData: Record<string, MarketSummary> = {};
+
+    for (const pair of avPairs) {
+        const params = apiIdMap[pair]?.alphavantage;
+        if (!params) continue;
+        
+        try {
+            const response = await axios.get('/api/alphavantage', { params });
+            const data = response.data;
+            avData[pair] = {
+                pair: pair,
+                price: parseFloat(data.price),
+                change: parseFloat(data.change) || 0,
+                high: parseFloat(data.high) || 0,
+                low: parseFloat(data.low) || 0,
+                volume: 0, // AV does not provide volume for free forex/gold
+                icon: `/icons/${apiIdMap[pair]?.iconId}.svg`,
+            };
+        } catch (error) {
+            console.warn(`AlphaVantage fetch for ${pair} failed.`, error);
+        }
+    }
+    return avData;
+}
+// --- End Data Fetching ---
+
+
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { systemSettings } = useSystemSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
@@ -63,6 +116,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     
     // This state will hold the "true" prices from the API
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
+    
+    // State to rotate crypto API providers
+    const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
 
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
@@ -71,39 +127,33 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     // Fetch real data from APIs less frequently to save requests
     useEffect(() => {
         const fetchRealData = async () => {
-            const tatumIds = [...CRYPTO_PAIRS, 'XAU/USD', 'XAG/USD'].map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
             
-            try {
-                const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
-                const tatumData = response.data;
-
-                const newBaseData: Record<string, MarketSummary> = {};
-                
-                Object.values(tatumData).forEach((asset: any) => {
-                    const pair = asset.id === 'XAU' ? 'XAU/USD' : asset.id === 'XAG' ? 'XAG/USD' : `${asset.symbol.toUpperCase()}/USDT`;
-                    const iconId = apiIdMap[pair]?.iconId;
-                    newBaseData[pair] = {
-                        pair,
-                        price: parseFloat(asset.priceUsd) || 0,
-                        change: parseFloat(asset.changePercent24Hr) || 0,
-                        volume: parseFloat(asset.volumeUsd24Hr) || 0,
-                        high: parseFloat(asset.high) || 0,
-                        low: parseFloat(asset.low) || 0,
-                        icon: iconId ? `/icons/${iconId}.svg` : `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
-                    };
-                });
-                setBaseApiData(prev => ({ ...prev, ...newBaseData }));
-
-            } catch (error) {
-                console.warn("Tatum API fetch failed.", error);
+            // Fetch crypto data using the rotating provider
+            let cryptoData;
+            if (cryptoProvider === 'coingecko') {
+                cryptoData = await fetchCoinGeckoData();
+            } else {
+                cryptoData = await fetchCoinDeskData();
             }
+            
+            // Fetch non-crypto data
+            const otherData = await fetchAlphaVantageData();
+
+            const newBaseData = { ...cryptoData, ...otherData };
+
+            if(Object.keys(newBaseData).length > 0) {
+                 setBaseApiData(prev => ({ ...prev, ...newBaseData }));
+            }
+            
+            // Rotate provider for the next fetch
+            setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
 
         fetchRealData(); // Fetch on initial load
         const interval = setInterval(fetchRealData, 30000); // And then every 30 seconds
 
         return () => clearInterval(interval);
-    }, []);
+    }, [cryptoProvider]); // Re-run this effect when the provider changes
 
     // High-frequency simulation logic
     useEffect(() => {
