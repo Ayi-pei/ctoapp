@@ -56,9 +56,14 @@ const fetchCoinGeckoData = async (): Promise<Record<string, MarketSummary>> => {
     }
 }
 
+// Updated to use GET and pass instruments in params
 const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
      try {
-        const response = await axios.get('/api/coindesk');
+        const response = await axios.get('/api/coindesk', {
+            params: {
+                instruments: CRYPTO_PAIRS.join(','),
+            }
+        });
         return response.data;
     } catch (error) {
         console.warn("CoinDesk API fetch failed.", error);
@@ -227,7 +232,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return newKline;
             });
 
-        }, 2000); // Set to 2 seconds for simulation frequency
+        }, 1000); // Set to 1 second for simulation frequency
 
         return () => clearInterval(simulationInterval);
     }, [baseApiData, systemSettings.marketInterventions, summaryData, interventionState]);
