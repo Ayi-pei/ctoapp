@@ -11,7 +11,7 @@ const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
 const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
 
 const defaultTasks: DailyTask[] = [
-  {;
+  {
     id: 'task-contract-trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
