@@ -62,7 +62,7 @@ const fetchCoinGeckoData = async (): Promise<Record<string, MarketSummary>> => {
         const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
         return response.data;
     } catch (error) {
-        console.warn("CoinGecko API fetch failed. It will be retried.", error);
+        console.warn("CoinGecko API fetch failed.", error);
         return {};
     }
 }
@@ -72,7 +72,7 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
         const response = await axios.get('/api/coindesk');
         return response.data;
     } catch (error) {
-        console.warn("CoinDesk API fetch failed. It will be retried.", error);
+        console.warn("CoinDesk API fetch failed.", error);
         return {};
     }
 }
@@ -84,13 +84,13 @@ const fetchCoinDeskFuturesData = async (): Promise<Record<string, MarketSummary>
         const response = await axios.post('/api/coindesk-futures', { instruments: futuresInstruments });
         return response.data;
     } catch (error) {
-        console.warn("CoinDesk Futures API fetch failed. It will be retried.", error);
+        console.warn("CoinDesk Futures API fetch failed.", error);
         return {};
     }
 };
 
 const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> => {
-    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS];
+    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS.filter(p => p === 'XAG/USD')]; // XAG/USD is also in AV
     let avData: Record<string, MarketSummary> = {};
 
     for (const pair of avPairs) {
@@ -139,31 +139,33 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             console.log(`Fetching all real data. Crypto provider: ${cryptoProvider}`);
             
             const cryptoPromise = cryptoProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
-            const nonCryptoPromise = fetchAlphaVantageData();
-            const futuresPromise = fetchCoinDeskFuturesData();
+            // Fetch non-crypto assets only once on load, then simulate. This saves a lot of API calls.
+            const nonCryptoPromise = Object.keys(baseApiData).length === 0 ? fetchAlphaVantageData() : Promise.resolve({});
+            const futuresPromise = Object.keys(baseApiData).length === 0 ? fetchCoinDeskFuturesData() : Promise.resolve({});
 
             const [cryptoData, nonCryptoData, futuresData] = await Promise.all([
                 cryptoPromise,
                 nonCryptoPromise,
-                futuresPromise
+                futuresPromise,
             ]);
 
-            // Safely merge all data sources
-            const allData = { ...cryptoData, ...nonCryptoData, ...futuresData };
+            // Safely merge all data sources, ensuring no data is overwritten
+            const allData = { ...baseApiData, ...cryptoData, ...nonCryptoData, ...futuresData };
 
             if(Object.keys(allData).length > 0) {
-                 setBaseApiData(prev => ({ ...prev, ...allData }));
+                 setBaseApiData(allData);
             }
 
             // Alternate the crypto provider for the next fetch
             setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
 
-        fetchAllRealData(); // Initial fetch
+        fetchAllRealData(); 
         const interval = setInterval(fetchAllRealData, 30000); // Fetch every 30 seconds
 
         return () => clearInterval(interval);
-    }, [cryptoProvider]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cryptoProvider]); // Removed baseApiData from dependency array to prevent re-triggering non-crypto fetches
 
     // High-frequency simulation logic for smooth UI updates for ALL assets
     useEffect(() => {

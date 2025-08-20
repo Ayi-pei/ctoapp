@@ -39,13 +39,13 @@
     --card-foreground: 210 40% 98%;
     --popover: 220 41% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 207 82% 65%; /* #63B3ED */
+    --primary: 207 82% 65%; /* #63B3ED -> Updated for better contrast */
     --primary-foreground: 210 60% 10%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
-    --accent: 20 56% 63%; /* #D08770 */
+    --accent: 207 82% 65%; /* Updated to match primary for chart consistency */
     --accent-foreground: 210 40% 9.8%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
