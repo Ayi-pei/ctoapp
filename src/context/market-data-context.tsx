@@ -22,17 +22,17 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'DOGE/USDT': { coingecko: 'dogecoin', tatum: 'DOGE' },
     'ADA/USDT': { coingecko: 'cardano', tatum: 'ADA' },
     'SHIB/USDT': { coingecko: 'shiba-inu', tatum: 'SHIB' },
-    'AVAX/USDT': { coingecko: 'avalanche-2', tatum: 'AVAX', iconId: 'avalanche' },
+    'AVAX/USDT': { coingecko: 'avalanche-2', tatum: 'AVAX' },
     'LINK/USDT': { coingecko: 'chainlink', tatum: 'LINK' },
     'DOT/USDT': { coingecko: 'polkadot', tatum: 'DOT' },
     'UNI/USDT': { coingecko: 'uniswap', tatum: 'UNI' },
-    'TRX/USDT': { coingecko: 'tron', tatum: 'TRON' },
+    'TRX/USDT': { coingecko: 'tron', tatum: 'TRX' },
     'XLM/USDT': { coingecko: 'stellar', tatum: 'XLM' },
     'VET/USDT': { coingecko: 'vechain', tatum: 'VET' },
     'EOS/USDT': { coingecko: 'eos', tatum: 'EOS' },
     'FIL/USDT': { coingecko: 'filecoin', tatum: 'FIL' },
     'ICP/USDT': { coingecko: 'internet-computer', tatum: 'ICP' },
-    'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD'}, iconId: 'xau', tatum: 'XAU' },
+    'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD' }, tatum: 'XAU', iconId: 'xau' },
     'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
     'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
     'OIL/USD': { iconId: 'oil' },
@@ -60,159 +60,116 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    const [latestPrice, setLatestPrice] = useState<Record<string, number>>({});
     
-    const [dataBuffer, setDataBuffer] = useState<MarketSummary[][]>([]);
-    const [isBufferingComplete, setIsBufferingComplete] = useState(false);
+    // This state will hold the "true" prices from the API
+    const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
 
-
-    const getLatestPriceCallback = useCallback((pair: string): number => {
-        return latestPrice[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
-    }, [latestPrice, summaryData]);
-
-    const fetchTatumData = useCallback(async () => {
-        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
-        try {
-            const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
-            if (response.data && Object.keys(response.data).length > 0) {
-                 const formatted: Record<string, MarketSummary> = {};
-                 Object.values(response.data).forEach((asset: any) => {
-                     const pair = `${asset.symbol.toUpperCase()}/USDT`;
-                     formatted[pair] = {
-                         pair,
-                         price: parseFloat(asset.priceUsd) || 0,
-                         change: parseFloat(asset.changePercent24Hr) || 0,
-                         volume: parseFloat(asset.volumeUsd24Hr) || 0,
-                         high: parseFloat(asset.high) || 0,
-                         low: parseFloat(asset.low) || 0,
-                         icon: `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
-                     }
-                 });
-                 return formatted;
-            }
-        } catch (error) {
-            console.warn("Tatum API fetch failed.", error);
-        }
-        return {};
-    }, []);
-
-    const fetchAlphaVantageData = useCallback(async (pairs: string[]) => {
-        const results: Record<string, MarketSummary> = {};
-        for (const pair of pairs) {
-            const params = apiIdMap[pair]?.alphavantage;
-            if (!params) continue;
-            try {
-                const response = await axios.get('/api/alphavantage', { params });
-                const data = response.data;
-                const iconId = apiIdMap[pair]?.iconId;
-
-                results[pair] = {
-                    pair,
-                    price: parseFloat(data.price),
-                    change: parseFloat(data.change) || 0,
-                    volume: 0,
-                    high: parseFloat(data.high) || 0,
-                    low: parseFloat(data.low) || 0,
-                    icon: iconId ? `/icons/${iconId}.svg` : undefined,
-                };
-            } catch (error) {
-                console.warn(`Alpha Vantage fetch for ${pair} failed.`, error);
-            }
-        }
-        return results;
-    }, []);
-    
-     useEffect(() => {
-        const fetchData = async () => {
-            const cryptoData = await fetchTatumData();
-            const nonCryptoPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS];
-            const nonCryptoData = await fetchAlphaVantageData(nonCryptoPairs);
-            
-            const mergedRawData = { ...(cryptoData || {}), ...nonCryptoData };
-            const processedData = Object.values(mergedRawData);
-            
-            if (processedData.length > 0) {
-                 setDataBuffer(prev => [...prev, processedData]);
-            }
-        };
-
-        fetchData();
-        const dataFetchInterval = setInterval(fetchData, 5000);
-
-        const bufferingTimeout = setTimeout(() => {
-            setIsBufferingComplete(true);
-        }, 1000); // Short buffer time
-
-        return () => {
-            clearInterval(dataFetchInterval);
-            clearTimeout(bufferingTimeout);
-        };
-    }, [fetchTatumData, fetchAlphaVantageData]);
-
-    useEffect(() => {
-        if (dataBuffer.length === 0) return;
-
-        if (!isBufferingComplete) {
-            setSummaryData(dataBuffer[dataBuffer.length - 1]);
-            setLatestPrice(prev => {
-                const newLatest = { ...prev };
-                dataBuffer[dataBuffer.length - 1].forEach(item => {
-                    newLatest[item.pair] = item.price;
-                });
-                return newLatest;
-            });
-            return;
-        }
-
-        const playbackInterval = setInterval(() => {
-            setDataBuffer(prev => {
-                if (prev.length > 0) {
-                    const [nextFrame, ...rest] = prev;
-                    setSummaryData(nextFrame);
-                    setLatestPrice(prevLatest => {
-                        const newLatest = { ...prevLatest };
-                        nextFrame.forEach(item => {
-                            newLatest[item.pair] = item.price;
-                        });
-                        return newLatest;
-                    });
-                    return rest;
-                }
-                return [];
-            });
-        }, 2000);
-
-        return () => clearInterval(playbackInterval);
-    }, [isBufferingComplete, dataBuffer]);
-
-    // Update K-Line data based on the displayed summary data
-    useEffect(() => {
-        setKlineData(prevKlineData => {
-            const newKlineData = { ...prevKlineData };
-            summaryData.forEach(summary => {
-                if (!newKlineData[summary.pair]) newKlineData[summary.pair] = [];
-                
-                const latestOhlc: OHLC = {
-                    time: new Date().getTime(),
-                    open: summary.price, high: summary.high,
-                    low: summary.low, close: summary.price,
-                };
-                
-                const pairData = newKlineData[summary.pair];
-                const lastDataPoint = pairData[pairData.length - 1];
-
-                if (lastDataPoint && new Date(lastDataPoint.time).getMinutes() === new Date().getMinutes()) {
-                    lastDataPoint.close = summary.price;
-                    lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
-                    lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
-                } else {
-                    newKlineData[summary.pair] = [...pairData, latestOhlc].slice(-100);
-                }
-            });
-            return newKlineData;
-        });
-
+    const getLatestPrice = useCallback((pair: string): number => {
+        return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
+    
+    // Fetch real data from APIs less frequently to save requests
+    useEffect(() => {
+        const fetchRealData = async () => {
+            const tatumIds = [...CRYPTO_PAIRS, 'XAU/USD', 'XAG/USD'].map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
+            
+            try {
+                const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
+                const tatumData = response.data;
+
+                const newBaseData: Record<string, MarketSummary> = {};
+                
+                Object.values(tatumData).forEach((asset: any) => {
+                    const pair = asset.id === 'XAU' ? 'XAU/USD' : asset.id === 'XAG' ? 'XAG/USD' : `${asset.symbol.toUpperCase()}/USDT`;
+                    const iconId = apiIdMap[pair]?.iconId;
+                    newBaseData[pair] = {
+                        pair,
+                        price: parseFloat(asset.priceUsd) || 0,
+                        change: parseFloat(asset.changePercent24Hr) || 0,
+                        volume: parseFloat(asset.volumeUsd24Hr) || 0,
+                        high: parseFloat(asset.high) || 0,
+                        low: parseFloat(asset.low) || 0,
+                        icon: iconId ? `/icons/${iconId}.svg` : `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
+                    };
+                });
+                setBaseApiData(prev => ({ ...prev, ...newBaseData }));
+
+            } catch (error) {
+                console.warn("Tatum API fetch failed.", error);
+            }
+        };
+
+        fetchRealData(); // Fetch on initial load
+        const interval = setInterval(fetchRealData, 30000); // And then every 30 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // High-frequency simulation logic
+    useEffect(() => {
+        const simulationInterval = setInterval(() => {
+            if (Object.keys(baseApiData).length === 0) return;
+
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
+            const newSummaries = Object.values(baseApiData).map(summary => {
+                let newPrice = summary.price;
+                const intervention = systemSettings.marketInterventions.find(i => 
+                    i.tradingPair === summary.pair && 
+                    i.startTime <= currentTime && 
+                    i.endTime >= currentTime
+                );
+                
+                if (intervention) {
+                    const { minPrice, maxPrice, trend } = intervention;
+                    const priceRange = maxPrice - minPrice;
+                    if (trend === 'up') {
+                        newPrice = minPrice + ((newPrice - minPrice + priceRange * 0.05) % priceRange);
+                    } else if (trend === 'down') {
+                        newPrice = maxPrice - ((maxPrice - newPrice + priceRange * 0.05) % priceRange);
+                    } else { // random
+                        newPrice += (Math.random() - 0.5) * (priceRange * 0.1); // Fluctuate within 10% of range
+                        newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                    }
+                } else {
+                    const volatility = 0.0005; // Base volatility for simulation
+                    newPrice *= (1 + (Math.random() - 0.5) * volatility);
+                }
+
+                return { ...summary, price: newPrice };
+            });
+
+            setSummaryData(newSummaries);
+
+            // Update K-line data with simulated prices
+            setKlineData(prevKline => {
+                const newKline = { ...prevKline };
+                newSummaries.forEach(summary => {
+                    const pairData = newKline[summary.pair] || [];
+                    const lastDataPoint = pairData[pairData.length - 1];
+
+                    const latestOhlc: OHLC = {
+                        time: now.getTime(),
+                        open: summary.price, high: summary.price,
+                        low: summary.price, close: summary.price,
+                    };
+                    
+                    if (lastDataPoint && (now.getTime() - lastDataPoint.time) < 60000) { // Aggregate within a minute
+                        lastDataPoint.close = summary.price;
+                        lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
+                        lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
+                    } else {
+                        newKline[summary.pair] = [...pairData, latestOhlc].slice(-200); // Keep last 200 points
+                    }
+                });
+                return newKline;
+            });
+
+        }, 2000); // Simulate every 2 seconds
+
+        return () => clearInterval(simulationInterval);
+    }, [baseApiData, systemSettings.marketInterventions]);
 
 
     const contextValue: MarketContextType = {
@@ -225,7 +182,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
         futuresSummaryData: summaryData.filter(s => FUTURES_PAIRS.includes(s.pair)),
         klineData,
-        getLatestPrice: getLatestPriceCallback,
+        getLatestPrice,
     };
 
     return (
