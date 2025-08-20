@@ -76,6 +76,7 @@
     "@types/request": "^2.48.13",
     "@types/shimmer": "^1.2.0",
     "@types/tough-cookie": "^4.0.5",
+    "autoprefixer": "^10.0.1",
     "genkit-cli": "1.15.5",
     "patch-package": "^8.0.0",
     "postcss": "^8",
