@@ -40,11 +40,6 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'NAS100/USD': { iconId: 'nas100' },
 };
 
-
-type ApiProvider = 'CoinGecko' | 'CoinDesk';
-const API_PROVIDERS: ApiProvider[] = ['CoinGecko', 'CoinDesk'];
-const ROTATION_INTERVAL_SECONDS = 30; 
-
 interface MarketContextType {
     tradingPair: string;
     changeTradingPair: (pair: string) => void;
@@ -65,7 +60,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
-    const [apiProviderIndex, setApiProviderIndex] = useState(0);
     const [latestPrice, setLatestPrice] = useState<Record<string, number>>({});
     
     const [dataBuffer, setDataBuffer] = useState<MarketSummary[][]>([]);
@@ -76,85 +70,28 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         return latestPrice[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
     }, [latestPrice, summaryData]);
 
-
-    const processDataWithClientOverrides = useCallback((fetchedData: MarketSummary[]) => {
-        const interventions = systemSettings.marketInterventions || [];
-        if (interventions.length === 0) return fetchedData;
-
-        return fetchedData.map(item => {
-            const now = new Date();
-            const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-            const currentHours = beijingTime.getUTCHours();
-            const currentMinutes = beijingTime.getUTCMinutes();
-            const currentTimeInMinutes = currentHours * 60 + currentMinutes;
-
-            const activeIntervention = interventions.find(i => {
-                if (i.tradingPair !== item.pair) return false;
-                const [startH, startM] = i.startTime.split(':').map(Number);
-                const startTime = startH * 60 + startM;
-                const [endH, endM] = i.endTime.split(':').map(Number);
-                const endTime = endH * 60 + endM;
-                return currentTimeInMinutes >= startTime && currentTimeInMinutes <= endTime;
-            });
-            
-            if (!activeIntervention) {
-                return item;
-            }
-
-            let newPrice;
-            const { minPrice, maxPrice, trend } = activeIntervention;
-            const [startH, startM] = activeIntervention.startTime.split(':').map(Number);
-            const startTimeInMinutes = startH * 60 + startM;
-            const [endH, endM] = activeIntervention.endTime.split(':').map(Number);
-            const endTimeInMinutes = endH * 60 + endM;
-            const timePassed = currentTimeInMinutes - startTimeInMinutes;
-            const totalDuration = endTimeInMinutes - startTimeInMinutes;
-            const progress = totalDuration > 0 ? timePassed / totalDuration : 0;
-
-
-            if (trend === 'up') {
-                newPrice = minPrice + (maxPrice - minPrice) * progress;
-            } else if (trend === 'down') {
-                newPrice = maxPrice - (maxPrice - minPrice) * progress;
-            } else { // random
-                newPrice = minPrice + Math.random() * (maxPrice - minPrice);
-            }
-            
-            newPrice *= (1 + (Math.random() - 0.5) * 0.001);
-
-            return { 
-                ...item, 
-                price: newPrice,
-                high: Math.max(item.high ?? newPrice, newPrice),
-                low: Math.min(item.low ?? newPrice, newPrice)
-            };
-        });
-    }, [systemSettings.marketInterventions]);
-
-    const fetchCoinGeckoData = useCallback(async () => {
-        const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
+    const fetchTatumData = useCallback(async () => {
+        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
         try {
-            const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
+            const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
             if (response.data && Object.keys(response.data).length > 0) {
-                return response.data;
+                 const formatted: Record<string, MarketSummary> = {};
+                 Object.values(response.data).forEach((asset: any) => {
+                     const pair = `${asset.symbol.toUpperCase()}/USDT`;
+                     formatted[pair] = {
+                         pair,
+                         price: parseFloat(asset.priceUsd) || 0,
+                         change: parseFloat(asset.changePercent24Hr) || 0,
+                         volume: parseFloat(asset.volumeUsd24Hr) || 0,
+                         high: parseFloat(asset.high) || 0,
+                         low: parseFloat(asset.low) || 0,
+                         icon: `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
+                     }
+                 });
+                 return formatted;
             }
         } catch (error) {
-            console.warn("CoinGecko API fetch failed.", error);
-        }
-        return {};
-    }, []);
-    
-    const fetchCoinDeskData = useCallback(async () => {
-        try {
-            const response = await axios.get('/api/coindesk');
-            if (response.data && Object.keys(response.data).length > 0) {
-                 if (response.data['BTC/USDT']) {
-                    response.data['BTC/USDT'].icon = `https://static.coinpaprika.com/coin/btc-bitcoin/logo.png`;
-                 }
-                return response.data;
-            }
-        } catch(error) {
-            console.warn("CoinDesk API fetch failed.", error);
+            console.warn("Tatum API fetch failed.", error);
         }
         return {};
     }, []);
@@ -180,11 +117,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 };
             } catch (error) {
                 console.warn(`Alpha Vantage fetch for ${pair} failed.`, error);
-                const tatumId = apiIdMap[pair]?.tatum;
-                if (tatumId) {
-                     console.log(`Falling back to Tatum for ${pair}`);
-                     // Fallback to Tatum for Gold/Silver if AlphaVantage fails
-                }
             }
         }
         return results;
@@ -192,19 +124,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     
      useEffect(() => {
         const fetchData = async () => {
-            let cryptoData: Record<string, MarketSummary> | undefined;
-            const provider = API_PROVIDERS[apiProviderIndex];
-            
-            switch (provider) {
-                case 'CoinGecko': cryptoData = await fetchCoinGeckoData(); break;
-                case 'CoinDesk': cryptoData = await fetchCoinDeskData(); break;
-            }
-
+            const cryptoData = await fetchTatumData();
             const nonCryptoPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS];
             const nonCryptoData = await fetchAlphaVantageData(nonCryptoPairs);
             
             const mergedRawData = { ...(cryptoData || {}), ...nonCryptoData };
-            const processedData = processDataWithClientOverrides(Object.values(mergedRawData));
+            const processedData = Object.values(mergedRawData);
             
             if (processedData.length > 0) {
                  setDataBuffer(prev => [...prev, processedData]);
@@ -213,20 +138,16 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         fetchData();
         const dataFetchInterval = setInterval(fetchData, 5000);
-        const rotationInterval = setInterval(() => {
-            setApiProviderIndex(prev => (prev + 1) % API_PROVIDERS.length);
-        }, ROTATION_INTERVAL_SECONDS * 1000);
 
         const bufferingTimeout = setTimeout(() => {
             setIsBufferingComplete(true);
-        }, 60000);
+        }, 1000); // Short buffer time
 
         return () => {
             clearInterval(dataFetchInterval);
-            clearInterval(rotationInterval);
             clearTimeout(bufferingTimeout);
         };
-    }, [apiProviderIndex, fetchCoinGeckoData, fetchCoinDeskData, fetchAlphaVantageData, processDataWithClientOverrides]);
+    }, [fetchTatumData, fetchAlphaVantageData]);
 
     useEffect(() => {
         if (dataBuffer.length === 0) return;
