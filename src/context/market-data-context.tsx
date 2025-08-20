@@ -82,26 +82,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     
     // Low-frequency fetch for real data from ALL external APIs
     useEffect(() => {
-        const fetchAllRealData = async () => {
+        const fetchRealData = async () => {
             console.log(`Fetching crypto data from: ${cryptoProvider}`);
             
             const cryptoPromise = cryptoProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
-
             const cryptoData = await cryptoPromise;
 
-            // Safely merge data, giving new data precedence
-            const allData = { ...baseApiData, ...cryptoData };
-
-            if(Object.keys(allData).length > 0) {
-                 setBaseApiData(allData);
+            if(Object.keys(cryptoData).length > 0) {
+                 setBaseApiData(prevData => ({ ...prevData, ...cryptoData }));
             }
 
-            // Alternate the crypto provider for the next fetch
             setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
 
-        fetchAllRealData(); 
-        const interval = setInterval(fetchAllRealData, 30000); // Fetch every 30 seconds
+        fetchRealData(); 
+        const interval = setInterval(fetchRealData, 30000);
 
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,20 +143,24 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const newKline = { ...prevKline };
                 newSummaries.forEach(summary => {
                     const pairData = newKline[summary.pair] || [];
-                    const lastDataPoint = pairData[pairData.length - 1];
+                    const lastDataPoint = pairData.length > 0 ? pairData[pairData.length - 1] : null;
+                    const currentPrice = summary.price;
 
-                    const latestOhlc: OHLC = {
-                        time: now.getTime(),
-                        open: summary.price, high: summary.price,
-                        low: summary.price, close: summary.price,
-                    };
-                    
                     if (lastDataPoint && (now.getTime() - lastDataPoint.time) < 60000) {
-                        lastDataPoint.close = summary.price;
-                        lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
-                        lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
+                        // In the same 1-minute window, update the last point
+                        lastDataPoint.close = currentPrice;
+                        lastDataPoint.high = Math.max(lastDataPoint.high, currentPrice);
+                        lastDataPoint.low = Math.min(lastDataPoint.low, currentPrice);
                     } else {
-                        newKline[summary.pair] = [...pairData, latestOhlc].slice(-200);
+                        // New 1-minute window, add a new point
+                        const newPoint: OHLC = {
+                            time: now.getTime(),
+                            open: lastDataPoint?.close || currentPrice,
+                            high: currentPrice,
+                            low: currentPrice,
+                            close: currentPrice,
+                        };
+                        newKline[summary.pair] = [...pairData, newPoint].slice(-200);
                     }
                 });
                 return newKline;
