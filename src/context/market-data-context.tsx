@@ -32,17 +32,18 @@ const apiIdMap: Record<string, { coingecko?: string, yahoo?: string, tatum?: str
     'EOS/USDT': { coingecko: 'eos', yahoo: 'EOS-USD', tatum: 'EOS' },
     'FIL/USDT': { coingecko: 'filecoin', yahoo: 'FIL-USD', tatum: 'FIL' },
     'ICP/USDT': { coingecko: 'internet-computer', yahoo: 'ICP-USD', tatum: 'ICP' },
-    'XAU/USD': { yahoo: 'GC=F', iconId: 'xau' },
+    'XAU/USD': { yahoo: 'GC=F', iconId: 'xau', tatum: 'XAU' },
     'EUR/USD': { yahoo: 'EURUSD=X', iconId: 'eur' },
     'GBP/USD': { yahoo: 'GBPUSD=X', iconId: 'gbp' },
     'OIL/USD': { yahoo: 'CL=F', iconId: 'oil' },
-    'XAG/USD': { yahoo: 'SI=F', iconId: 'xag' },
+    'XAG/USD': { yahoo: 'SI=F', iconId: 'xag', tatum: 'XAG' },
     'NAS100/USD': { yahoo: 'NQ=F', iconId: 'nas100' },
 };
 
-type ApiProvider = 'Tatum' | 'CoinDesk' | 'CoinGecko';
-const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinDesk', 'CoinGecko'];
-const ROTATION_INTERVAL_SECONDS = 20; // 20s * 3 providers = 60s cycle
+
+type ApiProvider = 'Tatum' | 'CoinGecko';
+const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinGecko'];
+const ROTATION_INTERVAL_SECONDS = 30; // 30s * 2 providers = 60s cycle
 
 interface MarketContextType {
     tradingPair: string;
@@ -65,10 +66,17 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     const [apiProviderIndex, setApiProviderIndex] = useState(0);
+    const [latestPrice, setLatestPrice] = useState<Record<string, number>>({});
     
-    const getLatestPrice = useCallback((pair: string): number => {
-        return summaryData.find(s => s.pair === pair)?.price || 0;
-    }, [summaryData]);
+    // --- Data Buffering and Smoothing ---
+    const [dataBuffer, setDataBuffer] = useState<MarketSummary[][]>([]);
+    const [isBufferingComplete, setIsBufferingComplete] = useState(false);
+
+
+    const getLatestPriceCallback = useCallback((pair: string): number => {
+        return latestPrice[pair] || summaryData.find(s => s.pair === pair)?.price || 0;
+    }, [latestPrice, summaryData]);
+
 
     const processDataWithClientOverrides = useCallback((fetchedData: MarketSummary[]) => {
         const interventions = systemSettings.marketInterventions || [];
@@ -76,7 +84,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         return fetchedData.map(item => {
             const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
+            // Assuming server time is UTC, adjust for Beijing time (UTC+8) for comparison
+            const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+            const currentHours = beijingTime.getUTCHours();
+            const currentMinutes = beijingTime.getUTCMinutes();
+            const currentTimeInMinutes = currentHours * 60 + currentMinutes;
 
             const activeIntervention = interventions.find(i => {
                 if (i.tradingPair !== item.pair) return false;
@@ -84,7 +96,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const startTime = startH * 60 + startM;
                 const [endH, endM] = i.endTime.split(':').map(Number);
                 const endTime = endH * 60 + endM;
-                return currentTime >= startTime && currentTime <= endTime;
+                return currentTimeInMinutes >= startTime && currentTimeInMinutes <= endTime;
             });
             
             if (!activeIntervention) {
@@ -93,10 +105,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
             let newPrice;
             const { minPrice, maxPrice, trend } = activeIntervention;
-            
-            const timePassed = currentTime - (activeIntervention.startTime.split(':').map(Number)[0] * 60 + activeIntervention.startTime.split(':').map(Number)[1]);
-            const totalDuration = (activeIntervention.endTime.split(':').map(Number)[0] * 60 + activeIntervention.endTime.split(':').map(Number)[1]) - (activeIntervention.startTime.split(':').map(Number)[0] * 60 + activeIntervention.startTime.split(':').map(Number)[1]);
+             const [startH, startM] = activeIntervention.startTime.split(':').map(Number);
+            const startTimeInMinutes = startH * 60 + startM;
+            const [endH, endM] = activeIntervention.endTime.split(':').map(Number);
+            const endTimeInMinutes = endH * 60 + endM;
+            const timePassed = currentTimeInMinutes - startTimeInMinutes;
+            const totalDuration = endTimeInMinutes - startTimeInMinutes;
             const progress = totalDuration > 0 ? timePassed / totalDuration : 0;
+
 
             if (trend === 'up') {
                 newPrice = minPrice + (maxPrice - minPrice) * progress;
@@ -118,16 +134,28 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, [systemSettings.marketInterventions]);
 
     const mergeSummaryData = useCallback((newData: Record<string, MarketSummary>) => {
-        if (Object.keys(newData).length === 0) return;
-
-        setSummaryData(prev => {
-            const updatedData = { ...prev.reduce((acc, item) => ({ ...acc, [item.pair]: item }), {}) };
-            for (const pair in newData) {
-                updatedData[pair] = { ...updatedData[pair], ...newData[pair] };
+        if (Object.keys(newData).length === 0) return [];
+    
+        let updatedData = [...summaryData];
+        let hasChanged = false;
+    
+        for (const pair in newData) {
+            const index = updatedData.findIndex(item => item.pair === pair);
+            const newItem = { ...(updatedData[index] || {}), ...newData[pair] };
+            if (index > -1) {
+                updatedData[index] = newItem;
+            } else {
+                updatedData.push(newItem);
             }
-            return Object.values(updatedData).sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
-        });
-    }, []);
+            hasChanged = true;
+        }
+    
+        if (hasChanged) {
+             return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
+        }
+        return updatedData;
+    
+    }, [summaryData]);
     
     const fetchTatumData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
@@ -148,45 +176,42 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     };
                     return acc;
                 }, {});
-                mergeSummaryData(mappedData);
+                return mappedData;
             }
         } catch (error) {
-            console.warn("Tatum API fetch failed, will try next provider.", error);
+            console.warn("Tatum API fetch failed.", error);
         }
-    }, [mergeSummaryData]);
+        return {};
+    }, []);
 
     const fetchCoinGeckoData = useCallback(async () => {
         const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
         try {
             const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
             if (response.data && Object.keys(response.data).length > 0) {
-                mergeSummaryData(response.data);
+                return response.data;
             }
         } catch (error) {
-            console.warn("CoinGecko API fetch failed, will try next provider.", error);
+            console.warn("CoinGecko API fetch failed.", error);
         }
-    }, [mergeSummaryData]);
-
-    const fetchCoinDeskData = useCallback(async () => {
-        try {
-            const response = await axios.get('/api/coindesk');
-            if (response.data && Object.keys(response.data).length > 0) {
-                 mergeSummaryData(response.data);
-            }
-        } catch (error) {
-            console.warn("CoinDesk API fetch failed, will try next provider.", error);
-        }
-    }, [mergeSummaryData]);
+        return {};
+    }, []);
 
     const fetchYahooData = useCallback(async () => {
         const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
         const symbolsToFetch = nonCryptoPairs.map(pair => apiIdMap[pair]?.yahoo).filter(Boolean) as string[];
+        let fetchedData: Record<string, MarketSummary> = {};
 
-        const promises = symbolsToFetch.map(async (symbol) => {
+        const tatumCommodityIds = nonCryptoPairs
+            .filter(pair => apiIdMap[pair]?.tatum)
+            .map(pair => apiIdMap[pair]?.tatum) as string[];
+
+
+        const yahooPromises = symbolsToFetch.map(async (symbol) => {
+             const pairKey = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
             try {
                 const response = await axios.get(`/api/quote/${symbol}`);
                 const data = response.data;
-                const pairKey = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
                 const iconId = apiIdMap[pairKey]?.iconId;
 
                 return {
@@ -196,84 +221,124 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     volume: parseFloat(data.regularMarketVolume) || 0,
                     high: parseFloat(data.regularMarketDayHigh) || 0,
                     low: parseFloat(data.regularMarketDayLow) || 0,
-                    icon: iconId ? `/images/instrument-icons/${iconId}.png` : `https://placehold.co/32x32.png`,
+                    icon: iconId ? `/images/${iconId}.png` : `https://placehold.co/32x32.png`,
                 } as MarketSummary;
             } catch (error) {
-                console.error(`Failed to fetch from Yahoo for ${symbol}.`, error);
+                console.error(`Failed to fetch from Yahoo for ${symbol}.`);
+                if (tatumCommodityIds.includes(apiIdMap[pairKey]?.tatum || '')) {
+                    try {
+                        const tatumResponse = await axios.post('/api/tatum/market-data', { assetIds: [apiIdMap[pairKey]?.tatum] });
+                         const assetData = Object.values(tatumResponse.data)[0] as any;
+                         if (assetData) {
+                             return {
+                                 pair: pairKey,
+                                 price: parseFloat(assetData.priceUsd) || 0,
+                                 change: parseFloat(assetData.changePercent24Hr) || 0,
+                                 volume: parseFloat(assetData.volumeUsd24Hr) || 0,
+                                 high: parseFloat(assetData.high) || 0,
+                                 low: parseFloat(assetData.low) || 0,
+                                 icon: `/images/${apiIdMap[pairKey]?.iconId}.png`,
+                             } as MarketSummary
+                         }
+                    } catch (tatumError) {
+                        console.error(`Tatum fallback failed for ${pairKey}:`, tatumError);
+                    }
+                }
                 return null;
             }
         });
         
-        const results = await Promise.all(promises);
-        const yahooData = (results.filter(Boolean) as MarketSummary[]).reduce((acc: Record<string, MarketSummary>, item) => {
-            acc[item.pair] = item;
-            return acc;
-        }, {});
-        mergeSummaryData(yahooData);
-    }, [mergeSummaryData]);
+        const results = await Promise.all(yahooPromises);
+        results.filter(Boolean).forEach(item => {
+            if(item) fetchedData[item.pair] = item;
+        });
 
-    const fetchKlineData = useCallback(async (pair: string) => {
-        try {
-            if (!CRYPTO_PAIRS.includes(pair)) return;
-            const response = await axios.get(`/api/market-data`, {
-                params: { pair: pair }
-            });
-            setKlineData(prev => ({ ...prev, [pair]: response.data }));
-        } catch (error) {
-            console.error(`Error fetching k-line data for ${pair} from proxy:`, error);
-        }
+        return fetchedData;
     }, []);
     
-    // Main data fetching effect with rotation
+    // Main data fetching effect
      useEffect(() => {
-        const fetchCryptoWithRotation = () => {
+        const fetchData = async () => {
+            let cryptoData;
             const provider = API_PROVIDERS[apiProviderIndex];
             switch (provider) {
-                case 'Tatum':
-                    fetchTatumData();
-                    break;
-                case 'CoinDesk':
-                    fetchCoinDeskData();
-                    break;
-                case 'CoinGecko':
-                    fetchCoinGeckoData();
-                    break;
+                case 'Tatum': cryptoData = await fetchTatumData(); break;
+                case 'CoinGecko': cryptoData = await fetchCoinGeckoData(); break;
             }
+            const yahooData = await fetchYahooData();
+
+            const mergedRawData = { ...(cryptoData || {}), ...(yahooData || {}) };
+            const processedData = processDataWithClientOverrides(Object.values(mergedRawData));
+            
+            // Immediately update the 'real-time' price for trading calculations
+            setLatestPrice(prev => {
+                const newLatest = { ...prev };
+                processedData.forEach(item => {
+                    newLatest[item.pair] = item.price;
+                });
+                return newLatest;
+            });
+            
+             // Push new data into buffer
+             if (processedData.length > 0) {
+                 setDataBuffer(prev => [...prev, processedData]);
+             }
         };
 
-        const rotationTimer = setInterval(() => {
+        fetchData(); // Initial fetch
+        const dataFetchInterval = setInterval(fetchData, 5000);
+        const rotationInterval = setInterval(() => {
             setApiProviderIndex(prev => (prev + 1) % API_PROVIDERS.length);
         }, ROTATION_INTERVAL_SECONDS * 1000);
-        
-        fetchCryptoWithRotation(); // Initial fetch
-        const cryptoInterval = setInterval(fetchCryptoWithRotation, 5000);
-        
-        fetchYahooData(); // Non-crypto data
-        const yahooInterval = setInterval(fetchYahooData, 5000);
+
+        // Start playback after a delay
+        const bufferingTimeout = setTimeout(() => {
+            setIsBufferingComplete(true);
+        }, 60000); // 1 minute buffer time
 
         return () => {
-            clearInterval(cryptoInterval);
-            clearInterval(yahooInterval);
-            clearInterval(rotationTimer);
+            clearInterval(dataFetchInterval);
+            clearInterval(rotationInterval);
+            clearTimeout(bufferingTimeout);
         };
-    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchCoinDeskData, fetchYahooData]);
+    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchYahooData, processDataWithClientOverrides]);
 
-    // This effect runs after summaryData is updated by any provider
+    // Playback effect
     useEffect(() => {
-        const processedData = processDataWithClientOverrides(summaryData);
-        
+        if (!isBufferingComplete || dataBuffer.length === 0) {
+            // During buffering, show live data to avoid blank screen
+            if (dataBuffer.length > 0) {
+                setSummaryData(dataBuffer[dataBuffer.length - 1]);
+            }
+            return;
+        }
+
+        const playbackInterval = setInterval(() => {
+            setDataBuffer(prev => {
+                if (prev.length > 0) {
+                    const [nextFrame, ...rest] = prev;
+                    setSummaryData(nextFrame);
+                    return rest;
+                }
+                // If buffer is empty, just show the last available frame
+                return [];
+            });
+        }, 2000); // 2-second playback interval
+
+        return () => clearInterval(playbackInterval);
+    }, [isBufferingComplete, dataBuffer]);
+
+    // Update K-Line data based on the displayed summary data
+    useEffect(() => {
         setKlineData(prevKlineData => {
             const newKlineData = { ...prevKlineData };
-            processedData.forEach(summary => {
-                if (!newKlineData[summary.pair]) {
-                    newKlineData[summary.pair] = [];
-                }
+            summaryData.forEach(summary => {
+                if (!newKlineData[summary.pair]) newKlineData[summary.pair] = [];
+                
                 const latestOhlc: OHLC = {
                     time: new Date().getTime(),
-                    open: summary.price,
-                    high: summary.high,
-                    low: summary.low,
-                    close: summary.price,
+                    open: summary.price, high: summary.high,
+                    low: summary.low, close: summary.price,
                 };
                 
                 const pairData = newKlineData[summary.pair];
@@ -290,19 +355,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             return newKlineData;
         });
 
-    }, [summaryData, processDataWithClientOverrides]);
-
-
-    useEffect(() => {
-        if (tradingPair && CRYPTO_PAIRS.includes(tradingPair)) {
-            fetchKlineData(tradingPair);
-        }
-    }, [tradingPair, fetchKlineData]);
-
-    const cryptoSummaryData = summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair));
-    const goldSummaryData = summaryData.filter(s => GOLD_PAIRS.includes(s.pair));
-    const forexSummaryData = summaryData.filter(s => FOREX_PAIRS.includes(s.pair));
-    const futuresSummaryData = summaryData.filter(s => FUTURES_PAIRS.includes(s.pair));
+    }, [summaryData]);
 
 
     const contextValue: MarketContextType = {
@@ -310,12 +363,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         changeTradingPair: setTradingPair,
         availablePairs,
         summaryData,
-        cryptoSummaryData,
-        goldSummaryData,
-        forexSummaryData,
-        futuresSummaryData,
+        cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
+        goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
+        forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
+        futuresSummaryData: summaryData.filter(s => FUTURES_PAIRS.includes(s.pair)),
         klineData,
-        getLatestPrice,
+        getLatestPrice: getLatestPriceCallback,
     };
 
     return (
