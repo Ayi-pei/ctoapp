@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';;
 import { DailyTask, UserTaskState } from '@/types';
 import { useAuth } from './auth-context';
 import { useLogs } from './logs-context';
@@ -11,7 +11,7 @@ const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
 const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
 
 const defaultTasks: DailyTask[] = [
-  {
+  {;
     id: 'task-contract-trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
@@ -46,7 +46,7 @@ const defaultTasks: DailyTask[] = [
   }
 ];
 
-export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';
+export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';;
 
 interface TasksContextType {
   // Admin functions
@@ -137,7 +137,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateDailyTask = useCallback((id:string, updates: Partial<DailyTask>) => {
-    setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));
+    setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));;
   }, []);
   
   const triggerTaskCompletion = useCallback(async (type: TaskTriggerType) => {
@@ -192,3 +192,4 @@ export function useTasks() {
   }
   return context;
 }
+export interface DailyTask { id: string; title: string; description: string; reward: number; reward_type: 'usdt' | 'points' | 'credit_score'; status: 'published' | 'draft' | 'archived'; link: string; imgSrc?: string; trigger: TaskTriggerType; }
