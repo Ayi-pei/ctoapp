@@ -2,13 +2,14 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { availablePairs, MarketSummary, OHLC } from '@/types';
+import { availablePairs as allAvailablePairs, MarketSummary, OHLC } from '@/types';
 import axios from 'axios';
 import { useSystemSettings } from './system-settings-context';
 
-const CRYPTO_PAIRS = availablePairs;
+// We are focusing only on crypto pairs now.
+const CRYPTO_PAIRS = allAvailablePairs;
 
-const apiIdMap: Record<string, { coingecko?: string; iconId?: string; }> = {
+const apiIdMap: Record<string, { coingecko?: string; }> = {
     'BTC/USDT': { coingecko: 'bitcoin' },
     'ETH/USDT': { coingecko: 'ethereum' },
     'SOL/USDT': { coingecko: 'solana' },
@@ -30,6 +31,7 @@ const apiIdMap: Record<string, { coingecko?: string; iconId?: string; }> = {
     'FIL/USDT': { coingecko: 'filecoin' },
     'ICP/USDT': { coingecko: 'internet-computer' },
 };
+
 
 interface MarketContextType {
     tradingPair: string;
@@ -68,19 +70,23 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { systemSettings } = useSystemSettings();
-    const [tradingPair, setTradingPair] = useState(availablePairs[0]);
-    const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
-    const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
+    const [tradingPair, setTradingPair] = useState(CRYPTO_PAIRS[0]);
     
-    // This is the "buffer" for real data fetched from APIs
+    // This is the "buffer" for real data fetched from APIs. It's the source of truth for the simulator.
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
+    
+    // These states are DERIVED from the simulation and are used to render the UI.
+    const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
+    const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
+
     const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
 
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
     
-    // Low-frequency fetch for real data from ALL external APIs
+    // Low-frequency fetch for real data from ALL external APIs.
+    // This useEffect ONLY updates the `baseApiData` buffer.
     useEffect(() => {
         const fetchRealData = async () => {
             console.log(`Fetching crypto data from: ${cryptoProvider}`);
@@ -92,17 +98,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                  setBaseApiData(prevData => ({ ...prevData, ...cryptoData }));
             }
 
+            // Rotate provider for the next fetch cycle
             setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
 
-        fetchRealData(); 
-        const interval = setInterval(fetchRealData, 30000);
+        fetchRealData(); // Initial fetch
+        const interval = setInterval(fetchRealData, 60000); // Fetch every 60 seconds
 
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cryptoProvider]); 
 
-    // High-frequency simulation logic for smooth UI updates for ALL assets
+    // High-frequency simulation logic. Reads from `baseApiData` and updates UI-facing states.
     useEffect(() => {
         const simulationInterval = setInterval(() => {
             if (Object.keys(baseApiData).length === 0) return;
@@ -110,7 +117,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const now = new Date();
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             
-            const newSummaries = Object.values(baseApiData).map(summary => {
+            // Determine the source for the simulation: either the current `summaryData` or the `baseApiData` if empty
+            const sourceForSim = summaryData.length > 0 ? summaryData : Object.values(baseApiData);
+
+            const newSimulatedSummaries = sourceForSim.map(summary => {
                 let newPrice = summary.price;
                 const intervention = systemSettings.marketInterventions.find(i => 
                     i.tradingPair === summary.pair && 
@@ -130,51 +140,55 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
                     }
                 } else {
-                    const volatility = 0.0005;
+                    const volatility = 0.0005; // Standard small volatility
                     newPrice *= (1 + (Math.random() - 0.5) * volatility);
                 }
 
                 return { ...summary, price: newPrice };
             });
 
-            setSummaryData(newSummaries);
+            // Update the UI-facing summary data with the new simulated prices
+            setSummaryData(newSimulatedSummaries);
 
+            // Update the UI-facing kline data based on the new simulated prices
             setKlineData(prevKline => {
                 const newKline = { ...prevKline };
-                newSummaries.forEach(summary => {
+                newSimulatedSummaries.forEach(summary => {
                     const pairData = newKline[summary.pair] || [];
                     const lastDataPoint = pairData.length > 0 ? pairData[pairData.length - 1] : null;
                     const currentPrice = summary.price;
 
-                    if (lastDataPoint && (now.getTime() - lastDataPoint.time) < 60000) {
-                        // In the same 1-minute window, update the last point
+                    const nowTime = now.getTime();
+                    // Check if we are in a new 1-minute window
+                    if (lastDataPoint && nowTime - lastDataPoint.time < 60000) {
+                        // Update the last point in the same window
                         lastDataPoint.close = currentPrice;
                         lastDataPoint.high = Math.max(lastDataPoint.high, currentPrice);
                         lastDataPoint.low = Math.min(lastDataPoint.low, currentPrice);
                     } else {
-                        // New 1-minute window, add a new point
+                        // Add a new point for the new window
                         const newPoint: OHLC = {
-                            time: now.getTime(),
+                            time: nowTime,
                             open: lastDataPoint?.close || currentPrice,
                             high: currentPrice,
                             low: currentPrice,
                             close: currentPrice,
                         };
-                        newKline[summary.pair] = [...pairData, newPoint].slice(-200);
+                        newKline[summary.pair] = [...pairData, newPoint].slice(-200); // Keep max 200 points
                     }
                 });
                 return newKline;
             });
 
-        }, 2000);
+        }, 2000); // Simulate every 2 seconds
 
         return () => clearInterval(simulationInterval);
-    }, [baseApiData, systemSettings.marketInterventions]);
+    }, [baseApiData, summaryData, systemSettings.marketInterventions]);
 
     const contextValue: MarketContextType = {
         tradingPair,
         changeTradingPair: setTradingPair,
-        availablePairs,
+        availablePairs: CRYPTO_PAIRS,
         summaryData,
         cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
         klineData,
