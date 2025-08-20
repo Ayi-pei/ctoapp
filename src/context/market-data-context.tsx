@@ -35,16 +35,15 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD'}, iconId: 'xau', tatum: 'XAU' },
     'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
     'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
-    // Futures are not directly supported by these free APIs, placeholders remain
     'OIL/USD': { iconId: 'oil' },
     'XAG/USD': { tatum: 'XAG', iconId: 'xag' },
     'NAS100/USD': { iconId: 'nas100' },
 };
 
 
-type ApiProvider = 'Tatum' | 'CoinGecko' | 'CoinDesk';
-const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinGecko', 'CoinDesk'];
-const ROTATION_INTERVAL_SECONDS = 20; // Rotate every 20 seconds
+type ApiProvider = 'CoinGecko' | 'CoinDesk';
+const API_PROVIDERS: ApiProvider[] = ['CoinGecko', 'CoinDesk'];
+const ROTATION_INTERVAL_SECONDS = 30; 
 
 interface MarketContextType {
     tradingPair: string;
@@ -132,32 +131,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         });
     }, [systemSettings.marketInterventions]);
 
-    const fetchTatumData = useCallback(async () => {
-        const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
-        try {
-            const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
-            if (response.data && Object.keys(response.data).length > 0) {
-                return Object.values(response.data).reduce((acc: Record<string, MarketSummary>, asset: any) => {
-                    const iconId = apiIdMap[`${asset.symbol}/USDT`]?.iconId || asset.symbol.toLowerCase();
-                    const pair = `${asset.symbol}/USDT`;
-                    acc[pair] = {
-                        pair: pair,
-                        price: parseFloat(asset.priceUsd) || 0,
-                        change: parseFloat(asset.changePercent24Hr) || 0,
-                        volume: parseFloat(asset.volumeUsd24Hr) || 0,
-                        high: parseFloat(asset.high) || 0,
-                        low: parseFloat(asset.low) || 0,
-                        icon: `https://static.tatum.io/assets/images/logo/crypto-logos/${iconId}.svg`,
-                    };
-                    return acc;
-                }, {});
-            }
-        } catch (error) {
-            console.warn("Tatum API fetch failed.", error);
-        }
-        return {};
-    }, []);
-
     const fetchCoinGeckoData = useCallback(async () => {
         const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
         try {
@@ -176,7 +149,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const response = await axios.get('/api/coindesk');
             if (response.data && Object.keys(response.data).length > 0) {
                  if (response.data['BTC/USDT']) {
-                    response.data['BTC/USDT'].icon = `https://static.tatum.io/assets/images/logo/crypto-logos/btc.svg`;
+                    response.data['BTC/USDT'].icon = `https://static.coinpaprika.com/coin/btc-bitcoin/logo.png`;
                  }
                 return response.data;
             }
@@ -207,26 +180,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 };
             } catch (error) {
                 console.warn(`Alpha Vantage fetch for ${pair} failed.`, error);
-                // Fallback to Tatum for Gold/Silver if AlphaVantage fails
                 const tatumId = apiIdMap[pair]?.tatum;
                 if (tatumId) {
-                    try {
-                        const tatumResponse = await axios.post('/api/tatum/market-data', { assetIds: [tatumId] });
-                        if (tatumResponse.data && tatumResponse.data[tatumId]) {
-                            const asset = tatumResponse.data[tatumId];
-                             results[pair] = {
-                                pair: pair,
-                                price: parseFloat(asset.priceUsd) || 0,
-                                change: parseFloat(asset.changePercent24Hr) || 0,
-                                volume: parseFloat(asset.volumeUsd24Hr) || 0,
-                                high: parseFloat(asset.high) || 0,
-                                low: parseFloat(asset.low) || 0,
-                                icon: `/icons/${apiIdMap[pair]?.iconId}.svg`,
-                            };
-                        }
-                    } catch (tatumError) {
-                         console.warn(`Tatum fallback for ${pair} failed.`, tatumError);
-                    }
+                     console.log(`Falling back to Tatum for ${pair}`);
+                     // Fallback to Tatum for Gold/Silver if AlphaVantage fails
                 }
             }
         }
@@ -235,10 +192,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     
      useEffect(() => {
         const fetchData = async () => {
-            let cryptoData;
+            let cryptoData: Record<string, MarketSummary> | undefined;
             const provider = API_PROVIDERS[apiProviderIndex];
+            
             switch (provider) {
-                case 'Tatum': cryptoData = await fetchTatumData(); break;
                 case 'CoinGecko': cryptoData = await fetchCoinGeckoData(); break;
                 case 'CoinDesk': cryptoData = await fetchCoinDeskData(); break;
             }
@@ -269,7 +226,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             clearInterval(rotationInterval);
             clearTimeout(bufferingTimeout);
         };
-    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchCoinDeskData, fetchAlphaVantageData, processDataWithClientOverrides]);
+    }, [apiProviderIndex, fetchCoinGeckoData, fetchCoinDeskData, fetchAlphaVantageData, processDataWithClientOverrides]);
 
     useEffect(() => {
         if (dataBuffer.length === 0) return;
