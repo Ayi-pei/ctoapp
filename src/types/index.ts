@@ -1,4 +1,5 @@
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -211,6 +212,8 @@ export type RegisterUserResponse = {
     message: string;
 };
 
+export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';
+
 // Represents a daily task configured by an admin
 export type DailyTask = {
   id: string;
@@ -221,7 +224,7 @@ export type DailyTask = {
   link: string; // e.g. /trade?tab=contract
   imgSrc?: string;
   status: 'published' | 'draft';
-  trigger: 'contract_trade' | 'spot_trade' | 'investment';
+  trigger: TaskTriggerType;
 };
 
 

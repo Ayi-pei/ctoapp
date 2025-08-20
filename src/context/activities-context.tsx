@@ -1,10 +1,13 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { LimitedTimeActivity } from '@/types';
 import { useLogs } from './logs-context';
 import { useAuth } from './auth-context';
+
+export type { LimitedTimeActivity } from '@/types';
 
 const ACTIVITIES_STORAGE_KEY = 'tradeflow_activities';
 

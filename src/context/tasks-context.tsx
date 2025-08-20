@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';;
-import { DailyTask, UserTaskState } from '@/types';
+import { DailyTask, UserTaskState, TaskTriggerType } from '@/types';
 import { useAuth } from './auth-context';
 import { useLogs } from './logs-context';
 import { useBalance } from './balance-context';
@@ -45,8 +46,6 @@ const defaultTasks: DailyTask[] = [
     imgSrc: 'https://placehold.co/600x400.png'
   }
 ];
-
-export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';;
 
 interface TasksContextType {
   // Admin functions
@@ -192,4 +191,3 @@ export function useTasks() {
   }
   return context;
 }
-export interface DailyTask { id: string; title: string; description: string; reward: number; reward_type: 'usdt' | 'points' | 'credit_score'; status: 'published' | 'draft' | 'archived'; link: string; imgSrc?: string; trigger: TaskTriggerType; }

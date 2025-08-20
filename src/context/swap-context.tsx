@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -6,6 +7,8 @@ import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 import { useToast } from '@/hooks/use-toast';
 import { SwapOrder } from '@/types';
+
+export type { SwapOrder } from '@/types';
 
 const SWAP_ORDERS_STORAGE_KEY = 'tradeflow_swap_orders_v3';
 
