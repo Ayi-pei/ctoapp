@@ -10,11 +10,6 @@ const FXInputSchema = z.object({
   to: z.string(),
 });
 
-const CommodityInputSchema = z.object({
-  symbol: z.string(),
-  market: z.string(),
-});
-
 export async function GET(request: Request) {
   if (!API_KEY) {
     return NextResponse.json({ error: 'Alpha Vantage API key is not configured.' }, { status: 500 });
@@ -47,6 +42,7 @@ export async function GET(request: Request) {
       
       return NextResponse.json({
         price: data['5. Exchange Rate'],
+        // CURRENCY_EXCHANGE_RATE does not provide daily change, high, low
         change: 'N/A', 
         high: 'N/A',
         low: 'N/A',
@@ -59,6 +55,7 @@ export async function GET(request: Request) {
             function: 'TIME_SERIES_DAILY',
             symbol: symbol,
             apikey: API_KEY,
+            // market param is not standard for TIME_SERIES_DAILY
         },
       });
 
@@ -68,6 +65,11 @@ export async function GET(request: Request) {
       const dates = Object.keys(timeSeries);
       const latestDate = dates[0];
       const previousDate = dates[1];
+      
+      if (!latestDate || !previousDate) {
+          throw new Error(`Insufficient historical data for symbol: ${symbol}`);
+      }
+
       const latestData = timeSeries[latestDate];
       const previousData = timeSeries[previousDate];
       
@@ -87,7 +89,7 @@ export async function GET(request: Request) {
     }
 
   } catch (error) {
-    console.error("Alpha Vantage API proxy error:", error instanceof Error ? error.message : error);
+    console.error("Alpha Vantage API proxy error:", error instanceof Error ? error.message : String(error));
     return NextResponse.json({ error: 'Failed to fetch from Alpha Vantage' }, { status: 502 });
   }
 }

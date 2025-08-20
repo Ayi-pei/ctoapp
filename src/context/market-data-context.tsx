@@ -9,9 +9,9 @@ import { useSystemSettings } from './system-settings-context';
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
-const FUTURES_PAIRS = ['XAG/USD', 'OIL/USD', 'NAS100/USD']; // OIL & NAS100 are placeholders. XAG is Silver.
+const FUTURES_PAIRS = ['XAG/USD', 'OIL/USD', 'NAS100/USD'];
 
-const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; iconId?: string; }> = {
+const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; iconId?: string; coindeskFuturesInstrument?: string }> = {
     'BTC/USDT': { coingecko: 'bitcoin' },
     'ETH/USDT': { coingecko: 'ethereum' },
     'SOL/USDT': { coingecko: 'solana' },
@@ -32,15 +32,13 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'EOS/USDT': { coingecko: 'eos' },
     'FIL/USDT': { coingecko: 'filecoin' },
     'ICP/USDT': { coingecko: 'internet-computer' },
-    'XAU/USD': { alphavantage: { symbol: 'XAU' }, iconId: 'xau' }, // Gold
-    'XAG/USD': { alphavantage: { symbol: 'XAG' }, iconId: 'xag' }, // Silver
+    'XAU/USD': { alphavantage: { symbol: 'XAU' }, iconId: 'xau' },
+    'XAG/USD': { alphavantage: { symbol: 'XAG' }, iconId: 'xag', coindeskFuturesInstrument: 'XAGUSD' },
     'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
     'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
-    // Placeholders for now, as AlphaVantage doesn't provide them easily for free
-    'OIL/USD': { iconId: 'oil' },
+    'OIL/USD': { iconId: 'oil', coindeskFuturesInstrument: 'WTIUSD' },
     'NAS100/USD': { iconId: 'nas100' },
 };
-
 
 interface MarketContextType {
     tradingPair: string;
@@ -65,7 +63,7 @@ const fetchCoinGeckoData = async (): Promise<Record<string, MarketSummary>> => {
         return response.data;
     } catch (error) {
         console.warn("CoinGecko API fetch failed. It will be retried.", error);
-        return {}; // Return empty on error
+        return {};
     }
 }
 
@@ -79,9 +77,21 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
     }
 }
 
+const fetchCoinDeskFuturesData = async (): Promise<Record<string, MarketSummary>> => {
+    const futuresInstruments = FUTURES_PAIRS.map(pair => pair).filter(Boolean);
+    if (futuresInstruments.length === 0) return {};
+    try {
+        const response = await axios.post('/api/coindesk-futures', { instruments: futuresInstruments });
+        return response.data;
+    } catch (error) {
+        console.warn("CoinDesk Futures API fetch failed. It will be retried.", error);
+        return {};
+    }
+};
+
 const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> => {
-    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS];
-    const avData: Record<string, MarketSummary> = {};
+    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS];
+    let avData: Record<string, MarketSummary> = {};
 
     for (const pair of avPairs) {
         const params = apiIdMap[pair]?.alphavantage;
@@ -90,15 +100,17 @@ const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> =
         try {
             const response = await axios.get('/api/alphavantage', { params });
             const data = response.data;
-            avData[pair] = {
-                pair: pair,
-                price: parseFloat(data.price),
-                change: parseFloat(data.change) || 0,
-                high: parseFloat(data.high) || 0,
-                low: parseFloat(data.low) || 0,
-                volume: 0, // AV does not provide volume for free forex/gold
-                icon: `/icons/${apiIdMap[pair]?.iconId}.svg`,
-            };
+            if (data && data.price) {
+                avData[pair] = {
+                    pair: pair,
+                    price: parseFloat(data.price),
+                    change: parseFloat(data.change) || 0,
+                    high: parseFloat(data.high) || 0,
+                    low: parseFloat(data.low) || 0,
+                    volume: 0,
+                    icon: `/icons/${apiIdMap[pair]?.iconId}.svg`,
+                };
+            }
         } catch (error) {
             console.warn(`AlphaVantage fetch for ${pair} failed.`, error);
         }
@@ -107,7 +119,6 @@ const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> =
 }
 // --- End Data Fetching ---
 
-
 export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { systemSettings } = useSystemSettings();
     const [tradingPair, setTradingPair] = useState(availablePairs[0]);
@@ -115,7 +126,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
-    
     const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
 
     const getLatestPrice = useCallback((pair: string): number => {
@@ -125,9 +135,8 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     // Low-frequency fetch for real data from external APIs
     useEffect(() => {
         const fetchRealData = async () => {
-            console.log(`Fetching real data with provider: ${cryptoProvider}`);
+            console.log(`Fetching real data with crypto provider: ${cryptoProvider}`);
             
-            // Fetch crypto data using the rotating provider
             let cryptoData;
             if (cryptoProvider === 'coingecko') {
                 cryptoData = await fetchCoinGeckoData();
@@ -135,23 +144,32 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 cryptoData = await fetchCoinDeskData();
             }
             
-            // Fetch non-crypto data (Gold, Forex, Futures)
-            const otherData = await fetchAlphaVantageData();
-
-            const newBaseData = { ...cryptoData, ...otherData };
-
-            if(Object.keys(newBaseData).length > 0) {
-                 setBaseApiData(prev => ({ ...prev, ...newBaseData }));
-            }
-            
-            // Rotate crypto provider for the next fetch
             setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
+
+            const allData = { ...cryptoData };
+
+            if(Object.keys(allData).length > 0) {
+                 setBaseApiData(prev => ({ ...prev, ...allData }));
+            }
         };
+        
+        const fetchNonCryptoData = async () => {
+             console.log(`Fetching non-crypto data (Gold, Forex, Futures)`);
+             const avData = await fetchAlphaVantageData();
+             const futuresData = await fetchCoinDeskFuturesData();
+             const allData = { ...avData, ...futuresData };
+             
+             if(Object.keys(allData).length > 0) {
+                 setBaseApiData(prev => ({ ...prev, ...allData }));
+            }
+        }
 
-        fetchRealData(); // Fetch on initial load
-        const interval = setInterval(fetchRealData, 30000); // And then every 30 seconds
+        fetchRealData();
+        fetchNonCryptoData();
+        const cryptoInterval = setInterval(fetchRealData, 30000); // Crypto data every 30s
+        // Non-crypto data is fetched only once on load, then simulated.
 
-        return () => clearInterval(interval);
+        return () => clearInterval(cryptoInterval);
     }, [cryptoProvider]);
 
     // High-frequency simulation logic for smooth UI updates for ALL assets
@@ -177,12 +195,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         newPrice = minPrice + ((newPrice - minPrice + priceRange * 0.05) % priceRange);
                     } else if (trend === 'down') {
                         newPrice = maxPrice - ((maxPrice - newPrice + priceRange * 0.05) % priceRange);
-                    } else { // random
+                    } else {
                         newPrice += (Math.random() - 0.5) * (priceRange * 0.1);
                         newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
                     }
                 } else {
-                    const volatility = 0.0005; // Base volatility for simulation
+                    const volatility = 0.0005;
                     newPrice *= (1 + (Math.random() - 0.5) * volatility);
                 }
 
@@ -191,7 +209,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
             setSummaryData(newSummaries);
 
-            // Update K-line data with simulated prices
             setKlineData(prevKline => {
                 const newKline = { ...prevKline };
                 newSummaries.forEach(summary => {
@@ -204,22 +221,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                         low: summary.price, close: summary.price,
                     };
                     
-                    if (lastDataPoint && (now.getTime() - lastDataPoint.time) < 60000) { // Aggregate within a minute
+                    if (lastDataPoint && (now.getTime() - lastDataPoint.time) < 60000) {
                         lastDataPoint.close = summary.price;
                         lastDataPoint.high = Math.max(lastDataPoint.high, summary.price);
                         lastDataPoint.low = Math.min(lastDataPoint.low, summary.price);
                     } else {
-                        newKline[summary.pair] = [...pairData, latestOhlc].slice(-200); // Keep last 200 points
+                        newKline[summary.pair] = [...pairData, latestOhlc].slice(-200);
                     }
                 });
                 return newKline;
             });
 
-        }, 2000); // Simulate every 2 seconds
+        }, 2000);
 
         return () => clearInterval(simulationInterval);
     }, [baseApiData, systemSettings.marketInterventions]);
-
 
     const contextValue: MarketContextType = {
         tradingPair,
