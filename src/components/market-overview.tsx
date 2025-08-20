@@ -44,16 +44,16 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
       </div>
       <div className="col-span-2 md:col-span-3 grid grid-cols-3 gap-x-4 text-sm">
         <div className="p-2 border rounded-md text-right">
-          <p className="text-green-400">24h High</p>
-          <p className="font-medium">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
+          <p className="text-muted-foreground">24h High</p>
+          <p className="font-medium text-foreground">{summary.high?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
-          <p className="text-green-400">24h Low</p>
-          <p className="font-medium">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
+          <p className="text-muted-foreground">24h Low</p>
+          <p className="font-medium text-foreground">{summary.low?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
         </div>
         <div className="p-2 border rounded-md text-right">
-          <p className="text-green-400">24h Volume</p>
-          <p className="font-medium">{(summary.volume / 1000000).toFixed(2)}M</p>
+          <p className="text-muted-foreground">24h Volume</p>
+          <p className="font-medium text-foreground">{(summary.volume / 1000000).toFixed(2)}M</p>
         </div>
       </div>
     </div>
