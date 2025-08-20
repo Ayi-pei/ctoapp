@@ -42,8 +42,9 @@ export default function LoginPage() {
         title: '登录成功',
         description: '正在跳转到您的仪表盘...',
       });
-       // Defer the redirection decision to the root page for consistency.
-       router.push('/');
+       // Directly navigate to the correct destination after login.
+       // This avoids the extra redirect hop through the root page.
+       router.replace(isAdmin ? '/admin' : '/dashboard');
     } else {
       toast({
         variant: 'destructive',
@@ -53,8 +54,8 @@ export default function LoginPage() {
     }
   };
 
+  // This effect handles redirecting an already-authenticated user away from the login page.
   useEffect(() => {
-    // This effect handles redirecting an already-authenticated user away from the login page.
     if (!isLoading && isAuthenticated) {
         router.replace(isAdmin ? '/admin' : '/dashboard');
     }

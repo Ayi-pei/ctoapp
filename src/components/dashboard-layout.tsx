@@ -21,11 +21,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
+    // The DashboardLayout's main responsibility is to protect routes.
+    // If auth state isn't loaded yet, we wait.
+    // If it is loaded and the user is NOT authenticated, we redirect to login.
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // While loading, or if the user is not authenticated (and about to be redirected),
+  // show a full-screen loader. This prevents showing a flash of the dashboard.
   if (isLoading || !isAuthenticated) {
     return (
       <AuthLayout>
