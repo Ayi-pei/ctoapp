@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
+import { useMarket } from "@/context/market-data-context";
 
 const availableAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
@@ -64,6 +65,7 @@ export default function SwapPage() {
         reportDispute
     } = useSwap();
     const { balances } = useBalance();
+    const { summaryData } = useMarket();
     const { toast } = useToast();
     
     const [fromAsset, setFromAsset] = useState("USDT");
@@ -71,9 +73,60 @@ export default function SwapPage() {
     const [fromAmount, setFromAmount] = useState("");
     const [toAmount, setToAmount] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [lastEdited, setLastEdited] = useState<'from' | 'to'>('from');
     
     const [proofImage, setProofImage] = useState<string | null>(null);
     const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
+
+    const priceMap = useMemo(() => {
+        return summaryData.reduce((acc, item) => {
+            const base = item.pair.split('/')[0];
+            acc[base] = item.price; // Price is in USDT
+            return acc;
+        }, {} as Record<string, number>);
+    }, [summaryData]);
+
+    useEffect(() => {
+        if (lastEdited === 'from') {
+            const fromPrice = fromAsset === 'USDT' ? 1 : priceMap[fromAsset];
+            const toPrice = toAsset === 'USDT' ? 1 : priceMap[toAsset];
+            const fromAmountNum = parseFloat(fromAmount);
+
+            if (fromPrice && toPrice && !isNaN(fromAmountNum) && fromAmountNum > 0) {
+                const totalUsdtValue = fromAmountNum * fromPrice;
+                const newToAmount = totalUsdtValue / toPrice;
+                setToAmount(newToAmount.toFixed(8));
+            } else if (fromAmount === "") {
+                setToAmount("");
+            }
+        }
+    }, [fromAmount, fromAsset, toAsset, priceMap, lastEdited]);
+    
+     useEffect(() => {
+        if (lastEdited === 'to') {
+            const fromPrice = fromAsset === 'USDT' ? 1 : priceMap[fromAsset];
+            const toPrice = toAsset === 'USDT' ? 1 : priceMap[toAsset];
+            const toAmountNum = parseFloat(toAmount);
+
+            if (fromPrice && toPrice && !isNaN(toAmountNum) && toAmountNum > 0) {
+                const totalUsdtValue = toAmountNum * toPrice;
+                const newFromAmount = totalUsdtValue / fromPrice;
+                setFromAmount(newFromAmount.toFixed(8));
+            } else if (toAmount === "") {
+                setFromAmount("");
+            }
+        }
+    }, [toAmount, fromAsset, toAsset, priceMap, lastEdited]);
+
+    const handleFromAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFromAmount(e.target.value);
+        setLastEdited('from');
+    };
+
+    const handleToAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setToAmount(e.target.value);
+        setLastEdited('to');
+    };
 
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
@@ -211,7 +264,7 @@ export default function SwapPage() {
                                         {availableAssets.map(asset => <SelectItem key={asset} value={asset}>{asset}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
-                                <Input type="number" placeholder="数量" value={fromAmount} onChange={e => setFromAmount(e.target.value)} />
+                                <Input type="number" placeholder="数量" value={fromAmount} onChange={handleFromAmountChange} />
                                 <p className="text-xs text-muted-foreground">可用: {(balances[fromAsset]?.available || 0).toFixed(4)}</p>
                             </div>
                             <ArrowRight className="h-6 w-6 mt-8 text-muted-foreground" />
@@ -223,7 +276,7 @@ export default function SwapPage() {
                                         {availableAssets.map(asset => <SelectItem key={asset} value={asset}>{asset}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
-                                 <Input type="number" placeholder="数量" value={toAmount} onChange={e => setToAmount(e.target.value)} />
+                                 <Input type="number" placeholder="数量" value={toAmount} onChange={handleToAmountChange} />
                             </div>
                         </div>
 
