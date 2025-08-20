@@ -99,7 +99,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
     };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 p-4 trade-background">
 
       <div className="space-y-4">
         <MarketOverview summary={currentSummary} />
