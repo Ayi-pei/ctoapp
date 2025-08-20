@@ -6,6 +6,7 @@
 
 
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -46,7 +47,7 @@ export const availablePairs = [
     'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT',
     'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT',
     'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT',
-    'XAU/USD', 'EUR/USD', 'GBP/USD',
+    'XAU/USD', 'EUR/USD', 'GBP/USD', 'XAG/USD', 'OIL/USD', 'NAS100/USD',
 ];
 
 // Represents a user's profile, mirroring the public.users table

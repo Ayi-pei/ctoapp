@@ -9,7 +9,7 @@ import { useSystemSettings } from './system-settings-context';
 const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
 const GOLD_PAIRS = ['XAU/USD'];
 const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
-const FUTURES_PAIRS = ['OIL/USD', 'XAG/USD', 'NAS100/USD']; // Note: OIL and NAS100 are placeholders as we don't have a free API for them now.
+const FUTURES_PAIRS = ['XAG/USD', 'OIL/USD', 'NAS100/USD']; // OIL & NAS100 are placeholders. XAG is Silver.
 
 const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; iconId?: string; }> = {
     'BTC/USDT': { coingecko: 'bitcoin' },
@@ -32,12 +32,12 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'EOS/USDT': { coingecko: 'eos' },
     'FIL/USDT': { coingecko: 'filecoin' },
     'ICP/USDT': { coingecko: 'internet-computer' },
-    'XAU/USD': { alphavantage: { symbol: 'XAU', market: 'USD' }, iconId: 'xau' },
+    'XAU/USD': { alphavantage: { symbol: 'XAU' }, iconId: 'xau' }, // Gold
+    'XAG/USD': { alphavantage: { symbol: 'XAG' }, iconId: 'xag' }, // Silver
     'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
     'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
     // Placeholders for now, as AlphaVantage doesn't provide them easily for free
     'OIL/USD': { iconId: 'oil' },
-    'XAG/USD': { iconId: 'xag' }, // Silver
     'NAS100/USD': { iconId: 'nas100' },
 };
 
@@ -80,7 +80,7 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
 }
 
 const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> => {
-    const avPairs = FOREX_PAIRS.concat(GOLD_PAIRS);
+    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS];
     const avData: Record<string, MarketSummary> = {};
 
     for (const pair of avPairs) {
@@ -114,19 +114,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [summaryData, setSummaryData] = useState<MarketSummary[]>([]);
     
-    // This state will hold the "true" prices from the API
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
     
-    // State to rotate crypto API providers
     const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
 
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
     
-    // Fetch real data from APIs less frequently to save requests
+    // Low-frequency fetch for real data from external APIs
     useEffect(() => {
         const fetchRealData = async () => {
+            console.log(`Fetching real data with provider: ${cryptoProvider}`);
             
             // Fetch crypto data using the rotating provider
             let cryptoData;
@@ -136,7 +135,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 cryptoData = await fetchCoinDeskData();
             }
             
-            // Fetch non-crypto data
+            // Fetch non-crypto data (Gold, Forex, Futures)
             const otherData = await fetchAlphaVantageData();
 
             const newBaseData = { ...cryptoData, ...otherData };
@@ -145,7 +144,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                  setBaseApiData(prev => ({ ...prev, ...newBaseData }));
             }
             
-            // Rotate provider for the next fetch
+            // Rotate crypto provider for the next fetch
             setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
         };
 
@@ -153,9 +152,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         const interval = setInterval(fetchRealData, 30000); // And then every 30 seconds
 
         return () => clearInterval(interval);
-    }, [cryptoProvider]); // Re-run this effect when the provider changes
+    }, [cryptoProvider]);
 
-    // High-frequency simulation logic
+    // High-frequency simulation logic for smooth UI updates for ALL assets
     useEffect(() => {
         const simulationInterval = setInterval(() => {
             if (Object.keys(baseApiData).length === 0) return;
@@ -179,7 +178,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     } else if (trend === 'down') {
                         newPrice = maxPrice - ((maxPrice - newPrice + priceRange * 0.05) % priceRange);
                     } else { // random
-                        newPrice += (Math.random() - 0.5) * (priceRange * 0.1); // Fluctuate within 10% of range
+                        newPrice += (Math.random() - 0.5) * (priceRange * 0.1);
                         newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
                     }
                 } else {
