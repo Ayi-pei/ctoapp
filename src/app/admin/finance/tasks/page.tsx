@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTasks, DailyTask } from "@/context/tasks-context";
+import { useTasks } from "@/context/tasks-context";
+import { DailyTask } from "@/types";
 import { PlusCircle, Trash2, Edit2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
@@ -154,7 +155,7 @@ export default function AdminTasksPage() {
 
     return (
         <DashboardLayout>
-             <div className="p-4 md:p-8 space-y-6 bg-card/80 backdrop-blur-sm">
+             <div className="p-4 md:p-8 space-y-6">
                 <h1 className="text-2xl font-bold">日常任务管理</h1>
                 <Card>
                      <CardHeader>

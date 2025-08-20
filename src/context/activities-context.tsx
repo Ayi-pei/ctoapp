@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { LimitedTimeActivity } from '@/types';
+import type { LimitedTimeActivity } from '@/types';
 import { useLogs } from './logs-context';
 import { useAuth } from './auth-context';
 

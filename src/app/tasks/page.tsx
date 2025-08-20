@@ -3,7 +3,8 @@
 
 import { useState, useMemo } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
-import { useTasks, DailyTask } from '@/context/tasks-context';
+import { useTasks } from '@/context/tasks-context';
+import type { DailyTask } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';

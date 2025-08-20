@@ -3,7 +3,8 @@
 
 import { useState } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
-import { useActivities, LimitedTimeActivity } from '@/context/activities-context';
+import { useActivities } from '@/context/activities-context';
+import type { LimitedTimeActivity } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ChevronLeft, Gift, Calendar } from 'lucide-react';
