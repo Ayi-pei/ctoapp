@@ -6,12 +6,9 @@ import { availablePairs, MarketSummary, OHLC } from '@/types';
 import axios from 'axios';
 import { useSystemSettings } from './system-settings-context';
 
-const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT', 'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT'];
-const GOLD_PAIRS = ['XAU/USD'];
-const FOREX_PAIRS = ['EUR/USD', 'GBP/USD'];
-const FUTURES_PAIRS = ['XAG/USD', 'OIL/USD', 'NAS100/USD'];
+const CRYPTO_PAIRS = availablePairs;
 
-const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: string; to?: string; symbol?: string; market?: string }; iconId?: string; coindeskFuturesInstrument?: string }> = {
+const apiIdMap: Record<string, { coingecko?: string; iconId?: string; }> = {
     'BTC/USDT': { coingecko: 'bitcoin' },
     'ETH/USDT': { coingecko: 'ethereum' },
     'SOL/USDT': { coingecko: 'solana' },
@@ -32,12 +29,6 @@ const apiIdMap: Record<string, { coingecko?: string; alphavantage?: { from?: str
     'EOS/USDT': { coingecko: 'eos' },
     'FIL/USDT': { coingecko: 'filecoin' },
     'ICP/USDT': { coingecko: 'internet-computer' },
-    'XAU/USD': { alphavantage: { symbol: 'XAU' }, iconId: 'xau' },
-    'XAG/USD': { alphavantage: { symbol: 'XAG' }, iconId: 'xag', coindeskFuturesInstrument: 'XAGUSD' },
-    'EUR/USD': { alphavantage: { from: 'EUR', to: 'USD' }, iconId: 'eur' },
-    'GBP/USD': { alphavantage: { from: 'GBP', to: 'USD' }, iconId: 'gbp' },
-    'OIL/USD': { iconId: 'oil', coindeskFuturesInstrument: 'WTIUSD' },
-    'NAS100/USD': { iconId: 'nas100' },
 };
 
 interface MarketContextType {
@@ -46,9 +37,6 @@ interface MarketContextType {
     availablePairs: string[];
     summaryData: MarketSummary[];
     cryptoSummaryData: MarketSummary[];
-    goldSummaryData: MarketSummary[];
-    forexSummaryData: MarketSummary[];
-    futuresSummaryData: MarketSummary[];
     klineData: Record<string, OHLC[]>;
     getLatestPrice: (pair: string) => number;
 }
@@ -76,47 +64,6 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
         return {};
     }
 }
-
-const fetchCoinDeskFuturesData = async (): Promise<Record<string, MarketSummary>> => {
-    const futuresInstruments = FUTURES_PAIRS.map(pair => pair).filter(Boolean);
-    if (futuresInstruments.length === 0) return {};
-    try {
-        const response = await axios.post('/api/coindesk-futures', { instruments: futuresInstruments });
-        return response.data;
-    } catch (error) {
-        console.warn("CoinDesk Futures API fetch failed.", error);
-        return {};
-    }
-};
-
-const fetchAlphaVantageData = async (): Promise<Record<string, MarketSummary>> => {
-    const avPairs = [...FOREX_PAIRS, ...GOLD_PAIRS, ...FUTURES_PAIRS.filter(p => p === 'XAG/USD')]; // XAG/USD is also in AV
-    let avData: Record<string, MarketSummary> = {};
-
-    for (const pair of avPairs) {
-        const params = apiIdMap[pair]?.alphavantage;
-        if (!params) continue;
-        
-        try {
-            const response = await axios.get('/api/alphavantage', { params });
-            const data = response.data;
-            if (data && data.price) {
-                avData[pair] = {
-                    pair: pair,
-                    price: parseFloat(data.price),
-                    change: parseFloat(data.change) || 0,
-                    high: parseFloat(data.high) || 0,
-                    low: parseFloat(data.low) || 0,
-                    volume: 0,
-                    icon: `/icons/${apiIdMap[pair]?.iconId}.svg`,
-                };
-            }
-        } catch (error) {
-            console.warn(`AlphaVantage fetch for ${pair} failed.`, error);
-        }
-    }
-    return avData;
-}
 // --- End Data Fetching ---
 
 export function MarketDataProvider({ children }: { children: ReactNode }) {
@@ -136,21 +83,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     // Low-frequency fetch for real data from ALL external APIs
     useEffect(() => {
         const fetchAllRealData = async () => {
-            console.log(`Fetching all real data. Crypto provider: ${cryptoProvider}`);
+            console.log(`Fetching crypto data from: ${cryptoProvider}`);
             
             const cryptoPromise = cryptoProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
-            // Fetch non-crypto assets only once on load, then simulate. This saves a lot of API calls.
-            const nonCryptoPromise = Object.keys(baseApiData).length === 0 ? fetchAlphaVantageData() : Promise.resolve({});
-            const futuresPromise = Object.keys(baseApiData).length === 0 ? fetchCoinDeskFuturesData() : Promise.resolve({});
 
-            const [cryptoData, nonCryptoData, futuresData] = await Promise.all([
-                cryptoPromise,
-                nonCryptoPromise,
-                futuresPromise,
-            ]);
+            const cryptoData = await cryptoPromise;
 
-            // Safely merge all data sources, ensuring no data is overwritten
-            const allData = { ...baseApiData, ...cryptoData, ...nonCryptoData, ...futuresData };
+            // Safely merge data, giving new data precedence
+            const allData = { ...baseApiData, ...cryptoData };
 
             if(Object.keys(allData).length > 0) {
                  setBaseApiData(allData);
@@ -165,7 +105,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cryptoProvider]); // Removed baseApiData from dependency array to prevent re-triggering non-crypto fetches
+    }, [cryptoProvider]); 
 
     // High-frequency simulation logic for smooth UI updates for ALL assets
     useEffect(() => {
@@ -238,9 +178,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         availablePairs,
         summaryData,
         cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
-        goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
-        forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
-        futuresSummaryData: summaryData.filter(s => FUTURES_PAIRS.includes(s.pair)),
         klineData,
         getLatestPrice,
     };

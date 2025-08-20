@@ -14,9 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";
 import { useBalance } from "@/context/balance-context";
 
-const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB"];
-const FOREX_ASSETS = ["EUR", "GBP"];
-const GOLD_ASSETS = ["XAU"];
+const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB", "AVAX", "LINK", "DOT", "UNI", "TRX", "XLM", "VET", "EOS", "FIL", "ICP"];
 
 type Balances = { [key: string]: { available: number; frozen: number } };
 
@@ -43,13 +41,17 @@ const AssetList = ({ assets, balances, isLoading }: { assets: string[], balances
                     <TableBody>
                         {assets.map(asset => {
                             const balance = balances[asset] || { available: 0, frozen: 0 };
-                            return (
-                                <TableRow key={asset}>
-                                    <TableCell className="font-medium">{asset}</TableCell>
-                                    <TableCell className="text-right">{balance.available.toFixed(4)}</TableCell>
-                                    <TableCell className="text-right">{balance.frozen.toFixed(4)}</TableCell>
-                                </TableRow>
-                            )
+                            // Only render if there's a balance to show
+                            if (balance.available > 0 || balance.frozen > 0) {
+                                return (
+                                    <TableRow key={asset}>
+                                        <TableCell className="font-medium">{asset}</TableCell>
+                                        <TableCell className="text-right">{balance.available.toFixed(4)}</TableCell>
+                                        <TableCell className="text-right">{balance.frozen.toFixed(4)}</TableCell>
+                                    </TableRow>
+                                )
+                            }
+                            return null;
                         })}
                     </TableBody>
                 </Table>
@@ -123,11 +125,9 @@ export default function AssetsPage() {
                 </div>
 
                 <Tabs defaultValue="crypto" className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
+                    <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="crypto">加密货币</TabsTrigger>
                         <TabsTrigger value="investments">理财</TabsTrigger>
-                        <TabsTrigger value="forex">外汇</TabsTrigger>
-                        <TabsTrigger value="gold">黄金</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="crypto">
@@ -135,12 +135,6 @@ export default function AssetsPage() {
                     </TabsContent>
                      <TabsContent value="investments">
                         <InvestmentList investments={investments} isLoading={isLoading} />
-                    </TabsContent>
-                    <TabsContent value="forex">
-                        <AssetList assets={FOREX_ASSETS} balances={balances} isLoading={isLoading} />
-                    </TabsContent>
-                     <TabsContent value="gold">
-                        <AssetList assets={GOLD_ASSETS} balances={balances} isLoading={isLoading} />
                     </TabsContent>
                 </Tabs>
             </div>

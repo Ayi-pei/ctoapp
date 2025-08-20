@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Megaphone, ArrowRight } from "lucide-react";
 import { MarketList } from "@/components/market-list";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
@@ -22,7 +21,7 @@ import Autoplay from "embla-carousel-autoplay"
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
+    const { cryptoSummaryData, summaryData, klineData } = useMarket();
     const { balances } = useBalance();
     const { hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -193,26 +192,8 @@ export default function DashboardPage() {
                 
                 {/* Market List */}
                 <div className="rounded-lg p-2 bg-card/50 backdrop-blur-sm">
-                    <Tabs defaultValue="popular">
-                        <TabsList className="grid w-full grid-cols-4 bg-background/70 rounded-lg p-1">
-                            <TabsTrigger value="popular" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">热门币种</TabsTrigger>
-                            <TabsTrigger value="futures" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">期货</TabsTrigger>
-                            <TabsTrigger value="forex" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">外汇</TabsTrigger>
-                            <TabsTrigger value="gold" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">黄金</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="popular">
-                            {renderMarketList(cryptoSummaryData, "热门币种")}
-                        </TabsContent>
-                        <TabsContent value="futures">
-                            {renderMarketList(futuresSummaryData, "期货")}
-                        </TabsContent>
-                        <TabsContent value="forex">
-                            {renderMarketList(forexSummaryData, "外汇")}
-                        </TabsContent>
-                        <TabsContent value="gold">
-                            {renderMarketList(goldSummaryData, "黄金")}
-                        </TabsContent>
-                    </Tabs>
+                    <h3 className="text-lg font-semibold mb-2 px-2">热门币种</h3>
+                    {renderMarketList(cryptoSummaryData, "热门币种")}
                 </div>
                 <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
                 <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />

@@ -3,11 +3,10 @@
 import DashboardLayout from "@/components/dashboard-layout";
 import { MarketList } from "@/components/market-list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
 
 export default function MarketPage() {
-    const { cryptoSummaryData, goldSummaryData, forexSummaryData, futuresSummaryData, summaryData, klineData } = useMarket();
+    const { cryptoSummaryData, klineData, summaryData } = useMarket();
 
     const renderMarketList = (data: any[], type: string) => {
         if (summaryData.length === 0 && data.length === 0) {
@@ -37,27 +36,9 @@ export default function MarketPage() {
 
     return (
         <DashboardLayout>
-            <div className="flex flex-col h-full bg-card">
-                 <Tabs defaultValue="popular" className="pt-4">
-                    <TabsList className="grid w-full grid-cols-4 bg-purple-900/20 rounded-lg p-1 mx-4">
-                        <TabsTrigger value="popular" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">热门币种</TabsTrigger>
-                        <TabsTrigger value="futures" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">期货</TabsTrigger>
-                        <TabsTrigger value="forex" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">外汇</TabsTrigger>
-                        <TabsTrigger value="gold" className="data-[state=active]:bg-gradient-to-r from-purple-500 to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md bg-purple-900/30 text-amber-500 rounded-md font-bold text-base tracking-wider">黄金</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="popular" className="mt-4">
-                       <div className="px-4">{renderMarketList(cryptoSummaryData, "热门币种")}</div>
-                    </TabsContent>
-                     <TabsContent value="futures" className="mt-4">
-                       <div className="px-4">{renderMarketList(futuresSummaryData, "期货")}</div>
-                    </TabsContent>
-                    <TabsContent value="forex" className="mt-4">
-                       <div className="px-4">{renderMarketList(forexSummaryData, "外汇")}</div>
-                    </TabsContent>
-                    <TabsContent value="gold" className="mt-4">
-                        <div className="px-4">{renderMarketList(goldSummaryData, "黄金")}</div>
-                    </TabsContent>
-                </Tabs>
+            <div className="flex flex-col h-full bg-card p-4">
+                <h1 className="text-2xl font-bold mb-4">行情中心</h1>
+                {renderMarketList(cryptoSummaryData, "热门币种")}
             </div>
         </DashboardLayout>
     );
