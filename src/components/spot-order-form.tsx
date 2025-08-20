@@ -107,7 +107,7 @@ export function SpotOrderForm({
         toast({
             variant: "destructive",
             title: "下单失败",
-            description: `可用余额不足 (${quoteAssetBalance.toFixed(2)} ${quoteAsset})。`,
+            description: `可用余额不足 (${quoteAssetBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${quoteAsset})。`,
         });
         return;
     }
@@ -116,7 +116,7 @@ export function SpotOrderForm({
         toast({
             variant: "destructive",
             title: "下单失败",
-            description: `可用余额不足 (${baseAssetBalance.toFixed(6)} ${baseAsset})。`,
+            description: `可用余额不足 (${baseAssetBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${baseAsset})。`,
         });
         return;
     }
@@ -167,7 +167,7 @@ export function SpotOrderForm({
                     id="price" 
                     placeholder={tradeType === 'market' ? '市价' : '请输入价格'}
                     disabled={tradeType === 'market'}
-                    value={tradeType === 'market' ? currentPrice.toFixed(2) : price}
+                    value={tradeType === 'market' ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : price}
                     onChange={(e) => setPrice(e.target.value)}
                 />
             </div>
@@ -202,7 +202,7 @@ export function SpotOrderForm({
             </div>
 
             <div className="text-xs text-muted-foreground">
-                可用: {orderType === 'buy' ? `${quoteAssetBalance.toFixed(2)} ${quoteAsset}` : `${baseAssetBalance.toFixed(6)} ${baseAsset}`}
+                可用: {orderType === 'buy' ? `${quoteAssetBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${quoteAsset}` : `${baseAssetBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })} ${baseAsset}`}
             </div>
 
             <Button onClick={handleSubmit} className={cn("w-full text-white", orderType === 'buy' ? 'bg-green-600/50 hover:bg-green-700' : 'bg-red-600/50 hover:bg-red-700')}>

@@ -60,13 +60,13 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
         axisLabel: { 
             show: true,
             color: chartMutedColor,
-            formatter: (value: number) => value.toFixed(2)
+            formatter: (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })
         },
         splitLine: { show: true, lineStyle: { color: chartBorderColor, opacity: 0.5, type: 'dashed' } }
       },
       grid: {
         left: "5",
-        right: "50",
+        right: "60",
         bottom: "25",
         top: "10",
         containLabel: true,

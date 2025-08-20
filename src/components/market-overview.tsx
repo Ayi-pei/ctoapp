@@ -59,5 +59,3 @@ export function MarketOverview({ summary }: MarketOverviewProps) {
     </div>
   );
 }
-
-    

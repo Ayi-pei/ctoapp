@@ -81,5 +81,3 @@ export function MarketList({ summary, klineData }: MarketListProps) {
     </div>
   );
 }
-
-    
