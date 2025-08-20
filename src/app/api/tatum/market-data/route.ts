@@ -19,8 +19,14 @@ const getSystemSettingsFromStorage = (): SystemSettings | null => {
 
 const applyMarketIntervention = (assetId: string, data: any, interventions: MarketIntervention[]): any => {
     const validPairs = [`${assetId}/USDT`, `${assetId}/USD`];
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    // Get current UTC time
+    const utcNow = new Date();
+    // Convert to Beijing Time (UTC+8)
+    const beijingNow = new Date(utcNow.getTime() + (8 * 60 * 60 * 1000));
+    const beijingHours = beijingNow.getUTCHours(); // Use getUTCHours() on the UTC-based date
+    const beijingMinutes = beijingNow.getUTCMinutes(); // Use getUTCMinutes() on the UTC-based date
+    const currentTime = beijingHours * 60 + beijingMinutes;
 
     // Find an active intervention for any of the valid pairs
     const activeIntervention = interventions.find(i => {
@@ -46,7 +52,7 @@ const applyMarketIntervention = (assetId: string, data: any, interventions: Mark
     const [endH, endM] = activeIntervention.endTime.split(':').map(Number);
     const endMinutes = endH * 60 + endM;
 
-    // This check was missing in the provided snippet and is crucial.
+    // This check is crucial to ensure we are within the specified time window.
     if (currentTime < startMinutes || currentTime > endMinutes) {
       return data;
     }
