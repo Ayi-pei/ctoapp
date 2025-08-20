@@ -2,11 +2,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { availablePairs as allAvailablePairs, MarketSummary, OHLC } from '@/types';
+import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
 import axios from 'axios';
 import { useSystemSettings } from './system-settings-context';
 
-const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP'));
+const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
 
 const apiIdMap: Record<string, { coingecko?: string; }> = {
     'BTC/USDT': { coingecko: 'bitcoin' },
@@ -73,9 +73,9 @@ const generateInitialKlineData = (basePrice: number, points: number): OHLC[] => 
     let price = basePrice;
     const now = Date.now();
     for (let i = 0; i < points; i++) {
-        const time = now - (points - i) * 60000; // Simulate points for the past minute
+        const time = now - (points - i) * 1000; // 1 second interval
         const open = price;
-        const close = price * (1 + (Math.random() - 0.5) * 0.001);
+        const close = price * (1 + (Math.random() - 0.5) * 0.0005);
         const high = Math.max(open, close);
         const low = Math.min(open, close);
         data.push({ time, open, high, low, close });
@@ -88,7 +88,7 @@ const INITIAL_BTC_PRICE = 68000;
 const initialTradingPair = CRYPTO_PAIRS[0];
 
 const initialKlineData: Record<string, OHLC[]> = {
-    [initialTradingPair]: generateInitialKlineData(INITIAL_BTC_PRICE, 30), // 30 points for 1 minute at 2s interval
+    [initialTradingPair]: generateInitialKlineData(INITIAL_BTC_PRICE, 60), // 60 points for 1 minute at 1s interval
 };
 
 const initialSummaryData: MarketSummary[] = [{
@@ -148,16 +148,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const simulationInterval = setInterval(() => {
             const now = new Date();
-            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const currentTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
             
-            // If baseApiData is not populated yet, do nothing, rely on initial data.
-            if (Object.keys(baseApiData).length === 0) return;
-
-            // Once we have real data, use it as the source for simulation.
-            // If summaryData is still the initial placeholder, switch to baseApiData as source.
-            const sourceForSim = summaryData.length === 1 && summaryData[0].pair === initialTradingPair 
+            // Determine which dataset to use as the source of truth for simulation
+            const sourceForSim = Object.keys(baseApiData).length > 0
                 ? Object.values(baseApiData)
-                : summaryData;
+                : summaryData; // Fallback to last simulated data if API hasn't responded
 
             const newSimulatedSummaries = sourceForSim.map(summary => {
                 let newPrice = summary.price;
@@ -183,6 +181,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     newPrice *= (1 + (Math.random() - 0.5) * volatility);
                 }
 
+                // Make sure the new price is reflected in a new summary object
                 return { ...summary, price: newPrice };
             });
 
@@ -215,7 +214,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 return newKline;
             });
 
-        }, 2000); 
+        }, 1000); // Set to 1 second for higher frequency simulation
 
         return () => clearInterval(simulationInterval);
     }, [baseApiData, systemSettings.marketInterventions, summaryData]);
