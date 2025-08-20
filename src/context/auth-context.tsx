@@ -14,7 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: SecureUser | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; isAdmin: boolean }>;
   logout: () => void;
   register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
   isLoading: boolean;
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
     const allUsers = getMockUsers();
     const foundUser = Object.values(allUsers).find(u => u.username === username && u.password === password);
     
@@ -100,10 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setUser(secureUser);
         localStorage.setItem('userSession', JSON.stringify(secureUser));
-        return true;
+        return { success: true, isAdmin: foundUser.is_admin };
     }
 
-    return false;
+    return { success: false, isAdmin: false };
   };
   
   const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {

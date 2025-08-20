@@ -35,18 +35,14 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const success = await login(values.username, values.password);
+    const { success, isAdmin: loggedInIsAdmin } = await login(values.username, values.password);
 
     if (success) {
        toast({
         title: '登录成功',
         description: '正在跳转到您的仪表盘...',
       });
-       // This check now correctly determines destination post-login.
-       // The `isAdmin` state will be updated within the `login` function.
-       // A brief re-render might happen, but the redirection will be correct.
-       const authState = useAuth.getState(); // A hypothetical way to get latest state if needed
-       if (authState.isAdmin) {
+       if (loggedInIsAdmin) {
             router.replace('/admin');
        } else {
             router.replace('/dashboard');
