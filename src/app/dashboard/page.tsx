@@ -141,7 +141,7 @@ export default function DashboardPage() {
                             ) : (
                                 <span className="font-semibold text-primary mr-2">【平台公告】</span>
                             )}
-                            {currentHornAnnouncement ? currentHornAnnouncement.content : "欢迎来到TradeFlow！"}
+                            {currentHornAnnouncement ? currentHornAnnouncement.content : "欢迎来到CoinSR！"}
                         </div>
                     </div>
                 </Link>

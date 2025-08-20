@@ -28,7 +28,7 @@ import { useState, useEffect } from 'react';
 const Logo = () => (
     <Link href="/dashboard" className="flex items-center gap-2">
        <CandlestickChart className="h-8 w-8 text-primary" />
-       <h1 className="hidden text-xl font-bold text-foreground md:block">TradeFlow</h1>
+       <h1 className="hidden text-xl font-bold text-foreground md:block">CoinSR</h1>
     </Link>
 )
 
