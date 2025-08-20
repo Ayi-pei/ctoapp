@@ -1,5 +1,4 @@
 
-
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -274,4 +273,12 @@ export type SwapOrder = {
     takerId?: string;     // The user who accepted the order (buyer/taker)
     takerUsername?: string;
     paymentProofUrl?: string; // Data URL of the uploaded image
+};
+
+// Navigation item type
+export type NavItem = {
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    subItems?: NavItem[];
 };

@@ -1,6 +1,7 @@
 import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone } from 'lucide-react';
+import type { NavItem } from '@/types';
 
-export const userNavItems = [
+export const userNavItems: NavItem[] = [
   { href: '/dashboard', label: '首页', icon: Home },
   { href: '/trade', label: '交易', icon: CandlestickChart },
   { href: '/staking', label: '矿投', icon: Gem },
@@ -8,7 +9,7 @@ export const userNavItems = [
   { href: '/profile', label: '我的', icon: User },
 ];
 
-export const adminNavItems = [
+export const adminNavItems: NavItem[] = [
     { href: '/admin/users', label: '用户管理', icon: Users },
     { href: '/admin/requests', label: '审核请求', icon: Bell },
     { 
