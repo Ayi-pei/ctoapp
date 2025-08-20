@@ -41,9 +41,9 @@ const apiIdMap: Record<string, { coingecko?: string, yahoo?: string, tatum?: str
 };
 
 
-type ApiProvider = 'Tatum' | 'CoinGecko';
-const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinGecko'];
-const ROTATION_INTERVAL_SECONDS = 30; // 30s * 2 providers = 60s cycle
+type ApiProvider = 'Tatum' | 'CoinGecko' | 'CoinDesk';
+const API_PROVIDERS: ApiProvider[] = ['Tatum', 'CoinGecko', 'CoinDesk'];
+const ROTATION_INTERVAL_SECONDS = 20; // Rotate every 20 seconds
 
 interface MarketContextType {
     tradingPair: string;
@@ -68,7 +68,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [apiProviderIndex, setApiProviderIndex] = useState(0);
     const [latestPrice, setLatestPrice] = useState<Record<string, number>>({});
     
-    // --- Data Buffering and Smoothing ---
     const [dataBuffer, setDataBuffer] = useState<MarketSummary[][]>([]);
     const [isBufferingComplete, setIsBufferingComplete] = useState(false);
 
@@ -84,7 +83,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         return fetchedData.map(item => {
             const now = new Date();
-            // Assuming server time is UTC, adjust for Beijing time (UTC+8) for comparison
             const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
             const currentHours = beijingTime.getUTCHours();
             const currentMinutes = beijingTime.getUTCMinutes();
@@ -105,7 +103,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
             let newPrice;
             const { minPrice, maxPrice, trend } = activeIntervention;
-             const [startH, startM] = activeIntervention.startTime.split(':').map(Number);
+            const [startH, startM] = activeIntervention.startTime.split(':').map(Number);
             const startTimeInMinutes = startH * 60 + startM;
             const [endH, endM] = activeIntervention.endTime.split(':').map(Number);
             const endTimeInMinutes = endH * 60 + endM;
@@ -133,36 +131,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         });
     }, [systemSettings.marketInterventions]);
 
-    const mergeSummaryData = useCallback((newData: Record<string, MarketSummary>) => {
-        if (Object.keys(newData).length === 0) return [];
-    
-        let updatedData = [...summaryData];
-        let hasChanged = false;
-    
-        for (const pair in newData) {
-            const index = updatedData.findIndex(item => item.pair === pair);
-            const newItem = { ...(updatedData[index] || {}), ...newData[pair] };
-            if (index > -1) {
-                updatedData[index] = newItem;
-            } else {
-                updatedData.push(newItem);
-            }
-            hasChanged = true;
-        }
-    
-        if (hasChanged) {
-             return updatedData.sort((a, b) => availablePairs.indexOf(a.pair) - availablePairs.indexOf(b.pair));
-        }
-        return updatedData;
-    
-    }, [summaryData]);
-    
     const fetchTatumData = useCallback(async () => {
         const tatumIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.tatum).filter(Boolean) as string[];
         try {
             const response = await axios.post('/api/tatum/market-data', { assetIds: tatumIds });
             if (response.data && Object.keys(response.data).length > 0) {
-                const mappedData = Object.values(response.data).reduce((acc: Record<string, MarketSummary>, asset: any) => {
+                return Object.values(response.data).reduce((acc: Record<string, MarketSummary>, asset: any) => {
                     const iconId = apiIdMap[`${asset.symbol}/USDT`]?.iconId || asset.symbol.toLowerCase();
                     const pair = `${asset.symbol}/USDT`;
                     acc[pair] = {
@@ -176,7 +150,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     };
                     return acc;
                 }, {});
-                return mappedData;
             }
         } catch (error) {
             console.warn("Tatum API fetch failed.", error);
@@ -196,64 +169,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
         return {};
     }, []);
-
-    const fetchYahooData = useCallback(async () => {
-        const nonCryptoPairs = [...GOLD_PAIRS, ...FOREX_PAIRS, ...FUTURES_PAIRS];
-        const symbolsToFetch = nonCryptoPairs.map(pair => apiIdMap[pair]?.yahoo).filter(Boolean) as string[];
-        let fetchedData: Record<string, MarketSummary> = {};
-
-        const tatumCommodityIds = nonCryptoPairs
-            .filter(pair => apiIdMap[pair]?.tatum)
-            .map(pair => apiIdMap[pair]?.tatum) as string[];
-
-
-        const yahooPromises = symbolsToFetch.map(async (symbol) => {
-             const pairKey = Object.keys(apiIdMap).find(key => apiIdMap[key]?.yahoo === symbol) || "Unknown";
-            try {
-                const response = await axios.get(`/api/quote/${symbol}`);
-                const data = response.data;
-                const iconId = apiIdMap[pairKey]?.iconId;
-
-                return {
-                    pair: pairKey,
-                    price: parseFloat(data.regularMarketPrice) || 0,
-                    change: (parseFloat(data.regularMarketChangePercent) || 0) * 100,
-                    volume: parseFloat(data.regularMarketVolume) || 0,
-                    high: parseFloat(data.regularMarketDayHigh) || 0,
-                    low: parseFloat(data.regularMarketDayLow) || 0,
-                    icon: iconId ? `/images/${iconId}.png` : `https://placehold.co/32x32.png`,
-                } as MarketSummary;
-            } catch (error) {
-                console.error(`Failed to fetch from Yahoo for ${symbol}.`);
-                if (tatumCommodityIds.includes(apiIdMap[pairKey]?.tatum || '')) {
-                    try {
-                        const tatumResponse = await axios.post('/api/tatum/market-data', { assetIds: [apiIdMap[pairKey]?.tatum] });
-                         const assetData = Object.values(tatumResponse.data)[0] as any;
-                         if (assetData) {
-                             return {
-                                 pair: pairKey,
-                                 price: parseFloat(assetData.priceUsd) || 0,
-                                 change: parseFloat(assetData.changePercent24Hr) || 0,
-                                 volume: parseFloat(assetData.volumeUsd24Hr) || 0,
-                                 high: parseFloat(assetData.high) || 0,
-                                 low: parseFloat(assetData.low) || 0,
-                                 icon: `/images/${apiIdMap[pairKey]?.iconId}.png`,
-                             } as MarketSummary
-                         }
-                    } catch (tatumError) {
-                        console.error(`Tatum fallback failed for ${pairKey}:`, tatumError);
-                    }
-                }
-                return null;
+    
+    const fetchCoinDeskData = useCallback(async () => {
+        try {
+            const response = await axios.get('/api/coindesk');
+            if (response.data && Object.keys(response.data).length > 0) {
+                // Manually add icon for BTC
+                 if (response.data['BTC/USDT']) {
+                    response.data['BTC/USDT'].icon = `https://static.tatum.io/assets/images/logo/crypto-logos/btc.svg`;
+                 }
+                return response.data;
             }
-        });
-        
-        const results = await Promise.all(yahooPromises);
-        results.filter(Boolean).forEach(item => {
-            if(item) fetchedData[item.pair] = item;
-        });
-
-        return fetchedData;
+        } catch(error) {
+            console.warn("CoinDesk API fetch failed.", error);
+        }
+        return {};
     }, []);
     
     // Main data fetching effect
@@ -264,52 +194,47 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             switch (provider) {
                 case 'Tatum': cryptoData = await fetchTatumData(); break;
                 case 'CoinGecko': cryptoData = await fetchCoinGeckoData(); break;
+                case 'CoinDesk': cryptoData = await fetchCoinDeskData(); break;
             }
-            const yahooData = await fetchYahooData();
-
-            const mergedRawData = { ...(cryptoData || {}), ...(yahooData || {}) };
+            
+            // For this version, non-crypto assets will show as "no data" since we removed Yahoo.
+            const mergedRawData = { ...(cryptoData || {}) };
             const processedData = processDataWithClientOverrides(Object.values(mergedRawData));
             
-            // Immediately update the 'real-time' price for trading calculations
-            setLatestPrice(prev => {
-                const newLatest = { ...prev };
-                processedData.forEach(item => {
-                    newLatest[item.pair] = item.price;
-                });
-                return newLatest;
-            });
-            
-             // Push new data into buffer
-             if (processedData.length > 0) {
+            if (processedData.length > 0) {
                  setDataBuffer(prev => [...prev, processedData]);
-             }
+            }
         };
 
-        fetchData(); // Initial fetch
+        fetchData();
         const dataFetchInterval = setInterval(fetchData, 5000);
         const rotationInterval = setInterval(() => {
             setApiProviderIndex(prev => (prev + 1) % API_PROVIDERS.length);
         }, ROTATION_INTERVAL_SECONDS * 1000);
 
-        // Start playback after a delay
         const bufferingTimeout = setTimeout(() => {
             setIsBufferingComplete(true);
-        }, 60000); // 1 minute buffer time
+        }, 60000);
 
         return () => {
             clearInterval(dataFetchInterval);
             clearInterval(rotationInterval);
             clearTimeout(bufferingTimeout);
         };
-    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchYahooData, processDataWithClientOverrides]);
+    }, [apiProviderIndex, fetchTatumData, fetchCoinGeckoData, fetchCoinDeskData, processDataWithClientOverrides]);
 
-    // Playback effect
     useEffect(() => {
-        if (!isBufferingComplete || dataBuffer.length === 0) {
-            // During buffering, show live data to avoid blank screen
-            if (dataBuffer.length > 0) {
-                setSummaryData(dataBuffer[dataBuffer.length - 1]);
-            }
+        if (dataBuffer.length === 0) return;
+
+        if (!isBufferingComplete) {
+            setSummaryData(dataBuffer[dataBuffer.length - 1]);
+            setLatestPrice(prev => {
+                const newLatest = { ...prev };
+                dataBuffer[dataBuffer.length - 1].forEach(item => {
+                    newLatest[item.pair] = item.price;
+                });
+                return newLatest;
+            });
             return;
         }
 
@@ -318,12 +243,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 if (prev.length > 0) {
                     const [nextFrame, ...rest] = prev;
                     setSummaryData(nextFrame);
+                    setLatestPrice(prevLatest => {
+                        const newLatest = { ...prevLatest };
+                        nextFrame.forEach(item => {
+                            newLatest[item.pair] = item.price;
+                        });
+                        return newLatest;
+                    });
                     return rest;
                 }
-                // If buffer is empty, just show the last available frame
                 return [];
             });
-        }, 2000); // 2-second playback interval
+        }, 2000);
 
         return () => clearInterval(playbackInterval);
     }, [isBufferingComplete, dataBuffer]);
@@ -364,9 +295,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         availablePairs,
         summaryData,
         cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
-        goldSummaryData: summaryData.filter(s => GOLD_PAIRS.includes(s.pair)),
-        forexSummaryData: summaryData.filter(s => FOREX_PAIRS.includes(s.pair)),
-        futuresSummaryData: summaryData.filter(s => FUTURES_PAIRS.includes(s.pair)),
+        goldSummaryData: [],
+        forexSummaryData: [],
+        futuresSummaryData: [],
         klineData,
         getLatestPrice: getLatestPriceCallback,
     };
@@ -385,5 +316,3 @@ export function useMarket() {
     }
     return context;
 }
-
-    
