@@ -13,15 +13,10 @@ export default function AdminPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!isLoading) {
-            // This page is the designated entry point for admins.
-            // If an admin lands here, send them to the default admin page.
-            if (isAdmin) {
-                router.replace('/admin/users');
-            } else {
-                // If a non-admin somehow lands here, send them away.
-                router.replace('/');
-            }
+        // This component's only job is to redirect to the default admin page.
+        // All auth checks are now handled by the root page.
+        if (!isLoading && isAdmin) {
+            router.replace('/admin/users');
         }
     }, [isAdmin, isLoading, router]);
 

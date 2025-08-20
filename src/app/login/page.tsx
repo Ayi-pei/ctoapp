@@ -42,9 +42,15 @@ export default function LoginPage() {
         title: '登录成功',
         description: '正在跳转到您的仪表盘...',
       });
-       // Directly navigate to the correct destination after login.
-       // This avoids the extra redirect hop through the root page.
-       router.replace(isAdmin ? '/admin' : '/dashboard');
+       // This check now correctly determines destination post-login.
+       // The `isAdmin` state will be updated within the `login` function.
+       // A brief re-render might happen, but the redirection will be correct.
+       const authState = useAuth.getState(); // A hypothetical way to get latest state if needed
+       if (authState.isAdmin) {
+            router.replace('/admin');
+       } else {
+            router.replace('/dashboard');
+       }
     } else {
       toast({
         variant: 'destructive',
@@ -54,16 +60,8 @@ export default function LoginPage() {
     }
   };
 
-  // This effect handles redirecting an already-authenticated user away from the login page.
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-        router.replace(isAdmin ? '/admin' : '/dashboard');
-    }
-  }, [isAuthenticated, isAdmin, isLoading, router]);
-
-  // While loading auth state or if already authenticated, show a loader.
-  // The effect above will handle redirecting away if authenticated.
-  if (isLoading || isAuthenticated) {
+  // While loading auth state, show a loader. The root page will handle redirects.
+  if (isLoading) {
      return (
         <AuthLayout>
             <div className="flex flex-col items-center gap-4">
