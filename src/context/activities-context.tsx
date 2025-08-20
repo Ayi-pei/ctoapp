@@ -7,8 +7,6 @@ import type { LimitedTimeActivity } from '@/types';
 import { useLogs } from './logs-context';
 import { useAuth } from './auth-context';
 
-export type { LimitedTimeActivity } from '@/types';
-
 const ACTIVITIES_STORAGE_KEY = 'tradeflow_activities';
 
 const defaultActivities: LimitedTimeActivity[] = [
