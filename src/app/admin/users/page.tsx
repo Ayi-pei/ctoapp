@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UserDetailsDialog } from '@/components/admin/user-details-dialog';
 
 
 export default function AdminUsersPage() {
@@ -24,6 +25,8 @@ export default function AdminUsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [displayedCode, setDisplayedCode] = useState<string | null>(null);
+    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
     const loadData = useCallback(() => {
         if (!isAdmin) return;
@@ -46,7 +49,8 @@ export default function AdminUsersPage() {
     }, [users, searchQuery]);
 
     const handleViewDetails = (userToView: User) => {
-        router.push(`/admin/users/${userToView.id}`);
+        setSelectedUser(userToView);
+        setIsDetailsOpen(true);
     };
     
     const showAdminInvitationCode = () => {
@@ -64,36 +68,11 @@ export default function AdminUsersPage() {
                 description: "邀请码已成功复制到剪贴板。",
             });
         } catch (err) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    toast({
-                        title: "已复制",
-                        description: "邀请码已成功复制到剪贴板。",
-                    });
-                } else {
-                     toast({
-                        variant: "destructive",
-                        title: "复制失败",
-                        description: "无法将邀请码复制到剪贴板。",
-                    });
-                }
-            } catch (err) {
-                 toast({
-                    variant: "destructive",
-                    title: "复制失败",
-                    description: "无法将邀请码复制到剪贴板。",
-                });
-            }
-            document.body.removeChild(textArea);
+            toast({
+                variant: "destructive",
+                title: "复制失败",
+                description: "无法将邀请码复制到剪贴板。",
+            });
         }
     };
 
@@ -180,7 +159,7 @@ export default function AdminUsersPage() {
                                     </TableRow>
                                 )) : (
                                      <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground h-24">
                                             暂无用户。
                                         </TableCell>
                                     </TableRow>
@@ -190,8 +169,14 @@ export default function AdminUsersPage() {
                     </CardContent>
                 </Card>
             </div>
+            {selectedUser && (
+                <UserDetailsDialog 
+                    user={selectedUser}
+                    isOpen={isDetailsOpen}
+                    onOpenChange={setIsDetailsOpen}
+                    onUserUpdate={loadData} // Refresh user list on update
+                />
+            )}
         </DashboardLayout>
     );
-
-    
 }
