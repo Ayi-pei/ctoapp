@@ -9,6 +9,8 @@ import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
+const FOREX_COMMODITY_PAIRS = allAvailablePairs.filter(p => ['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
+
 
 const apiIdMap: Record<string, { coingecko?: string; }> = {
   'BTC/USDT': { coingecko: 'bitcoin' },
@@ -66,7 +68,44 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
     return {};
   }
 };
-// --- End Data Fetching ---
+
+const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, MarketSummary>> => {
+    const results: Record<string, MarketSummary> = {};
+    for (const pair of pairs) {
+        try {
+            const [from, to] = pair.split('/');
+            // For XAU, the API requires a physical currency like USD as the 'to' currency.
+            // This is a simplification and might need adjustment for other commodities.
+            const fromCurrency = from === 'XAU' ? 'GOLD' : from;
+            const toCurrency = to === 'XAU' ? 'USD' : to;
+
+            const response = await axios.get('https://www.alphavantage.co/query', {
+                params: {
+                    function: 'CURRENCY_EXCHANGE_RATE',
+                    from_currency: fromCurrency,
+                    to_currency: toCurrency,
+                    apikey: process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+                }
+            });
+            const data = response.data['Realtime Currency Exchange Rate'];
+            if (data) {
+                results[pair] = {
+                    pair: pair,
+                    price: parseFloat(data['5. Exchange Rate']),
+                    change: 0, // Alpha Vantage free tier doesn't provide change %
+                    volume: 0,
+                    high: 0,
+                    low: 0,
+                    icon: `https://placehold.co/32x32.png` // Placeholder icon
+                };
+            }
+        } catch (error) {
+            console.warn(`Alpha Vantage API fetch for ${pair} failed.`, error);
+        }
+    }
+    return results;
+};
+
 
 // --- Constants ---
 const TOTAL_SECONDS = 4 * 60 * 60; // 4 hours
@@ -121,20 +160,36 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   // --- Low-frequency API fetch ---
   useEffect(() => {
-    let currentProvider: 'coingecko' | 'coindesk' = 'coingecko';
+    let cryptoProvider: 'coingecko' | 'coindesk' = 'coingecko';
 
     const fetchRealData = async () => {
-      const cryptoData = currentProvider === 'coingecko' ? await fetchCoinGeckoData() : await fetchCoinDeskData();
-      
-      if (Object.keys(cryptoData).length > 0) {
-        setBaseApiData(prev => ({ ...prev, ...cryptoData }));
-      }
-      currentProvider = currentProvider === 'coingecko' ? 'coindesk' : 'coingecko';
+        // Fetch crypto data (every 1 min)
+        const cryptoData = cryptoProvider === 'coingecko' ? await fetchCoinGeckoData() : await fetchCoinDeskData();
+        if (Object.keys(cryptoData).length > 0) {
+            setBaseApiData(prev => ({ ...prev, ...cryptoData }));
+        }
+        cryptoProvider = cryptoProvider === 'coingecko' ? 'coindesk' : 'coingecko';
     };
 
-    fetchRealData();
-    const interval = setInterval(fetchRealData, 60000);
-    return () => clearInterval(interval);
+    const fetchForexAndCommodityData = async () => {
+        const forexData = await fetchAlphaVantageData(FOREX_COMMODITY_PAIRS);
+         if (Object.keys(forexData).length > 0) {
+            setBaseApiData(prev => ({ ...prev, ...forexData }));
+        }
+    };
+
+    // Initial fetch
+    fetchRealData(); 
+    fetchForexAndCommodityData();
+
+    // Set up intervals
+    const cryptoInterval = setInterval(fetchRealData, 60000); // 1 minute
+    const forexInterval = setInterval(fetchForexAndCommodityData, 60 * 60 * 1000); // 1 hour
+
+    return () => {
+        clearInterval(cryptoInterval);
+        clearInterval(forexInterval);
+    };
   }, []);
 
   // --- Initial Kline Data Generation & DB Sync ---
@@ -142,7 +197,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     
     const generateAndStoreData = async () => {
-      console.warn("Database is empty or fetch failed. Generating initial simulation data...");
+      console.warn("Database is empty or fetch failed. Generating initial simulation data for crypto pairs...");
       for (const pair of CRYPTO_PAIRS) {
           const getBasePrice = () => {
               if (baseApiData[pair]?.price) return baseApiData[pair].price;
@@ -163,7 +218,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
               if (isSupabaseEnabled) {
                   const dbBatch = batch.map(d => ({ 
                       trading_pair: pair, 
-                      time: d.time, // Store as BIGINT
+                      time: d.time,
                       open: d.open, 
                       high: d.high, 
                       low: d.low, 
@@ -210,7 +265,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     groupedData[row.trading_pair] = [];
                 }
                 groupedData[row.trading_pair].push({ 
-                    time: row.time, // Already a number
+                    time: row.time,
                     open: row.open, 
                     high: row.high, 
                     low: row.low, 
@@ -230,7 +285,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     loadInitialData();
 
     return () => { isMounted = false; }
-  }, []); // Run only once on mount
+  }, [baseApiData]); // Rerun if base data changes before initial load
 
 
   // --- High-frequency simulation ---
@@ -242,15 +297,19 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       
       setSummaryData(prevSummary => {
-          const sourceForSim = Object.keys(baseApiData).length > 0 ? Object.values(baseApiData) : prevSummary;
-          return sourceForSim.map(summary => {
-            let newPrice = summary.price;
-            const intervention = systemSettings.marketInterventions.find(i => i.tradingPair === summary.pair && i.startTime <= currentTime && i.endTime >= currentTime);
+          // Use baseApiData as the source of truth for which pairs to simulate
+          const pairsToSimulate = Object.keys(baseApiData);
+          if (pairsToSimulate.length === 0) return prevSummary;
+          
+          return pairsToSimulate.map(pair => {
+            const currentSummary = prevSummary.find(s => s.pair === pair) || baseApiData[pair];
+            let newPrice = currentSummary.price;
+            const intervention = systemSettings.marketInterventions.find(i => i.tradingPair === pair && i.startTime <= currentTime && i.endTime >= currentTime);
             
             if (intervention) {
                 const { minPrice, maxPrice, trend } = intervention;
                 setInterventionState(prevIntervention => {
-                    let lastInterventionPrice = prevIntervention[summary.pair]?.lastPrice;
+                    let lastInterventionPrice = prevIntervention[pair]?.lastPrice;
                     if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
                         lastInterventionPrice = (minPrice + maxPrice) / 2;
                     }
@@ -258,12 +317,12 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     else if (trend === 'down') { newPrice = lastInterventionPrice - (maxPrice - minPrice) * 0.01; if (newPrice < minPrice) newPrice = maxPrice; }
                     else { newPrice = lastInterventionPrice + (Math.random() - 0.5) * ((maxPrice - minPrice) * 0.05); }
                     newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
-                    return { ...prevIntervention, [summary.pair]: { lastPrice: newPrice } };
+                    return { ...prevIntervention, [pair]: { lastPrice: newPrice } };
                 });
             } else {
               newPrice *= (1 + (Math.random() - 0.5) * 0.0001);
             }
-            return { ...summary, price: newPrice };
+            return { ...currentSummary, price: newPrice };
           })
       });
 
@@ -290,7 +349,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const contextValue: MarketContextType = {
     tradingPair,
     changeTradingPair: setTradingPair,
-    availablePairs: CRYPTO_PAIRS,
+    availablePairs: allAvailablePairs,
     summaryData,
     cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
     klineData,
