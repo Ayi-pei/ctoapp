@@ -98,21 +98,6 @@ export function OptionsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [selectedSymbol, fetchOptionsData]);
 
-  // High-frequency simulation
-  useEffect(() => {
-    const simulationInterval = setInterval(() => {
-      setOptionsChain(prevChain =>
-        prevChain.map(chain => ({
-          ...chain,
-          calls: chain.calls.map(c => simulateContractChange(c)),
-          puts: chain.puts.map(p => simulateContractChange(p)),
-        }))
-      );
-    }, 3000); // Simulate every 3 seconds
-
-    return () => clearInterval(simulationInterval);
-  }, []);
-
   const simulateContractChange = (contract: OptionContract): OptionContract => {
     const change = (Math.random() - 0.5) * 0.05 * contract.last_price;
     const newPrice = Math.max(0.01, contract.last_price + change);
@@ -126,6 +111,21 @@ export function OptionsProvider({ children }: { children: ReactNode }) {
       implied_volatility: Math.max(0, contract.implied_volatility + (Math.random() - 0.5) * 0.01),
     };
   };
+
+  // High-frequency simulation
+  useEffect(() => {
+    const simulationInterval = setInterval(() => {
+      setOptionsChain(prevChain =>
+        prevChain.map(chain => ({
+          ...chain,
+          calls: Array.isArray(chain.calls) ? chain.calls.map(c => simulateContractChange(c)) : [],
+          puts: Array.isArray(chain.puts) ? chain.puts.map(p => simulateContractChange(p)) : [],
+        }))
+      );
+    }, 3000); // Simulate every 3 seconds
+
+    return () => clearInterval(simulationInterval);
+  }, []);
 
   const changeSymbol = (symbol: string) => {
     setSelectedSymbol(symbol);
