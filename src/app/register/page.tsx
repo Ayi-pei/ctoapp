@@ -7,22 +7,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 
 const registerSchema = z.object({
-  username: z.string().min(1, '请输入账号'),
-  password: z.string().min(1, '请输入密码'),
+  username: z.string().min(4, '用户名必须至少4个字符').max(20, '用户名不能超过20个字符'),
+  password: z.string().min(6, '密码必须至少6个字符').max(20, '密码不能超过20个字符'),
+  confirmPassword: z.string(),
   invitationCode: z.string().min(1, '请输入邀请码'),
+}).refine(data => data.password === data.confirmPassword, {
+    message: "两次输入的密码不匹配",
+    path: ["confirmPassword"],
 });
 
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register } = useAuth();
   const { toast } = useToast();
 
@@ -31,22 +37,36 @@ export default function RegisterPage() {
     defaultValues: {
       username: '',
       password: '',
-      invitationCode: '',
+      confirmPassword: '',
+      invitationCode: searchParams.get('code') || '',
     },
   });
 
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code) {
+      form.setValue('invitationCode', code);
+    }
+  }, [searchParams, form]);
+
+
   const onSubmit = async (values: z.infer<typeof registerSchema>) => {
-    const success = await register(values.username, values.password, values.invitationCode);
+    const { success, error } = await register(values.username, values.password, values.invitationCode);
 
     if (success) {
         toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
-        // After successful registration, always send to login page
         router.replace('/login');
     } else {
+        let description = '未知错误，请稍后重试。';
+        if (error === 'username_exists') {
+            description = '该用户名已被占用，请换一个。';
+        } else if (error === 'invalid_code') {
+            description = '无效的邀请码。';
+        }
         toast({ 
           variant: 'destructive', 
           title: '注册失败', 
-          description: '用户名可能已被占用，或邀请码无效。' 
+          description: description
         });
     }
   };
@@ -67,7 +87,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>账号</FormLabel>
                     <FormControl>
-                       <Input placeholder="请输入您的账号" {...field} />
+                       <Input placeholder="请输入4-20位用户名" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -80,7 +100,20 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>密码</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="请输入您的密码" {...field} />
+                      <Input type="password" placeholder="请输入6-20位密码" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>确认密码</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="请再次输入密码" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -99,7 +132,7 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 注册
               </Button>
             </form>

@@ -16,7 +16,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; isAdmin: boolean }>;
   logout: () => void;
-  register: (username: string, password: string, invitationCode: string) => Promise<boolean>;
+  register: (username: string, password: string, invitationCode: string) => Promise<{ success: boolean; error?: 'username_exists' | 'invalid_code' }>;
   isLoading: boolean;
   getUserById: (id: string) => User | null;
   getAllUsers: () => User[];
@@ -30,11 +30,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USERS_STORAGE_KEY = 'tradeflow_users';
 export const ADMIN_USER_ID = 'admin_user_001';
 
+const INVITATION_CODE_LENGTH = 6;
+const INVITATION_CODE_CHARS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+
 const generateInvitationCode = () => {
-    const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < INVITATION_CODE_LENGTH; i++) {
+        result += INVITATION_CODE_CHARS.charAt(Math.floor(Math.random() * INVITATION_CODE_CHARS.length));
     }
     return result;
 };
@@ -106,11 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: false, isAdmin: false };
   };
   
-  const register = async (username: string, password: string, invitationCode: string): Promise<boolean> => {
+  const register = async (username: string, password: string, invitationCode: string): Promise<{ success: boolean; error?: 'username_exists' | 'invalid_code' }> => {
       let allUsers = getMockUsers();
-      if (Object.values(allUsers).some(u => u.username === username)) {
+      if (Object.values(allUsers).some(u => u.username.toLowerCase() === username.toLowerCase())) {
           console.error("Username already exists");
-          return false;
+          return { success: false, error: 'username_exists' };
       }
       
       let inviterId: string | null = null;
@@ -127,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!inviterId) {
           console.error("Invalid invitation code");
-          return false;
+          return { success: false, error: 'invalid_code' };
       }
       
       const newUserId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -150,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       allUsers[newUser.id] = newUser;
       saveMockUsers(allUsers);
       
-      return true;
+      return { success: true };
   };
 
   const logout = () => {
