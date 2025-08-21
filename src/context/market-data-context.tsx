@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -152,11 +151,40 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
     
+    const generateAndStoreData = () => {
+      console.log("Database is empty or fetch failed. Generating initial simulation data...");
+      for (const pair of CRYPTO_PAIRS) {
+          const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
+          let lastPrice = basePrice;
+          let generatedCount = 0;
+
+          const loadBatchForPair = async () => {
+              if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
+
+              const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
+              const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
+              const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
+
+              if (isSupabaseEnabled) {
+                  const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
+                  await supabase.from('market_kline_data').insert(dbBatch);
+              }
+              
+              lastPrice = newPrice;
+              generatedCount += count;
+              
+              setKlineData(prev => ({ ...prev, [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) }));
+
+              if (generatedCount < TOTAL_SECONDS) setTimeout(loadBatchForPair, 50);
+          }
+          loadBatchForPair();
+      }
+    }
+
     const loadInitialData = async () => {
         if (!isSupabaseEnabled) {
-            console.log("Supabase not enabled, generating transient data.");
-            // Fallback to non-DB generation if Supabase is disabled
-            // This part can be simplified since data won't be saved.
+            console.log("Supabase not enabled, generating transient simulation data.");
+            generateAndStoreData(); // Generate but won't store
             return;
         }
 
@@ -166,9 +194,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             .select('*')
             .gte('time', fourHoursAgo);
 
-        if (error) console.error("Error fetching kline from supabase", error);
+        if (error) {
+            console.error("Error fetching kline from supabase:", error.message);
+            // Fallback to generating data if there's a read error (e.g., RLS not configured)
+            generateAndStoreData();
+            return;
+        }
 
         if (dbData && dbData.length > 0) {
+            console.log("Loaded initial k-line data from Supabase.");
             const groupedData: Record<string, OHLC[]> = {};
             dbData.forEach(row => {
                 if (!groupedData[row.trading_pair]) {
@@ -180,34 +214,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 groupedData[pair].sort((a, b) => a.time - b.time);
             });
             setKlineData(groupedData);
-            return;
-        }
-
-        for (const pair of CRYPTO_PAIRS) {
-            const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
-            let lastPrice = basePrice;
-            let generatedCount = 0;
-
-            const loadBatchForPair = async () => {
-                if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
-
-                const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
-                const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
-                const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
-
-                if (isSupabaseEnabled) {
-                    const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
-                    await supabase.from('market_kline_data').insert(dbBatch);
-                }
-                
-                lastPrice = newPrice;
-                generatedCount += count;
-                
-                setKlineData(prev => ({ ...prev, [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) }));
-
-                if (generatedCount < TOTAL_SECONDS) setTimeout(loadBatchForPair, 50);
-            }
-            await loadBatchForPair();
+        } else {
+            // Database is empty, generate and store data for the first time
+            generateAndStoreData();
         }
     };
     
