@@ -1,20 +1,23 @@
 
 
+// A consistent type for ISO 8601 date strings
+export type Timestamp = string;
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
-    time: string;
+    time: Timestamp;
     price: number;
 };
 
 // Represents a single point for a K-line chart (closing price)
 export type KlineDataPoint = {
-    time: string;
+    time: Timestamp;
     price: number;
 };
 
 // Represents a single point for a candlestick chart (OHLC)
 export type OHLC = {
-  time: number;
+  time: number; // Keep as number for charting libraries if needed, e.g., milliseconds epoch
   open: number;
   high: number;
   low: number;
@@ -54,10 +57,10 @@ export type User = {
     is_test_user: boolean;
     is_frozen: boolean;
     invitation_code: string;
-    created_at: string;
+    created_at: Timestamp;
     password?: string; // For mock DB
     credit_score: number;
-    last_login_at?: string;
+    last_login_at?: Timestamp;
     avatar_url?: string;
 };
 
@@ -79,7 +82,7 @@ export type MarketTrade = {
   type: 'buy' | 'sell';
   price: number;
   amount: number;
-  time: string;
+  time: Timestamp;
   trading_pair: string;
 };
 
@@ -91,52 +94,61 @@ export type TradeRaw = {
     timestamp: number;
 };
 
+// --- Standardized Status & Type Enums ---
+export type OrderType = 'buy' | 'sell';
+export type OrderOutcome = 'win' | 'loss';
+export type ContractStatus = 'active' | 'settled';
+export type SpotStatus = 'filled' | 'cancelled';
+export type InvestmentStatus = 'active' | 'settled';
+export type RequestStatus = 'pending' | 'approved' | 'rejected';
+export type TransactionType = 'deposit' | 'withdrawal' | 'adjustment';
+export type SwapOrderStatus = 'open' | 'pending_payment' | 'pending_confirmation' | 'completed' | 'cancelled' | 'disputed';
 
-// Represents a user's contract trade
-export type ContractTrade = {
+
+// --- Trade Types ---
+type BaseTrade = {
   id: string;
   user_id: string;
   trading_pair: string;
-  type: 'buy' | 'sell';
+  type: OrderType;
+  created_at: Timestamp;
+};
+
+// Represents a user's contract trade
+export type ContractTrade = BaseTrade & {
   amount: number;
   entry_price: number;
-  settlement_time: string;
+  settlement_time: Timestamp;
   period: number;
   profit_rate: number;
-  status: 'active' | 'settled';
+  status: ContractStatus;
   settlement_price?: number;
-  outcome?: 'win' | 'loss';
+  outcome?: OrderOutcome;
   profit?: number;
-  created_at: string;
   orderType: 'contract'; // Frontend property
 };
 
 // Represents a user's spot trade
-export type SpotTrade = {
-    id: string;
-    user_id: string;
-    trading_pair: string;
-    type: 'buy' | 'sell';
-    base_asset: string;
-    quote_asset: string;
-    amount: number;
-    total: number;
-    price: number;
-    status: 'filled' | 'cancelled';
-    created_at: string;
-    orderType: 'spot'; // Frontend property
-}
+export type SpotTrade = BaseTrade & {
+  base_asset: string;
+  quote_asset: string;
+  amount: number;
+  total: number;
+  price: number;
+  status: SpotStatus;
+  orderType: 'spot'; // Frontend property
+};
 
 
 // Represents a user's deposit, withdrawal, or admin adjustment
 export type Transaction = {
   id: string;
   user_id: string;
-  type: 'deposit' | 'withdrawal' | 'adjustment';
+  type: TransactionType;
   asset: string;
   amount: number;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
+  status: RequestStatus;
+  created_at: Timestamp;
   address?: string;
   transaction_hash?: string;
   // Properties for frontend rendering, optional
@@ -149,8 +161,8 @@ export type PasswordResetRequest = {
   user_id: string;
   type: 'password_reset';
   new_password: string; // The new password to be set
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
+  status: RequestStatus;
+  created_at: Timestamp;
   user?: { username: string };
 };
 
@@ -169,9 +181,9 @@ export type Investment = {
     user_id: string;
     product_name: string;
     amount: number; // principal
-    created_at: string;
-    settlement_date: string;
-    status: 'active' | 'settled';
+    created_at: Timestamp;
+    settlement_date: Timestamp;
+    status: InvestmentStatus;
     category: 'staking' | 'finance';
     profit?: number;
     // For different product types
@@ -197,7 +209,7 @@ export type RewardLog = {
     source_id?: string; // e.g., taskId, orderId
     source_username?: string; // e.g. the downline user who generated the commission
     source_level?: number;
-    created_at: string;
+    created_at: Timestamp;
     description?: string;
 };
 
@@ -233,7 +245,7 @@ export type DailyTask = {
 // Represents the completion state of a task for a user for a specific day
 export type UserTaskState = {
   taskId: string;
-  date: string; // YYYY-MM-DD
+  date: Timestamp; // YYYY-MM-DD
   completed: boolean;
 };
 
@@ -244,10 +256,10 @@ export type LimitedTimeActivity = {
     description: string;
     rewardRule: string;
     howToClaim: string;
-    expiresAt: string; // ISO date string
+    expiresAt: Timestamp; // ISO date string
     imgSrc?: string;
     status: 'published' | 'draft';
-    createdAt: string; // ISO date string
+    createdAt: Timestamp; // ISO date string
 };
 
 // Represents an action log for admin operations
@@ -258,7 +270,7 @@ export type ActionLog = {
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     operator_id: string;
     operator_username: string;
-    created_at: string;
+    created_at: Timestamp;
     details: string;
 };
 
@@ -271,8 +283,8 @@ export type SwapOrder = {
     fromAmount: number;
     toAsset: string;
     toAmount: number;
-    status: 'open' | 'pending_payment' | 'pending_confirmation' | 'completed' | 'cancelled' | 'disputed';
-    createdAt: string;
+    status: SwapOrderStatus;
+    createdAt: Timestamp;
     takerId?: string;     // The user who accepted the order (buyer/taker)
     takerUsername?: string;
     paymentProofUrl?: string; // Data URL of the uploaded image
@@ -301,7 +313,7 @@ export type OptionContract = {
 
 // Represents the full options chain for a specific expiration date
 export type OptionsChain = {
-    expiration_date: string;
+    expiration_date: Timestamp;
     calls: OptionContract[];
     puts: OptionContract[];
 };
