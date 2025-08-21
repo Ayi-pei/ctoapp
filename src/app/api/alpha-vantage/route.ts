@@ -8,7 +8,8 @@ const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
  * Next.js API Route: /api/alpha-vantage
  *
  * This route acts as a server-side proxy to the Alpha Vantage API.
- * It's designed to securely handle requests for historical options data.
+ * It's designed to securely handle requests for various functions like
+ * historical options data, currency exchange rates, etc.
  */
 export async function GET(request: Request) {
   if (!API_KEY) {
@@ -17,20 +18,25 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get('symbol');
-  const date = searchParams.get('date'); // Optional date parameter
+  const func = searchParams.get('function') || 'HISTORICAL_OPTIONS';
+  const date = searchParams.get('date');
 
   if (!symbol) {
     return NextResponse.json({ error: 'Symbol parameter is required.' }, { status: 400 });
   }
 
   try {
-    const response = await axios.get('https://www.alphavantage.co/query', {
-      params: {
-        function: 'HISTORICAL_OPTIONS',
+    const params: Record<string, string> = {
+        function: func,
         symbol: symbol,
-        date: date, // Will be ignored by Alpha Vantage if null or undefined
         apikey: API_KEY,
-      },
+    };
+    if (date) {
+        params.date = date;
+    }
+
+    const response = await axios.get('https://www.alphavantage.co/query', {
+      params,
        headers: {
         // Alpha Vantage examples use this header, it's good practice to include it.
         'User-Agent': 'request'
