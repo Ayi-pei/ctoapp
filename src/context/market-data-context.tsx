@@ -156,7 +156,9 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const [interventionState, setInterventionState] = useState<Record<string, { lastPrice: number }>>({});
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
-  const getLatestPrice = useCallback((pair: string) => summaryData.find(s => s.pair === pair)?.price || 0, [summaryData]);
+  const getLatestPrice = useCallback((pair: string) => {
+    return summaryData.find(s => s.pair === pair)?.price || 0;
+  }, [summaryData]);
 
   // --- Low-frequency API fetch ---
   useEffect(() => {
@@ -241,51 +243,55 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }
 
     const loadInitialData = async () => {
-        if (!isSupabaseEnabled) {
-            console.warn("Supabase not enabled, generating transient simulation data.");
-            await generateAndStoreData();
-            setIsInitialLoadComplete(true);
-            return;
-        }
+      if (!isSupabaseEnabled) {
+          console.warn("Supabase not enabled, generating transient simulation data.");
+          await generateAndStoreData();
+          setIsInitialLoadComplete(true);
+          return;
+      }
 
-        const fourHoursAgo = Date.now() - TOTAL_SECONDS * 1000;
-        const { data: dbData, error } = await supabase
-            .from('market_kline_data')
-            .select('*')
-            .gte('time', fourHoursAgo);
+      const fourHoursAgo = Date.now() - TOTAL_SECONDS * 1000;
+      const { data: dbData, error } = await supabase
+          .from('market_kline_data')
+          .select('*')
+          .gte('time', fourHoursAgo);
 
-        if (error) {
-            console.error("Error fetching kline from supabase, falling back to generation.", error);
-            await generateAndStoreData();
-        } else if (dbData && dbData.length > 0) {
-            console.log("Loaded initial k-line data from Supabase.");
-            const groupedData: Record<string, OHLC[]> = {};
-            dbData.forEach(row => {
-                if (!groupedData[row.trading_pair]) {
-                    groupedData[row.trading_pair] = [];
-                }
-                groupedData[row.trading_pair].push({ 
-                    time: row.time,
-                    open: row.open, 
-                    high: row.high, 
-                    low: row.low, 
-                    close: row.close 
-                });
-            });
-            Object.keys(groupedData).forEach(pair => {
-                groupedData[pair].sort((a, b) => a.time - b.time);
-            });
-            setKlineData(groupedData);
-        } else {
-            await generateAndStoreData();
-        }
-        setIsInitialLoadComplete(true);
+      if (error) {
+          console.error("Error fetching kline from supabase, falling back to generation.", error);
+          await generateAndStoreData();
+      } else if (dbData && dbData.length > 0) {
+          console.log("Loaded initial k-line data from Supabase.");
+          const groupedData: Record<string, OHLC[]> = {};
+          dbData.forEach(row => {
+              if (!groupedData[row.trading_pair]) {
+                  groupedData[row.trading_pair] = [];
+              }
+              groupedData[row.trading_pair].push({ 
+                  time: row.time,
+                  open: row.open, 
+                  high: row.high, 
+                  low: row.low, 
+                  close: row.close 
+              });
+          });
+          Object.keys(groupedData).forEach(pair => {
+              groupedData[pair].sort((a, b) => a.time - b.time);
+          });
+          setKlineData(groupedData);
+      } else {
+          await generateAndStoreData();
+      }
+      setIsInitialLoadComplete(true);
     };
+
+    if (baseApiData && Object.keys(baseApiData).length > 0) {
+       loadInitialData();
+    }
     
-    loadInitialData();
 
     return () => { isMounted = false; }
-  }, [baseApiData]); // Rerun if base data changes before initial load
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseApiData]);
 
 
   // --- High-frequency simulation ---
