@@ -25,7 +25,7 @@ export function Sidebar() {
         <ul className="space-y-2">
           {navItems.map((item) => {
             if (item.subItems) {
-              const isParentActive = item.href && pathname.startsWith(item.href);
+              const isParentActive = !!(item.href && pathname.startsWith(item.href));
               return (
                 <li key={item.label}>
                   <Collapsible defaultOpen={isParentActive}>
