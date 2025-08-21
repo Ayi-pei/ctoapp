@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getUserData } from "@/lib/user-data";
 import type { Investment, User } from '@/types';
+import { useLogs } from "@/context/logs-context";
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
     const { updateUser, getUserById } = useAuth();
     const { recalculateBalanceForUser, adjustBalance } = useBalance();
     const { addAnnouncement } = useAnnouncements();
+    const { addLog } = useLogs();
     const { toast } = useToast();
 
     const [currentUser, setCurrentUser] = useState<User | null>(user);
@@ -159,6 +161,12 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         adjustBalance(currentUser.id, asset, amount);
 
         toast({ title: "成功", description: `为 ${currentUser.username} 的 ${asset} 余额调整了 ${amount}。` });
+        addLog({
+            entity_type: 'request',
+            entity_id: currentUser.id,
+            action: 'update',
+            details: `Adjusted ${asset} balance for user ${currentUser.username} by ${amount > 0 ? '+' : ''}${amount}.`
+        });
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
         
         const bal = await recalculateBalanceForUser(currentUser.id);
@@ -174,6 +182,12 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
 
         if (success) {
             toast({ title: "成功", description: `用户 ${currentUser.username} 的密码已更新。` });
+            addLog({
+                entity_type: 'request',
+                entity_id: currentUser.id,
+                action: 'update',
+                details: `Reset password for user ${currentUser.username}.`
+            });
             setNewPassword("");
         } else {
              toast({ variant: "destructive", title: "失败", description: "更新密码失败。" });
@@ -185,6 +199,12 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         const success = await updateUser(currentUser.id, { is_frozen: freeze });
         if (success) {
             toast({ title: "成功", description: `用户 ${currentUser.username} 已被${freeze ? '冻结' : '解冻'}。` });
+            addLog({
+                entity_type: 'request',
+                entity_id: currentUser.id,
+                action: 'update',
+                details: `Set user ${currentUser.username} account status to ${freeze ? 'Frozen' : 'Active'}.`
+            });
             handleSuccessfulUpdate();
         } else {
             toast({ variant: "destructive", title: "失败", description: "操作失败。" });
@@ -197,6 +217,12 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         const success = await updateUser(currentUser.id, { is_test_user: newType });
         if (success) {
             toast({ title: "成功", description: `用户类型已更新为 ${newType ? '测试账户' : '真实账户'}` });
+             addLog({
+                entity_type: 'request',
+                entity_id: currentUser.id,
+                action: 'update',
+                details: `Set user ${currentUser.username} account type to ${newType ? 'Test' : 'Real'}.`
+            });
             handleSuccessfulUpdate();
         } else {
             toast({ variant: "destructive", title: "失败", description: "操作失败。" });
@@ -213,6 +239,12 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         const success = await updateUser(currentUser.id, { credit_score: score });
          if (success) {
             toast({ title: "成功", description: `用户 ${currentUser.username} 的信誉分已更新。` });
+            addLog({
+                entity_type: 'request',
+                entity_id: currentUser.id,
+                action: 'update',
+                details: `Updated credit score for user ${currentUser.username} to ${score}.`
+            });
         } else {
             toast({ variant: "destructive", title: "失败", description: "操作失败。" });
         }
@@ -228,6 +260,13 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
             title: messageTitle,
             content: messageContent,
             user_id: currentUser.id,
+        });
+        
+         addLog({
+            entity_type: 'request',
+            entity_id: currentUser.id,
+            action: 'create',
+            details: `Sent message to user ${currentUser.username}. Title: ${messageTitle}`
         });
 
         toast({ title: "成功", description: `消息已发送给用户 ${currentUser.username}。` });
