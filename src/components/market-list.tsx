@@ -35,18 +35,22 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                 <div 
                     key={item.pair} 
                     onClick={() => handlePairClick(item.pair)} 
-                    className="flex cursor-pointer items-center gap-4 rounded-lg border bg-card p-2 text-card-foreground transition-colors hover:bg-muted"
+                    className="grid cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-4 rounded-lg border bg-card p-2 text-card-foreground transition-colors hover:bg-muted"
                 >
-                    <Image 
-                        src={item.icon || `https://placehold.co/32x32.png`}
-                        alt={`${item.pair.split('/')[0]} logo`} 
-                        width={32}
-                        height={32}
-                        className="h-8 w-8 flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{item.pair}</p>
+                    <div className="flex items-center gap-3">
+                         <Image 
+                            src={item.icon || `https://placehold.co/32x32.png`}
+                            alt={`${item.pair.split('/')[0]} logo`} 
+                            width={32}
+                            height={32}
+                            className="h-8 w-8 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate">{item.pair.split('/')[0]}</p>
+                            <p className="text-xs text-muted-foreground">{item.pair.split('/')[1]}</p>
+                        </div>
                     </div>
+                    
                     <div className="h-10 w-24 flex-shrink-0">
                         <ChartContainer config={{
                             value: { label: "Value", color: color }
@@ -69,6 +73,7 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                             </AreaChart>
                         </ChartContainer>
                     </div>
+
                     <div className="flex w-28 flex-shrink-0 flex-col items-end">
                         <p className="font-semibold">{item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</p>
                         <p className={cn("text-sm", isPositive ? 'text-green-500' : 'text-red-500')}>
