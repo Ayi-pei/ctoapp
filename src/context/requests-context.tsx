@@ -121,45 +121,45 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     }, [user, addRequest]);
 
 
-    const updateRequestStatus = (requestId: string, status: 'approved' | 'rejected') => {
+    const processRequest = useCallback(async (requestId: string, action: 'approve' | 'reject') => {
         const request = requests.find(r => r.id === requestId);
-        if (!request) return;
+        if (!request || request.status !== 'pending') return;
 
+        if (action === 'approve') {
+            if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
+                adjustBalance(request.user_id, request.asset, request.amount);
+            } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
+                confirmWithdrawal(request.asset, request.amount, request.user_id);
+            } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
+                await updateUser(request.user_id, { password: request.new_password });
+            }
+        } else { // 'reject' action
+             if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
+                revertWithdrawal(request.asset, request.amount, request.user_id);
+            }
+        }
+
+        // Update request status and log the action
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
         setRequests(prev => prev.map(req => 
-            req.id === requestId ? { ...req, status } : req
+            req.id === requestId ? { ...req, status: newStatus, user: req.user || getUserById(req.user_id) } : req
         ));
         addLog({
             entity_type: 'request',
             entity_id: requestId,
-            action: status === 'approved' ? 'approve' : 'reject',
-            details: `Request for user ${request.user?.username || request.user_id} was ${status}.`
+            action: action,
+            details: `Request for user ${request.user?.username || request.user_id} was ${newStatus}.`
         });
-    };
+
+    }, [requests, adjustBalance, confirmWithdrawal, updateUser, revertWithdrawal, addLog, getUserById]);
+
 
     const approveRequest = async (requestId: string) => {
-        const request = requests.find(r => r.id === requestId);
-        if (!request || request.status !== 'pending') return;
-
-        if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
-            adjustBalance(request.user_id, request.asset, request.amount);
-        } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-            confirmWithdrawal(request.asset, request.amount, request.user_id);
-        } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
-            await updateUser(request.user_id, { password: request.new_password });
-        }
-        
-        updateRequestStatus(requestId, 'approved');
+        await processRequest(requestId, 'approve');
     };
 
     const rejectRequest = async (requestId: string) => {
-        const request = requests.find(r => r.id === requestId);
-        if (!request || request.status !== 'pending') return;
-
-        if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-            revertWithdrawal(request.asset, request.amount, request.user_id);
-        }
-        
-        updateRequestStatus(requestId, 'rejected');
+        await processRequest(requestId, 'reject');
     };
 
     const deleteRequest = async (requestId: string) => {
@@ -179,7 +179,7 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         const originalRequest = requests.find(r => r.id === requestId);
         if (!originalRequest) return;
         
-        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updates } : r ));
+        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updates, user: r.user || getUserById(r.user_id) } : r ));
 
         addLog({
             entity_type: 'request',

@@ -56,9 +56,9 @@ export default function AdminRequestsPage() {
         }
     }, [isAdmin, router]);
 
-    const handleRequestAction = async (request: AnyRequest, newStatus: 'approved' | 'rejected') => {
+    const handleRequestAction = async (request: AnyRequest, newStatus: 'approve' | 'reject') => {
         try {
-            if (newStatus === 'approved') {
+            if (newStatus === 'approve') {
                 await approveRequest(request.id);
             } else {
                 await rejectRequest(request.id);
@@ -66,7 +66,7 @@ export default function AdminRequestsPage() {
 
             toast({
                 title: "操作成功",
-                description: `请求已被 ${newStatus === 'approved' ? '批准' : '拒绝'}。`,
+                description: `请求已被 ${newStatus === 'approve' ? '批准' : '拒绝'}。`,
             });
         } catch (error: any) {
              toast({
@@ -97,7 +97,7 @@ export default function AdminRequestsPage() {
     }
 
     const filteredRequests = useMemo(() => {
-        return requests.filter(r => r.status === filter);
+        return requests.filter(r => filter === 'all' || r.status === filter);
     }, [requests, filter]);
 
     if (!isAdmin) {
@@ -141,10 +141,10 @@ export default function AdminRequestsPage() {
                         <TableCell className="text-right space-x-2">
                              {r.status === 'pending' && (
                                 <>
-                                    <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequestAction(r, 'approved')}>
+                                    <Button variant="outline" size="sm" className="text-green-500 border-green-500 hover:bg-green-500/10 hover:text-green-600" onClick={() => handleRequestAction(r, 'approve')}>
                                         批准
                                     </Button>
-                                     <Button variant="destructive" size="sm" onClick={() => handleRequestAction(r, 'rejected')}>
+                                     <Button variant="destructive" size="sm" onClick={() => handleRequestAction(r, 'reject')}>
                                         拒绝
                                     </Button>
                                 </>
@@ -191,7 +191,7 @@ export default function AdminRequestsPage() {
                             </CardContent>
                         </Card>
 
-                        <Accordion type="single" collapsible className="w-full">
+                        <Accordion type="single" collapsible className="w-full" defaultValue="history">
                             <AccordionItem value="history">
                                 <AccordionTrigger>
                                     <h2 className="text-xl font-bold">历史记录</h2>
@@ -209,6 +209,7 @@ export default function AdminRequestsPage() {
                                                         <SelectValue placeholder="筛选状态" />
                                                     </SelectTrigger>
                                                     <SelectContent>
+                                                        <SelectItem value="all">所有记录</SelectItem>
                                                         <SelectItem value="pending">待审核</SelectItem>
                                                         <SelectItem value="approved">已批准</SelectItem>
                                                         <SelectItem value="rejected">已拒绝</SelectItem>

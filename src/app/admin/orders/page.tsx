@@ -27,7 +27,7 @@ import { format } from "date-fns"
 type AllOrderTypes = SpotTrade | ContractTrade | Investment;
 
 type FormattedOrder = AllOrderTypes & {
-    userId: string;
+    username: string;
     orderTypeText: 'spot' | 'contract' | 'investment';
     statusText: string;
 };
@@ -50,7 +50,7 @@ const getOrderStatusText = (order: FormattedOrder) => {
 
 
 export default function AdminOrdersPage() {
-    const { isAdmin, getUserById } = useAuth();
+    const { isAdmin, getUserById, getAllUsers } = useAuth();
     const { getAllHistoricalTrades, getAllUserInvestments } = useBalance();
     const router = useRouter();
     const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
@@ -62,13 +62,16 @@ export default function AdminOrdersPage() {
 
     const loadData = useCallback(() => {
         if (isAdmin === true) {
+            const allUsers = getAllUsers();
+            const userMap = new Map(allUsers.map(u => [u.id, u.username]));
+
             const allTrades = getAllHistoricalTrades();
             const allInvestments = getAllUserInvestments();
-
+            
             const combinedOrders: AllOrderTypes[] = [...allTrades, ...allInvestments];
 
             const formatted = combinedOrders.map(t => {
-                const user = getUserById(t.user_id);
+                const username = userMap.get(t.user_id) || t.user_id;
                 let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
                 if ('orderType' in t) {
                     orderTypeText = t.orderType;
@@ -78,7 +81,7 @@ export default function AdminOrdersPage() {
                 
                 const baseFormatted = {
                     ...t,
-                    userId: user?.username || t.user_id,
+                    username: username,
                     orderTypeText: orderTypeText,
                 } as FormattedOrder;
                 
@@ -88,7 +91,7 @@ export default function AdminOrdersPage() {
 
             setAllOrders(formatted);
         }
-    }, [isAdmin, getUserById, getAllHistoricalTrades, getAllUserInvestments]);
+    }, [isAdmin, getAllUsers, getAllHistoricalTrades, getAllUserInvestments]);
     
     useEffect(() => {
         if (isAdmin === false) {
@@ -145,7 +148,7 @@ export default function AdminOrdersPage() {
         if (order.orderTypeText === 'investment') {
             const investment = order as Investment;
             if (investment.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
-            if (investment.status === 'settled') return <Badge variant="outline" className="text-green-500">已结算</Badge>;
+            if (investment.status === 'settled') return <Badge variant="outline" className="text-green-500">已结算 (+{(investment.profit || 0).toFixed(2)})</Badge>;
         }
         return <Badge variant="secondary">未知</Badge>;
     }
@@ -282,7 +285,7 @@ export default function AdminOrdersPage() {
                             <TableBody>
                                 {filteredOrders.length > 0 ? filteredOrders.map((order) => (
                                     <TableRow key={order.id}>
-                                        <TableCell>{order.userId}</TableCell>
+                                        <TableCell>{order.username}</TableCell>
                                         <TableCell>{getPairOrProduct(order)}</TableCell>
                                         <TableCell>
                                             <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', 
