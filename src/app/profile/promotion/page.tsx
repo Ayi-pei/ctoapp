@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { User as DownlineMember, AnyRequest } from "@/types";
+import type { User as DownlineMember, AnyRequest, RewardLog } from "@/types";
 import { useBalance } from "@/context/balance-context";
 import { useRequests } from "@/context/requests-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,7 +25,7 @@ const StatCard = ({ label, value }: { label: string, value: string | number }) =
 
 export default function PromotionPage() {
     const { user, getDownline } = useAuth();
-    const { commissionLogs } = useBalance();
+    const { rewardLogs } = useBalance();
     const { requests } = useRequests();
     const { toast } = useToast();
     const router = useRouter();
@@ -37,6 +37,8 @@ export default function PromotionPage() {
         totalWithdrawals: 0,
     });
     const qrCodeRef = useRef<HTMLDivElement>(null);
+    
+    const teamRewardLogs = rewardLogs.filter(log => log.type === 'team');
 
     const calculateTeamStats = useCallback((team: DownlineMember[], allRequests: AnyRequest[]) => {
         const teamIds = team.map(m => m.id);
@@ -99,7 +101,7 @@ export default function PromotionPage() {
     };
 
     // "团队贡献": 代理线下级给自己带来的佣金总数
-    const totalCommission = commissionLogs.reduce((acc, curr) => acc + curr.commission_amount, 0);
+    const totalCommission = teamRewardLogs.reduce((acc, curr) => acc + curr.amount, 0);
 
     const stats = {
         totalMembers: teamMembers.length,
@@ -214,7 +216,7 @@ export default function PromotionPage() {
                        ) : renderEmptyState("您还没有邀请任何用户")}
                     </TabsContent>
                      <TabsContent value="contribution" className="mt-4">
-                        {commissionLogs.length > 0 ? (
+                        {teamRewardLogs.length > 0 ? (
                              <Card>
                                 <CardContent className="p-0">
                                     <Table>
@@ -226,11 +228,11 @@ export default function PromotionPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {commissionLogs.map(log => (
+                                            {teamRewardLogs.map(log => (
                                                 <TableRow key={log.id}>
                                                     <TableCell>{log.source_username}</TableCell>
                                                     <TableCell>LV {log.source_level}</TableCell>
-                                                    <TableCell className="text-right text-green-500 font-semibold">+{log.commission_amount.toFixed(4)}</TableCell>
+                                                    <TableCell className="text-right text-green-500 font-semibold">+{log.amount.toFixed(4)}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>

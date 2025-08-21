@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier, ActionLog, SecureUser } from '@/types';
+import { ContractTrade, SpotTrade, Transaction, Investment, RewardLog, User, InvestmentTier, ActionLog, SecureUser } from '@/types';
 import { useAuth } from './auth-context';
 import { useMarket } from './market-data-context';
 import { useToast } from '@/hooks/use-toast';
@@ -64,11 +64,22 @@ export type HourlyInvestmentParams = {
     category: 'staking' | 'finance';
 }
 
+type CreditRewardParams = {
+    userId: string;
+    amount: number;
+    asset: string;
+    type: RewardLog['type'];
+    sourceId?: string;
+    sourceUsername?: string;
+    sourceLevel?: number;
+    description?: string;
+};
+
 
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
-  commissionLogs: CommissionLog[];
+  rewardLogs: RewardLog[];
   addDailyInvestment: (params: DailyInvestmentParams) => Promise<boolean>;
   addHourlyInvestment: (params: HourlyInvestmentParams) => Promise<boolean>;
   placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
@@ -86,6 +97,7 @@ interface BalanceContextType {
   consecutiveCheckIns: number;
   getAllHistoricalTrades: () => (SpotTrade | ContractTrade)[];
   getAllUserInvestments: () => Investment[];
+  creditReward: (params: CreditRewardParams) => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -106,7 +118,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [commissionLogs, setCommissionLogs] = useState<CommissionLog[]>([]);
+  const [rewardLogs, setRewardLogs] = useState<RewardLog[]>([]);
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,7 +163,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setInvestments(data.investments);
         setActiveContractTrades(data.activeContractTrades);
         setHistoricalTrades(data.historicalTrades);
-        setCommissionLogs(data.commissionLogs);
+        setRewardLogs(data.rewardLogs);
         setLastCheckInDate(data.lastCheckInDate);
         setConsecutiveCheckIns(data.consecutiveCheckIns || 0);
     } else {
@@ -160,7 +172,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setInvestments([]);
         setActiveContractTrades([]);
         setHistoricalTrades([]);
-        setCommissionLogs([]);
+        setRewardLogs([]);
         setLastCheckInDate(undefined);
         setConsecutiveCheckIns(0);
     }
@@ -175,13 +187,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
               investments,
               activeContractTrades,
               historicalTrades,
-              commissionLogs,
+              rewardLogs,
               lastCheckInDate,
               consecutiveCheckIns,
           };
           saveUserData(user.id, dataToStore);
       }
-  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs, lastCheckInDate, consecutiveCheckIns]);
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, rewardLogs, lastCheckInDate, consecutiveCheckIns]);
 
 
   const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
@@ -199,8 +211,33 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           setBalances(userBalances);
       }
   }, [user?.id]);
+  
+  const creditReward = useCallback((params: CreditRewardParams) => {
+    adjustBalance(params.userId, params.asset, params.amount);
 
-  const distributeCommissions = useCallback((sourceUser: SecureUser, tradeAmount: number) => {
+    const newLog: RewardLog = {
+      id: `rlog-${Date.now()}`,
+      userId: params.userId,
+      type: params.type,
+      amount: params.amount,
+      sourceId: params.sourceId,
+      source_username: params.sourceUsername,
+      source_level: params.sourceLevel,
+      createdAt: new Date().toISOString(),
+      description: params.description,
+    };
+
+    const userData = getUserData(params.userId);
+    userData.rewardLogs.push(newLog);
+    saveUserData(params.userId, userData);
+
+    if (user?.id === params.userId) {
+      setRewardLogs(prev => [newLog, ...prev]);
+    }
+  }, [adjustBalance, user?.id]);
+
+
+  const distributeCommissions = useCallback((sourceUser: SecureUser, tradeAmount: number, sourceId: string) => {
     if (!sourceUser.inviter_id) return;
 
     let currentUplineId: string | null = sourceUser.inviter_id;
@@ -215,32 +252,21 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         
         const commissionRate = COMMISSION_RATES[level - 1];
         const commissionAmount = tradeAmount * commissionRate;
-
-        adjustBalance(uplineUser.id, 'USDT', commissionAmount);
         
-        const commissionLog: CommissionLog = {
-            id: `clog-${Date.now()}-${level}`,
-            upline_user_id: uplineUser.id,
-            source_user_id: sourceUser.id,
-            source_username: sourceUser.username,
-            source_level: level,
-            trade_amount: tradeAmount,
-            commission_rate: commissionRate,
-            commission_amount: commissionAmount,
-            created_at: new Date().toISOString(),
-        };
-
-        const uplineData = getUserData(uplineUser.id);
-        uplineData.commissionLogs.push(commissionLog);
-        saveUserData(uplineUser.id, uplineData);
-
-        if (user?.id === uplineUser.id) {
-            setCommissionLogs(prev => [...prev, commissionLog]);
-        }
+        creditReward({
+            userId: uplineUser.id,
+            amount: commissionAmount,
+            asset: 'USDT',
+            type: 'team',
+            sourceId: sourceId,
+            sourceUsername: sourceUser.username,
+            sourceLevel: level,
+            description: `From level ${level} user ${sourceUser.username}'s trade`
+        });
 
         currentUplineId = uplineUser.inviter_id; 
     }
-  }, [getUserById, adjustBalance, user?.id]);
+  }, [getUserById, creditReward]);
 
   const adjustFrozenBalance = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;
@@ -514,7 +540,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     adjustFrozenBalance(quoteAsset, trade.amount);
 
     if(quoteAsset === 'USDT') {
-      distributeCommissions(user, trade.amount);
+      distributeCommissions(user, trade.amount, newTrade.id);
     }
   }, [user, balances, getLatestPrice, toast, distributeCommissions, adjustFrozenBalance]);
   
@@ -558,7 +584,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     });
 
      if(quoteAsset === 'USDT') {
-        distributeCommissions(user, trade.total);
+        distributeCommissions(user, trade.total, fullTrade.id);
      }
   }, [user, getLatestPrice, toast, distributeCommissions]);
 
@@ -585,8 +611,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
         const baseReward = 0.5;
         const reward = baseReward * Math.pow(1.5, newConsecutiveCheckIns - 1);
-
-        adjustBalance(user.id, 'USDT', reward);
+        
+        creditReward({
+            userId: user.id,
+            amount: reward,
+            asset: 'USDT',
+            type: 'dailyTask',
+            sourceId: `checkin-${todayStr}`,
+            description: `Daily check-in reward (Day ${newConsecutiveCheckIns})`
+        });
         
         await updateUser(user.id, { credit_score: (user.credit_score || 0) + 1 });
 
@@ -594,7 +627,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         setConsecutiveCheckIns(newConsecutiveCheckIns);
 
         return { success: true, reward };
-    }, [user, lastCheckInDate, consecutiveCheckIns, adjustBalance, updateUser]);
+    }, [user, lastCheckInDate, consecutiveCheckIns, creditReward, updateUser]);
   
   const confirmWithdrawal = useCallback((asset: string, amount: number, userId?: string) => {
       const targetUserId = userId || user?.id;
@@ -640,7 +673,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       placeSpotTrade, 
       isLoading,
       investments,
-      commissionLogs,
+      rewardLogs,
       addDailyInvestment,
       addHourlyInvestment,
       recalculateBalanceForUser,
@@ -655,6 +688,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       consecutiveCheckIns,
       getAllHistoricalTrades,
       getAllUserInvestments,
+      creditReward,
     };
 
     return (

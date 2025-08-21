@@ -188,18 +188,19 @@ export type Investment = {
 };
 
 
-// Represents a commission log entry
-export type CommissionLog = {
+// Represents a generic reward/commission log entry
+export type RewardLog = {
     id: string;
-    upline_user_id: string;
-    source_user_id: string;
-    source_username: string;
-    source_level: number;
-    trade_amount: number;
-    commission_rate: number;
-    commission_amount: number;
-    created_at: string;
+    userId: string;
+    type: 'dailyTask' | 'team' | 'event' | 'system';
+    amount: number;
+    sourceId?: string; // e.g., taskId, orderId
+    source_username?: string; // e.g. the downline user who generated the commission
+    source_level?: number;
+    createdAt: string;
+    description?: string;
 };
+
 
 // Represents a member in the downline/team - now it is just the User type
 // We keep the alias for clarity in components

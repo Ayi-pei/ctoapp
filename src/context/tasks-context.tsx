@@ -63,7 +63,7 @@ const TasksContext = createContext<TasksContextType | undefined>(undefined);
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useAuth();
   const { addLog } = useLogs();
-  const { adjustBalance } = useBalance();
+  const { creditReward } = useBalance();
 
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
@@ -150,7 +150,14 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     if (isAlreadyCompleted) return;
 
     if (task.reward_type === 'usdt') {
-      adjustBalance(user.id, 'USDT', task.reward);
+      creditReward({
+          userId: user.id,
+          amount: task.reward,
+          asset: 'USDT',
+          type: 'dailyTask',
+          sourceId: task.id,
+          description: `Completed task: ${task.title}`
+      });
     } else if (task.reward_type === 'credit_score') {
       const newScore = (user.credit_score || 100) + task.reward;
       await updateUser(user.id, { credit_score: newScore });
@@ -166,7 +173,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
     setUserTasksState(prev => [...prev, newState]);
-  }, [user, dailyTasks, userTasksState, adjustBalance, updateUser, addLog]);
+  }, [user, dailyTasks, userTasksState, creditReward, updateUser, addLog]);
 
   const value: TasksContextType = {
     dailyTasks,

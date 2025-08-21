@@ -1,5 +1,5 @@
 
-import { Investment, CommissionLog, ContractTrade, SpotTrade } from '@/types';
+import { Investment, RewardLog, ContractTrade, SpotTrade } from '@/types';
 
 const INITIAL_BALANCES: { [key: string]: { available: number; frozen: number } } = {
     USDT: { available: 0, frozen: 0 },
@@ -30,7 +30,7 @@ export type UserData = {
     investments: Investment[];
     activeContractTrades: ContractTrade[];
     historicalTrades: (SpotTrade | ContractTrade)[];
-    commissionLogs: CommissionLog[];
+    rewardLogs: RewardLog[];
     lastCheckInDate?: string;
     consecutiveCheckIns?: number;
 };
@@ -40,7 +40,7 @@ const getDefaultUserData = (): UserData => ({
     investments: [],
     activeContractTrades: [],
     historicalTrades: [],
-    commissionLogs: [],
+    rewardLogs: [],
     lastCheckInDate: undefined,
     consecutiveCheckIns: 0,
 });
@@ -62,7 +62,8 @@ export function getUserData(userId: string): UserData {
                 balances: {
                     ...getDefaultUserData().balances,
                     ...(parsedData.balances || {})
-                }
+                },
+                rewardLogs: parsedData.rewardLogs || parsedData.commissionLogs || [] // Backwards compatibility for commissionLogs
             };
         } catch (e) {
             console.error(`Failed to parse user data for ${userId}`, e);
@@ -78,7 +79,12 @@ export function saveUserData(userId: string, data: UserData) {
     }
     const userStorageKey = `tradeflow_user_${userId}`;
     try {
-        localStorage.setItem(userStorageKey, JSON.stringify(data));
+        // Ensure we don't save the old commissionLogs if it exists on the data object
+        const { ...dataToSave } = data;
+        if ('commissionLogs' in dataToSave) {
+            delete (dataToSave as any).commissionLogs;
+        }
+        localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
     } catch (e) {
         console.error(`Failed to save user data for ${userId}`, e);
     }
