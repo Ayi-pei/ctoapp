@@ -61,42 +61,10 @@ export function ContractOrderSheet({
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
-  const [currentProfitRate, setCurrentProfitRate] = useState(0.85);
 
+  // Simplified profit rate handling
   const pairSettings = systemSettings.marketSettings[tradingPair];
-  
-  useEffect(() => {
-    if (!pairSettings) return;
-
-    const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-    
-    let activeProfitRate = pairSettings.baseProfitRate;
-    let isInSpecialFrame = false;
-
-    if (pairSettings.specialTimeFrames) {
-        for (const frame of pairSettings.specialTimeFrames) {
-            const [startH, startM] = frame.startTime.split(':').map(Number);
-            const startTime = startH * 60 + startM;
-            const [endH, endM] = frame.endTime.split(':').map(Number);
-            const endTime = endH * 60 + endM;
-            
-            if (currentTime >= startTime && currentTime <= endTime) {
-                activeProfitRate = frame.profitRate;
-                isInSpecialFrame = true;
-                break; 
-            }
-        }
-    }
-
-    if (pairSettings.tradingDisabled && !isInSpecialFrame) {
-      setCurrentProfitRate(pairSettings.baseProfitRate);
-    } else {
-      setCurrentProfitRate(activeProfitRate);
-    }
-
-  }, [pairSettings, isOpen]);
-
+  const currentProfitRate = pairSettings?.baseProfitRate || 0.85;
 
   const asset = tradingPair.split('/')[0];
   const orderTypeText = orderType === 'buy' ? "买涨" : "买跌";
@@ -123,28 +91,6 @@ export function ContractOrderSheet({
             description: `[${tradingPair}] 交易对已暂停交易。`,
         });
         return;
-    }
-
-    if (pairSettings?.tradingDisabled) {
-        const now = new Date();
-        const currentTime = now.getHours() * 60 + now.getMinutes();
-        
-        const isInSpecialFrame = pairSettings.specialTimeFrames.some(frame => {
-            const [startH, startM] = frame.startTime.split(':').map(Number);
-            const startTime = startH * 60 + startM;
-            const [endH, endM] = frame.endTime.split(':').map(Number);
-            const endTime = endH * 60 + endM;
-            return currentTime >= startTime && currentTime <= endTime;
-        });
-        
-        if (!isInSpecialFrame) {
-             toast({
-                variant: "destructive",
-                title: "交易受限",
-                description: "该币种当前不在可交易时间段内。",
-            });
-            return;
-        }
     }
 
     const numericAmount = parseFloat(amount);

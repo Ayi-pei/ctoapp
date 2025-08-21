@@ -1,4 +1,5 @@
 
+
 "use client";
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -48,6 +49,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                           alt={product.name}
                           fill
                           className="object-contain rounded-md"
+                          data-ai-hint="investment product"
                         />
                     </div>
                 </div>
@@ -76,7 +78,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                                     <p className="text-xs text-muted-foreground">日收益率</p>
                                     <p className="font-semibold text-green-400">{(product.dailyRate ?? 0) * 100}%/天</p>
                                 </div>
-                                {product.stakingAsset && product.stakingAmount && (
+                                {product.stakingAsset && product.stakingAmount != null && (
                                     <div className="space-y-1 col-span-2 md:col-span-3">
                                         <p className="text-xs text-muted-foreground">质押要求</p>
                                         <p className="font-semibold text-amber-300">{product.stakingAmount} {product.stakingAsset}</p>

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -6,11 +7,10 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, Users, Edit2 } from "lucide-react";
+import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, Users, Edit2, Crown } from "lucide-react";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { useBalance } from "@/context/balance-context";
-import { useMarket } from "@/context/market-data-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 const ProfileHeader = () => {
     const { user, updateUser } = useAuth();
     const { balances } = useBalance();
-    const { summaryData } = useMarket();
     const { toast } = useToast();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -33,8 +32,9 @@ const ProfileHeader = () => {
 
     const getUsdtValue = (assetName: string, amount: number) => {
         if (assetName === 'USDT') return amount;
-        const assetSummary = summaryData.find(s => s.pair.startsWith(assetName));
-        return amount * (assetSummary?.price || 0);
+        if (assetName === 'BTC') return amount * 68000;
+        if (assetName === 'ETH') return amount * 3800;
+        return 0;
     }
 
     const totalBalance = Object.entries(balances).reduce((acc, [name, balance]) => {
@@ -69,63 +69,68 @@ const ProfileHeader = () => {
     };
 
     return (
-        <div className="w-full flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 w-3/4">
-                 <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                    <Avatar className="h-16 w-16 border-4 border-primary/50">
-                        <AvatarImage src={user?.avatar_url} alt={user?.username} />
-                        <AvatarFallback>
-                            <Users className="h-8 w-8" />
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-                        <span className="text-xs text-white">更换</span>
-                    </div>
-                    <input
-                        ref={avatarInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarUpload}
-                    />
-                </div>
-                
-                <div className="space-y-1">
-                    {isEditingNickname ? (
-                         <input 
-                            type="text"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
-                            onBlur={handleNicknameBlur}
-                            onKeyDown={handleNicknameKeyDown}
-                            autoFocus
-                            className="bg-transparent border-b border-primary text-xl font-semibold text-card-foreground focus:outline-none"
-                         />
-                    ) : (
-                        <div className="flex items-center gap-2">
-                             <h2 className="font-semibold text-xl cursor-pointer" onClick={() => setIsEditingNickname(true)}>{nickname}</h2>
-                             <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingNickname(true)} />
+         <div className="bg-blue-500/70 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20 h-full flex items-center">
+            <div className="w-full flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 w-3/4">
+                    <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+                        <Avatar className="h-20 w-20 border-4 border-primary/50">
+                            <AvatarImage src={user?.avatar_url} alt={user?.username} />
+                            <AvatarFallback>
+                                <Users className="h-10 w-10" />
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                            <span className="text-xs text-white">更换</span>
                         </div>
-                    )}
-                   
-                    <p className="text-xs text-muted-foreground">总资产估值: {totalBalance.toFixed(2)} USDT</p>
-                    <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+                        <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAvatarUpload}
+                        />
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                             {isEditingNickname ? (
+                                 <input 
+                                    type="text"
+                                    value={nickname}
+                                    onChange={(e) => setNickname(e.target.value)}
+                                    onBlur={handleNicknameBlur}
+                                    onKeyDown={handleNicknameKeyDown}
+                                    autoFocus
+                                    className="bg-transparent border-b border-primary text-2xl font-semibold text-foreground focus:outline-none"
+                                 />
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                     <h2 className="font-semibold text-2xl cursor-pointer text-foreground" onClick={() => setIsEditingNickname(true)}>{nickname}</h2>
+                                     <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingNickname(true)} />
+                                </div>
+                            )}
+                            {user?.is_admin && <Badge variant="destructive" className="text-xs"><Crown className="w-3 h-3 mr-1"/>Admin</Badge>}
+                        </div>
+                       
+                        <p className="text-base font-semibold text-foreground/90">总资产估值: {totalBalance.toFixed(2)} USDT</p>
+                        <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-sm">信誉分: {user?.credit_score || 100}</Badge>
+                    </div>
                 </div>
-            </div>
 
-            <div className="flex flex-col gap-2 w-1/4">
-                <Button 
-                    onClick={() => setIsDepositOpen(true)} 
-                    className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-10 px-6 text-sm rounded-md shadow-lg"
-                >
-                    充值
-                </Button>
-                <Button 
-                    onClick={() => setIsWithdrawOpen(true)} 
-                    className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold h-10 px-6 text-sm rounded-md shadow-lg"
-                >
-                    提现
-                </Button>
+                <div className="flex flex-col gap-3 w-1/4">
+                    <Button 
+                        onClick={() => setIsDepositOpen(true)} 
+                        className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-12 text-base rounded-md shadow-lg"
+                    >
+                        充值
+                    </Button>
+                    <Button 
+                        onClick={() => setIsWithdrawOpen(true)} 
+                        className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold h-12 text-base rounded-md shadow-lg"
+                    >
+                        提现
+                    </Button>
+                </div>
             </div>
             <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
             <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
@@ -176,16 +181,18 @@ export default function ProfilePage() {
     return (
         <DashboardLayout>
             <div className="h-full w-full profile-background">
-                <div className="p-4 space-y-8 h-full">
-                    <ProfileHeader />
+                <div className="p-4 space-y-4 h-full flex flex-col">
+                    <div className="h-1/4">
+                       <ProfileHeader />
+                    </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-grow">
                         {menuItems.map(item => (
                             <ListItem key={item.label} label={item.label} icon={item.icon} href={item.href} />
                         ))}
                     </div>
 
-                    <div>
+                    <div className="pb-4">
                         <ActionItem label="退出登陆" icon={LogOut} action={logout} />
                     </div>
 

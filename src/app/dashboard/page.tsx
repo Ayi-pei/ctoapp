@@ -114,6 +114,7 @@ export default function DashboardPage() {
                                         fill
                                         sizes="(max-width: 768px) 100vw, 50vw"
                                         className="object-cover"
+                                        data-ai-hint="investment promotion"
                                     />
                                     <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-4">
                                         <h3 className="text-xl font-bold">{item.title}</h3>

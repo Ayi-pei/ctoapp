@@ -16,7 +16,14 @@ import { MarketList } from "./market-list";
 // Helper function to get computed style of a CSS variable
 const getCssVar = (variable: string): string => {
     if (typeof window === 'undefined') return '';
-    return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    // Create a temporary element to get the computed style
+    const tempEl = document.createElement('div');
+    tempEl.style.display = 'none';
+    document.body.appendChild(tempEl);
+    const style = getComputedStyle(tempEl);
+    const value = style.getPropertyValue(variable).trim();
+    document.body.removeChild(tempEl);
+    return value;
 };
 
 

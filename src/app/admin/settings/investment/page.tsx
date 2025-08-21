@@ -1,4 +1,5 @@
 
+
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`staking-amount-${product.id}`}>质押数量 (选填)</Label>
-                    <Input id={`staking-amount-${product.id}`} type="number" value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || 0 })} placeholder="输入需要质押的数量" />
+                    <Input id={`staking-amount-${product.id}`} type="number" value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || undefined })} placeholder="输入需要质押的数量" />
                 </div>
                  <div className="lg:col-span-3 space-y-2">
                     <Label>产品图片</Label>
