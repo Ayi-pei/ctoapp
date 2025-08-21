@@ -57,7 +57,7 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
 
 interface InvestmentSettingsContextType {
     investmentProducts: InvestmentProduct[];
-    addProduct: () => void;
+    addProduct: (category: 'staking' | 'finance') => void;
     removeProduct: (id: string) => void;
     updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void;
 }
@@ -115,7 +115,7 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
     }, [investmentProducts, isLoaded]);
     
 
-    const addProduct = useCallback(() => {
+    const addProduct = useCallback((category: 'staking' | 'finance') => {
         const newProduct: InvestmentProduct = {
             id: `prod-${Date.now()}`,
             name: '新产品',
@@ -124,9 +124,14 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             period: 30,
             maxPurchase: 1,
             imgSrc: "https://placehold.co/80x80.png",
-            productType: 'daily',
-            category: 'staking', // Default to staking, admin can change it
+            productType: category === 'staking' ? 'daily' : 'hourly',
+            category: category,
         };
+        if (category === 'finance') {
+            newProduct.hourlyTiers = [{ hours: 1, rate: 0.01 }];
+            delete newProduct.dailyRate;
+            delete newProduct.period;
+        }
         setInvestmentProducts(prev => [...prev, newProduct]);
     }, []);
     

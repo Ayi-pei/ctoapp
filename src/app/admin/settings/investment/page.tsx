@@ -7,10 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useInvestmentSettings, InvestmentProduct, InvestmentTier } from "@/context/investment-settings-context";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
-import { Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 
@@ -41,23 +40,23 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-6">
                 <div className="space-y-2">
                     <Label htmlFor={`product-name-${product.id}`}>产品名称</Label>
-                    <Input id={`product-name-${product.id}`} value={product.name} onChange={e => updateProduct(product.id, { name: e.target.value })} />
+                    <Input id={`product-name-${product.id}`} value={product.name} onChange={e => updateProduct(product.id, { name: e.target.value })} placeholder="例如: ASIC 矿机"/>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`product-price-${product.id}`}>每份金额 (USDT)</Label>
-                    <Input id={`product-price-${product.id}`} type="number" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} />
+                    <Input id={`product-price-${product.id}`} type="number" min={0} step="0.01" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} placeholder="例如: 98"/>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`product-rate-${product.id}`}>日收益率 (%)</Label>
-                    <Input id={`product-rate-${product.id}`} type="number" value={(product.dailyRate || 0) * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} />
+                    <Input id={`product-rate-${product.id}`} type="number" min={0} step="0.01" value={(product.dailyRate || 0) * 100} onChange={e => updateProduct(product.id, { dailyRate: parseFloat(e.target.value) / 100 || 0 })} placeholder="例如: 3 (代表3%)"/>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`product-period-${product.id}`}>周期 (天)</Label>
-                    <Input id={`product-period-${product.id}`} type="number" value={product.period} onChange={e => updateProduct(product.id, { period: parseInt(e.target.value) || 0 })} />
+                    <Input id={`product-period-${product.id}`} type="number" min={1} step="1" value={product.period} onChange={e => updateProduct(product.id, { period: parseInt(e.target.value) || 0 })} placeholder="例如: 25"/>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`product-max-${product.id}`}>最大购买次数</Label>
-                    <Input id={`product-max-${product.id}`} type="number" value={product.maxPurchase} onChange={e => updateProduct(product.id, { maxPurchase: parseInt(e.target.value) || 0 })} />
+                    <Input id={`product-max-${product.id}`} type="number" min={1} step="1" value={product.maxPurchase} onChange={e => updateProduct(product.id, { maxPurchase: parseInt(e.target.value) || 0 })} placeholder="例如: 1"/>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`staking-asset-${product.id}`}>质押币种 (选填)</Label>
@@ -65,20 +64,25 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`staking-amount-${product.id}`}>质押数量 (选填)</Label>
-                    <Input id={`staking-amount-${product.id}`} type="number" value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || undefined })} placeholder="输入需要质押的数量" />
+                    <Input id={`staking-amount-${product.id}`} type="number" min={0} value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || undefined })} placeholder="输入需要质押的数量" />
                 </div>
                  <div className="lg:col-span-3 space-y-2">
                     <Label>产品图片</Label>
                     <div className="flex items-center gap-4">
                         {product.imgSrc && (
-                            <Image 
-                                src={product.imgSrc} 
-                                alt={product.name} 
-                                width={80} 
-                                height={80} 
-                                className="object-cover rounded-md border"
-                                data-ai-hint="investment product"
-                            />
+                             <div className="flex items-center gap-2">
+                                <Image 
+                                    src={product.imgSrc} 
+                                    alt={product.name} 
+                                    width={80} 
+                                    height={80} 
+                                    className="object-cover rounded-md border"
+                                    data-ai-hint="investment product"
+                                />
+                                 <Button variant="ghost" size="icon" onClick={() => updateProduct(product.id, { imgSrc: "" })} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-4 w-4"/>
+                                </Button>
+                             </div>
                         )}
                         <Input 
                             id={`product-img-upload-${product.id}`} 
@@ -94,7 +98,8 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
     );
 };
 
-const FinanceProductEditor = ({ product, updateProduct, removeProduct }: { product: InvestmentProduct, updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void, removeProduct: (id: string) => void }) => {
+const FinanceProductEditor = ({ product, updateProduct }: { product: InvestmentProduct, updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void, removeProduct: (id: string) => void }) => {
+    
     const handleTierChange = (tierIndex: number, field: keyof InvestmentTier, value: string) => {
         const newTiers = [...(product.hourlyTiers || [])];
         const numValue = parseFloat(value);
@@ -102,10 +107,21 @@ const FinanceProductEditor = ({ product, updateProduct, removeProduct }: { produ
              if(field === 'rate') {
                 newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: numValue / 100 };
              } else {
-                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: numValue };
+                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: Math.max(0, numValue) };
              }
             updateProduct(product.id, { hourlyTiers: newTiers });
         }
+    };
+
+    const addTier = () => {
+        const newTiers = [...(product.hourlyTiers || []), { hours: 1, rate: 0.01 }];
+        updateProduct(product.id, { hourlyTiers: newTiers });
+    };
+
+    const removeTier = (index: number) => {
+        const newTiers = [...(product.hourlyTiers || [])];
+        newTiers.splice(index, 1);
+        updateProduct(product.id, { hourlyTiers: newTiers });
     };
     
     return (
@@ -118,7 +134,7 @@ const FinanceProductEditor = ({ product, updateProduct, removeProduct }: { produ
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor={`fin-price-${product.id}`}>最低投资额 (USDT)</Label>
-                    <Input id={`fin-price-${product.id}`} type="number" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} />
+                    <Input id={`fin-price-${product.id}`} type="number" min={0} step="0.01" value={product.price} onChange={e => updateProduct(product.id, { price: parseFloat(e.target.value) || 0 })} placeholder="例如: 100"/>
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor={`fin-start-time-${product.id}`}>开放开始时间</Label>
@@ -128,18 +144,25 @@ const FinanceProductEditor = ({ product, updateProduct, removeProduct }: { produ
                     <Label htmlFor={`fin-end-time-${product.id}`}>开放结束时间</Label>
                     <Input id={`fin-end-time-${product.id}`} type="time" value={product.activeEndTime} onChange={e => updateProduct(product.id, { activeEndTime: e.target.value })} />
                 </div>
-                <div className="md:col-span-2 space-y-2">
+                <div className="md:col-span-2 space-y-4">
                      <Label>小时利率阶梯</Label>
-                     <div className="space-y-2">
+                     <div className="space-y-3">
                         {(product.hourlyTiers || []).map((tier, index) => (
-                             <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
-                                <Input type="number" value={tier.hours} onChange={e => handleTierChange(index, 'hours', e.target.value)} placeholder="小时" className="w-1/3"/>
+                             <div key={index} className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                                <Input type="number" min={1} value={tier.hours} onChange={e => handleTierChange(index, 'hours', e.target.value)} placeholder="小时" className="w-1/3"/>
                                 <span className="text-muted-foreground text-sm">小时</span>
-                                <Input type="number" value={tier.rate * 100} onChange={e => handleTierChange(index, 'rate', e.target.value)} placeholder="利率" className="w-1/3"/>
-                                 <span className="text-muted-foreground text-sm">%</span>
+                                <Input type="number" min={0} step="0.01" value={tier.rate * 100} onChange={e => handleTierChange(index, 'rate', e.target.value)} placeholder="利率" className="w-1/3"/>
+                                <span className="text-muted-foreground text-sm">%</span>
+                                <Button variant="ghost" size="icon" onClick={() => removeTier(index)} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
                             </div>
                         ))}
                      </div>
+                      <Button variant="outline" size="sm" onClick={addTier}>
+                        <PlusCircle className="mr-2 h-4 w-4"/>
+                        添加利率档位
+                     </Button>
                 </div>
             </div>
         </div>
@@ -202,7 +225,7 @@ export default function AdminInvestmentSettingsPage() {
                         </CardContent>
                      </ScrollArea>
                     <CardFooter className="flex-col items-start gap-4 pt-6">
-                        <Button variant="outline" onClick={addProduct}>
+                        <Button variant="outline" onClick={() => addProduct('staking')}>
                             <PlusCircle className="mr-2 h-4 w-4"/>
                             添加新质押产品
                         </Button>
