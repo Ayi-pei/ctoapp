@@ -1,4 +1,5 @@
-import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone, Layers, Globe, Bitcoin } from 'lucide-react';
+
+import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone, Layers, Globe, Bitcoin, History, ShieldCheck } from 'lucide-react';
 import type { NavItem } from '@/types';
 
 export const userNavItems: NavItem[] = [
@@ -11,12 +12,10 @@ export const userNavItems: NavItem[] = [
 ];
 
 export const adminNavItems: NavItem[] = [
-    { href: '/admin/users', label: '用户管理', icon: Users },
-    { href: '/admin/requests', label: '审核请求', icon: Bell },
     { 
         href: '/admin/finance', 
-        label: '运营相关', 
-        icon: Landmark,
+        label: '运营中心', 
+        icon: BarChart2,
         subItems: [
             { href: '/admin/finance/dashboard', label: '数据报表', icon: BarChart2 },
             { href: '/admin/finance/tasks', label: '日常任务', icon: ListChecks },
@@ -24,7 +23,16 @@ export const adminNavItems: NavItem[] = [
             { href: '/admin/finance/activities', label: '限时活动', icon: PartyPopper },
         ]
     },
-    { href: '/admin/orders', label: '订单详情', icon: FileText },
+    {
+        href: '/admin/users',
+        label: '用户与订单中心',
+        icon: Users,
+        subItems: [
+            { href: '/admin/users', label: '用户列表', icon: Users },
+            { href: '/admin/orders', label: '订单总览', icon: FileText },
+            { href: '/admin/requests', label: '审核队列', icon: Bell },
+        ]
+    },
     { 
         href: '/admin/settings', 
         label: '系统设置', 
@@ -35,5 +43,10 @@ export const adminNavItems: NavItem[] = [
             { href: '/admin/settings/market-forex', label: '期权外汇市场', icon: Globe },
             { href: '/admin/settings/investment', label: '理财产品', icon: Package },
         ]
+    },
+     { 
+        href: '/admin/logs', 
+        label: '系统日志', 
+        icon: History 
     },
 ]
