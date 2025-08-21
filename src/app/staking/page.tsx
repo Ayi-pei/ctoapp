@@ -13,6 +13,7 @@ import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import React from "react";
 
 const Header = () => {
     const router = useRouter();
@@ -149,15 +150,7 @@ export default function StakingPage() {
     const handleConfirmInvestment = useCallback(async () => {
         if (!selectedProduct || !selectedProduct.dailyRate || !selectedProduct.period) return;
         
-        // Final check before state update
-        const purchasedCount = getPurchasedCount(selectedProduct.name);
-        if (purchasedCount >= selectedProduct.maxPurchase) {
-            toast({ variant: "destructive", title: "已达限购", description: "无法购买，已达到最大次数。" });
-            setIsInvestmentDialogOpen(false);
-            return;
-        }
-        
-        await addDailyInvestment({
+        const success = await addDailyInvestment({
             productName: selectedProduct.name,
             amount: selectedProduct.price,
             dailyRate: selectedProduct.dailyRate,
@@ -167,14 +160,22 @@ export default function StakingPage() {
             stakingAmount: selectedProduct.stakingAmount,
         });
         
-        toast({
-            title: "购买成功",
-            description: `您已成功购买 ${selectedProduct.name}。`
-        });
+        if (success) {
+            toast({
+                title: "购买成功",
+                description: `您已成功购买 ${selectedProduct.name}。`
+            });
+        } else {
+             toast({
+                variant: "destructive",
+                title: "购买失败",
+                description: "发生未知错误，请稍后重试。"
+            });
+        }
         
         setIsInvestmentDialogOpen(false);
         setSelectedProduct(null);
-    }, [selectedProduct, addDailyInvestment, getPurchasedCount, toast]);
+    }, [selectedProduct, addDailyInvestment, toast]);
 
     return (
         <DashboardLayout>
@@ -197,7 +198,7 @@ export default function StakingPage() {
                         product={{
                             name: selectedProduct.name,
                             minInvestment: selectedProduct.price,
-                            maxInvestment: selectedProduct.price, // Each purchase is one unit
+                            maxInvestment: selectedProduct.price,
                         }}
                         balance={balances['USDT']?.available || 0}
                         onConfirm={handleConfirmInvestment}
@@ -207,4 +208,3 @@ export default function StakingPage() {
         </DashboardLayout>
     );
 }
-

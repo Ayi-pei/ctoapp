@@ -419,53 +419,41 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [settleContractTrade]);
   
   
-  const addDailyInvestment = useCallback(async (params: DailyInvestmentParams) => {
-    if (!user) return false;
+    const addDailyInvestment = useCallback(async (params: DailyInvestmentParams) => {
+        if (!user) return false;
+        
+        // This function now assumes validation has happened in the UI layer.
+        // It focuses purely on state mutation.
+        
+        // 1. Deduct purchase price from available balance
+        adjustBalance(user.id, 'USDT', -params.amount);
 
-    // Check purchase price
-    if ((balances.USDT?.available || 0) < params.amount) {
-      return false;
-    }
-    
-    // Check staking requirement
-    if (params.stakingAsset && params.stakingAmount) {
-        if ((balances[params.stakingAsset]?.available || 0) < params.stakingAmount) {
-            return false;
+        // 2. Freeze staked asset if required
+        if (params.stakingAsset && params.stakingAmount) {
+            adjustFrozenBalance(params.stakingAsset, params.stakingAmount, user.id);
         }
-    }
-    
-    // Deduct purchase price
-    setBalances(prev => ({
-      ...prev,
-      USDT: { ...prev.USDT, available: prev.USDT.available - params.amount }
-    }));
 
-    // Freeze staked asset
-    if (params.stakingAsset && params.stakingAmount) {
-        adjustFrozenBalance(params.stakingAsset, params.stakingAmount, user.id);
-    }
+        const now = new Date();
+        const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
 
-    const now = new Date();
-    const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
-
-    const newInvestment: Investment = {
-        id: `inv-d-${Date.now()}`,
-        user_id: user.id,
-        product_name: params.productName,
-        amount: params.amount,
-        created_at: now.toISOString(),
-        settlement_date: settlementDate.toISOString(),
-        daily_rate: params.dailyRate,
-        period: params.period,
-        status: 'active',
-        productType: 'daily',
-        category: 'staking',
-        stakingAsset: params.stakingAsset,
-        stakingAmount: params.stakingAmount,
-    }
-    setInvestments(prev => [newInvestment, ...prev]);
-    return true;
-  }, [user, balances, adjustFrozenBalance]);
+        const newInvestment: Investment = {
+            id: `inv-d-${Date.now()}`,
+            user_id: user.id,
+            product_name: params.productName,
+            amount: params.amount,
+            created_at: now.toISOString(),
+            settlement_date: settlementDate.toISOString(),
+            daily_rate: params.dailyRate,
+            period: params.period,
+            status: 'active',
+            productType: 'daily',
+            category: 'staking',
+            stakingAsset: params.stakingAsset,
+            stakingAmount: params.stakingAmount,
+        }
+        setInvestments(prev => [newInvestment, ...prev]);
+        return true;
+  }, [user, adjustBalance, adjustFrozenBalance]);
   
   const addHourlyInvestment = useCallback(async (params: HourlyInvestmentParams) => {
      if (!user) return false;
