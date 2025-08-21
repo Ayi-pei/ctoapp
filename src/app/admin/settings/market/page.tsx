@@ -1,192 +1,34 @@
 
 "use client";
-import DashboardLayout from "@/components/dashboard-layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useSystemSettings, MarketIntervention } from "@/context/system-settings-context";
-import { availablePairs } from "@/types";
-import { PlusCircle, Trash2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
+import AuthLayout from '@/components/auth-layout';
+import { LoaderCircle } from 'lucide-react';
 
-const InterventionCard = ({ 
-    intervention,
-    index,
-    updateIntervention,
-    removeIntervention,
-}: { 
-    intervention: MarketIntervention,
-    index: number,
-    updateIntervention: (id: string, updates: Partial<MarketIntervention>) => void,
-    removeIntervention: (id: string) => void,
-}) => {
+/**
+ * This page now acts as a redirector to the default market settings sub-page.
+ */
+export default function AdminMarketRedirectPage() {
+    const { isAdmin, isLoading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!isLoading && isAdmin) {
+            router.replace('/admin/settings/market-crypto');
+        } else if (!isLoading && !isAdmin) {
+             router.replace('/');
+        }
+    }, [isAdmin, isLoading, router]);
+
+    // Show a skeleton loader while the auth state is being determined.
     return (
-        <Card className="p-4 bg-muted/30">
-             <div className="flex items-center justify-between mb-4">
-                 <h3 className="font-semibold text-lg">干预指令 {index + 1}</h3>
-                 <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => removeIntervention(intervention.id)}>
-                    <Trash2 className="h-4 w-4" />
-                </Button>
+        <AuthLayout>
+            <div className="flex flex-col items-center gap-4">
+                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">正在加载市场设置...</p>
             </div>
-            
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor={`intervention-pair-${intervention.id}`}>交易对</Label>
-                    <Select 
-                        value={intervention.tradingPair} 
-                        onValueChange={(value) => updateIntervention(intervention.id, { tradingPair: value })}>
-                        <SelectTrigger id={`intervention-pair-${intervention.id}`}>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {availablePairs.map(pair => (
-                                <SelectItem key={pair} value={pair}>{pair}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor={`intervention-trend-${intervention.id}`}>趋势</Label>
-                    <Select 
-                        value={intervention.trend} 
-                        onValueChange={(value: 'up' | 'down' | 'random') => updateIntervention(intervention.id, { trend: value })}>
-                        <SelectTrigger id={`intervention-trend-${intervention.id}`}>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="up">上涨</SelectItem>
-                            <SelectItem value="down">下跌</SelectItem>
-                            <SelectItem value="random">随机波动</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                    <Label>时间范围</Label>
-                     <div className="flex items-center gap-2">
-                         <Input 
-                            id={`intervention-start-${intervention.id}`}
-                            type="time" 
-                            value={intervention.startTime}
-                            onChange={(e) => updateIntervention(intervention.id, { startTime: e.target.value })}
-                        />
-                         <Input 
-                            id={`intervention-end-${intervention.id}`}
-                            type="time" 
-                            value={intervention.endTime}
-                            onChange={(e) => updateIntervention(intervention.id, { endTime: e.target.value })}
-                        />
-                    </div>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor={`intervention-min-${intervention.id}`}>最低价</Label>
-                    <Input 
-                        id={`intervention-min-${intervention.id}`}
-                        type="number" 
-                        value={intervention.minPrice}
-                        onChange={(e) => updateIntervention(intervention.id, { minPrice: parseFloat(e.target.value) || 0 })}
-                    />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor={`intervention-max-${intervention.id}`}>最高价</Label>
-                    <Input 
-                        id={`intervention-max-${intervention.id}`}
-                        type="number" 
-                        value={intervention.maxPrice}
-                        onChange={(e) => updateIntervention(intervention.id, { maxPrice: parseFloat(e.target.value) || 0 })}
-                    />
-                </div>
-            </div>
-        </Card>
-    );
-};
-
-
-export default function AdminMarketSettingsPage() {
-    const { 
-        systemSettings, 
-        updateSetting,
-        addMarketIntervention,
-        removeMarketIntervention,
-        updateMarketIntervention,
-    } = useSystemSettings();
-    const { toast } = useToast();
-    
-    const handleSaveChanges = () => {
-        // The context now saves automatically, but we can provide user feedback.
-        toast({
-            title: "设置已保存",
-            description: "市场设置已自动更新。",
-        });
-    };
-
-    return (
-        <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6">
-                 <h1 className="text-2xl font-bold">市场设置</h1>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>全局市场设置</CardTitle>
-                         <CardDescription>影响所有交易对的全局市场配置</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
-                            <div>
-                                <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
-                                    开启秒合约交易
-                                </Label>
-                                <p className="text-xs font-normal text-muted-foreground mt-1">
-                                    关闭后，所有用户将无法进行秒合约交易。
-                                </p>
-                            </div>
-                            <Switch
-                                id="enable-contract-trading"
-                                checked={systemSettings.contractTradingEnabled}
-                                onCheckedChange={(checked: boolean) => updateSetting('contractTradingEnabled', checked)}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>市场数据干预指令</CardTitle>
-                        <CardDescription>
-                            创建最多5条独立的干预指令。在指定时间段内，所选交易对的真实行情将被您设定的模拟数据覆盖。
-                            <span className="block mt-1 font-semibold text-destructive">注意：保存前请确认干预时间内无相同币种时间段的其它干预指令。</span>
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {systemSettings.marketInterventions.map((intervention, index) => (
-                            <InterventionCard
-                                key={intervention.id}
-                                intervention={intervention}
-                                index={index}
-                                updateIntervention={updateMarketIntervention}
-                                removeIntervention={removeMarketIntervention}
-                            />
-                        ))}
-                         <Button 
-                            variant="outline"
-                            onClick={addMarketIntervention} 
-                            disabled={systemSettings.marketInterventions.length >= 5}
-                        >
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            添加新指令
-                        </Button>
-                    </CardContent>
-                    <CardFooter>
-                       <Button onClick={handleSaveChanges}>保存市场设置</Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        </DashboardLayout>
+        </AuthLayout>
     );
 }

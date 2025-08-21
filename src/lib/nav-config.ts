@@ -1,4 +1,4 @@
-import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone, Layers } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone, Layers, Globe, Bitcoin } from 'lucide-react';
 import type { NavItem } from '@/types';
 
 export const userNavItems: NavItem[] = [
@@ -31,7 +31,8 @@ export const adminNavItems: NavItem[] = [
         icon: Settings,
         subItems: [
             { href: '/admin/settings/general', label: '通用设置', icon: SlidersHorizontal },
-            { href: '/admin/settings/market', label: '市场设置', icon: LineChart },
+            { href: '/admin/settings/market-crypto', label: '加密货币市场', icon: Bitcoin },
+            { href: '/admin/settings/market-forex', label: '期权外汇市场', icon: Globe },
             { href: '/admin/settings/investment', label: '理财产品', icon: Package },
         ]
     },

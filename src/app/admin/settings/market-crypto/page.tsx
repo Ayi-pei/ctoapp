@@ -1,0 +1,192 @@
+
+"use client";
+import DashboardLayout from "@/components/dashboard-layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useSystemSettings, MarketIntervention } from "@/context/system-settings-context";
+import { availablePairs as allAvailablePairs } from "@/types";
+import { PlusCircle, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+
+const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
+
+const InterventionCard = ({ 
+    intervention,
+    index,
+    updateIntervention,
+    removeIntervention,
+}: { 
+    intervention: MarketIntervention,
+    index: number,
+    updateIntervention: (id: string, updates: Partial<MarketIntervention>) => void,
+    removeIntervention: (id: string) => void,
+}) => {
+    return (
+        <Card className="p-4 bg-muted/30">
+             <div className="flex items-center justify-between mb-4">
+                 <h3 className="font-semibold text-lg">干预指令 {index + 1}</h3>
+                 <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeIntervention(intervention.id)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+            
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor={`intervention-pair-${intervention.id}`}>交易对</Label>
+                    <Select 
+                        value={intervention.tradingPair} 
+                        onValueChange={(value) => updateIntervention(intervention.id, { tradingPair: value })}>
+                        <SelectTrigger id={`intervention-pair-${intervention.id}`}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CRYPTO_PAIRS.map(pair => (
+                                <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor={`intervention-trend-${intervention.id}`}>趋势</Label>
+                    <Select 
+                        value={intervention.trend} 
+                        onValueChange={(value: 'up' | 'down' | 'random') => updateIntervention(intervention.id, { trend: value })}>
+                        <SelectTrigger id={`intervention-trend-${intervention.id}`}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="up">上涨</SelectItem>
+                            <SelectItem value="down">下跌</SelectItem>
+                            <SelectItem value="random">随机波动</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                    <Label>时间范围</Label>
+                     <div className="flex items-center gap-2">
+                         <Input 
+                            id={`intervention-start-${intervention.id}`}
+                            type="time" 
+                            value={intervention.startTime}
+                            onChange={(e) => updateIntervention(intervention.id, { startTime: e.target.value })}
+                        />
+                         <Input 
+                            id={`intervention-end-${intervention.id}`}
+                            type="time" 
+                            value={intervention.endTime}
+                            onChange={(e) => updateIntervention(intervention.id, { endTime: e.target.value })}
+                        />
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor={`intervention-min-${intervention.id}`}>最低价</Label>
+                    <Input 
+                        id={`intervention-min-${intervention.id}`}
+                        type="number" 
+                        value={intervention.minPrice}
+                        onChange={(e) => updateIntervention(intervention.id, { minPrice: parseFloat(e.target.value) || 0 })}
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor={`intervention-max-${intervention.id}`}>最高价</Label>
+                    <Input 
+                        id={`intervention-max-${intervention.id}`}
+                        type="number" 
+                        value={intervention.maxPrice}
+                        onChange={(e) => updateIntervention(intervention.id, { maxPrice: parseFloat(e.target.value) || 0 })}
+                    />
+                </div>
+            </div>
+        </Card>
+    );
+};
+
+
+export default function AdminCryptoMarketSettingsPage() {
+    const { 
+        systemSettings, 
+        updateSetting,
+        addMarketIntervention,
+        removeMarketIntervention,
+        updateMarketIntervention,
+    } = useSystemSettings();
+    const { toast } = useToast();
+    
+    const handleSaveChanges = () => {
+        toast({
+            title: "设置已保存",
+            description: "市场设置已自动更新。",
+        });
+    };
+
+    const cryptoInterventions = systemSettings.marketInterventions.filter(i => CRYPTO_PAIRS.includes(i.tradingPair));
+
+    return (
+        <DashboardLayout>
+            <div className="p-4 md:p-8 space-y-6">
+                 <h1 className="text-2xl font-bold">加密货币市场设置</h1>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>全局市场设置</CardTitle>
+                         <CardDescription>影响所有交易对的全局市场配置</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between p-4 rounded-md bg-muted/50">
+                            <div>
+                                <Label htmlFor="enable-contract-trading" className="font-semibold text-base">
+                                    开启秒合约交易
+                                </Label>
+                                <p className="text-xs font-normal text-muted-foreground mt-1">
+                                    关闭后，所有用户将无法进行秒合约交易。
+                                </p>
+                            </div>
+                            <Switch
+                                id="enable-contract-trading"
+                                checked={systemSettings.contractTradingEnabled}
+                                onCheckedChange={(checked: boolean) => updateSetting('contractTradingEnabled', checked)}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>市场数据干预指令</CardTitle>
+                        <CardDescription>
+                            创建最多5条独立的干预指令。在指定时间段内，所选交易对的真实行情将被您设定的模拟数据覆盖。
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {cryptoInterventions.map((intervention, index) => (
+                            <InterventionCard
+                                key={intervention.id}
+                                intervention={intervention}
+                                index={index}
+                                updateIntervention={updateMarketIntervention}
+                                removeIntervention={removeMarketIntervention}
+                            />
+                        ))}
+                         <Button 
+                            variant="outline"
+                            onClick={addMarketIntervention} 
+                            disabled={systemSettings.marketInterventions.length >= 5}
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            添加新指令
+                        </Button>
+                    </CardContent>
+                    <CardFooter>
+                       <Button onClick={handleSaveChanges}>保存市场设置</Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        </DashboardLayout>
+    );
+}
