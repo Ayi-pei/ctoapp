@@ -5,6 +5,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
 import axios from 'axios';
 import { useSystemSettings } from './system-settings-context';
+import { supabase } from '@/lib/supabaseClient';
+
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
 
@@ -76,7 +78,7 @@ const initialTradingPair = CRYPTO_PAIRS[0];
 
 // --- Batch Generator ---
 const generateKlineBatch = (startTimestamp: number, count: number, lastPrice: number) => {
-  const batch: OHLC[] = [];
+  const batch: Omit<OHLC, 'trading_pair'>[] = [];
   let price = lastPrice;
 
   for (let i = 0; i < count; i++) {
@@ -121,7 +123,22 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     const fetchRealData = async () => {
       const cryptoData = currentProvider === 'coingecko' ? await fetchCoinGeckoData() : await fetchCoinDeskData();
-      if (Object.keys(cryptoData).length > 0) setBaseApiData(prev => ({ ...prev, ...cryptoData }));
+      
+      if (Object.keys(cryptoData).length > 0) {
+        setBaseApiData(prev => ({ ...prev, ...cryptoData }));
+        
+        const summaryUpdates = Object.values(cryptoData).map(d => ({
+            pair: d.pair,
+            price: d.price,
+            change: d.change,
+            volume: d.volume,
+            high: d.high,
+            low: d.low,
+            icon: d.icon,
+        }));
+
+        await supabase.from('market_summary_data').upsert(summaryUpdates, { onConflict: 'pair' });
+      }
       currentProvider = currentProvider === 'coingecko' ? 'coindesk' : 'coingecko';
     };
 
@@ -130,42 +147,67 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  // --- Initial Kline Data Generation ---
+  // --- Initial Kline Data Generation & DB Sync ---
   useEffect(() => {
     let isMounted = true;
+    
+    const loadInitialData = async () => {
+        // 1. Try to fetch from Supabase first
+        const fourHoursAgo = new Date(Date.now() - TOTAL_SECONDS * 1000).toISOString();
+        const { data: dbData, error } = await supabase
+            .from('market_kline_data')
+            .select('*')
+            .gte('time', fourHoursAgo);
 
-    const loadInitialData = () => {
-      CRYPTO_PAIRS.forEach(pair => {
-        const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
-        let lastPrice = basePrice;
-        let generatedCount = 0;
+        if (error) console.error("Error fetching kline from supabase", error);
 
-        function loadBatchForPair() {
-          if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
-
-          const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
-          const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
-
-          const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
-          
-          lastPrice = newPrice;
-          generatedCount += count;
-
-          setKlineData(prev => ({ ...prev, [pair]: [...(prev[pair] || []), ...batch].slice(-DATA_POINTS_TO_KEEP) }));
-
-          if (generatedCount < TOTAL_SECONDS) setTimeout(loadBatchForPair, 50);
+        if (dbData && dbData.length > 0) {
+            const groupedData: Record<string, OHLC[]> = {};
+            dbData.forEach(row => {
+                if (!groupedData[row.trading_pair]) {
+                    groupedData[row.trading_pair] = [];
+                }
+                groupedData[row.trading_pair].push({ time: new Date(row.time).getTime(), open: row.open, high: row.high, low: row.low, close: row.close });
+            });
+            Object.keys(groupedData).forEach(pair => {
+                groupedData[pair].sort((a, b) => a.time - b.time);
+            });
+            setKlineData(groupedData);
+            return;
         }
 
-        loadBatchForPair();
-      });
-    };
+        // 2. If DB is empty, generate and insert
+        for (const pair of CRYPTO_PAIRS) {
+            const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
+            let lastPrice = basePrice;
+            let generatedCount = 0;
 
-    if (Object.keys(baseApiData).length > 0 || Object.keys(klineData).length === 0) {
-        loadInitialData();
-    }
+            const loadBatchForPair = async () => {
+                if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
+
+                const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
+                const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
+                const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
+
+                const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
+                await supabase.from('market_kline_data').insert(dbBatch);
+                
+                lastPrice = newPrice;
+                generatedCount += count;
+                
+                setKlineData(prev => ({ ...prev, [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) }));
+
+                if (generatedCount < TOTAL_SECONDS) setTimeout(loadBatchForPair, 50);
+            }
+            await loadBatchForPair();
+        }
+    };
+    
+    loadInitialData();
+
     return () => { isMounted = false; }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseApiData]);
+
 
   // --- High-frequency simulation ---
   useEffect(() => {
@@ -205,14 +247,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
       setKlineData(prevKline => {
         const newKline = { ...prevKline };
-        const currentSummaryData = Object.values(newKline).length > 0 ? summaryData : [];
-        currentSummaryData.forEach(summary => {
-            const pairData = newKline[summary.pair] || [];
+        const nowTime = now.getTime();
+        Object.keys(prevKline).forEach(pair => {
+            const pairData = newKline[pair] || [];
             const lastDataPoint = pairData.length > 0 ? pairData[pairData.length - 1] : null;
-            const currentPrice = getLatestPrice(summary.pair);
-            const nowTime = now.getTime();
-            const newPoint: OHLC = { time: nowTime, open: lastDataPoint?.close || currentPrice, high: currentPrice, low: currentPrice, close: currentPrice };
-            newKline[summary.pair] = [...pairData, newPoint].slice(-DATA_POINTS_TO_KEEP);
+            const currentPrice = getLatestPrice(pair);
+            if (currentPrice > 0) {
+              const newPoint: OHLC = { time: nowTime, open: lastDataPoint?.close || currentPrice, high: currentPrice, low: currentPrice, close: currentPrice, trading_pair: pair };
+              newKline[pair] = [...pairData, newPoint].slice(-DATA_POINTS_TO_KEEP);
+            }
         });
         return newKline;
       });

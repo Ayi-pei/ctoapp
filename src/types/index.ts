@@ -18,6 +18,7 @@ export type OHLC = {
   high: number;
   low: number;
   close: number;
+  trading_pair?: string; // Optional because it might be contextually known
 };
 
 
