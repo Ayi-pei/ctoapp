@@ -120,35 +120,33 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [interventionState, setInterventionState] = useState<Record<string, { lastPrice: number }>>({});
 
-    const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
-
     const getLatestPrice = useCallback((pair: string): number => {
         return summaryData.find(s => s.pair === pair)?.price || 0;
     }, [summaryData]);
     
     // Low-frequency fetch for real data from ALL external APIs. This ONLY updates the `baseApiData` buffer.
     useEffect(() => {
+        let currentProvider: 'coingecko' | 'coindesk' = 'coingecko';
+
         const fetchRealData = async () => {
-            console.log(`Fetching crypto data from: ${cryptoProvider}`);
-            const cryptoPromise = cryptoProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
+            console.log(`Fetching crypto data from: ${currentProvider}`);
+            const cryptoPromise = currentProvider === 'coingecko' ? fetchCoinGeckoData() : fetchCoinDeskData();
             const cryptoData = await cryptoPromise;
 
             if (Object.keys(cryptoData).length > 0) {
                 setBaseApiData(prevData => ({ ...prevData, ...cryptoData }));
             }
-
-            setCryptoProvider(prev => prev === 'coingecko' ? 'coindesk' : 'coingecko');
+            // Rotate provider for the next call
+            currentProvider = currentProvider === 'coingecko' ? 'coindesk' : 'coingecko';
         };
 
-        const timer = setTimeout(fetchRealData, 1000); // Fetch after 1s on initial load
+        fetchRealData(); // Fetch immediately on load
         const interval = setInterval(fetchRealData, 60000); // Then fetch every 60 seconds
 
         return () => {
-            clearTimeout(timer);
             clearInterval(interval);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cryptoProvider]); 
+    }, []); 
     
     // Initial data generation with asynchronous batching
     useEffect(() => {
