@@ -1,7 +1,6 @@
 
-
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 const Header = () => {
     const router = useRouter();
@@ -34,11 +34,18 @@ const Header = () => {
     );
 };
 
-const MiningProductCard = ({ product, purchasedCount, onInvest }: { 
+const MiningProductCard = React.memo(function MiningProductCard({ product, purchasedCount, onInvest }: { 
     product: InvestmentProduct, 
     purchasedCount: number,
     onInvest: (product: InvestmentProduct) => void 
-}) => {
+}) {
+    const purchasePercentage = (purchasedCount / product.maxPurchase) * 100;
+    
+    const progressColor = 
+        purchasePercentage > 80 ? "bg-red-500" :
+        purchasePercentage > 50 ? "bg-yellow-500" :
+        "bg-primary";
+
     return (
         <Card className="bg-card/80 border-2 border-amber-400/50 overflow-hidden shadow-[inset_0_0_8px_rgba(234,179,8,0.4)]">
             <div className="flex items-stretch">
@@ -48,6 +55,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                           src={product.imgSrc} 
                           alt={product.name}
                           fill
+                          sizes="(max-width: 768px) 30vw, (max-width: 1200px) 20vw, 10vw"
                           className="object-contain rounded-md"
                           data-ai-hint="investment product"
                         />
@@ -61,8 +69,9 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                                 <Button 
                                     className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-xs h-7 px-4 rounded-md -mt-1"
                                     onClick={() => onInvest(product)}
+                                    disabled={purchasedCount >= product.maxPurchase}
                                 >
-                                    质押
+                                    {purchasedCount >= product.maxPurchase ? "已售罄" : "质押"}
                                 </Button>
                             </div>
                              <div className="grid grid-cols-2 md:grid-cols-3 text-left text-sm mt-3 gap-y-2">
@@ -76,7 +85,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-xs text-muted-foreground">日收益率</p>
-                                    <p className="font-semibold text-green-400">{(product.dailyRate ?? 0) * 100}%/天</p>
+                                    <p className="font-semibold text-green-400">{((product.dailyRate ?? 0) * 100).toFixed(1)}%/天</p>
                                 </div>
                                 {product.stakingAsset && product.stakingAmount != null && (
                                     <div className="space-y-1 col-span-2 md:col-span-3">
@@ -88,7 +97,7 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                         </div>
 
                         <div>
-                            <Progress value={(purchasedCount / product.maxPurchase) * 100} className="h-2" />
+                            <Progress value={purchasePercentage} indicatorClassName={progressColor} className="h-2" />
                             <div className="flex justify-between text-xs text-muted-foreground mt-1">
                                 <span>已购: {purchasedCount}</span>
                                 <span>限购: {product.maxPurchase}</span>
@@ -98,8 +107,8 @@ const MiningProductCard = ({ product, purchasedCount, onInvest }: {
                 </div>
             </div>
         </Card>
-    )
-};
+    );
+});
 
 export default function StakingPage() {
     const { toast } = useToast();
@@ -110,15 +119,45 @@ export default function StakingPage() {
     
     const stakingProducts = investmentProducts.filter(p => p.category === 'staking');
     
-    const handleInvestClick = (product: InvestmentProduct) => {
+    const getPurchasedCount = useCallback((productName: string) => {
+        return investments.filter(inv => inv.product_name === productName).length;
+    }, [investments]);
+
+    const handleInvestClick = useCallback((product: InvestmentProduct) => {
+        const purchasedCount = getPurchasedCount(product.name);
+        if (purchasedCount >= product.maxPurchase) {
+            toast({ variant: "destructive", title: "已达限购", description: `您已达到此产品的最大购买次数 (${product.maxPurchase}次)。` });
+            return;
+        }
+
+        if ((balances['USDT']?.available || 0) < product.price) {
+            toast({ variant: "destructive", title: "余额不足", description: `购买此产品需要 ${product.price} USDT，您的余额不足。` });
+            return;
+        }
+
+        if (product.stakingAsset && product.stakingAmount) {
+            if ((balances[product.stakingAsset]?.available || 0) < product.stakingAmount) {
+                toast({ variant: "destructive", title: "质押资产不足", description: `此产品需要质押 ${product.stakingAmount} ${product.stakingAsset}，您的余额不足。` });
+                return;
+            }
+        }
+        
         setSelectedProduct(product);
         setIsInvestmentDialogOpen(true);
-    }
+    }, [balances, getPurchasedCount, toast]);
     
-    const handleConfirmInvestment = async () => {
+    const handleConfirmInvestment = useCallback(async () => {
         if (!selectedProduct || !selectedProduct.dailyRate || !selectedProduct.period) return;
         
-        const success = await addDailyInvestment({
+        // Final check before state update
+        const purchasedCount = getPurchasedCount(selectedProduct.name);
+        if (purchasedCount >= selectedProduct.maxPurchase) {
+            toast({ variant: "destructive", title: "已达限购", description: "无法购买，已达到最大次数。" });
+            setIsInvestmentDialogOpen(false);
+            return;
+        }
+        
+        await addDailyInvestment({
             productName: selectedProduct.name,
             amount: selectedProduct.price,
             dailyRate: selectedProduct.dailyRate,
@@ -128,25 +167,14 @@ export default function StakingPage() {
             stakingAmount: selectedProduct.stakingAmount,
         });
         
-        if (success) {
-            toast({
-                title: "购买成功",
-                description: `您已成功购买 ${selectedProduct.name}。`
-            });
-        } else {
-             toast({
-                variant: "destructive",
-                title: "购买失败",
-                description: "您的余额不足以支付价格或满足质押要求。",
-            });
-        }
+        toast({
+            title: "购买成功",
+            description: `您已成功购买 ${selectedProduct.name}。`
+        });
+        
         setIsInvestmentDialogOpen(false);
         setSelectedProduct(null);
-    }
-    
-    const getPurchasedCount = (productName: string) => {
-        return investments.filter(inv => inv.product_name === productName).length;
-    }
+    }, [selectedProduct, addDailyInvestment, getPurchasedCount, toast]);
 
     return (
         <DashboardLayout>
@@ -179,3 +207,4 @@ export default function StakingPage() {
         </DashboardLayout>
     );
 }
+
