@@ -1,4 +1,5 @@
 
+
 // Represents a single point in a price chart
 export type PriceDataPoint = {
     time: string;
@@ -274,6 +275,34 @@ export type SwapOrder = {
     takerId?: string;     // The user who accepted the order (buyer/taker)
     takerUsername?: string;
     paymentProofUrl?: string; // Data URL of the uploaded image
+};
+
+// Represents a single option contract (call or put)
+export type OptionContract = {
+  contract_id: string;
+  strike_price: number;
+  last_price: number;
+  bid: number;
+  ask: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  open_interest: number;
+  implied_volatility: number;
+  in_the_money: boolean;
+  // Greeks
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+  rho: number;
+};
+
+// Represents the full options chain for a specific expiration date
+export type OptionsChain = {
+    expiration_date: string;
+    calls: OptionContract[];
+    puts: OptionContract[];
 };
 
 // Navigation item type

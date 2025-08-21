@@ -15,6 +15,7 @@ import { TasksProvider } from '@/context/tasks-context';
 import { ActivitiesProvider } from '@/context/activities-context';
 import { LogsProvider } from '@/context/logs-context';
 import { SwapProvider } from '@/context/swap-context';
+import { OptionsProvider } from '@/context/options-context';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -39,20 +40,22 @@ export default function RootLayout({
             <SystemSettingsProvider>
               <InvestmentSettingsProvider>
                   <MarketDataProvider>
-                    <BalanceProvider>
-                      <TasksProvider>
-                        <RequestsProvider>
-                            <ActivitiesProvider>
-                              <AnnouncementsProvider>
-                                <SwapProvider>
-                                  {children}
-                                  <Toaster />
-                                </SwapProvider>
-                              </AnnouncementsProvider>
-                            </ActivitiesProvider>
-                        </RequestsProvider>
-                      </TasksProvider>
-                    </BalanceProvider>
+                    <OptionsProvider>
+                        <BalanceProvider>
+                          <TasksProvider>
+                            <RequestsProvider>
+                                <ActivitiesProvider>
+                                  <AnnouncementsProvider>
+                                    <SwapProvider>
+                                      {children}
+                                      <Toaster />
+                                    </SwapProvider>
+                                  </AnnouncementsProvider>
+                                </ActivitiesProvider>
+                            </RequestsProvider>
+                          </TasksProvider>
+                        </BalanceProvider>
+                    </OptionsProvider>
                   </MarketDataProvider>
               </InvestmentSettingsProvider>
             </SystemSettingsProvider>

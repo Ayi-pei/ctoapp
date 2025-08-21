@@ -1,9 +1,10 @@
-import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone } from 'lucide-react';
+import { Home, LineChart, CandlestickChart, Landmark, User, Download, Users, Bell, FileText, Settings, Gem, SlidersHorizontal, ListChecks, Coins, Gift, Package, BarChart2, PartyPopper, Megaphone, Layers } from 'lucide-react';
 import type { NavItem } from '@/types';
 
 export const userNavItems: NavItem[] = [
   { href: '/dashboard', label: '首页', icon: Home },
   { href: '/trade', label: '交易', icon: CandlestickChart },
+  { href: '/options', label: '期权', icon: Layers },
   { href: '/staking', label: '矿投', icon: Gem },
   { href: '/finance', label: '理财', icon: Landmark },
   { href: '/profile', label: '我的', icon: User },
