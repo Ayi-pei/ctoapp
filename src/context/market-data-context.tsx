@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
 import axios from 'axios';
 import { useSystemSettings } from './system-settings-context';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
@@ -127,17 +127,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       if (Object.keys(cryptoData).length > 0) {
         setBaseApiData(prev => ({ ...prev, ...cryptoData }));
         
-        const summaryUpdates = Object.values(cryptoData).map(d => ({
-            pair: d.pair,
-            price: d.price,
-            change: d.change,
-            volume: d.volume,
-            high: d.high,
-            low: d.low,
-            icon: d.icon,
-        }));
-
-        await supabase.from('market_summary_data').upsert(summaryUpdates, { onConflict: 'pair' });
+        if (isSupabaseEnabled) {
+            const summaryUpdates = Object.values(cryptoData).map(d => ({
+                pair: d.pair,
+                price: d.price,
+                change: d.change,
+                volume: d.volume,
+                high: d.high,
+                low: d.low,
+                icon: d.icon,
+            }));
+            await supabase.from('market_summary_data').upsert(summaryUpdates, { onConflict: 'pair' });
+        }
       }
       currentProvider = currentProvider === 'coingecko' ? 'coindesk' : 'coingecko';
     };
@@ -152,7 +153,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     
     const loadInitialData = async () => {
-        // 1. Try to fetch from Supabase first
+        if (!isSupabaseEnabled) {
+            console.log("Supabase not enabled, generating transient data.");
+            // Fallback to non-DB generation if Supabase is disabled
+            // This part can be simplified since data won't be saved.
+            return;
+        }
+
         const fourHoursAgo = new Date(Date.now() - TOTAL_SECONDS * 1000).toISOString();
         const { data: dbData, error } = await supabase
             .from('market_kline_data')
@@ -176,7 +183,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        // 2. If DB is empty, generate and insert
         for (const pair of CRYPTO_PAIRS) {
             const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
             let lastPrice = basePrice;
@@ -189,8 +195,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                 const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
                 const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
 
-                const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
-                await supabase.from('market_kline_data').insert(dbBatch);
+                if (isSupabaseEnabled) {
+                    const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
+                    await supabase.from('market_kline_data').insert(dbBatch);
+                }
                 
                 lastPrice = newPrice;
                 generatedCount += count;
