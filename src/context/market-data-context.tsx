@@ -198,53 +198,58 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const minutes = now.getMinutes();
             const currentTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
             
-            const sourceForSim = Object.keys(baseApiData).length > 0
-                ? Object.values(baseApiData)
-                : summaryData;
+            setSummaryData(prevSummary => {
+                const sourceForSim = Object.keys(baseApiData).length > 0
+                    ? Object.values(baseApiData)
+                    : prevSummary;
 
-            const newSimulatedSummaries = sourceForSim.map(summary => {
-                let newPrice = summary.price;
-                const intervention = systemSettings.marketInterventions.find(i => 
-                    i.tradingPair === summary.pair && 
-                    i.startTime <= currentTime && 
-                    i.endTime >= currentTime
-                );
-                
-                if (intervention) {
-                    const { minPrice, maxPrice, trend } = intervention;
-                    const priceRange = maxPrice - minPrice;
-                    let lastInterventionPrice = interventionState[summary.pair]?.lastPrice;
+                const newSimulatedSummaries = sourceForSim.map(summary => {
+                    let newPrice = summary.price;
+                    const intervention = systemSettings.marketInterventions.find(i => 
+                        i.tradingPair === summary.pair && 
+                        i.startTime <= currentTime && 
+                        i.endTime >= currentTime
+                    );
                     
-                    if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
-                        lastInterventionPrice = (minPrice + maxPrice) / 2;
-                    }
-                    
-                    if (trend === 'up') {
-                        newPrice = lastInterventionPrice + priceRange * 0.01;
-                         if (newPrice > maxPrice) newPrice = minPrice;
-                    } else if (trend === 'down') {
-                        newPrice = lastInterventionPrice - priceRange * 0.01;
-                        if (newPrice < minPrice) newPrice = maxPrice;
+                    if (intervention) {
+                        const { minPrice, maxPrice, trend } = intervention;
+                        const priceRange = maxPrice - minPrice;
+                        
+                        setInterventionState(prevIntervention => {
+                            let lastInterventionPrice = prevIntervention[summary.pair]?.lastPrice;
+                        
+                            if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
+                                lastInterventionPrice = (minPrice + maxPrice) / 2;
+                            }
+                            
+                            if (trend === 'up') {
+                                newPrice = lastInterventionPrice + priceRange * 0.01;
+                                if (newPrice > maxPrice) newPrice = minPrice;
+                            } else if (trend === 'down') {
+                                newPrice = lastInterventionPrice - priceRange * 0.01;
+                                if (newPrice < minPrice) newPrice = maxPrice;
+                            } else {
+                                newPrice = lastInterventionPrice + (Math.random() - 0.5) * (priceRange * 0.05);
+                            }
+
+                            newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                            
+                            return {...prevIntervention, [summary.pair]: { lastPrice: newPrice }};
+                        });
+
                     } else {
-                        newPrice = lastInterventionPrice + (Math.random() - 0.5) * (priceRange * 0.05);
+                        const volatility = 0.0001;
+                        newPrice *= (1 + (Math.random() - 0.5) * volatility);
                     }
 
-                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
-                    setInterventionState(prev => ({...prev, [summary.pair]: { lastPrice: newPrice }}));
-
-                } else {
-                    const volatility = 0.0001;
-                    newPrice *= (1 + (Math.random() - 0.5) * volatility);
-                }
-
-                return { ...summary, price: newPrice };
+                    return { ...summary, price: newPrice };
+                });
+                return newSimulatedSummaries;
             });
-
-            setSummaryData(newSimulatedSummaries);
 
             setKlineData(prevKline => {
                 const newKline = { ...prevKline };
-                newSimulatedSummaries.forEach(summary => {
+                summaryData.forEach(summary => {
                     const pairData = newKline[summary.pair] || [];
                     const lastDataPoint = pairData.length > 0 ? pairData[pairData.length - 1] : null;
                     const currentPrice = summary.price;
@@ -265,7 +270,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }, 1000);
 
         return () => clearInterval(simulationInterval);
-    }, [baseApiData, systemSettings.marketInterventions, summaryData, interventionState]);
+    }, [baseApiData, systemSettings.marketInterventions]); // ✅ Corrected dependency array
 
     const contextValue: MarketContextType = {
         tradingPair,
@@ -291,3 +296,5 @@ export function useMarket() {
     }
     return context;
 }
+
+    
