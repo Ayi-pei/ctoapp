@@ -49,9 +49,16 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       },
       xAxis: {
         type: "category",
-        data: currentKlineData.map((d) => new Date(d.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })),
+        data: currentKlineData.map((d) => d.time),
         axisLine: { lineStyle: { color: chartMutedColor } },
-        axisLabel: { color: chartMutedColor },
+        axisLabel: { 
+            color: chartMutedColor,
+            interval: 3599, // Approx 1 hour (3600 seconds)
+            formatter: (value: number) => {
+                const date = new Date(value);
+                return `${date.getHours().toString().padStart(2, '0')}:00`;
+            }
+        },
         boundaryGap: false,
       },
       yAxis: {

@@ -72,37 +72,35 @@ const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
 }
 // --- End Data Fetching ---
 
-// --- Initial Data Generation ---
-const generateInitialKlineData = (basePrice: number, points: number): OHLC[] => {
-    const data: OHLC[] = [];
-    let price = basePrice * (1 - 0.05); // Start from 5% below base price
-    const now = Date.now();
-
-    for (let i = 0; i < points; i++) {
-        const time = now - (points - i) * 1000;
-        const open = price;
-        // Simulate a more gradual and realistic price movement for history
-        const changePercent = (Math.random() - 0.49) * 0.001; 
-        const close = open * (1 + changePercent);
-        const high = Math.max(open, close) * (1 + Math.random() * 0.0005);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.0005);
-        data.push({ time, open, high, low, close });
-        price = close;
-    }
-    return data;
-};
-
-
+// --- Optimization Constants ---
+const TOTAL_SECONDS = 4 * 60 * 60; // 4 hours
+const DATA_POINTS_TO_KEEP = TOTAL_SECONDS; // Keep 4 hours of 1-second data points
+const BATCH_SIZE = 500; // Generate 500 points per batch
 const INITIAL_BTC_PRICE = 68000;
 const initialTradingPair = CRYPTO_PAIRS[0];
+// --- End Optimization Constants ---
 
-const initialKlineData: Record<string, OHLC[]> = {
-    [initialTradingPair]: generateInitialKlineData(INITIAL_BTC_PRICE, 86400), // 24 hours of 1-second data
+// --- Batch Data Generation ---
+const generateKlineBatch = (startTimestamp: number, count: number, lastPrice: number): { batch: OHLC[], lastPrice: number } => {
+    const batch: OHLC[] = [];
+    let price = lastPrice;
+    
+    for (let i = 0; i < count; i++) {
+        const time = startTimestamp + i * 1000;
+        const open = price;
+        const changePercent = (Math.random() - 0.5) * 0.0002; // Reduced volatility for a smoother line
+        const close = open * (1 + changePercent);
+        const high = Math.max(open, close) * (1 + Math.random() * 0.0001);
+        const low = Math.min(open, close) * (1 - Math.random() * 0.0001);
+        batch.push({ time, open, high, low, close });
+        price = close;
+    }
+    return { batch, lastPrice: price };
 };
 
 const initialSummaryData: MarketSummary[] = [{
     pair: initialTradingPair,
-    price: initialKlineData[initialTradingPair][initialKlineData[initialTradingPair].length - 1].close,
+    price: INITIAL_BTC_PRICE,
     change: 1.5,
     volume: 50000,
     high: INITIAL_BTC_PRICE * 1.02,
@@ -116,12 +114,10 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const { systemSettings } = useSystemSettings();
     const [tradingPair, setTradingPair] = useState(initialTradingPair);
     
-    // This is the "buffer" for real data fetched from APIs.
     const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
     
-    // These states are DERIVED from the simulation and are used to render the UI.
     const [summaryData, setSummaryData] = useState<MarketSummary[]>(initialSummaryData);
-    const [klineData, setKlineData] = useState<Record<string, OHLC[]>>(initialKlineData);
+    const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
     const [interventionState, setInterventionState] = useState<Record<string, { lastPrice: number }>>({});
 
     const [cryptoProvider, setCryptoProvider] = useState<'coingecko' | 'coindesk'>('coingecko');
@@ -153,8 +149,50 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [cryptoProvider]); 
+    
+    // Initial data generation with asynchronous batching
+    useEffect(() => {
+        let isMounted = true;
+        
+        const loadInitialData = () => {
+            let accumulatedData: Record<string, OHLC[]> = {};
+            
+            CRYPTO_PAIRS.forEach(pair => {
+                const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
+                let lastPrice = basePrice;
+                let generatedCount = 0;
+                
+                function loadBatchForPair() {
+                    if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
+                    
+                    const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
+                    const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
+                    
+                    const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
+                    
+                    if (!accumulatedData[pair]) accumulatedData[pair] = [];
+                    accumulatedData[pair].push(...batch);
+                    
+                    lastPrice = newPrice;
+                    generatedCount += count;
+                    
+                    setKlineData(prev => ({...prev, [pair]: [...(prev[pair] || []), ...batch].slice(-DATA_POINTS_TO_KEEP)}));
 
-    // High-frequency simulation logic. Reads from `baseApiData` and updates UI-facing states.
+                    if (generatedCount < TOTAL_SECONDS) {
+                        setTimeout(loadBatchForPair, 50); // Give browser time to breathe
+                    }
+                }
+                loadBatchForPair();
+            });
+        }
+        
+        loadInitialData();
+        
+        return () => { isMounted = false; }
+    }, [baseApiData]);
+
+
+    // High-frequency simulation logic.
     useEffect(() => {
         const simulationInterval = setInterval(() => {
             const now = new Date();
@@ -184,20 +222,20 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     }
                     
                     if (trend === 'up') {
-                        newPrice = lastInterventionPrice + priceRange * 0.01; // Move 1% of the range up
-                         if (newPrice > maxPrice) newPrice = minPrice; // Loop back
+                        newPrice = lastInterventionPrice + priceRange * 0.01;
+                         if (newPrice > maxPrice) newPrice = minPrice;
                     } else if (trend === 'down') {
-                        newPrice = lastInterventionPrice - priceRange * 0.01; // Move 1% of the range down
-                        if (newPrice < minPrice) newPrice = maxPrice; // Loop back
-                    } else { // 'random'
-                        newPrice = lastInterventionPrice + (Math.random() - 0.5) * (priceRange * 0.05); // More gentle random walk
+                        newPrice = lastInterventionPrice - priceRange * 0.01;
+                        if (newPrice < minPrice) newPrice = maxPrice;
+                    } else {
+                        newPrice = lastInterventionPrice + (Math.random() - 0.5) * (priceRange * 0.05);
                     }
 
                     newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
                     setInterventionState(prev => ({...prev, [summary.pair]: { lastPrice: newPrice }}));
 
                 } else {
-                    const volatility = 0.0001; // Reduced volatility for a smoother line
+                    const volatility = 0.0001;
                     newPrice *= (1 + (Math.random() - 0.5) * volatility);
                 }
 
@@ -214,25 +252,19 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
                     const currentPrice = summary.price;
                     const nowTime = now.getTime();
 
-                    if (lastDataPoint && nowTime - lastDataPoint.time < 60000) {
-                        lastDataPoint.close = currentPrice;
-                        lastDataPoint.high = Math.max(lastDataPoint.high, currentPrice);
-                        lastDataPoint.low = Math.min(lastDataPoint.low, currentPrice);
-                    } else {
-                        const newPoint: OHLC = {
-                            time: nowTime,
-                            open: lastDataPoint?.close || currentPrice,
-                            high: currentPrice,
-                            low: currentPrice,
-                            close: currentPrice,
-                        };
-                        newKline[summary.pair] = [...pairData, newPoint].slice(-1000); 
-                    }
+                    const newPoint: OHLC = {
+                        time: nowTime,
+                        open: lastDataPoint?.close || currentPrice,
+                        high: currentPrice,
+                        low: currentPrice,
+                        close: currentPrice,
+                    };
+                    newKline[summary.pair] = [...pairData, newPoint].slice(-DATA_POINTS_TO_KEEP); 
                 });
                 return newKline;
             });
 
-        }, 1000); // Set to 1 second for simulation frequency
+        }, 1000);
 
         return () => clearInterval(simulationInterval);
     }, [baseApiData, systemSettings.marketInterventions, summaryData, interventionState]);
