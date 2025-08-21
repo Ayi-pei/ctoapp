@@ -34,12 +34,15 @@ const generateMockContract = (strike: number, type: 'call' | 'put', underlyingPr
 };
 
 const generateMockChain = (symbol: string): OptionsChain[] => {
-  const underlyingPrice = symbol === 'IBM' ? 170 : 68000;
+  const underlyingPrice = symbol === 'IBM' ? 170 : symbol === 'AAPL' ? 210 : symbol === 'TSLA' ? 180 : 500;
+  const strikeStep = symbol === 'IBM' ? 5 : symbol === 'AAPL' ? 10 : symbol === 'TSLA' ? 10 : 25;
+  const baseStrike = Math.floor(underlyingPrice / strikeStep) * strikeStep;
+  
   const chains: OptionsChain[] = [];
   for (let i = 1; i <= 3; i++) {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + i * 7);
-    const strikes = [160, 165, 170, 175, 180];
+    const strikes = Array.from({length: 5}, (_, j) => baseStrike + (j - 2) * strikeStep);
     chains.push({
       expiration_date: expirationDate.toISOString().split('T')[0],
       calls: strikes.map(strike => generateMockContract(strike, 'call', underlyingPrice)),
@@ -74,17 +77,17 @@ export function OptionsProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const response = await axios.get('/api/alpha-vantage', { params: { symbol } });
-      if (response.data && response.data.data) {
+      if (response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         setOptionsChain(response.data.data);
       } else {
-        // Fallback to mock data if API fails or returns empty
+        // Fallback to mock data if API fails or returns empty/invalid data
         console.warn(`Failed to fetch real options data for ${symbol}, falling back to mock data.`);
         setOptionsChain(generateMockChain(symbol));
       }
     } catch (e) {
       console.error('Error fetching options data:', e);
       setError(`Could not fetch options data for ${symbol}.`);
-      setOptionsChain(generateMockChain(symbol));
+      setOptionsChain(generateMockChain(symbol)); // Always provide mock data on error
     } finally {
       setIsLoading(false);
     }
