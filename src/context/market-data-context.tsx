@@ -115,6 +115,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const [summaryData, setSummaryData] = useState<MarketSummary[]>(initialSummaryData);
   const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
   const [interventionState, setInterventionState] = useState<Record<string, { lastPrice: number }>>({});
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
   const getLatestPrice = useCallback((pair: string) => summaryData.find(s => s.pair === pair)?.price || 0, [summaryData]);
 
@@ -127,19 +128,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       
       if (Object.keys(cryptoData).length > 0) {
         setBaseApiData(prev => ({ ...prev, ...cryptoData }));
-        
-        if (isSupabaseEnabled) {
-            const summaryUpdates = Object.values(cryptoData).map(d => ({
-                pair: d.pair,
-                price: d.price,
-                change: d.change,
-                volume: d.volume,
-                high: d.high,
-                low: d.low,
-                icon: d.icon,
-            }));
-            await supabase.from('market_summary_data').upsert(summaryUpdates, { onConflict: 'pair' });
-        }
       }
       currentProvider = currentProvider === 'coingecko' ? 'coindesk' : 'coingecko';
     };
@@ -153,14 +141,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
     
-    const generateAndStoreData = () => {
+    const generateAndStoreData = async () => {
       console.warn("Database is empty or fetch failed. Generating initial simulation data...");
       for (const pair of CRYPTO_PAIRS) {
           const getBasePrice = () => {
               if (baseApiData[pair]?.price) return baseApiData[pair].price;
               if (pair === 'BTC/USDT') return INITIAL_BTC_PRICE;
               if (pair === 'ETH/USDT') return INITIAL_ETH_PRICE;
-              return Math.random() * 5000 + 1; // Ensure price is not 0
+              return Math.random() * 5000 + 1;
           }
           let lastPrice = getBasePrice();
           let generatedCount = 0;
@@ -173,7 +161,14 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
               const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
 
               if (isSupabaseEnabled) {
-                  const dbBatch = batch.map(d => ({ trading_pair: pair, time: new Date(d.time).toISOString(), open: d.open, high: d.high, low: d.low, close: d.close }));
+                  const dbBatch = batch.map(d => ({ 
+                      trading_pair: pair, 
+                      time: d.time, // Store as BIGINT
+                      open: d.open, 
+                      high: d.high, 
+                      low: d.low, 
+                      close: d.close 
+                  }));
                   await supabase.from('market_kline_data').insert(dbBatch);
               }
               
@@ -182,20 +177,23 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
               
               setKlineData(prev => ({ ...prev, [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) }));
 
-              if (generatedCount < TOTAL_SECONDS) setTimeout(loadBatchForPair, 50);
+              if (generatedCount < TOTAL_SECONDS) {
+                setTimeout(loadBatchForPair, 50);
+              }
           }
-          loadBatchForPair();
+          await loadBatchForPair();
       }
     }
 
     const loadInitialData = async () => {
         if (!isSupabaseEnabled) {
             console.warn("Supabase not enabled, generating transient simulation data.");
-            generateAndStoreData();
+            await generateAndStoreData();
+            setIsInitialLoadComplete(true);
             return;
         }
 
-        const fourHoursAgo = new Date(Date.now() - TOTAL_SECONDS * 1000).toISOString();
+        const fourHoursAgo = Date.now() - TOTAL_SECONDS * 1000;
         const { data: dbData, error } = await supabase
             .from('market_kline_data')
             .select('*')
@@ -203,26 +201,30 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         if (error) {
             console.error("Error fetching kline from supabase, falling back to generation.", error);
-            generateAndStoreData();
-            return;
-        }
-
-        if (dbData && dbData.length > 0) {
+            await generateAndStoreData();
+        } else if (dbData && dbData.length > 0) {
             console.log("Loaded initial k-line data from Supabase.");
             const groupedData: Record<string, OHLC[]> = {};
             dbData.forEach(row => {
                 if (!groupedData[row.trading_pair]) {
                     groupedData[row.trading_pair] = [];
                 }
-                groupedData[row.trading_pair].push({ time: new Date(row.time).getTime(), open: row.open, high: row.high, low: row.low, close: row.close });
+                groupedData[row.trading_pair].push({ 
+                    time: row.time, // Already a number
+                    open: row.open, 
+                    high: row.high, 
+                    low: row.low, 
+                    close: row.close 
+                });
             });
             Object.keys(groupedData).forEach(pair => {
                 groupedData[pair].sort((a, b) => a.time - b.time);
             });
             setKlineData(groupedData);
         } else {
-            generateAndStoreData();
+            await generateAndStoreData();
         }
+        setIsInitialLoadComplete(true);
     };
     
     loadInitialData();
@@ -233,6 +235,8 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   // --- High-frequency simulation ---
   useEffect(() => {
+    if (!isInitialLoadComplete) return;
+
     const simulationInterval = setInterval(() => {
       const now = new Date();
       const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -244,22 +248,18 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const intervention = systemSettings.marketInterventions.find(i => i.tradingPair === summary.pair && i.startTime <= currentTime && i.endTime >= currentTime);
             
             if (intervention) {
-              const { minPrice, maxPrice, trend } = intervention;
-              
-              setInterventionState(prevIntervention => {
-                let lastInterventionPrice = prevIntervention[summary.pair]?.lastPrice;
-                if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
-                    lastInterventionPrice = (minPrice + maxPrice) / 2;
-                }
-                
-                if (trend === 'up') { newPrice = lastInterventionPrice + (maxPrice - minPrice) * 0.01; if (newPrice > maxPrice) newPrice = minPrice; }
-                else if (trend === 'down') { newPrice = lastInterventionPrice - (maxPrice - minPrice) * 0.01; if (newPrice < minPrice) newPrice = maxPrice; }
-                else { newPrice = lastInterventionPrice + (Math.random() - 0.5) * ((maxPrice - minPrice) * 0.05); }
-                
-                newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
-                return { ...prevIntervention, [summary.pair]: { lastPrice: newPrice } };
-              });
-
+                const { minPrice, maxPrice, trend } = intervention;
+                setInterventionState(prevIntervention => {
+                    let lastInterventionPrice = prevIntervention[summary.pair]?.lastPrice;
+                    if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
+                        lastInterventionPrice = (minPrice + maxPrice) / 2;
+                    }
+                    if (trend === 'up') { newPrice = lastInterventionPrice + (maxPrice - minPrice) * 0.01; if (newPrice > maxPrice) newPrice = minPrice; }
+                    else if (trend === 'down') { newPrice = lastInterventionPrice - (maxPrice - minPrice) * 0.01; if (newPrice < minPrice) newPrice = maxPrice; }
+                    else { newPrice = lastInterventionPrice + (Math.random() - 0.5) * ((maxPrice - minPrice) * 0.05); }
+                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                    return { ...prevIntervention, [summary.pair]: { lastPrice: newPrice } };
+                });
             } else {
               newPrice *= (1 + (Math.random() - 0.5) * 0.0001);
             }
@@ -285,7 +285,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     }, 1000);
 
     return () => clearInterval(simulationInterval);
-  }, [baseApiData, systemSettings.marketInterventions, getLatestPrice]);
+  }, [baseApiData, systemSettings.marketInterventions, getLatestPrice, isInitialLoadComplete]);
 
   const contextValue: MarketContextType = {
     tradingPair,
@@ -305,5 +305,3 @@ export function useMarket() {
   if (!context) throw new Error('useMarket must be used within a MarketDataProvider');
   return context;
 }
-
-    
