@@ -1,6 +1,7 @@
+
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useMarket } from "@/context/market-data-context";
@@ -13,27 +14,35 @@ import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { MarketList } from "./market-list";
 
-// Helper function to get computed style of a CSS variable
-const getCssVar = (variable: string): string => {
-    if (typeof window === 'undefined') return '';
-    // Create a temporary element to get the computed style
-    const tempEl = document.createElement('div');
-    tempEl.style.display = 'none';
-    document.body.appendChild(tempEl);
-    const style = getComputedStyle(tempEl);
-    const value = style.getPropertyValue(variable).trim();
-    document.body.removeChild(tempEl);
-    return value;
-};
+// Helper function to get computed style of a CSS variable, with caching
+const getCssVar = (() => {
+    if (typeof window === 'undefined') return () => '';
+    const cache: Record<string, string> = {};
+    return (variable: string): string => {
+        if (cache[variable]) {
+            return cache[variable];
+        }
+        const tempEl = document.createElement('div');
+        tempEl.style.display = 'none';
+        document.body.appendChild(tempEl);
+        const style = getComputedStyle(tempEl);
+        const value = style.getPropertyValue(variable).trim();
+        document.body.removeChild(tempEl);
+        cache[variable] = value;
+        return value;
+    };
+})();
 
 
 export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: string }) {
   const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice, cryptoSummaryData, klineData } = useMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
+  
+  const [activeTab, setActiveTab] = useState(initialTab);
 
-  const currentKlineData = allKlineData[tradingPair] || [];
-  const currentSummary = summaryData.find(s => s.pair === tradingPair);
-  const currentPrice = getLatestPrice(tradingPair); // Get the single source of truth for the price
+  const currentKlineData = useMemo(() => allKlineData[tradingPair] || [], [allKlineData, tradingPair]);
+  const currentSummary = useMemo(() => summaryData.find(s => s.pair === tradingPair), [summaryData, tradingPair]);
+  const currentPrice = useMemo(() => getLatestPrice(tradingPair), [getLatestPrice, tradingPair]);
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
   
@@ -41,13 +50,12 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   const chartBorderColor = `hsl(${getCssVar('--border')})`;
   const chartMutedColor = `hsl(${getCssVar('--muted-foreground')})`;
   
-  // Correctly format the HSL value for use in HSLA by replacing spaces with commas
   const chartColorRaw = getCssVar('--chart-1').replace(/ /g, ',');
   const chartAreaColorStart = `hsla(${chartColorRaw}, 0.2)`;
   const chartAreaColorEnd = `hsla(${chartColorRaw}, 0)`;
 
 
-  const klineOption = {
+  const klineOption = useMemo(() => ({
       backgroundColor: "transparent",
       tooltip: {
         trigger: 'axis',
@@ -59,11 +67,11 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
         axisLine: { lineStyle: { color: chartMutedColor } },
         axisLabel: { 
             color: chartMutedColor,
-            interval: 3599, // Approx 1 hour (3600 seconds)
-            formatter: (value: string | number) => { // Accept both string and number
-                const date = new Date(Number(value)); // Ensure value is a number
+            interval: 3599,
+            formatter: (value: string | number) => {
+                const date = new Date(Number(value)); // Timestamps are in milliseconds
                 if (isNaN(date.getTime())) {
-                    return ''; // Return empty string for invalid dates
+                    return ''; 
                 }
                 return `${date.getHours().toString().padStart(2, '0')}:00`;
             }
@@ -112,7 +120,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
           }
         },
       }]
-    };
+    }), [currentKlineData, tradingPair, chartColor, chartAreaColorEnd, chartAreaColorStart, chartBorderColor, chartMutedColor]);
 
   return (
     <div className="space-y-4 p-4 trade-background">
@@ -122,15 +130,15 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
 
         <div className="h-[240px] w-full bg-card/50 backdrop-blur-sm rounded-lg p-2">
            {currentKlineData.length > 0 ? (
-              <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} />
+              <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} notMerge={true} lazyUpdate={true}/>
             ) : (
               <div className="flex justify-center items-center h-full">
-                <Skeleton className="h-full w-full bg-muted" />
+                <Skeleton className="h-full w-full bg-muted animate-pulse" />
               </div>
             )}
         </div>
 
-        <Tabs defaultValue={initialTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-secondary rounded-md p-1 h-auto">
             <TabsTrigger value="contract" className={cn("px-6 py-2 text-sm rounded-md data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md")}>秒合约</TabsTrigger>
             <TabsTrigger value="spot" className={cn("px-6 py-2 text-sm rounded-md data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-md")}>币币</TabsTrigger>
@@ -166,3 +174,4 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
     </div>
   );
 }
+
