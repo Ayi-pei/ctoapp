@@ -70,14 +70,14 @@ const ProfileHeader = () => {
     const truncatedNickname = nickname.length > 4 ? `${nickname.substring(0, 4)}...` : nickname;
 
     return (
-         <div className="bg-card/80 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20">
+         <div className="bg-card/80 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20 h-full flex items-center">
             <div className="w-full flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-3/4">
                     <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                        <Avatar className="h-16 w-16 border-4 border-primary/50">
+                        <Avatar className="h-20 w-20 border-4 border-primary/50">
                             <AvatarImage src={user?.avatar_url} alt={user?.username} />
                             <AvatarFallback>
-                                <Users className="h-8 w-8" />
+                                <Users className="h-10 w-10" />
                             </AvatarFallback>
                         </Avatar>
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
@@ -92,7 +92,7 @@ const ProfileHeader = () => {
                         />
                     </div>
                     
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                         <div className="flex items-center gap-2">
                              {isEditingNickname ? (
                                  <input 
@@ -102,32 +102,32 @@ const ProfileHeader = () => {
                                     onBlur={handleNicknameBlur}
                                     onKeyDown={handleNicknameKeyDown}
                                     autoFocus
-                                    className="bg-transparent border-b border-primary text-xl font-semibold text-foreground focus:outline-none"
+                                    className="bg-transparent border-b border-primary text-2xl font-semibold text-foreground focus:outline-none"
                                  />
                             ) : (
                                 <div className="flex items-center gap-2">
-                                     <h2 className="font-semibold text-xl cursor-pointer text-foreground" onClick={() => setIsEditingNickname(true)}>{truncatedNickname}</h2>
+                                     <h2 className="font-semibold text-2xl cursor-pointer text-foreground" onClick={() => setIsEditingNickname(true)}>{truncatedNickname}</h2>
                                      <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingNickname(true)} />
                                 </div>
                             )}
                             {user?.is_admin && <Badge variant="destructive" className="text-xs"><Crown className="w-3 h-3 mr-1"/>Admin</Badge>}
                         </div>
                        
-                        <p className="text-sm font-semibold text-foreground/90">总资产估值: {totalBalance.toFixed(2)} USDT</p>
-                        <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-xs">信誉分: {user?.credit_score || 100}</Badge>
+                        <p className="text-base font-semibold text-foreground/90">总资产估值: {totalBalance.toFixed(2)} USDT</p>
+                        <Badge variant="outline" className="border-green-500/50 bg-green-500/20 text-green-300 text-sm">信誉分: {user?.credit_score || 100}</Badge>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-2 w-1/4">
+                <div className="flex flex-col gap-3 w-1/4">
                     <Button 
                         onClick={() => setIsDepositOpen(true)} 
-                        className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-10 px-6 text-sm rounded-md shadow-lg"
+                        className="bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-black font-bold h-12 text-base rounded-md shadow-lg"
                     >
                         充值
                     </Button>
                     <Button 
                         onClick={() => setIsWithdrawOpen(true)} 
-                        className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold h-10 px-6 text-sm rounded-md shadow-lg"
+                        className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold h-12 text-base rounded-md shadow-lg"
                     >
                         提现
                     </Button>
@@ -182,16 +182,18 @@ export default function ProfilePage() {
     return (
         <DashboardLayout>
             <div className="h-full w-full profile-background">
-                <div className="p-4 space-y-8 h-full">
-                    <ProfileHeader />
+                <div className="p-4 space-y-4 h-full flex flex-col">
+                    <div className="h-1/4">
+                       <ProfileHeader />
+                    </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-grow">
                         {menuItems.map(item => (
                             <ListItem key={item.label} label={item.label} icon={item.icon} href={item.href} />
                         ))}
                     </div>
 
-                    <div>
+                    <div className="pb-4">
                         <ActionItem label="退出登陆" icon={LogOut} action={logout} />
                     </div>
 
