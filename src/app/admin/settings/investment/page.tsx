@@ -1,5 +1,4 @@
 
-
 "use client";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -64,7 +63,17 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor={`staking-amount-${product.id}`}>质押数量 (选填)</Label>
-                    <Input id={`staking-amount-${product.id}`} type="number" min={0} value={product.stakingAmount || ''} onChange={e => updateProduct(product.id, { stakingAmount: parseFloat(e.target.value) || undefined })} placeholder="输入需要质押的数量" />
+                    <Input 
+                        id={`staking-amount-${product.id}`} 
+                        type="number" 
+                        min={0} 
+                        value={product.stakingAmount || ''} 
+                        onChange={e => {
+                            const val = e.target.value;
+                            updateProduct(product.id, { stakingAmount: val ? parseFloat(val) : undefined });
+                        }}
+                        placeholder="输入需要质押的数量" 
+                    />
                 </div>
                  <div className="lg:col-span-3 space-y-2">
                     <Label>产品图片</Label>
@@ -98,7 +107,15 @@ const StakingProductEditor = ({ product, updateProduct, removeProduct }: { produ
     );
 };
 
-const FinanceProductEditor = ({ product, updateProduct }: { product: InvestmentProduct, updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void, removeProduct: (id: string) => void }) => {
+const FinanceProductEditor = ({ 
+    product, 
+    updateProduct,
+    removeProduct 
+}: { 
+    product: InvestmentProduct, 
+    updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void, 
+    removeProduct: (id: string) => void 
+}) => {
     
     const handleTierChange = (tierIndex: number, field: keyof InvestmentTier, value: string) => {
         const newTiers = [...(product.hourlyTiers || [])];
@@ -126,7 +143,16 @@ const FinanceProductEditor = ({ product, updateProduct }: { product: InvestmentP
     
     return (
         <div className="relative pt-4">
-            <h3 className="font-semibold text-xl text-primary mb-4">{product.name}</h3>
+            <div className="flex justify-between items-start mb-4">
+                 <h3 className="font-semibold text-xl text-primary">{product.name}</h3>
+                 <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeProduct(product.id)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
                 <div className="space-y-2">
                     <Label htmlFor={`fin-name-${product.id}`}>产品名称</Label>
@@ -229,7 +255,12 @@ export default function AdminInvestmentSettingsPage() {
                             <PlusCircle className="mr-2 h-4 w-4"/>
                             添加新质押产品
                         </Button>
-                       <Button onClick={handleSaveChanges}>保存全部设置</Button>
+                        <div className="flex items-center gap-4">
+                           <Button onClick={handleSaveChanges}>保存全部设置</Button>
+                           <p className="text-xs text-muted-foreground">
+                               提示：所有修改已实时保存。
+                           </p>
+                        </div>
                     </CardFooter>
                 </Card>
             </div>
