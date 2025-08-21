@@ -44,10 +44,10 @@ export function MarketList({ summary, klineData }: MarketListProps) {
                         height={32}
                         className="h-8 w-8 flex-shrink-0"
                     />
-                    <div className="flex-shrink-0">
-                        <p className="font-semibold">{item.pair}</p>
+                    <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{item.pair}</p>
                     </div>
-                    <div className="h-10 w-20 flex-grow">
+                    <div className="h-10 w-24 flex-shrink-0">
                         <ChartContainer config={{
                             value: { label: "Value", color: color }
                         }} className="h-full w-full p-0">
