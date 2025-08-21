@@ -39,13 +39,6 @@ const INITIAL_BALANCES_USER: { [key: string]: { available: number; frozen: numbe
 
 const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
 
-export type ContractTradeParams = {
-  type: 'buy' | 'sell';
-  amount: number;
-  period: number;
-  profitRate: number;
-}
-
 export type DailyInvestmentParams = {
     productName: string;
     amount: number;
@@ -82,7 +75,7 @@ interface BalanceContextType {
   rewardLogs: RewardLog[];
   addDailyInvestment: (params: DailyInvestmentParams) => Promise<boolean>;
   addHourlyInvestment: (params: HourlyInvestmentParams) => Promise<boolean>;
-  placeContractTrade: (trade: ContractTradeParams, tradingPair: string) => void;
+  placeContractTrade: (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => void;
   placeSpotTrade: (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => void;
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
@@ -213,19 +206,29 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
   
   const creditReward = useCallback((params: CreditRewardParams) => {
+    const targetUser = getUserById(params.userId);
+    if (!targetUser) return;
+      
     adjustBalance(params.userId, params.asset, params.amount);
 
     const newLog: RewardLog = {
       id: `rlog-${Date.now()}`,
-      userId: params.userId,
+      user_id: params.userId,
       type: params.type,
       amount: params.amount,
-      sourceId: params.sourceId,
+      source_id: params.sourceId,
       source_username: params.sourceUsername,
       source_level: params.sourceLevel,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       description: params.description,
     };
+    
+    addLog({
+        entity_type: 'reward',
+        entity_id: newLog.id,
+        action: 'create',
+        details: `Credited ${params.amount.toFixed(4)} ${params.asset} to ${targetUser.username} for ${params.type}. Description: ${params.description || 'N/A'}`
+    });
 
     const userData = getUserData(params.userId);
     userData.rewardLogs.push(newLog);
@@ -234,7 +237,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if (user?.id === params.userId) {
       setRewardLogs(prev => [newLog, ...prev]);
     }
-  }, [adjustBalance, user?.id]);
+  }, [adjustBalance, user?.id, addLog, getUserById]);
 
 
   const distributeCommissions = useCallback((sourceUser: SecureUser, tradeAmount: number, sourceId: string) => {
@@ -493,7 +496,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     return true;
   }, [user, balances]);
 
-  const placeContractTrade = useCallback(async (trade: ContractTradeParams, tradingPair: string) => {
+  const placeContractTrade = useCallback(async (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => {
     if (!user) return;
 
     if (user.is_frozen) {
@@ -518,7 +521,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       entry_price: currentPrice,
       settlement_time: new Date(Date.now() + (trade.period * 1000)).toISOString(),
       period: trade.period,
-      profit_rate: trade.profitRate,
+      profit_rate: trade.profit_rate,
       status: 'active',
       created_at: new Date().toISOString(),
       orderType: 'contract',

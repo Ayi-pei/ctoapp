@@ -63,7 +63,7 @@ export function getUserData(userId: string): UserData {
                     ...getDefaultUserData().balances,
                     ...(parsedData.balances || {})
                 },
-                rewardLogs: parsedData.rewardLogs || parsedData.commissionLogs || [] // Backwards compatibility for commissionLogs
+                rewardLogs: parsedData.rewardLogs || []
             };
         } catch (e) {
             console.error(`Failed to parse user data for ${userId}`, e);
@@ -79,12 +79,7 @@ export function saveUserData(userId: string, data: UserData) {
     }
     const userStorageKey = `tradeflow_user_${userId}`;
     try {
-        // Ensure we don't save the old commissionLogs if it exists on the data object
-        const { ...dataToSave } = data;
-        if ('commissionLogs' in dataToSave) {
-            delete (dataToSave as any).commissionLogs;
-        }
-        localStorage.setItem(userStorageKey, JSON.stringify(dataToSave));
+        localStorage.setItem(userStorageKey, JSON.stringify(data));
     } catch (e) {
         console.error(`Failed to save user data for ${userId}`, e);
     }

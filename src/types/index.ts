@@ -191,13 +191,13 @@ export type Investment = {
 // Represents a generic reward/commission log entry
 export type RewardLog = {
     id: string;
-    userId: string;
+    user_id: string;
     type: 'dailyTask' | 'team' | 'event' | 'system';
     amount: number;
-    sourceId?: string; // e.g., taskId, orderId
+    source_id?: string; // e.g., taskId, orderId
     source_username?: string; // e.g. the downline user who generated the commission
     source_level?: number;
-    createdAt: string;
+    created_at: string;
     description?: string;
 };
 
@@ -253,7 +253,7 @@ export type LimitedTimeActivity = {
 // Represents an action log for admin operations
 export type ActionLog = {
     id: string;
-    entity_type: 'request' | 'task_completion' | 'activity_participation';
+    entity_type: 'request' | 'task_completion' | 'activity_participation' | 'reward';
     entity_id: string;
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     operator_id: string;
