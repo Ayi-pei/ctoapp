@@ -53,8 +53,11 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
         axisLabel: { 
             color: chartMutedColor,
             interval: 3599, // Approx 1 hour (3600 seconds)
-            formatter: (value: number) => {
-                const date = new Date(value);
+            formatter: (value: string | number) => { // Accept both string and number
+                const date = new Date(Number(value)); // Ensure value is a number
+                if (isNaN(date.getTime())) {
+                    return ''; // Return empty string for invalid dates
+                }
                 return `${date.getHours().toString().padStart(2, '0')}:00`;
             }
         },
