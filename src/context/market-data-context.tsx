@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -72,6 +73,7 @@ const TOTAL_SECONDS = 4 * 60 * 60; // 4 hours
 const DATA_POINTS_TO_KEEP = TOTAL_SECONDS;
 const BATCH_SIZE = 500;
 const INITIAL_BTC_PRICE = 68000;
+const INITIAL_ETH_PRICE = 3800;
 const initialTradingPair = CRYPTO_PAIRS[0];
 // --- End Constants ---
 
@@ -152,10 +154,15 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     
     const generateAndStoreData = () => {
-      console.log("Database is empty or fetch failed. Generating initial simulation data...");
+      console.warn("Database is empty or fetch failed. Generating initial simulation data...");
       for (const pair of CRYPTO_PAIRS) {
-          const basePrice = baseApiData[pair]?.price || (pair === 'BTC/USDT' ? INITIAL_BTC_PRICE : Math.random() * 5000);
-          let lastPrice = basePrice;
+          const getBasePrice = () => {
+              if (baseApiData[pair]?.price) return baseApiData[pair].price;
+              if (pair === 'BTC/USDT') return INITIAL_BTC_PRICE;
+              if (pair === 'ETH/USDT') return INITIAL_ETH_PRICE;
+              return Math.random() * 5000;
+          }
+          let lastPrice = getBasePrice();
           let generatedCount = 0;
 
           const loadBatchForPair = async () => {
@@ -183,7 +190,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
     const loadInitialData = async () => {
         if (!isSupabaseEnabled) {
-            console.log("Supabase not enabled, generating transient simulation data.");
+            console.warn("Supabase not enabled, generating transient simulation data.");
             generateAndStoreData(); // Generate but won't store
             return;
         }
@@ -300,3 +307,5 @@ export function useMarket() {
   if (!context) throw new Error('useMarket must be used within a MarketDataProvider');
   return context;
 }
+
+    
