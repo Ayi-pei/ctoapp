@@ -56,6 +56,18 @@ If you wish to use Supabase for data persistence, follow these steps:
     ALTER TABLE market_kline_data
     ALTER COLUMN time TYPE BIGINT;
     ```
+    
+    **Enable Read Access for K-Line Data**: Run the following SQL to allow the application to read the public K-line data.
+    ```sql
+    -- If RLS is not enabled, enable it first
+    ALTER TABLE market_kline_data ENABLE ROW LEVEL SECURITY;
+
+    -- Create a policy that allows public read access to everyone
+    CREATE POLICY "Allow public read access to kline data"
+    ON market_kline_data
+    FOR SELECT
+    USING (true);
+    ```
 
 ## 项目核心逻辑 (Current Architecture)
 
