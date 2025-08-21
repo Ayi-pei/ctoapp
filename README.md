@@ -85,6 +85,34 @@ If you wish to use Supabase for data persistence, follow these steps:
     CREATE INDEX IF NOT EXISTS idx_reward_logs_type ON reward_logs(type);
     ```
 
+     **Table for Options Contracts:**
+    ```sql
+    CREATE TABLE IF NOT EXISTS options_contracts (
+        contract_id TEXT PRIMARY KEY,
+        underlying_symbol TEXT NOT NULL,
+        expiration_date DATE NOT NULL,
+        type TEXT NOT NULL, -- 'call' or 'put'
+        strike_price REAL NOT NULL,
+        last_price REAL,
+        bid REAL,
+        ask REAL,
+        change REAL,
+        change_percent REAL,
+        volume INTEGER,
+        open_interest INTEGER,
+        implied_volatility REAL,
+        in_the_money BOOLEAN,
+        delta REAL,
+        gamma REAL,
+        theta REAL,
+        vega REAL,
+        rho REAL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_options_contracts_symbol_expiry ON options_contracts(underlying_symbol, expiration_date);
+    ```
+
 ## 项目核心逻辑 (Current Architecture)
 
 本应用目前使用 **React Context API** 和 **浏览器的 `localStorage`** 来模拟一个完整的后端和数据库系统。所有的数据，包括用户、交易、余额和请求，都保存在 `localStorage` 中，这使得应用可以在没有真实后端的情况下运行和测试。
