@@ -76,7 +76,13 @@ export function OptionsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/alpha-vantage?symbol=${symbol}`);
+      const response = await axios.get('/api/alpha-vantage', {
+        params: {
+          symbol: symbol,
+          function: 'HISTORICAL_OPTIONS'
+        }
+      });
+      
       if (response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         setOptionsChain(response.data.data);
       } else {
