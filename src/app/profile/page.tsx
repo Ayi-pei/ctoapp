@@ -67,6 +67,8 @@ const ProfileHeader = () => {
         }
     };
 
+    const truncatedNickname = nickname.length > 4 ? `${nickname.substring(0, 4)}...` : nickname;
+
     return (
          <div className="bg-card/80 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20">
             <div className="w-full flex items-center justify-between gap-4">
@@ -104,7 +106,7 @@ const ProfileHeader = () => {
                                  />
                             ) : (
                                 <div className="flex items-center gap-2">
-                                     <h2 className="font-semibold text-xl cursor-pointer text-foreground" onClick={() => setIsEditingNickname(true)}>{nickname}</h2>
+                                     <h2 className="font-semibold text-xl cursor-pointer text-foreground" onClick={() => setIsEditingNickname(true)}>{truncatedNickname}</h2>
                                      <Edit2 className="w-4 h-4 text-muted-foreground cursor-pointer" onClick={() => setIsEditingNickname(true)} />
                                 </div>
                             )}
