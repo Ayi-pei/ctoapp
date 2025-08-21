@@ -70,7 +70,7 @@ const ProfileHeader = () => {
     const truncatedNickname = nickname.length > 4 ? `${nickname.substring(0, 4)}...` : nickname;
 
     return (
-         <div className="bg-purple-500/20 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20 h-full flex items-center">
+         <div className="bg-blue-500/70 backdrop-blur-sm p-4 rounded-xl shadow-md border border-white/20 h-full flex items-center">
             <div className="w-full flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-3/4">
                     <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
