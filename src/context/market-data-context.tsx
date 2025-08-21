@@ -160,7 +160,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
               if (baseApiData[pair]?.price) return baseApiData[pair].price;
               if (pair === 'BTC/USDT') return INITIAL_BTC_PRICE;
               if (pair === 'ETH/USDT') return INITIAL_ETH_PRICE;
-              return Math.random() * 5000;
+              return Math.random() * 5000 + 1; // Ensure price is not 0
           }
           let lastPrice = getBasePrice();
           let generatedCount = 0;
@@ -191,7 +191,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     const loadInitialData = async () => {
         if (!isSupabaseEnabled) {
             console.warn("Supabase not enabled, generating transient simulation data.");
-            generateAndStoreData(); // Generate but won't store
+            generateAndStoreData();
             return;
         }
 
@@ -202,8 +202,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             .gte('time', fourHoursAgo);
 
         if (error) {
-            console.error("Error fetching kline from supabase:", error.message);
-            // Fallback to generating data if there's a read error (e.g., RLS not configured)
+            console.error("Error fetching kline from supabase, falling back to generation.", error);
             generateAndStoreData();
             return;
         }
@@ -222,7 +221,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             });
             setKlineData(groupedData);
         } else {
-            // Database is empty, generate and store data for the first time
             generateAndStoreData();
         }
     };
@@ -230,7 +228,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     loadInitialData();
 
     return () => { isMounted = false; }
-  }, [baseApiData]);
+  }, []); // Run only once on mount
 
 
   // --- High-frequency simulation ---
