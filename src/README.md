@@ -113,6 +113,18 @@ If you wish to use Supabase for data persistence, follow these steps:
     CREATE INDEX IF NOT EXISTS idx_options_contracts_symbol_expiry ON options_contracts(underlying_symbol, expiration_date);
     ```
 
+    **Table for Market Intervention Rules:**
+    ```sql
+    CREATE TABLE market_interventions (
+      id bigint primary key generated always as identity,
+      trading_pair text not null,
+      start_time timestamptz not null,
+      end_time timestamptz not null,
+      rule jsonb not null,  -- e.g. { "priceMultiplier": 1.05, "volumeOffset": 200, "forceValue": 66666 }
+      created_at timestamptz default now()
+    );
+    ```
+
 ## 项目核心逻辑 (Current Architecture)
 
 本应用目前使用 **React Context API** 和 **浏览器的 `localStorage`** 来模拟一个完整的后端和数据库系统。所有的数据，包括用户、交易、余额和请求，都保存在 `localStorage` 中，这使得应用可以在没有真实后端的情况下运行和测试。
@@ -154,7 +166,7 @@ If you wish to use Supabase for data persistence, follow these steps:
     *   每个用户的核心数据（余额、交易历史、投资记录、佣金日志等）都以 `tradeflow_user_{userId}` 的格式独立存储在 `localStorage` 中。
     *   系统设置（如充值地址）和所有审核请求则分别存储在 `tradeflow_system_settings` 和 `tradeflow_requests` 中。
 
-## 行情数据核心逻辑 (`market-data-context.tsx`)
+## 行情数据核心逻辑 (Current Architecture)
 
 我们的行情数据处理分为三个层次，确保了系统的健壮性和实时性：
 
@@ -173,4 +185,26 @@ If you wish to use Supabase for data persistence, follow these steps:
     *   **行情干预**: 在计算新价格之前，系统会检查 `systemSettings.marketInterventions` 中是否有当前时间段内生效的**市场干预规则**。如果规则被触发（例如，管理员设置了某一时段内必须上涨），则该规则会**完全覆盖**随机模拟的价格，实现精准控盘。
     *   **状态更新**: 最终计算出的价格（无论是模拟价还是干预价）会被用来更新 `summaryData` 和向 `klineData` 推入一个新的数据点，从而驱动整个UI的实时刷新。
 
-这个三层架构确保了我们的应用既能接入真实世界的数据，又能在无数据或需要特定场景时进行稳定、可控的行情模拟。
+## 生产级行情架构 (Proposed Production Architecture)
+
+为了减少前端负载、增强数据一致性并实现更可靠的干预逻辑，我们设计了以下生产级架构。该架构将数据处理和调度任务迁移到后端。
+
+### 1. 数据流
+
+1.  **外部 API 拉取**: 一个后端的定时任务（如 Node.js Cron Job 或 Supabase Edge Function）负责从外部 API（CoinGecko, CoinDesk 等）拉取实时行情数据。
+2.  **原始数据存储**: 拉取到的原始、未经修改的数据被存入一个“原始表” (`raw_market_data`)。此表仅作为数据备份和处理源，不直接对用户端暴露。
+3.  **延迟与干预处理**:
+    *   另一个后端延迟处理任务会定时（例如，每秒）运行。
+    *   该任务读取 `raw_market_data` 中已经超过设定延迟时间（如 30 秒）的数据。
+    *   在准备写入最终数据表前，任务会查询 `market_interventions` 表，检查当前时间是否有生效的干预规则。
+    *   如果存在干预规则，则根据规则（如价格乘数、强制设定值等）修改数据。
+    *   如果不存在规则，则保持数据不变。
+4.  **写入模拟数据表**: 经过延迟和干预逻辑处理后的“最终数据”被写入 `simulated_market_data` 表 (即我们现有的 `market_kline_data` 和 `market_summary_data` 表)。
+5.  **用户端展示**: 用户的前端应用只从 `simulated_market_data` 表中读取数据。可以通过 Supabase Realtime 订阅数据变更，实现实时更新。
+
+### 2. 优势
+
+*   **前端轻量化**: 前端不再负责行情模拟、API 轮询和干预逻辑计算，只负责展示数据，极大降低了客户端的性能开销。
+*   **数据一致性与公平性**: 所有用户看到的数据都来自同一个经过处理的数据库源，保证了行情的绝对一致。
+*   **可靠的干预**: 干预逻辑在服务器端执行，与数据写入流程紧密结合，保证了干预的精确性和可靠性。
+*   **数据存档**: 原始的、未被修改的真实市场数据被保存在 `raw_market_data` 表中，便于未来进行数据分析、调试和回溯。

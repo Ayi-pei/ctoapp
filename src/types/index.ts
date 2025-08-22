@@ -44,6 +44,7 @@ export const availablePairs = [
     'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT',
     'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'UNI/USDT', 'TRX/USDT',
     'XLM/USDT', 'VET/USDT', 'EOS/USDT', 'FIL/USDT', 'ICP/USDT',
+    'XAU/USD', 'EUR/USD', 'GBP/USD'
 ];
 
 // Represents a user's profile, mirroring the public.users table
@@ -317,6 +318,18 @@ export type OptionsChain = {
     calls: OptionContract[];
     puts: OptionContract[];
 };
+
+// Represents a market intervention rule
+export type MarketIntervention = {
+    id: string;
+    tradingPair: string;
+    startTime: string;
+    endTime: string;
+    minPrice: number;
+    maxPrice: number;
+    trend: 'up' | 'down' | 'random';
+};
+
 
 // Navigation item type
 export type NavItem = {

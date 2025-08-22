@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { availablePairs } from '@/types';
+import { availablePairs, MarketIntervention } from '@/types';
 
 const SETTINGS_STORAGE_KEY = 'tradeflow_system_settings_v4';
 
@@ -10,17 +10,6 @@ const SETTINGS_STORAGE_KEY = 'tradeflow_system_settings_v4';
 export type TradingPairSettings = {
     isTradingHalted: boolean; 
     baseProfitRate: number;
-};
-
-// A global, independent market intervention rule
-export type MarketIntervention = {
-    id: string;
-    tradingPair: string;
-    startTime: string;
-    endTime: string;
-    minPrice: number;
-    maxPrice: number;
-    trend: 'up' | 'down' | 'random';
 };
 
 export type SystemSettings = {
