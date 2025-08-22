@@ -142,14 +142,10 @@ const initialSummaryData: MarketSummary[] = [{
 
 // --- Provider ---
 export function MarketDataProvider({ children }: { children: ReactNode }) {
-  const { systemSettings } = useSystemSettings();
   const [tradingPair, setTradingPair] = useState(initialTradingPair);
-
   const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>({});
   const [summaryData, setSummaryData] = useState<MarketSummary[]>(initialSummaryData);
   const [klineData, setKlineData] = useState<Record<string, OHLC[]>>({});
-  const [interventionState, setInterventionState] = useState<Record<string, { lastPrice: number }>>({});
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
   const getLatestPrice = useCallback((pair: string) => {
     return summaryData.find(s => s.pair === pair)?.price || 0;
@@ -237,7 +233,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       if (!isSupabaseEnabled) {
           console.warn("Supabase not enabled, generating transient simulation data.");
           await generateAndStoreData();
-          setIsInitialLoadComplete(true);
           return;
       }
 
@@ -272,7 +267,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       } else {
           await generateAndStoreData();
       }
-      setIsInitialLoadComplete(true);
     };
 
     if (baseApiData && Object.keys(baseApiData).length > 0) {
@@ -285,63 +279,29 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   }, [baseApiData]);
 
 
-  // --- High-frequency simulation ---
+  // Placeholder for real-time subscription logic
   useEffect(() => {
-    if (!isInitialLoadComplete) return;
-
-    const simulationInterval = setInterval(() => {
-      const now = new Date();
-      const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      
-      setSummaryData(prevSummary => {
-          // Use baseApiData as the source of truth for which pairs to simulate
-          const pairsToSimulate = Object.keys(baseApiData);
-          if (pairsToSimulate.length === 0) return prevSummary;
-          
-          return pairsToSimulate.map(pair => {
-            const currentSummary = prevSummary.find(s => s.pair === pair) || baseApiData[pair];
-            let newPrice = currentSummary.price;
-            const intervention = systemSettings.marketInterventions.find(i => i.tradingPair === pair && i.startTime <= currentTime && i.endTime >= currentTime);
-            
-            if (intervention) {
-                const { minPrice, maxPrice, trend } = intervention;
-                setInterventionState(prevIntervention => {
-                    let lastInterventionPrice = prevIntervention[pair]?.lastPrice;
-                    if (!lastInterventionPrice || lastInterventionPrice < minPrice || lastInterventionPrice > maxPrice) {
-                        lastInterventionPrice = (minPrice + maxPrice) / 2;
-                    }
-                    if (trend === 'up') { newPrice = lastInterventionPrice + (maxPrice - minPrice) * 0.01; if (newPrice > maxPrice) newPrice = minPrice; }
-                    else if (trend === 'down') { newPrice = lastInterventionPrice - (maxPrice - minPrice) * 0.01; if (newPrice < minPrice) newPrice = maxPrice; }
-                    else { newPrice = lastInterventionPrice + (Math.random() - 0.5) * ((maxPrice - minPrice) * 0.05); }
-                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
-                    return { ...prevIntervention, [pair]: { lastPrice: newPrice } };
-                });
-            } else {
-              newPrice *= (1 + (Math.random() - 0.5) * 0.0001);
-            }
-            return { ...currentSummary, price: newPrice };
-          })
-      });
-
-      setKlineData(prevKline => {
-        const newKline = { ...prevKline };
-        const nowTime = now.getTime();
-        Object.keys(prevKline).forEach(pair => {
-            const pairData = newKline[pair] || [];
-            const lastDataPoint = pairData.length > 0 ? pairData[pairData.length - 1] : null;
-            const currentPrice = getLatestPrice(pair);
-            if (currentPrice > 0) {
-              const newPoint: OHLC = { time: nowTime, open: lastDataPoint?.close || currentPrice, high: currentPrice, low: currentPrice, close: currentPrice, trading_pair: pair };
-              newKline[pair] = [...pairData, newPoint].slice(-DATA_POINTS_TO_KEEP);
-            }
-        });
-        return newKline;
-      });
-
-    }, 1000);
-
-    return () => clearInterval(simulationInterval);
-  }, [baseApiData, systemSettings.marketInterventions, getLatestPrice, isInitialLoadComplete]);
+    // TODO: Implement Supabase Realtime subscription here
+    // This subscription will listen for new data broadcasted from the backend
+    // and call setSummaryData and setKlineData to update the state.
+    //
+    // Example:
+    // const channel = supabase.channel('market-data');
+    // channel
+    //   .on('broadcast', { event: 'new-tick' }, ({ payload }) => {
+    //     // payload might contain { summary: newSummaryData, kline: newKlinePoint }
+    //     setSummaryData(payload.summary);
+    //     setKlineData(prev => ({
+    //         ...prev,
+    //         [payload.kline.trading_pair]: [...prev[payload.kline.trading_pair], payload.kline].slice(-DATA_POINTS_TO_KEEP)
+    //     }));
+    //   })
+    //   .subscribe();
+    //
+    // return () => {
+    //   supabase.removeChannel(channel);
+    // };
+  }, []);
 
   const contextValue: MarketContextType = {
     tradingPair,
