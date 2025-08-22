@@ -111,7 +111,7 @@ const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, Ma
 const TOTAL_SECONDS = 4 * 60 * 60; // 4 hours
 const DATA_POINTS_TO_KEEP = TOTAL_SECONDS;
 const BATCH_SIZE = 500;
-const INITIAL_BTC_PRICE = Math.floor(Math.random() * (130000 - 110000 + 1)) + 110000;
+const INITIAL_BTC_PRICE = parseFloat((Math.random() * (130000 - 110000) + 110000).toFixed(2));
 const INITIAL_ETH_PRICE = 3800;
 const initialTradingPair = CRYPTO_PAIRS[0];
 // --- End Constants ---
