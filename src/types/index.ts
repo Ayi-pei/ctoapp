@@ -323,8 +323,8 @@ export type OptionsChain = {
 export type MarketIntervention = {
     id: string;
     tradingPair: string;
-    startTime: string;
-    endTime: string;
+    startTime: string; // HH:mm
+    endTime: string;   // HH:mm
     minPrice: number;
     maxPrice: number;
     trend: 'up' | 'down' | 'random';
