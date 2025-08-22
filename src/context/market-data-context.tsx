@@ -48,54 +48,49 @@ interface MarketContextType {
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 // --- Data Fetching ---
-const fetchCoinGeckoData = async (): Promise<Record<string, MarketSummary>> => {
-  const coingeckoIds = CRYPTO_PAIRS.map(pair => apiIdMap[pair]?.coingecko).filter(Boolean) as string[];
+const fetchTatumMarketData = async (): Promise<Record<string, MarketSummary>> => {
+  const assetIds = CRYPTO_PAIRS.map(p => p.split('/')[0]);
   try {
-    const response = await axios.post('/api/coingecko', { assetIds: coingeckoIds });
-    return response.data;
+      const response = await axios.post('/api/tatum/market-data', { assetIds });
+      const tatumData = response.data;
+      const formattedData: Record<string, MarketSummary> = {};
+      Object.keys(tatumData).forEach(key => {
+          const asset = tatumData[key];
+          const pair = `${asset.symbol}/USDT`;
+          formattedData[pair] = {
+              pair,
+              price: parseFloat(asset.priceUsd) || 0,
+              change: parseFloat(asset.changePercent24Hr) || 0,
+              volume: parseFloat(asset.volumeUsd24Hr) || 0,
+              high: parseFloat(asset.high) || 0,
+              low: parseFloat(asset.low) || 0,
+              icon: `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
+          };
+      });
+      return formattedData;
   } catch (error) {
-    console.warn("CoinGecko API fetch failed.", error);
-    return {};
+      console.warn("Tatum API fetch failed.", error);
+      return {};
   }
 };
 
-const fetchCoinDeskData = async (): Promise<Record<string, MarketSummary>> => {
-  try {
-    const response = await axios.get('/api/coindesk', { params: { instruments: CRYPTO_PAIRS.join(',') } });
-    return response.data;
-  } catch (error) {
-    console.warn("CoinDesk API fetch failed.", error);
-    return {};
-  }
-};
 
 const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, MarketSummary>> => {
     const results: Record<string, MarketSummary> = {};
     for (const pair of pairs) {
         try {
             const [from, to] = pair.split('/');
-            // For XAU, the API requires a physical currency like USD as the 'to' currency.
-            // This is a simplification and might need adjustment for other commodities.
-            const fromCurrency = from === 'XAU' ? 'GOLD' : from;
-            const toCurrency = to === 'XAU' ? 'USD' : to;
-
-            const response = await axios.get('https://www.alphavantage.co/query', {
-                params: {
-                    function: 'CURRENCY_EXCHANGE_RATE',
-                    from_currency: fromCurrency,
-                    to_currency: toCurrency,
-                    apikey: process.env.NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
-                }
-            });
-            const data = response.data['Realtime Currency Exchange Rate'];
+            const response = await axios.get('/api/quote/' + (from === 'XAU' ? 'GC=F' : `${from}${to}=X`));
+            const data = response.data;
+            
             if (data) {
                 results[pair] = {
                     pair: pair,
-                    price: parseFloat(data['5. Exchange Rate']),
-                    change: 0, // Alpha Vantage free tier doesn't provide change %
-                    volume: 0,
-                    high: 0,
-                    low: 0,
+                    price: data.regularMarketPrice,
+                    change: data.regularMarketChangePercent,
+                    volume: data.regularMarketVolume,
+                    high: data.regularMarketDayHigh,
+                    low: data.regularMarketDayLow,
                     icon: `https://placehold.co/32x32.png` // Placeholder icon
                 };
             }
@@ -162,15 +157,11 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
   // --- Low-frequency API fetch ---
   useEffect(() => {
-    let cryptoProvider: 'coingecko' | 'coindesk' = 'coingecko';
-
     const fetchRealData = async () => {
-        // Fetch crypto data (every 1 min)
-        const cryptoData = cryptoProvider === 'coingecko' ? await fetchCoinGeckoData() : await fetchCoinDeskData();
+        const cryptoData = await fetchTatumMarketData();
         if (Object.keys(cryptoData).length > 0) {
             setBaseApiData(prev => ({ ...prev, ...cryptoData }));
         }
-        cryptoProvider = cryptoProvider === 'coingecko' ? 'coindesk' : 'coingecko';
     };
 
     const fetchForexAndCommodityData = async () => {
