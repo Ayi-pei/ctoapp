@@ -3,94 +3,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
-import axios from 'axios';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
-
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
 const FOREX_COMMODITY_PAIRS = ['XAU/USD', 'EUR/USD', 'GBP/USD'];
 const OPTIONS_SYMBOLS = ['IBM', 'AAPL', 'TSLA', 'MSFT'];
-
-
-const fetchTatumMarketData = async (): Promise<Record<string, MarketSummary>> => {
-  const assetIds = CRYPTO_PAIRS.map(p => p.split('/')[0]);
-  try {
-      const response = await axios.post('/api/tatum/market-data', { assetIds });
-      const tatumData = response.data;
-      const formattedData: Record<string, MarketSummary> = {};
-      Object.keys(tatumData).forEach(key => {
-          const asset = tatumData[key];
-          const pair = `${asset.symbol}/USDT`;
-          formattedData[pair] = {
-              pair,
-              price: parseFloat(asset.priceUsd) || 0,
-              change: parseFloat(asset.changePercent24Hr) || 0,
-              volume: parseFloat(asset.volumeUsd24Hr) || 0,
-              high: parseFloat(asset.high) || 0,
-              low: parseFloat(asset.low) || 0,
-              icon: `https://static.coinpaprika.com/coin/${asset.id}/logo.png`,
-          };
-      });
-      return formattedData;
-  } catch (error) {
-      console.warn("Tatum API fetch failed.", error);
-      return {};
-  }
-};
-
-
-const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, MarketSummary>> => {
-    const results: Record<string, MarketSummary> = {};
-    for (const pair of pairs) {
-        try {
-            const [from, to] = pair.split('/');
-            // Map forex pairs to Yahoo Finance format
-            const symbol = from === 'XAU' ? 'GC=F' : `${from}${to}=X`;
-            const response = await axios.get('/api/quote/' + symbol);
-            const data = response.data;
-            
-            if (data) {
-                results[pair] = {
-                    pair: pair,
-                    price: data.regularMarketPrice,
-                    change: data.regularMarketChangePercent,
-                    volume: data.regularMarketVolume,
-                    high: data.regularMarketDayHigh,
-                    low: data.regularMarketDayLow,
-                    icon: `https://placehold.co/32x32.png` // Placeholder icon
-                };
-            }
-        } catch (error) {
-            console.warn(`Alpha Vantage API fetch for ${pair} failed.`, error);
-        }
-    }
-    return results;
-};
-
-const fetchOptionsUnderlyingPrice = async (symbols: string[]): Promise<Record<string, MarketSummary>> => {
-    const results: Record<string, MarketSummary> = {};
-    for (const symbol of symbols) {
-         try {
-            const response = await axios.get('/api/quote/' + symbol);
-            const data = response.data;
-             if (data) {
-                results[symbol] = {
-                    pair: symbol,
-                    price: data.regularMarketPrice,
-                    change: data.regularMarketChangePercent,
-                    volume: data.regularMarketVolume,
-                    high: data.regularMarketDayHigh,
-                    low: data.regularMarketDayLow,
-                    icon: `https://placehold.co/32x32.png` // Placeholder icon
-                };
-            }
-        } catch (error) {
-            console.warn(`Yahoo Finance API fetch for option underlying ${symbol} failed.`, error);
-        }
-    }
-    return results;
-};
-
 
 interface MarketContextType {
   tradingPair: string;
@@ -105,7 +22,6 @@ interface MarketContextType {
 
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
-
 // --- Provider ---
 export function MarketDataProvider({ children }: { children: ReactNode }) {
   const [tradingPair, setTradingPair] = useState(CRYPTO_PAIRS[0]);
@@ -115,63 +31,41 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   const getLatestPrice = useCallback((pair: string) => {
     return summaryData.find(s => s.pair === pair)?.price || 0;
   }, [summaryData]);
-
-  // --- Low-frequency API fetch to get base data ---
-  useEffect(() => {
-    const fetchAllBaseData = async () => {
-        const cryptoDataPromise = fetchTatumMarketData();
-        const forexDataPromise = fetchAlphaVantageData(FOREX_COMMODITY_PAIRS);
-        const optionsDataPromise = fetchOptionsUnderlyingPrice(OPTIONS_SYMBOLS);
-
-        const [cryptoData, forexData, optionsData] = await Promise.all([cryptoDataPromise, forexDataPromise, optionsDataPromise]);
-
-        const combinedData = {...cryptoData, ...forexData, ...optionsData};
-        
-        if (Object.keys(combinedData).length > 0) {
-            const summaryArray = Object.values(combinedData);
-            setSummaryData(summaryArray);
-            if (isSupabaseEnabled) {
-                const dataToUpsert = summaryArray.map(s => ({...s, pair: s.pair, updated_at: new Date()}));
-                supabase.from('market_summary_data').upsert(dataToUpsert, { onConflict: 'pair' }).then(({ error }) => {
-                    if (error) console.error("Supabase summary upsert error:", error);
-                });
-            }
-        }
-    };
-    
-    // Initial fetch, then refetch on an interval.
-    fetchAllBaseData();
-    const interval = setInterval(fetchAllBaseData, 60 * 1000); // Refetch every 1 minute
-    return () => clearInterval(interval);
-  }, []);
-
   
-  // --- Initial K-Line Data Population ---
+  // --- Initial Data Population from Supabase ---
   useEffect(() => {
-    // This effect now only focuses on fetching historical data for the chart.
-    // It no longer generates data on the client side.
-    const loadInitialKlineData = async () => {
+    const loadInitialData = async () => {
         if (!isSupabaseEnabled) {
-            console.warn("Supabase is not enabled. Cannot load historical K-line data.");
-            // In a real backend-driven architecture, we might fetch from a different API here
-            // or show a message to the user. For now, the chart will be empty.
+            console.warn("Supabase is not enabled. Cannot load market data.");
             return;
         }
 
-        const fourHoursAgo = Date.now() - (4 * 60 * 60 * 1000);
-        const { data, error } = await supabase
+        // Fetch initial summary data
+        const { data: summary, error: summaryError } = await supabase
+            .from('market_summary_data')
+            .select('*');
+        
+        if (summaryError) {
+             console.error("Error fetching initial summary data:", summaryError);
+        } else if (summary) {
+            setSummaryData(summary);
+        }
+        
+        // Fetch initial k-line data for the last 4 hours
+        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+        const { data: kline, error: klineError } = await supabase
             .from('market_kline_data')
             .select('*')
             .gte('time', fourHoursAgo);
 
-        if (error) {
-            console.error("Error fetching initial k-line data from Supabase:", error);
-        } else if (data) {
+        if (klineError) {
+            console.error("Error fetching initial k-line data:", klineError);
+        } else if (kline) {
              const groupedData: Record<string, OHLC[]> = {};
-            data.forEach(row => {
+            kline.forEach(row => {
                 if (!groupedData[row.trading_pair]) groupedData[row.trading_pair] = [];
                 groupedData[row.trading_pair].push({
-                    time: row.time,
+                    time: new Date(row.time).getTime(),
                     open: row.open,
                     high: row.high,
                     low: row.low,
@@ -182,47 +76,59 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             setKlineData(groupedData);
         }
     };
+    loadInitialData();
+  }, []);
 
-    loadInitialKlineData();
-
-  }, []); // Runs once on component mount
-
-  
   // --- Real-time Data Subscription ---
   useEffect(() => {
     if (!isSupabaseEnabled) return;
 
-    const channel = supabase.channel('market-updates');
+    const summaryChannel = supabase
+        .channel('market-summary-updates')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'market_summary_data' },
+            (payload) => {
+                const updatedRecord = payload.new as MarketSummary;
+                setSummaryData(prev => {
+                    const index = prev.findIndex(s => s.pair === updatedRecord.pair);
+                    if (index > -1) {
+                        const newSummary = [...prev];
+                        newSummary[index] = updatedRecord;
+                        return newSummary;
+                    }
+                    return [...prev, updatedRecord];
+                })
+            }
+        ).subscribe();
 
-    channel
-      .on('broadcast', { event: 'price-update' }, ( { payload } ) => {
-          const { summary: newSummary, kline: newKlinePoint } = payload;
-          if (newSummary) {
-              setSummaryData(newSummary);
-          }
-          if (newKlinePoint) {
-              const { trading_pair } = newKlinePoint;
-              setKlineData(prev => {
-                  const updatedPairData = [...(prev[trading_pair] || []), newKlinePoint];
-                  if (updatedPairData.length > 20000) { 
-                      updatedPairData.shift();
-                  }
-                  return { ...prev, [trading_pair]: updatedPairData };
-              });
-          }
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to real-time market updates!');
+    const klineChannel = supabase
+      .channel('market-kline-updates')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'market_kline_data' },
+        (payload) => {
+          const newKlinePoint = payload.new as OHLC & { trading_pair: string };
+          setKlineData(prev => {
+              const updatedPairData = [...(prev[newKlinePoint.trading_pair] || []), {
+                  ...newKlinePoint,
+                  time: new Date(newKlinePoint.time).getTime()
+              }];
+              // Keep the chart from getting too crowded
+              if (updatedPairData.length > 3000) { 
+                  updatedPairData.shift();
+              }
+              return { ...prev, [newKlinePoint.trading_pair]: updatedPairData };
+          });
         }
-      });
+      ).subscribe();
       
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(summaryChannel);
+      supabase.removeChannel(klineChannel);
     };
 
   }, []);
-
 
   const contextValue: MarketContextType = {
     tradingPair,
