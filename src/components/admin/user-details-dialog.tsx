@@ -176,7 +176,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         });
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
         
-        await loadUserData();
+        handleSuccessfulUpdate();
     };
 
     const handlePasswordChange = async () => {
@@ -251,6 +251,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
                 action: 'update',
                 details: `Updated credit score for user ${currentUser.username} to ${score}.`
             });
+             handleSuccessfulUpdate();
         } else {
             toast({ variant: "destructive", title: "失败", description: "操作失败。" });
         }
