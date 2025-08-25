@@ -161,14 +161,14 @@ export default function DashboardPage() {
 
                             if (feature.href) {
                                 return (
-                                    <Link href={feature.href} key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors">
+                                    <Link href={feature.href} key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors border shadow-sm">
                                         {content}
                                     </Link>
                                 );
                             }
 
                             return (
-                                <div key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors" onClick={feature.action}>
+                                <div key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors border shadow-sm" onClick={feature.action}>
                                     {content}
                                 </div>
                             );
