@@ -115,9 +115,9 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
     const [messageContent, setMessageContent] = useState("");
 
     const loadUserData = useCallback(async () => {
-        if (!currentUser || !isSupabaseEnabled) return;
+        if (!user || !isSupabaseEnabled) return;
         setIsLoading(true);
-        const fetchedUser = await getUserById(currentUser.id);
+        const fetchedUser = await getUserById(user.id);
         if (fetchedUser) {
             setCurrentUser(fetchedUser);
             setCreditScore((fetchedUser.credit_score ?? 100).toString());
@@ -138,7 +138,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
 
         }
         setIsLoading(false);
-    }, [currentUser, getUserById]);
+    }, [user, getUserById]);
 
     useEffect(() => {
         if (isOpen) {
@@ -481,4 +481,3 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
     )
 }
 
-    

@@ -150,7 +150,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
             toast({ variant: 'destructive', title: 'Balance update failed' });
         } else {
-            // If updating current user, refresh balances from DB for consistency
+            // Always refetch for the currently logged-in user if their balance might have changed.
+            // Admin operations on other users don't need to trigger a client-side refresh for the admin's own balances.
             if (user?.id === userId) {
                 await fetchUserBalanceData(userId);
             }
