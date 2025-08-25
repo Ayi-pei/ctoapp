@@ -21,6 +21,24 @@ if (isSupabaseEnabled) {
       delete: async () => ({ data: null, error: new Error('Supabase not enabled') }),
       upsert: async () => ({ data: null, error: new Error('Supabase not enabled') }),
     }),
+    rpc: async () => ({ data: null, error: new Error('Supabase not enabled') }),
+    auth: {
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword: async () => ({ data: { user: null }, error: new Error('Supabase not enabled') }),
+        signUp: async () => ({ data: { user: null }, error: new Error('Supabase not enabled') }),
+        signOut: async () => ({ error: null }),
+        admin: {
+             updateUserById: async () => ({ data: { user: null }, error: new Error('Supabase not enabled') })
+        }
+    },
+    channel: () => ({
+        on: () => ({
+            subscribe: () => ({
+                unsubscribe: () => {}
+            })
+        })
+    }),
+    removeChannel: () => {}
   } as any;
 }
 

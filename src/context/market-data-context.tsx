@@ -131,7 +131,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             const summaryArray = Object.values(combinedData);
             setSummaryData(summaryArray);
             if (isSupabaseEnabled) {
-                const dataToUpsert = summaryArray.map(s => ({...s, updated_at: new Date()}));
+                const dataToUpsert = summaryArray.map(s => ({...s, pair: s.pair, updated_at: new Date()}));
                 supabase.from('market_summary_data').upsert(dataToUpsert, { onConflict: 'pair' }).then(({ error }) => {
                     if (error) console.error("Supabase summary upsert error:", error);
                 });
@@ -166,9 +166,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
 
         if (error) {
             console.error("Error fetching initial k-line data from Supabase:", error);
-            // Here, the frontend would traditionally call a backend endpoint to trigger
-            // the data generation process.
-            // e.g., await axios.post('/api/market-data/initialize');
         } else if (data) {
              const groupedData: Record<string, OHLC[]> = {};
             data.forEach(row => {
@@ -193,26 +190,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   
   // --- Real-time Data Subscription ---
   useEffect(() => {
-    // In the new architecture, this is where we subscribe to real-time updates from the backend.
-    // The backend is now responsible for all simulation, intervention, and broadcasting.
-    
     if (!isSupabaseEnabled) return;
 
-    // Example subscription to a 'market_updates' channel (this channel would be used by the backend service)
     const channel = supabase.channel('market-updates');
 
     channel
-      .on('broadcast', { event: 'price-update' }, ({ payload }) => {
-          // Payload = { summary: MarketSummary[], kline: OHLC }
-          if (payload.summary) {
-              setSummaryData(payload.summary);
+      .on('broadcast', { event: 'price-update' }, ( { payload } ) => {
+          const { summary: newSummary, kline: newKlinePoint } = payload;
+          if (newSummary) {
+              setSummaryData(newSummary);
           }
-          if (payload.kline) {
-              const { trading_pair } = payload.kline;
+          if (newKlinePoint) {
+              const { trading_pair } = newKlinePoint;
               setKlineData(prev => {
-                  const updatedPairData = [...(prev[trading_pair] || []), payload.kline];
-                  // Keep the data window to a reasonable size to avoid memory issues
-                  if (updatedPairData.length > 20000) { // Approx 5.5 hours of 1-sec data
+                  const updatedPairData = [...(prev[trading_pair] || []), newKlinePoint];
+                  if (updatedPairData.length > 20000) { 
                       updatedPairData.shift();
                   }
                   return { ...prev, [trading_pair]: updatedPairData };
@@ -225,7 +217,6 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         }
       });
       
-    // Cleanup on unmount
     return () => {
       supabase.removeChannel(channel);
     };

@@ -6,8 +6,7 @@ import type { AnyRequest, PasswordResetRequest, Transaction } from '@/types';
 import { useAuth } from './auth-context';
 import { useBalance } from './balance-context';
 import { useLogs } from './logs-context';
-
-const REQUESTS_STORAGE_KEY = 'tradeflow_requests';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 type DepositRequestParams = {
     asset: string;
@@ -35,59 +34,47 @@ interface RequestsContextType {
 const RequestsContext = createContext<RequestsContextType | undefined>(undefined);
 
 export function RequestsProvider({ children }: { children: ReactNode }) {
-    const { user, getUserById, updateUser } = useAuth();
-    const { adjustBalance, adjustFrozenBalance, confirmWithdrawal, revertWithdrawal } = useBalance();
+    const { user, updateUser } = useAuth();
+    const { adjustBalance } = useBalance();
     const { addLog } = useLogs();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
-    const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from localStorage
-    useEffect(() => {
-        try {
-            const storedRequests = localStorage.getItem(REQUESTS_STORAGE_KEY);
-            if (storedRequests) {
-                const parsed = JSON.parse(storedRequests);
-                // Attach user info to requests on load
-                const requestsWithUsers = parsed.map((req: AnyRequest) => ({
-                    ...req,
-                    user: getUserById(req.user_id) || { username: req.user_id }
-                }));
-                setRequests(requestsWithUsers);
-            }
-        } catch (error) {
-            console.error("Failed to load requests from localStorage", error);
+    const fetchAllRequests = useCallback(async () => {
+        if (!isSupabaseEnabled) return;
+        const { data, error } = await supabase
+            .from('requests')
+            .select('*, user:profiles(username)')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("Error fetching requests:", error);
+        } else {
+            setRequests(data as AnyRequest[]);
         }
-        setIsLoaded(true);
-    }, [getUserById]);
+    }, []);
 
-    // Save to localStorage
     useEffect(() => {
-        if (isLoaded) {
-            try {
-                // Don't save the 'user' object to avoid circular dependencies in JSON
-                const requestsToStore = requests.map(({ user, ...rest }) => rest);
-                localStorage.setItem(REQUESTS_STORAGE_KEY, JSON.stringify(requestsToStore));
-            } catch (error) {
-                console.error("Failed to save requests to localStorage", error);
-            }
-        }
-    }, [requests, isLoaded]);
+        fetchAllRequests();
+    }, [fetchAllRequests]);
 
-    const addRequest = useCallback((newRequest: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user' | 'user_id'>) => {
-        if (!user) return;
+
+    const addRequest = useCallback(async (newRequestData: Omit<AnyRequest, 'id' | 'status' | 'created_at' | 'user' | 'user_id'>) => {
+        if (!user || !isSupabaseEnabled) return;
     
         const fullRequest = {
-            ...newRequest,
-            id: `req_${Date.now()}`,
+            ...newRequestData,
             user_id: user.id,
             status: 'pending' as const,
-            created_at: new Date().toISOString(),
-            user: { username: user.username },
         };
+
+        const { error } = await supabase.from('requests').insert(fullRequest);
+        if (error) {
+            console.error("Failed to add request:", error);
+        } else {
+            await fetchAllRequests(); // Refresh list after adding
+        }
     
-        setRequests(prev => [fullRequest as AnyRequest, ...prev]);
-    
-    }, [user]);
+    }, [user, fetchAllRequests]);
 
     const addDepositRequest = useCallback((params: DepositRequestParams) => {
         addRequest({
@@ -102,56 +89,57 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             type: 'withdrawal',
             ...params,
         });
-        adjustFrozenBalance(params.asset, params.amount, user.id);
-    }, [user, addRequest, adjustFrozenBalance]);
+        adjustBalance(user.id, params.asset, params.amount, true); // Freeze balance on request
+    }, [user, addRequest, adjustBalance]);
 
     const addPasswordResetRequest = useCallback(async (newPassword: string) => {
-        return new Promise<void>((resolve, reject) => {
-            if (!user) {
-                reject(new Error("User not logged in."));
-                return;
-            }
-            const request: Omit<PasswordResetRequest, 'id' | 'status' | 'created_at' | 'user_id' | 'user'> = {
-                type: 'password_reset',
-                new_password: newPassword,
-            };
-            addRequest(request);
-            resolve();
-        });
+        if (!user) {
+           throw new Error("User not logged in.");
+        }
+        const request: Omit<PasswordResetRequest, 'id' | 'status' | 'created_at' | 'user_id' | 'user'> = {
+            type: 'password_reset',
+            new_password: newPassword,
+        };
+        await addRequest(request);
     }, [user, addRequest]);
 
 
     const processRequest = useCallback(async (requestId: string, action: 'approve' | 'reject') => {
         const request = requests.find(r => r.id === requestId);
-        if (!request || request.status !== 'pending') return;
+        if (!request || request.status !== 'pending' || !isSupabaseEnabled) return;
+
+        const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
         if (action === 'approve') {
             if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
-                adjustBalance(request.user_id, request.asset, request.amount);
+                await adjustBalance(request.user_id, request.asset, request.amount);
             } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                confirmWithdrawal(request.asset, request.amount, request.user_id);
+                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Unfreeze by removing from frozen
             } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
                 await updateUser(request.user_id, { password: request.new_password });
             }
         } else { // 'reject' action
              if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                revertWithdrawal(request.asset, request.amount, request.user_id);
+                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Unfreeze
+                await adjustBalance(request.user_id, request.asset, request.amount); // Return to available
             }
         }
 
-        // Update request status and log the action
-        const newStatus = action === 'approve' ? 'approved' : 'rejected';
-        setRequests(prev => prev.map(req => 
-            req.id === requestId ? { ...req, status: newStatus, user: req.user || getUserById(req.user_id) } : req
-        ));
-        addLog({
-            entity_type: 'request',
-            entity_id: requestId,
-            action: action,
-            details: `Request for user ${request.user?.username || request.user_id} was ${newStatus}.`
-        });
+        const { error } = await supabase.from('requests').update({ status: newStatus }).eq('id', requestId);
 
-    }, [requests, adjustBalance, confirmWithdrawal, updateUser, revertWithdrawal, addLog, getUserById]);
+        if (error) {
+            console.error("Failed to update request status:", error);
+            // TODO: Add logic to revert balance changes if status update fails
+        } else {
+             addLog({
+                entity_type: 'request',
+                entity_id: requestId,
+                action: action,
+                details: `Request for user ${request.user?.username || request.user_id} was ${newStatus}.`
+            });
+            await fetchAllRequests();
+        }
+    }, [requests, adjustBalance, updateUser, addLog, fetchAllRequests]);
 
 
     const approveRequest = async (requestId: string) => {
@@ -163,30 +151,16 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     };
 
     const deleteRequest = async (requestId: string) => {
-        const request = requests.find(r => r.id === requestId);
-        if (!request) return;
-
-        setRequests(prev => prev.filter(r => r.id !== requestId));
-        addLog({
-            entity_type: 'request',
-            entity_id: requestId,
-            action: 'delete',
-            details: `Request for user ${request.user?.username || request.user_id} was deleted.`
-        });
+        const { error } = await supabase.from('requests').delete().eq('id', requestId);
+        if (error) console.error("Failed to delete request:", error);
+        else await fetchAllRequests();
     }
     
     const updateRequest = async (requestId: string, updates: Partial<AnyRequest>) => {
-        const originalRequest = requests.find(r => r.id === requestId);
-        if (!originalRequest) return;
-        
-        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, ...updates, user: r.user || getUserById(r.user_id) } : r ));
-
-        addLog({
-            entity_type: 'request',
-            entity_id: requestId,
-            action: 'update',
-            details: `Request for user ${originalRequest.user?.username || originalRequest.user_id} was updated.`
-        });
+        const { user, ...updateData } = updates; // 'user' is a joined field, cannot be updated directly
+        const { error } = await supabase.from('requests').update(updateData).eq('id', requestId);
+         if (error) console.error("Failed to update request:", error);
+        else await fetchAllRequests();
     }
 
 
