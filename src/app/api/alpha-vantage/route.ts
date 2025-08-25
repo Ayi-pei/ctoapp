@@ -24,6 +24,10 @@ export async function GET(request: Request) {
   if (!symbol) {
     return NextResponse.json({ error: 'Symbol parameter is required.' }, { status: 400 });
   }
+  
+  if (func === 'HISTORICAL_OPTIONS' && !date) {
+    return NextResponse.json({ error: 'Date parameter is required for HISTORICAL_OPTIONS.' }, { status: 400 });
+  }
 
   try {
     const params: Record<string, string> = {

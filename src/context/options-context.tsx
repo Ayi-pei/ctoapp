@@ -76,7 +76,8 @@ export function OptionsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/alpha-vantage?function=HISTORICAL_OPTIONS&symbol=${symbol}`);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await axios.get(`/api/alpha-vantage?function=HISTORICAL_OPTIONS&symbol=${symbol}&date=${today}`);
       
       if (response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         setOptionsChain(response.data.data);
