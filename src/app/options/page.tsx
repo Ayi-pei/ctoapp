@@ -35,7 +35,7 @@ const OptionsTable = ({ contracts, type }: { contracts: OptionContract[], type: 
                 {contracts.map((contract, index) => {
                     const isPositive = contract.change >= 0;
                     return (
-                        <TableRow key={`${contract.contract_id}-${index}`} className={cn(contract.in_the_money && (type === 'call' ? 'bg-green-500/10' : 'bg-red-500/10'))}>
+                        <TableRow key={`${type}-${contract.strike_price}-${index}`} className={cn(contract.in_the_money && (type === 'call' ? 'bg-green-500/10' : 'bg-red-500/10'))}>
                             <TableCell>
                                 <div className="flex flex-col">
                                     <span className="font-medium">{contract.last_price.toFixed(2)}</span>
@@ -79,7 +79,8 @@ export default function OptionsPage() {
     const { optionsChain, isLoading, selectedSymbol, changeSymbol, availableSymbols } = useOptions();
     const [selectedExpiration, setSelectedExpiration] = useState<string | undefined>(undefined);
 
-    useEffect(() => {
+    // This effect handles the initial selection of the expiration date.
+     useEffect(() => {
         if (optionsChain && optionsChain.length > 0) {
             const currentExpirationExists = optionsChain.some(c => c.expiration_date === selectedExpiration);
             if (!currentExpirationExists || !selectedExpiration) {
@@ -167,3 +168,4 @@ export default function OptionsPage() {
         </DashboardLayout>
     );
 }
+
