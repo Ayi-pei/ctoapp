@@ -1,8 +1,7 @@
 -- 1. 数据库扩展
-create extension if not exists "uuid-ossp" with schema extensions;
-create extension if not exists pgcrypto with schema extensions;
-create extension if not exists pg_cron with schema extensions;
-
+create extension if not exists "uuid-ossp" with schema public;
+create extension if not exists "pgcrypto" with schema public;
+create extension if not exists "pg_cron" with schema public;
 
 -- 2. 数据库表结构
 
@@ -24,14 +23,31 @@ create table if not exists public.profiles (
   last_check_in_date date,
   consecutive_check_ins integer default 0
 );
-comment on table public.profiles is 'Stores all user public profiles.';
-comment on column public.profiles.id is 'References auth.users.id';
+-- 补充说明: `profiles.id` 与 `auth.users.id` 关联
+
+-- 系统支持的资产列表
+create table if not exists public.supported_assets (
+  asset_code text primary key,
+  asset_name text not null,
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+-- 插入一些默认资产
+insert into public.supported_assets (asset_code, asset_name) values
+('USDT', 'Tether'), ('BTC', 'Bitcoin'), ('ETH', 'Ethereum'), ('SOL', 'Solana'),
+('XRP', 'Ripple'), ('LTC', 'Litecoin'), ('BNB', 'Binance Coin'), ('MATIC', 'Polygon'),
+('DOGE', 'Dogecoin'), ('ADA', 'Cardano'), ('SHIB', 'Shiba Inu'), ('AVAX', 'Avalanche'),
+('LINK', 'Chainlink'), ('DOT', 'Polkadot'), ('UNI', 'Uniswap'), ('TRX', 'TRON'),
+('XLM', 'Stellar'), ('VET', 'VeChain'), ('EOS', 'EOS'), ('FIL', 'Filecoin'),
+('ICP', 'Internet Computer'), ('XAU', 'Gold'), ('USD', 'US Dollar'), ('EUR', 'Euro'), ('GBP', 'British Pound')
+on conflict (asset_code) do nothing;
+
 
 -- 用户资产余额表
 create table if not exists public.balances (
   id bigserial primary key,
   user_id uuid not null references public.profiles(id),
-  asset text not null,
+  asset text not null references public.supported_assets(asset_code),
   available_balance double precision default 0,
   frozen_balance double precision default 0,
   unique(user_id, asset)
@@ -40,18 +56,16 @@ create table if not exists public.balances (
 -- 交易记录表 (包含币币和秒合约)
 create table if not exists public.trades (
   id bigserial primary key,
-  user_id uuid not null references public.profiles(id) on delete cascade,
+  user_id uuid not null references public.profiles(id),
   trading_pair text not null,
   orderType text not null check (orderType in ('spot', 'contract')),
   type text not null check (type in ('buy', 'sell')),
   status text not null, -- spot: 'filled', 'cancelled'; contract: 'active', 'settled'
   amount double precision not null, -- 对于spot是基础货币数量, 对于contract是投资额
-  -- For Spot Trades
   total double precision, -- a.k.a quote_asset_amount
   price double precision,
   base_asset text,
   quote_asset text,
-  -- For Contract Trades
   entry_price double precision,
   settlement_time timestamp with time zone,
   period integer,
@@ -65,7 +79,7 @@ create table if not exists public.trades (
 -- 理财投资记录表
 create table if not exists public.investments (
     id bigserial primary key,
-    user_id uuid not null references public.profiles(id) on delete cascade,
+    user_id uuid not null references public.profiles(id),
     product_name text not null,
     amount double precision not null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -85,8 +99,8 @@ create table if not exists public.investments (
 -- 奖励/佣金日志表
 create table if not exists public.reward_logs (
     id bigserial primary key,
-    user_id uuid not null references public.profiles(id) on delete cascade,
-    type text not null, -- 'dailyTask', 'team', 'event', 'system'
+    user_id uuid not null references public.profiles(id),
+    type text not null, -- 'dailyTask', 'team', 'event', 'system', 'check_in'
     amount double precision not null,
     asset text not null,
     source_id text,
@@ -99,7 +113,7 @@ create table if not exists public.reward_logs (
 -- 用户请求表 (充值、提现、密码重置)
 create table if not exists public.requests (
     id bigserial primary key,
-    user_id uuid not null references public.profiles(id) on delete cascade,
+    user_id uuid not null references public.profiles(id),
     type text not null, -- 'deposit', 'withdrawal', 'password_reset'
     asset text,
     amount double precision,
@@ -121,7 +135,7 @@ create table if not exists public.system_settings (
 create table if not exists public.announcements (
     id bigserial primary key,
     type text not null, -- 'personal_message', 'carousel', 'horn'
-    user_id uuid references public.profiles(id) on delete cascade, -- Null for system-wide announcements
+    user_id uuid references public.profiles(id), -- Null for system-wide announcements
     content jsonb,
     title text,
     theme text,
@@ -129,11 +143,8 @@ create table if not exists public.announcements (
     expires_at timestamp with time zone,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     is_read boolean default false,
-    constraint unique_type_for_singletons check (type not in ('carousel', 'horn') or user_id is null)
+    constraint unique_type_for_singletons unique (type)
 );
--- This makes sure there's only one row for 'carousel' and 'horn'
-create unique index if not exists announcements_singletons_idx on public.announcements (type) where user_id is null;
-
 
 -- 活动表
 create table if not exists public.activities (
@@ -164,7 +175,7 @@ create table if not exists public.daily_tasks (
 -- 用户任务完成状态表
 create table if not exists public.user_task_states (
     id bigserial primary key,
-    user_id uuid not null references public.profiles(id) on delete cascade,
+    user_id uuid not null references public.profiles(id),
     taskId text not null references public.daily_tasks(trigger),
     date date not null,
     completed boolean default false,
@@ -187,7 +198,7 @@ create table if not exists public.action_logs (
 -- P2P闪兑订单表
 create table if not exists public.swap_orders (
     id bigserial primary key,
-    user_id uuid not null references public.profiles(id) on delete cascade,
+    user_id uuid not null references public.profiles(id),
     username text,
     from_asset text,
     from_amount double precision,
@@ -195,7 +206,7 @@ create table if not exists public.swap_orders (
     to_amount double precision,
     status text,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    taker_id uuid references public.profiles(id) on delete set null,
+    taker_id uuid references public.profiles(id),
     taker_username text,
     payment_proof_url text
 );
@@ -235,68 +246,77 @@ create table if not exists public.market_summary_data (
 create table if not exists public.market_kline_data (
     id bigserial primary key,
     trading_pair text not null,
-    "time" timestamp with time zone not null,
-    "open" double precision,
+    time timestamp with time zone not null,
+    open double precision,
     high double precision,
     low double precision,
-    "close" double precision,
-    unique(trading_pair, "time")
+    close double precision,
+    unique(trading_pair, time)
 );
 
+-- 定时任务日志
+create table if not exists public.cron_job_logs (
+    id bigserial primary key,
+    job_name text not null,
+    start_time timestamp with time zone default now(),
+    end_time timestamp with time zone,
+    status text, -- 'started', 'completed', 'failed'
+    details jsonb
+);
 
 -- 佣金比例配置表
 create table if not exists public.commission_rates (
-    level integer primary key,
-    rate double precision not null
+    level smallint primary key,
+    rate double precision not null,
+    description text
 );
-
--- Cron Job 日志表
-create table if not exists public.cron_job_logs (
-  id bigserial primary key,
-  job_name text not null,
-  run_time timestamp with time zone default timezone('utc'::text, now()) not null,
-  status text not null, -- 'started', 'completed', 'failed'
-  details jsonb
-);
+-- 插入默认佣金比例
+insert into public.commission_rates (level, rate, description) values
+(1, 0.08, 'Level 1 Commission Rate'),
+(2, 0.05, 'Level 2 Commission Rate'),
+(3, 0.02, 'Level 3 Commission Rate')
+on conflict (level) do update set rate = excluded.rate;
 
 
 -- 3. 索引优化
 create index if not exists trades_status_settlement_time_idx on public.trades (status, settlement_time);
 create index if not exists investments_status_settlement_date_idx on public.investments (status, settlement_date);
-create index if not exists market_kline_data_time_idx on public.market_kline_data ("time" desc);
-create index if not exists reward_logs_user_id_created_at_idx on public.reward_logs (user_id, created_at desc);
+create index if not exists reward_logs_user_id_created_at_idx on public.reward_logs (user_id, created_at);
 create index if not exists user_task_states_user_id_date_idx on public.user_task_states (user_id, date);
+create index if not exists market_kline_data_time_idx on public.market_kline_data (time desc);
 
--- 4. 数据库函数与触发器
 
--- 新用户自动处理函数
+-- 4. 函数与触发器
+
+-- Function to handle new user creation
 create or replace function public.handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
 declare
-    supported_assets text[] := array['USDT', 'BTC', 'ETH', 'SOL', 'XRP', 'LTC', 'BNB', 'MATIC', 'DOGE', 'ADA', 'SHIB', 'AVAX', 'LINK', 'DOT', 'UNI', 'TRX', 'XLM', 'VET', 'EOS', 'FIL', 'ICP', 'XAU', 'USD', 'EUR', 'GBP'];
-    asset_name text;
+  v_asset_code text;
 begin
-  -- 插入用户资料
-  insert into public.profiles (id, username, nickname, email, inviter_id, invitation_code, avatar_url)
+  -- Insert into profiles
+  insert into public.profiles (id, username, email, inviter_id, invitation_code, avatar_url)
   values (
     new.id,
-    new.raw_user_meta_data ->> 'username',
-    new.raw_user_meta_data ->> 'nickname',
+    new.raw_user_meta_data->>'username',
     new.email,
-    (new.raw_user_meta_data ->> 'inviter_id')::uuid,
-    new.raw_user_meta_data ->> 'invitation_code',
-    new.raw_user_meta_data ->> 'avatar_url'
+    (new.raw_user_meta_data->>'inviter_id')::uuid,
+    new.raw_user_meta_data->>'invitation_code',
+    new.raw_user_meta_data->>'avatar_url'
   );
 
-  -- 为新用户初始化所有支持的资产余额记录
-  foreach asset_name in array supported_assets
-  loop
-    insert into public.balances (user_id, asset) values (new.id, asset_name);
+  -- Create initial balances for all supported assets
+  for v_asset_code in select asset_code from public.supported_assets where is_active = true loop
+    insert into public.balances (user_id, asset, available_balance, frozen_balance)
+    values (new.id, v_asset_code, 0, 0);
   end loop;
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 -- Trigger to call the function when a new user signs up
 drop trigger if exists on_auth_user_created on auth.users;
@@ -304,7 +324,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 安全地调整用户余额
+-- Function to adjust user balances safely
 create or replace function public.adjust_balance(
     p_user_id uuid,
     p_asset text,
@@ -315,19 +335,19 @@ create or replace function public.adjust_balance(
 returns void as $$
 begin
     if p_is_debit_frozen then
-        -- 处理从冻结余额的扣款 (例如: 提现批准)
+        -- This branch handles movements from the frozen balance (e.g. confirming withdrawal)
         update public.balances
         set frozen_balance = frozen_balance - p_amount
         where user_id = p_user_id and asset = p_asset;
     elsif p_is_frozen then
-         -- 处理资金进入冻结状态 (例如: 合约下单, 提现申请)
+         -- This branch handles movements into the frozen balance (e.g. creating withdrawal request)
         update public.balances
-        set 
+        set
             available_balance = available_balance - p_amount,
             frozen_balance = frozen_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
     else
-        -- 标准的可用余额调整
+        -- This is a standard adjustment to the available balance
         update public.balances
         set available_balance = available_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
@@ -335,8 +355,26 @@ begin
 end;
 $$ language plpgsql volatile security definer;
 
+-- Function to handle rewards with logging
+create or replace function public.credit_reward(
+    p_user_id uuid,
+    p_amount double precision,
+    p_asset text,
+    p_type text,
+    p_source_id text,
+    p_description text
+)
+returns void as $$
+begin
+    perform public.adjust_balance(p_user_id, p_asset, p_amount);
 
--- 递归获取用户下线(最多3级)
+    insert into public.reward_logs (user_id, type, amount, asset, source_id, description)
+    values (p_user_id, p_type, p_amount, p_asset, p_source_id, p_description);
+end;
+$$ language plpgsql volatile;
+
+
+-- Function to get the full downline of a user
 drop function if exists public.get_downline(uuid);
 create or replace function public.get_downline(p_user_id uuid)
 returns table(id uuid, username text, nickname text, email text, inviter_id uuid, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, credit_score integer, created_at timestamp with time zone, last_login_at timestamp with time zone, avatar_url text, level int) as $$
@@ -356,7 +394,7 @@ begin
 end;
 $$ language plpgsql;
 
--- 统计平台总资金
+-- Function to get total platform balance
 drop function if exists public.get_total_platform_balance();
 create or replace function public.get_total_platform_balance()
 returns double precision as $$
@@ -365,31 +403,7 @@ begin
 end;
 $$ language plpgsql;
 
-
--- 通用的奖励发放函数
-create or replace function public.credit_reward(
-    p_user_id uuid,
-    p_asset text,
-    p_amount double precision,
-    p_type text,
-    p_source_id text default null,
-    p_source_username text default null,
-    p_source_level integer default null,
-    p_description text default null
-)
-returns void as $$
-begin
-    -- 调整余额
-    perform public.adjust_balance(p_user_id, p_asset, p_amount);
-    
-    -- 记录日志
-    insert into public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
-    values (p_user_id, p_type, p_amount, p_asset, p_source_id, p_source_username, p_source_level, p_description);
-end;
-$$ language plpgsql volatile security definer;
-
-
--- 分配交易佣金
+-- Function to distribute commissions up to 3 levels
 create or replace function public.distribute_trade_commissions()
 returns trigger as $$
 declare
@@ -397,41 +411,44 @@ declare
     v_source_user public.profiles;
     v_commission_amount double precision;
     v_trade_amount double precision;
-    v_rate record;
+    v_rate double precision;
 begin
-    -- 只处理基于USDT的交易对
-    if new.quote_asset = 'USDT' or new.trading_pair like '%/USDT' then
-        
+    -- Only distribute commissions for trades where the quote asset is configured for it
+    if new.quote_asset is not null then
         v_trade_amount := coalesce(new.total, new.amount, 0);
 
+        -- Get the user who made the trade
         select * into v_source_user from public.profiles where id = new.user_id;
         v_inviter_id := v_source_user.inviter_id;
 
-        -- 循环三级
+        -- Loop up to 3 levels
         for level in 1..3 loop
             if v_inviter_id is null then
-                exit; -- 没有更多上级
+                exit; -- Exit loop if no more inviters
             end if;
 
-            -- 从配置表获取佣金率
-            select rate into v_rate from public.commission_rates where level = level;
-            if found and v_rate.rate > 0 then
-                v_commission_amount := v_trade_amount * v_rate.rate;
-                
-                -- 发放奖励和记录日志
-                perform public.credit_reward(
-                    p_user_id := v_inviter_id,
-                    p_asset := 'USDT',
-                    p_amount := v_commission_amount,
-                    p_type := 'team',
-                    p_source_id := new.id::text,
-                    p_source_username := v_source_user.username,
-                    p_source_level := level,
-                    p_description := 'Level ' || level || ' commission from trade ' || new.id
+            -- Get commission rate from the config table
+            select rate into v_rate from public.commission_rates where commission_rates.level = level;
+
+            if v_rate is not null then
+                v_commission_amount := v_trade_amount * v_rate;
+
+                perform public.adjust_balance(v_inviter_id, new.quote_asset, v_commission_amount);
+
+                insert into public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
+                values (
+                    v_inviter_id,
+                    'team',
+                    v_commission_amount,
+                    new.quote_asset,
+                    new.id::text,
+                    v_source_user.username,
+                    level,
+                    'Level ' || level || ' commission from trade ' || new.id
                 );
             end if;
 
-            -- 获取更上一级邀请人
+            -- Get the next inviter up the chain
             select inviter_id into v_inviter_id from public.profiles where id = v_inviter_id;
         end loop;
     end if;
@@ -440,230 +457,148 @@ begin
 end;
 $$ language plpgsql;
 
--- 为 trades 表创建佣金分配触发器
-drop trigger if exists on_trade_commission on public.trades;
-create trigger on_trade_commission
+-- Trigger for trade commissions
+drop trigger if exists on_trade_insert_distribute_commissions on public.trades;
+create trigger on_trade_insert_distribute_commissions
   after insert on public.trades
   for each row execute procedure public.distribute_trade_commissions();
 
--- 处理每日签到
+-- Function to handle user check-in
 create or replace function public.handle_user_check_in(p_user_id uuid)
 returns table(success boolean, message text, reward_amount double precision) as $$
 declare
-    v_last_check_in_date date;
-    v_consecutive_days integer;
-    v_reward double precision;
-    v_today date := current_date;
+  v_last_check_in_date date;
+  v_consecutive_check_ins int;
+  v_today date := current_date;
+  v_yesterday date := current_date - 1;
+  v_reward double precision;
 begin
-    select last_check_in_date, consecutive_check_ins into v_last_check_in_date, v_consecutive_days
-    from public.profiles where id = p_user_id;
+  select last_check_in_date, consecutive_check_ins into v_last_check_in_date, v_consecutive_check_ins
+  from public.profiles where id = p_user_id;
 
-    if v_last_check_in_date = v_today then
-        return query select false, 'You have already checked in today.', 0.0;
-        return;
-    end if;
+  if v_last_check_in_date = v_today then
+    return query select false, 'You have already checked in today.', 0.0;
+    return;
+  end if;
 
-    if v_last_check_in_date = v_today - interval '1 day' then
-        v_consecutive_days := (v_consecutive_days % 7) + 1;
-    else
-        v_consecutive_days := 1;
-    end if;
+  if v_last_check_in_date = v_yesterday then
+    v_consecutive_check_ins := (v_consecutive_check_ins % 7) + 1;
+  else
+    v_consecutive_check_ins := 1;
+  end if;
 
-    v_reward := 0.5 * (1.5 ^ (v_consecutive_days - 1));
+  v_reward := 0.5 * (1.5 ^ (v_consecutive_check_ins - 1));
 
-    -- 发放奖励
-    perform public.credit_reward(
-        p_user_id := p_user_id,
-        p_asset := 'USDT',
-        p_amount := v_reward,
-        p_type := 'dailyCheckIn',
-        p_description := 'Daily check-in reward for day ' || v_consecutive_days
-    );
-    
-    -- 更新用户签到状态
-    update public.profiles
-    set last_check_in_date = v_today, consecutive_check_ins = v_consecutive_days
-    where id = p_user_id;
-    
-    return query select true, 'Check-in successful!', v_reward;
+  update public.profiles
+  set
+    last_check_in_date = v_today,
+    consecutive_check_ins = v_consecutive_check_ins
+  where id = p_user_id;
 
-end;
-$$ language plpgsql volatile security definer;
+  perform public.credit_reward(p_user_id, v_reward, 'USDT', 'check_in', v_today::text, 'Daily Check-in Reward');
 
-
--- 创建活期理财订单
-create or replace function public.create_hourly_investment(
-    p_user_id uuid,
-    p_product_name text,
-    p_amount double precision,
-    p_duration_hours integer,
-    p_hourly_rate double precision
-)
-returns void as $$
-begin
-    -- 扣除可用余额
-    perform public.adjust_balance(p_user_id, 'USDT', -p_amount);
-    
-    -- 创建投资记录
-    insert into public.investments (user_id, product_name, amount, created_at, settlement_date, status, productType, duration_hours, hourly_rate, category)
-    values (p_user_id, p_product_name, p_amount, now(), now() + (p_duration_hours || ' hours')::interval, 'active', 'hourly', p_duration_hours, p_hourly_rate, 'finance');
+  return query select true, 'Check-in successful!', v_reward;
 end;
 $$ language plpgsql;
 
-
--- 创建质押理财订单
-create or replace function public.create_daily_investment(
-    p_user_id uuid,
-    p_product_name text,
-    p_amount double precision,
-    p_daily_rate double precision,
-    p_period integer,
-    p_category text,
-    p_staking_asset text default null,
-    p_staking_amount double precision default null
-)
-returns void as $$
-begin
-    -- 扣除本金
-    perform public.adjust_balance(p_user_id, 'USDT', -p_amount);
-    
-    -- 如果有质押要求，则冻结质押资产
-    if p_staking_asset is not null and p_staking_amount > 0 then
-        perform public.adjust_balance(p_user_id, p_staking_asset, p_staking_amount, true);
-    end if;
-
-    insert into public.investments(user_id, product_name, amount, created_at, settlement_date, status, productType, daily_rate, period, category, staking_asset, staking_amount)
-    values (p_user_id, p_product_name, p_amount, now(), now() + (p_period || ' days')::interval, 'active', 'daily', p_daily_rate, p_period, p_category, p_staking_asset, p_staking_amount);
-end;
-$$ language plpgsql;
-
-
--- 自动结算到期订单 (由 Cron 调用)
+-- Function to settle due trades and investments
 create or replace function public.settle_due_records()
 returns jsonb as $$
 declare
     settled_trade record;
     settled_investment record;
-    settled_trades_count int := 0;
-    settled_investments_count int := 0;
+    trade_count int := 0;
+    investment_count int := 0;
     v_quote_asset text;
 begin
-    -- 结算到期的秒合约交易
-    for settled_trade in 
-        select * from public.trades 
+    -- Settle contract trades
+    for settled_trade in
+        select * from public.trades
         where status = 'active' and settlement_time <= now()
-        for update
+        for update skip locked
     loop
-        begin
-            -- 确定结算币种
-            v_quote_asset := split_part(settled_trade.trading_pair, '/', 2);
+        -- Determine quote asset from trading pair
+        v_quote_asset := split_part(settled_trade.trading_pair, '/', 2);
 
-            -- 计算盈亏
-            declare
-                v_outcome text;
-                v_profit double precision;
-                latest_price double precision;
-            begin
-                select close into latest_price from public.market_kline_data where trading_pair = settled_trade.trading_pair order by time desc limit 1;
-                
-                if latest_price is null then
-                    -- 如果没有K线，就用汇总价格
-                    select price into latest_price from public.market_summary_data where pair = settled_trade.trading_pair;
-                end if;
-                
-                if settled_trade.type = 'buy' then
-                    v_outcome := case when latest_price > settled_trade.entry_price then 'win' else 'loss' end;
-                else -- 'sell'
-                    v_outcome := case when latest_price < settled_trade.entry_price then 'win' else 'loss' end;
-                end if;
-                
-                v_profit := case when v_outcome = 'win' then settled_trade.amount * settled_trade.profit_rate else -settled_trade.amount end;
+        update public.trades
+        set
+            status = 'settled',
+            settlement_price = (select price from public.market_summary_data where pair = settled_trade.trading_pair),
+            outcome = case
+                when type = 'buy' and (select price from public.market_summary_data where pair = settled_trade.trading_pair) > entry_price then 'win'
+                when type = 'sell' and (select price from public.market_summary_data where pair = settled_trade.trading_pair) < entry_price then 'win'
+                else 'loss'
+            end,
+            profit = case
+                when type = 'buy' and (select price from public.market_summary_data where pair = settled_trade.trading_pair) > entry_price then settled_trade.amount * settled_trade.profit_rate
+                when type = 'sell' and (select price from public.market_summary_data where pair = settled_trade.trading_pair) < entry_price then settled_trade.amount * settled_trade.profit_rate
+                else -settled_trade.amount
+            end
+        where id = settled_trade.id returning profit into settled_trade.profit;
 
-                -- 更新交易记录
-                update public.trades
-                set status = 'settled', settlement_price = latest_price, outcome = v_outcome, profit = v_profit
-                where id = settled_trade.id;
+        -- Adjust balances: unfreeze original amount and add it back if won, then add profit
+        perform public.adjust_balance(settled_trade.user_id, v_quote_asset, settled_trade.amount, true, true); -- Unfreeze
+        if settled_trade.profit > 0 then
+             perform public.adjust_balance(settled_trade.user_id, v_quote_asset, settled_trade.amount + settled_trade.profit); -- Return principal + profit
+        end if;
 
-                -- 返还本金和利润
-                perform public.adjust_balance(settled_trade.user_id, v_quote_asset, settled_trade.amount + v_profit, true, true);
-                
-                settled_trades_count := settled_trades_count + 1;
-            end;
-        exception when others then
-            -- log error for this specific trade and continue
-        end;
+        trade_count := trade_count + 1;
     end loop;
 
-    -- 结算到期的理财投资
-    for settled_investment in 
+    -- Settle investments
+    for settled_investment in
         select * from public.investments
         where status = 'active' and settlement_date <= now()
-        for update
+        for update skip locked
     loop
-        begin
-            declare
-                v_profit double precision;
-            begin
-                 if settled_investment.productType = 'hourly' then
-                    v_profit := settled_investment.amount * settled_investment.hourly_rate * settled_investment.duration_hours;
-                else -- daily
-                    v_profit := settled_investment.amount * settled_investment.daily_rate * settled_investment.period;
-                end if;
+        update public.investments
+        set
+            status = 'settled',
+            profit = case
+                when productType = 'daily' then amount * daily_rate * period
+                when productType = 'hourly' then amount * hourly_rate * duration_hours
+                else 0
+            end
+        where id = settled_investment.id returning profit into settled_investment.profit;
 
-                update public.investments
-                set status = 'settled', profit = v_profit
-                where id = settled_investment.id;
-
-                -- 返还本金和收益
-                perform public.adjust_balance(settled_investment.user_id, 'USDT', settled_investment.amount + v_profit);
-                
-                -- 如果有解冻资产，则解冻
-                if settled_investment.staking_asset is not null and settled_investment.staking_amount > 0 then
-                    perform public.adjust_balance(settled_investment.user_id, settled_investment.staking_asset, -settled_investment.staking_amount, true);
-                end if;
-
-                settled_investments_count := settled_investments_count + 1;
-            end;
-        exception when others then
-            -- log error and continue
-        end;
+        -- Return principal and profit to USDT balance
+        perform public.adjust_balance(settled_investment.user_id, 'USDT', settled_investment.amount + settled_investment.profit);
+        
+        investment_count := investment_count + 1;
     end loop;
-    
-    return jsonb_build_object(
-        'status', 'success',
-        'settled_trades', settled_trades_count,
-        'settled_investments', settled_investments_count
-    );
+
+    return jsonb_build_object('settled_trades', trade_count, 'settled_investments', investment_count);
 end;
 $$ language plpgsql;
 
 
--- Cron Job 日志记录函数
-create or replace function public.log_cron_job_run(p_job_name text, p_status text, p_details jsonb)
-returns void as $$
-begin
-    insert into public.cron_job_logs(job_name, status, details)
-    values(p_job_name, p_status, p_details);
-end;
-$$ language plpgsql;
-
--- 包装结算函数以进行日志记录
-create or replace function public.settle_and_log()
+-- Cron job wrapper function with logging
+create or replace function public.run_settlement_and_log()
 returns void as $$
 declare
-    v_details jsonb;
+    log_id bigint;
+    result jsonb;
 begin
-    perform public.log_cron_job_run('settle_due_records', 'started', '{}'::jsonb);
-    
+    insert into public.cron_job_logs (job_name, status)
+    values ('settle_due_records', 'started') returning id into log_id;
+
     begin
-        select public.settle_due_records() into v_details;
-        perform public.log_cron_job_run('settle_due_records', 'completed', v_details);
-    exception when others then
-        v_details := jsonb_build_object('error', SQLERRM);
-        perform public.log_cron_job_run('settle_due_records', 'failed', v_details);
+        result := public.settle_due_records();
+        update public.cron_job_logs
+        set status = 'completed', end_time = now(), details = result
+        where id = log_id;
+    exception
+        when others then
+            update public.cron_job_logs
+            set status = 'failed', end_time = now(), details = jsonb_build_object('error', SQLERRM)
+            where id = log_id;
+            raise;
     end;
 end;
 $$ language plpgsql;
+
+-- Schedule the job to run every minute
+select cron.schedule('settle-due-orders-job', '*/1 * * * *', 'select public.run_settlement_and_log()');
 
 
 -- 5. 行级安全策略 (RLS)
@@ -676,110 +611,78 @@ alter table public.reward_logs enable row level security;
 alter table public.user_task_states enable row level security;
 alter table public.swap_orders enable row level security;
 alter table public.action_logs enable row level security;
-alter table public.cron_job_logs enable row level security;
-alter table public.commission_rates enable row level security;
 alter table public.system_settings enable row level security;
 alter table public.daily_tasks enable row level security;
 alter table public.activities enable row level security;
-alter table public.announcements enable row level security;
-alter table public.investment_products enable row level security;
-alter table public.market_summary_data enable row level security;
-alter table public.market_kline_data enable row level security;
 
--- Admin-only policies for sensitive tables
-drop policy if exists "Allow full access to admins" on public.action_logs;
-create policy "Allow full access to admins" on public.action_logs for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.cron_job_logs;
-create policy "Allow full access to admins" on public.cron_job_logs for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.commission_rates;
-create policy "Allow full access to admins" on public.commission_rates for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.system_settings;
-create policy "Allow full access to admins" on public.system_settings for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.daily_tasks;
-create policy "Allow full access to admins" on public.daily_tasks for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.activities;
-create policy "Allow full access to admins" on public.activities for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.announcements;
-create policy "Allow full access to admins" on public.announcements for all using (public.is_admin(auth.uid()));
-drop policy if exists "Allow full access to admins" on public.investment_products;
-create policy "Allow full access to admins" on public.investment_products for all using (public.is_admin(auth.uid()));
+-- Admin policies (for tables managed by admins)
+drop policy if exists "Allow admin full access" on public.system_settings;
+create policy "Allow admin full access" on public.system_settings for all using ((select is_admin from public.profiles where id = auth.uid()));
 
--- Policies for public or user-specific data
+drop policy if exists "Allow admin full access" on public.daily_tasks;
+create policy "Allow admin full access" on public.daily_tasks for all using ((select is_admin from public.profiles where id = auth.uid())) with check ((select is_admin from public.profiles where id = auth.uid()));
+
+drop policy if exists "Allow admin full access" on public.activities;
+create policy "Allow admin full access" on public.activities for all using ((select is_admin from public.profiles where id = auth.uid())) with check ((select is_admin from public.profiles where id = auth.uid()));
+
+drop policy if exists "Allow admin full access to requests" on public.requests;
+create policy "Allow admin full access to requests" on public.requests for all using ((select is_admin from public.profiles where id = auth.uid()));
+
+drop policy if exists "Allow admin full access to action logs" on public.action_logs;
+create policy "Allow admin full access to action logs" on public.action_logs for all using ((select is_admin from public.profiles where id = auth.uid()));
+
+-- User-specific policies
 drop policy if exists "Users can view all profiles" on public.profiles;
 create policy "Users can view all profiles" on public.profiles for select using (true);
+
 drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile" on public.profiles for insert with check (auth.uid() = id);
+
 drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile" on public.profiles for update using (auth.uid() = id);
 
 drop policy if exists "Users can view their own balances" on public.balances;
 create policy "Users can view their own balances" on public.balances for select using (auth.uid() = user_id);
-drop policy if exists "Admins can view all balances" on public.balances;
-create policy "Admins can view all balances" on public.balances for select using (public.is_admin(auth.uid()));
 
 drop policy if exists "Users can view their own trades" on public.trades;
 create policy "Users can view their own trades" on public.trades for select using (auth.uid() = user_id);
-drop policy if exists "Admins can view all trades" on public.trades;
-create policy "Admins can view all trades" on public.trades for select using (public.is_admin(auth.uid()));
 
 drop policy if exists "Users can view their own investments" on public.investments;
 create policy "Users can view their own investments" on public.investments for select using (auth.uid() = user_id);
-drop policy if exists "Admins can view all investments" on public.investments;
-create policy "Admins can view all investments" on public.investments for select using (public.is_admin(auth.uid()));
 
-drop policy if exists "Users can view and create their own requests" on public.requests;
-create policy "Users can view and create their own requests" on public.requests for all using (auth.uid() = user_id);
-drop policy if exists "Admins can manage all requests" on public.requests;
-create policy "Admins can manage all requests" on public.requests for all using (public.is_admin(auth.uid()));
+drop policy if exists "Users can view their own requests" on public.requests;
+create policy "Users can view their own requests" on public.requests for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can create requests" on public.requests;
+create policy "Users can create requests" on public.requests for insert with check (auth.uid() = user_id);
 
 drop policy if exists "Users can view their own reward logs" on public.reward_logs;
 create policy "Users can view their own reward logs" on public.reward_logs for select using (auth.uid() = user_id);
-drop policy if exists "Admins can view all reward logs" on public.reward_logs;
-create policy "Admins can view all reward logs" on public.reward_logs for select using (public.is_admin(auth.uid()));
 
 drop policy if exists "Users can view and manage their own task states" on public.user_task_states;
 create policy "Users can view and manage their own task states" on public.user_task_states for all using (auth.uid() = user_id);
-drop policy if exists "Admins can view all task states" on public.user_task_states;
-create policy "Admins can view all task states" on public.user_task_states for select using (public.is_admin(auth.uid()));
 
 drop policy if exists "Users can view all open swap orders" on public.swap_orders;
 create policy "Users can view all open swap orders" on public.swap_orders for select using (true);
+
 drop policy if exists "Users can manage their own swap orders" on public.swap_orders;
 create policy "Users can manage their own swap orders" on public.swap_orders for all using (auth.uid() = user_id or auth.uid() = taker_id);
-drop policy if exists "Admins can manage all swap orders" on public.swap_orders;
-create policy "Admins can manage all swap orders" on public.swap_orders for all using (public.is_admin(auth.uid()));
 
--- Public read access for market data
-drop policy if exists "Allow public read access to market data" on public.market_summary_data;
-create policy "Allow public read access to market data" on public.market_summary_data for select using (true);
-drop policy if exists "Allow public read access to market kline" on public.market_kline_data;
-create policy "Allow public read access to market kline" on public.market_kline_data for select using (true);
+-- Read-only policies for public data
+drop policy if exists "Allow all users to read announcements" on public.announcements;
+create policy "Allow all users to read announcements" on public.announcements for select using (true);
 
--- Helper function to check for admin role
-create or replace function public.is_admin(p_user_id uuid)
-returns boolean as $$
-declare
-    v_is_admin boolean;
-begin
-    select is_admin into v_is_admin from public.profiles where id = p_user_id;
-    return coalesce(v_is_admin, false);
-end;
-$$ language plpgsql security definer;
+drop policy if exists "Allow all users to read activities" on public.activities;
+create policy "Allow all users to read activities" on public.activities for select using (true);
 
+drop policy if exists "Allow all users to read daily tasks" on public.daily_tasks;
+create policy "Allow all users to read daily tasks" on public.daily_tasks for select using (true);
 
--- 6. 默认数据填充
+drop policy if exists "Allow all users to read investment products" on public.investment_products;
+create policy "Allow all users to read investment products" on public.investment_products for select using (true);
 
--- 填充佣金比例
-insert into public.commission_rates (level, rate) values
-(1, 0.08),
-(2, 0.05),
-(3, 0.02)
-on conflict (level) do update set rate = excluded.rate;
+drop policy if exists "Allow all users to read market data" on public.market_summary_data;
+create policy "Allow all users to read market data" on public.market_summary_data for select using (true);
 
-
--- 7. 定时任务 (Cron Jobs)
-
--- 每分钟运行一次结算任务
-select cron.schedule('settle-orders-every-minute', '* * * * *', $$
-  select public.settle_and_log();
-$$);
+drop policy if exists "Allow all users to read kline data" on public.market_kline_data;
+create policy "Allow all users to read kline data" on public.market_kline_data for select using (true);
