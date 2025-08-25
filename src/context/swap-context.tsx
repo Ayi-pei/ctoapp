@@ -10,7 +10,7 @@ import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 interface SwapContextType {
     orders: SwapOrder[];
-    createOrder: (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt' | 'takerId' | 'takerUsername' | 'paymentProofUrl'>) => Promise<boolean>;
+    createOrder: (params: Omit<SwapOrder, 'id' | 'user_id' | 'username' | 'status' | 'created_at' | 'taker_id' | 'taker_username' | 'payment_proof_url'>) => Promise<boolean>;
     acceptOrder: (orderId: string) => Promise<void>;
     uploadProof: (orderId: string, proofUrl: string) => Promise<void>;
     confirmCompletion: (orderId: string) => Promise<void>;
@@ -30,7 +30,7 @@ export function SwapProvider({ children }: { children: ReactNode }) {
 
     const fetchOrders = useCallback(async () => {
         if (!isSupabaseEnabled) return;
-        const { data, error } = await supabase.from('swap_orders').select('*').order('createdAt', { ascending: false });
+        const { data, error } = await supabase.from('swap_orders').select('*').order('created_at', { ascending: false });
         if (error) {
             console.error("Error fetching swap orders:", error);
         } else {
@@ -56,34 +56,34 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         }
     }, [fetchOrders]);
 
-    const createOrder = async (params: Omit<SwapOrder, 'id' | 'userId' | 'username' | 'status' | 'createdAt' | 'takerId' | 'takerUsername' | 'paymentProofUrl'>): Promise<boolean> => {
+    const createOrder = async (params: Omit<SwapOrder, 'id' | 'user_id' | 'username' | 'status' | 'created_at' | 'taker_id' | 'taker_username' | 'payment_proof_url'>): Promise<boolean> => {
         if (!user || !isSupabaseEnabled) {
             toast({ variant: "destructive", title: "请先登录" });
             return false;
         }
 
-        const { fromAsset, fromAmount } = params;
-        if ((balances[fromAsset]?.available || 0) < fromAmount) {
+        const { from_asset, from_amount } = params;
+        if ((balances[from_asset]?.available || 0) < from_amount) {
             toast({ variant: "destructive", title: "挂单失败", description: "您的可用余额不足。" });
             return false;
         }
 
-        const newOrder: Omit<SwapOrder, 'id' | 'createdAt'> = {
-            userId: user.id,
+        const newOrder: Omit<SwapOrder, 'id' | 'created_at'> = {
+            user_id: user.id,
             username: user.username,
             ...params,
             status: 'open',
         };
 
-        await adjustBalance(user.id, fromAsset, -fromAmount);
-        await adjustBalance(user.id, fromAsset, fromAmount, true);
+        await adjustBalance(user.id, from_asset, -from_amount);
+        await adjustBalance(user.id, from_asset, from_amount, true);
 
         const { error } = await supabase.from('swap_orders').insert(newOrder);
         if (error) {
             console.error("Error creating swap order:", error);
             // Revert balance change
-            await adjustBalance(user.id, fromAsset, fromAmount);
-            await adjustBalance(user.id, fromAsset, -fromAmount, true);
+            await adjustBalance(user.id, from_asset, from_amount);
+            await adjustBalance(user.id, from_asset, -from_amount, true);
             return false;
         }
 
@@ -99,8 +99,8 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         
         const { error } = await supabase.from('swap_orders').update({
             status: 'pending_payment',
-            takerId: user.id,
-            takerUsername: user.username,
+            taker_id: user.id,
+            taker_username: user.username,
         }).eq('id', orderId).eq('status', 'open');
 
         if (error) {
@@ -115,7 +115,7 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         if (!isSupabaseEnabled) return;
         const { error } = await supabase.from('swap_orders').update({
             status: 'pending_confirmation',
-            paymentProofUrl: proofUrl
+            payment_proof_url: proofUrl
         }).eq('id', orderId).eq('status', 'pending_payment');
         if (error) console.error("Error uploading proof:", error);
     };
@@ -124,16 +124,16 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         const order = orders.find(o => o.id === orderId);
         if (!order || order.status !== 'pending_confirmation' || !isSupabaseEnabled) return;
 
-        // Unfreeze and debit seller's `fromAsset`
-        await adjustBalance(order.userId, order.fromAsset, -order.fromAmount, true);
+        // Unfreeze and debit seller's `from_asset`
+        await adjustBalance(order.user_id, order.from_asset, -order.from_amount, true);
 
-        // Credit buyer with `fromAsset`
-        if (order.takerId) {
-            await adjustBalance(order.takerId, order.fromAsset, order.fromAmount);
+        // Credit buyer with `from_asset`
+        if (order.taker_id) {
+            await adjustBalance(order.taker_id, order.from_asset, order.from_amount);
         }
 
-        // Credit seller with `toAsset`
-        await adjustBalance(order.userId, order.toAsset, order.toAmount);
+        // Credit seller with `to_asset`
+        await adjustBalance(order.user_id, order.to_asset, order.to_amount);
 
         // Buyer pays, but this part is off-chain.
         // We assume payment happened.
@@ -150,7 +150,7 @@ export function SwapProvider({ children }: { children: ReactNode }) {
     const cancelOrder = async (orderId: string) => {
         if (!user || !isSupabaseEnabled) return;
         const order = orders.find(o => o.id === orderId);
-        if (!order || order.userId !== user.id || order.status !== 'open') return;
+        if (!order || order.user_id !== user.id || order.status !== 'open') return;
 
         const { error } = await supabase.from('swap_orders').update({ status: 'cancelled' }).eq('id', orderId);
         if (error) console.error("Error cancelling order:", error);
@@ -168,8 +168,8 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         const order = orders.find(o => o.id === orderId);
         if (!order || order.status !== 'cancelled' || !isSupabaseEnabled) return;
         
-        await adjustBalance(order.userId, order.fromAsset, order.fromAmount);
-        await adjustBalance(order.userId, order.fromAsset, -order.fromAmount, true);
+        await adjustBalance(order.user_id, order.from_asset, order.from_amount);
+        await adjustBalance(order.user_id, order.from_asset, -order.from_amount, true);
         
         const { error } = await supabase.from('swap_orders').delete().eq('id', orderId);
         if (error) console.error("Error withdrawing/deleting order:", error);
