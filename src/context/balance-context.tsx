@@ -178,8 +178,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         if (error) {
             console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
             toast({ variant: 'destructive', title: 'Balance update failed' });
-        } else {
-            // No need to refetch, realtime subscription will handle it.
         }
   }, [toast]);
 
@@ -214,38 +212,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       await fetchUserRewardLogs(params.userId);
     }
   }, [adjustBalance, user?.id, addLog, getUserById, fetchUserRewardLogs]);
-
-
-  const distributeCommissions = useCallback(async (sourceUser: SecureUser, tradeAmount: number, sourceId: string) => {
-    if (!sourceUser.inviter_id) return;
-
-    let currentUplineId: string | null = sourceUser.inviter_id;
-    
-    for (let level = 1; level <= 3; level++) {
-        if (!currentUplineId) break;
-
-        const uplineUser = await getUserById(currentUplineId);
-        if (!uplineUser || uplineUser.is_frozen) {
-            break;
-        }
-        
-        const commissionRate = COMMISSION_RATES[level - 1];
-        const commissionAmount = tradeAmount * commissionRate;
-        
-        await creditReward({
-            userId: uplineUser.id,
-            amount: commissionAmount,
-            asset: 'USDT',
-            type: 'team',
-            sourceId: sourceId,
-            sourceUsername: sourceUser.username,
-            sourceLevel: level,
-            description: `From level ${level} user ${sourceUser.username}'s trade`
-        });
-
-        currentUplineId = uplineUser.inviter_id; 
-    }
-  }, [getUserById, creditReward]);
 
 
   const placeContractTrade = useCallback(async (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => {
@@ -290,15 +256,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: '下单失败', description: '无法保存交易记录，请重试。' });
       return;
     }
-
-    if(quoteAsset === 'USDT') {
-      await distributeCommissions(user, trade.amount, insertedTrade.id);
-    }
     
-    // No need to fetch, realtime will update
+    // Commission distribution is now handled by a database trigger
+    
     toast({ title: '下单成功', description: '您的合约订单已成功建立。' });
 
-  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions]);
+  }, [user, balances, getLatestPrice, toast, adjustBalance]);
   
   
   const placeSpotTrade = useCallback(async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
@@ -350,13 +313,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-     if(quoteAsset === 'USDT') {
-        await distributeCommissions(user, trade.total, insertedTrade.id);
-     }
+    // Commission distribution is now handled by a database trigger
      
-     // No need to fetch, realtime will update
      toast({ title: '交易成功', description: '您的币币交易已完成。' });
-  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions]);
+  }, [user, balances, getLatestPrice, toast, adjustBalance]);
 
 
     const addDailyInvestment = async (params: DailyInvestmentParams) => {
@@ -381,8 +341,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             status: 'active',
             productType: 'daily',
             category: 'staking',
-            stakingAsset: params.stakingAsset,
-            stakingAmount: params.stakingAmount,
+            staking_asset: params.stakingAsset,
+            staking_amount: params.stakingAmount,
         }
         
         const { error } = await supabase.from('investments').insert(newInvestment);

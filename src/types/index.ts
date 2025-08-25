@@ -193,8 +193,8 @@ export type Investment = {
     daily_rate?: number;
     period?: number;
     // Staking requirement fields
-    stakingAsset?: string;
-    stakingAmount?: number;
+    staking_asset?: string;
+    staking_amount?: number;
     // Hourly product fields
     duration_hours?: number;
     hourly_rate?: number;
@@ -207,6 +207,7 @@ export type RewardLog = {
     user_id: string;
     type: 'dailyTask' | 'team' | 'event' | 'system';
     amount: number;
+    asset: string;
     source_id?: string; // e.g., taskId, orderId
     source_username?: string; // e.g. the downline user who generated the commission
     source_level?: number;
@@ -278,17 +279,17 @@ export type ActionLog = {
 // Represents a P2P Swap Order
 export type SwapOrder = {
     id: string;
-    userId: string;       // The user who created the order (seller/maker)
+    user_id: string;
     username: string;
-    fromAsset: string;
-    fromAmount: number;
-    toAsset: string;
-    toAmount: number;
+    from_asset: string;
+    from_amount: number;
+    to_asset: string;
+    to_amount: number;
     status: SwapOrderStatus;
-    createdAt: Timestamp;
-    takerId?: string;     // The user who accepted the order (buyer/taker)
-    takerUsername?: string;
-    paymentProofUrl?: string; // Data URL of the uploaded image
+    created_at: Timestamp;
+    taker_id?: string;
+    taker_username?: string;
+    payment_proof_url?: string;
 };
 
 // Represents a single option contract (call or put)
