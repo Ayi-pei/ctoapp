@@ -8,7 +8,8 @@ import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
-const FOREX_COMMODITY_PAIRS = allAvailablePairs.filter(p => ['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
+const FOREX_COMMODITY_PAIRS = ['XAU/USD', 'EUR/USD', 'GBP/USD'];
+const OPTIONS_SYMBOLS = ['IBM', 'AAPL', 'TSLA', 'MSFT'];
 
 
 const fetchTatumMarketData = async (): Promise<Record<string, MarketSummary>> => {
@@ -43,7 +44,9 @@ const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, Ma
     for (const pair of pairs) {
         try {
             const [from, to] = pair.split('/');
-            const response = await axios.get('/api/quote/' + (from === 'XAU' ? 'GC=F' : `${from}${to}=X`));
+            // Map forex pairs to Yahoo Finance format
+            const symbol = from === 'XAU' ? 'GC=F' : `${from}${to}=X`;
+            const response = await axios.get('/api/quote/' + symbol);
             const data = response.data;
             
             if (data) {
@@ -64,6 +67,30 @@ const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, Ma
     return results;
 };
 
+const fetchOptionsUnderlyingPrice = async (symbols: string[]): Promise<Record<string, MarketSummary>> => {
+    const results: Record<string, MarketSummary> = {};
+    for (const symbol of symbols) {
+         try {
+            const response = await axios.get('/api/quote/' + symbol);
+            const data = response.data;
+             if (data) {
+                results[symbol] = {
+                    pair: symbol,
+                    price: data.regularMarketPrice,
+                    change: data.regularMarketChangePercent,
+                    volume: data.regularMarketVolume,
+                    high: data.regularMarketDayHigh,
+                    low: data.regularMarketDayLow,
+                    icon: `https://placehold.co/32x32.png` // Placeholder icon
+                };
+            }
+        } catch (error) {
+            console.warn(`Yahoo Finance API fetch for option underlying ${symbol} failed.`, error);
+        }
+    }
+    return results;
+};
+
 
 interface MarketContextType {
   tradingPair: string;
@@ -71,6 +98,7 @@ interface MarketContextType {
   availablePairs: string[];
   summaryData: MarketSummary[];
   cryptoSummaryData: MarketSummary[];
+  forexAndOptionsSummaryData: MarketSummary[];
   klineData: Record<string, OHLC[]>;
   getLatestPrice: (pair: string) => number;
 }
@@ -91,9 +119,13 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
   // --- Low-frequency API fetch to get base data ---
   useEffect(() => {
     const fetchAllBaseData = async () => {
-        const cryptoData = await fetchTatumMarketData();
-        const forexData = await fetchAlphaVantageData(FOREX_COMMODITY_PAIRS);
-        const combinedData = {...cryptoData, ...forexData};
+        const cryptoDataPromise = fetchTatumMarketData();
+        const forexDataPromise = fetchAlphaVantageData(FOREX_COMMODITY_PAIRS);
+        const optionsDataPromise = fetchOptionsUnderlyingPrice(OPTIONS_SYMBOLS);
+
+        const [cryptoData, forexData, optionsData] = await Promise.all([cryptoDataPromise, forexDataPromise, optionsDataPromise]);
+
+        const combinedData = {...cryptoData, ...forexData, ...optionsData};
         
         if (Object.keys(combinedData).length > 0) {
             const summaryArray = Object.values(combinedData);
@@ -207,6 +239,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
     availablePairs: allAvailablePairs,
     summaryData,
     cryptoSummaryData: summaryData.filter(s => CRYPTO_PAIRS.includes(s.pair)),
+    forexAndOptionsSummaryData: summaryData.filter(s => [...FOREX_COMMODITY_PAIRS, ...OPTIONS_SYMBOLS].includes(s.pair)),
     klineData,
     getLatestPrice,
   };

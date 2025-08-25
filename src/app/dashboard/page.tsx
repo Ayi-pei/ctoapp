@@ -18,10 +18,11 @@ import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import Autoplay from "embla-carousel-autoplay"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, summaryData, klineData } = useMarket();
+    const { cryptoSummaryData, summaryData, klineData, forexAndOptionsSummaryData } = useMarket();
     const { balances } = useBalance();
     const { hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -189,10 +190,19 @@ export default function DashboardPage() {
                 </div>
                 
                 {/* Market List */}
-                <div className="rounded-lg p-2 bg-card/50 backdrop-blur-sm">
-                    <h3 className="text-lg font-semibold mb-2 px-2">热门币种</h3>
-                    {renderMarketList(cryptoSummaryData, "热门币种")}
-                </div>
+                 <Tabs defaultValue="crypto" className="w-full bg-card/50 backdrop-blur-sm rounded-lg p-2">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="crypto">热门币种</TabsTrigger>
+                        <TabsTrigger value="forex">期权外汇</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="crypto" className="mt-4">
+                        {renderMarketList(cryptoSummaryData, "热门币种")}
+                    </TabsContent>
+                    <TabsContent value="forex" className="mt-4">
+                       {renderMarketList(forexAndOptionsSummaryData, "期权外汇")}
+                    </TabsContent>
+                </Tabs>
+                
                 <DepositDialog isOpen={isDepositOpen} onOpenChange={setIsDepositOpen} />
                 <WithdrawDialog isOpen={isWithdrawOpen} onOpenChange={setIsWithdrawOpen} />
                 <CheckInDialog isOpen={isCheckInOpen} onOpenChange={setIsCheckInOpen} />
