@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useOptions } from '@/context/options-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/tooltip"
 
 const OptionsTable = ({ contracts, type }: { contracts: OptionContract[], type: 'call' | 'put' }) => {
-    if (!contracts) return null; // Add guard clause here
+    if (!contracts) return null;
     return (
         <Table>
             <TableHeader>
@@ -94,6 +94,15 @@ export default function OptionsPage() {
 
 
     const currentChain = optionsChain?.find(c => c.expiration_date === selectedExpiration);
+    
+    const expirationOptions = useMemo(() => {
+        return optionsChain.map(chain => (
+            <SelectItem key={chain.expiration_date} value={chain.expiration_date}>
+                {chain.expiration_date}
+            </SelectItem>
+        ));
+    }, [optionsChain]);
+
 
     return (
         <DashboardLayout>
@@ -119,11 +128,7 @@ export default function OptionsPage() {
                                 <SelectValue placeholder="选择到期日" />
                             </SelectTrigger>
                             <SelectContent>
-                                {optionsChain.map(chain => (
-                                    <SelectItem key={chain.expiration_date} value={chain.expiration_date}>
-                                        {chain.expiration_date}
-                                    </SelectItem>
-                                ))}
+                                {expirationOptions}
                             </SelectContent>
                         </Select>
                          <TooltipProvider>
