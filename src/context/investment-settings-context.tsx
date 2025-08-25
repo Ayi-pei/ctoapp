@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-
-const SETTINGS_STORAGE_KEY = 'tradeflow_investment_settings';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 export type InvestmentTier = {
     hours: number;
@@ -23,18 +22,15 @@ export type InvestmentProduct = {
     activeStartTime?: string; 
     activeEndTime?: string; 
     hourlyTiers?: InvestmentTier[];
-    // New fields for staking requirements
-    stakingAsset?: string; // e.g., 'USDT', 'BTC'
+    stakingAsset?: string;
     stakingAmount?: number;
 };
 
-
-// Default products if nothing is in storage
-const defaultInvestmentProducts: InvestmentProduct[] = [
+// Default products if nothing is in storage. These will be used to seed the DB.
+const defaultInvestmentProducts: Omit<InvestmentProduct, 'id'>[] = [
     { 
-        id: 'prod-futoubao', 
         name: "富投宝", 
-        price: 1, // Min investment amount
+        price: 1,
         maxPurchase: 999, 
         imgSrc: "/images/futoubao.png",
         category: 'finance',
@@ -42,106 +38,102 @@ const defaultInvestmentProducts: InvestmentProduct[] = [
         activeStartTime: '18:00',
         activeEndTime: '06:00',
         hourlyTiers: [
-            { hours: 2, rate: 0.015 }, // 1.5%
-            { hours: 4, rate: 0.020 }, // 2.0%
-            { hours: 6, rate: 0.025 }, // 2.5%
+            { hours: 2, rate: 0.015 },
+            { hours: 4, rate: 0.020 },
+            { hours: 6, rate: 0.025 },
         ]
     },
-    { id: 'prod-1', name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily', stakingAsset: 'USDT', stakingAmount: 50 },
-    { id: 'prod-2', name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-3', name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-4', name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily' },
-    { id: 'prod-5', name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/0kio04.png", category: 'staking', productType: 'daily' },
+    { name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily', stakingAsset: 'USDT', stakingAmount: 50 },
+    { name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily' },
+    { name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily' },
+    { name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily' },
+    { name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/0kio04.png", category: 'staking', productType: 'daily' },
 ];
 
 
 interface InvestmentSettingsContextType {
     investmentProducts: InvestmentProduct[];
-    addProduct: (category: 'staking' | 'finance') => void;
-    removeProduct: (id: string) => void;
-    updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void;
+    addProduct: (category: 'staking' | 'finance') => Promise<void>;
+    removeProduct: (id: string) => Promise<void>;
+    updateProduct: (id: string, updates: Partial<InvestmentProduct>) => Promise<void>;
 }
 
 const InvestmentSettingsContext = createContext<InvestmentSettingsContextType | undefined>(undefined);
 
 export function InvestmentSettingsProvider({ children }: { children: ReactNode }) {
     const [investmentProducts, setInvestmentProducts] = useState<InvestmentProduct[]>([]);
-    const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from localStorage
-    useEffect(() => {
-        try {
-            const storedSettings = localStorage.getItem(SETTINGS_STORAGE_KEY);
-            if (storedSettings) {
-                const parsed = JSON.parse(storedSettings);
-                // Merge stored settings with defaults to ensure all keys are present,
-                // but prioritize the imgSrc from the default settings to prevent incorrect paths.
-                const finalProducts = defaultInvestmentProducts.map(defaultProd => {
-                    const storedProd = parsed.find((p: InvestmentProduct) => p.id === defaultProd.id);
-                    if (storedProd) {
-                        // If found in storage, merge it, but force the default imgSrc
-                        return { ...defaultProd, ...storedProd, imgSrc: defaultProd.imgSrc };
-                    }
-                    return defaultProd; // Otherwise, use the default product
-                });
-
-                // Add any purely custom products from storage that aren't in the default list
-                parsed.forEach((storedProd: InvestmentProduct) => {
-                    if (!finalProducts.some(fp => fp.id === storedProd.id)) {
-                        finalProducts.push(storedProd);
-                    }
-                });
-
-                setInvestmentProducts(finalProducts);
-            } else {
-                setInvestmentProducts(defaultInvestmentProducts);
-            }
-        } catch (error) {
-            console.error("Failed to load investment settings from localStorage", error);
-            setInvestmentProducts(defaultInvestmentProducts);
+    const fetchProducts = useCallback(async () => {
+        if (!isSupabaseEnabled) {
+            console.warn("Supabase not enabled, cannot fetch investment products.");
+            return;
         }
-        setIsLoaded(true);
+        let { data, error } = await supabase.from('investment_products').select('*');
+        
+        if (error) {
+            console.error("Failed to load investment settings from Supabase", error);
+            return;
+        }
+
+        if (!data || data.length === 0) {
+            // Seed the database with default products if it's empty
+            const { data: seededData, error: seedError } = await supabase.from('investment_products').insert(defaultInvestmentProducts).select();
+             if (seedError) {
+                console.error("Failed to seed investment products:", seedError);
+            } else {
+                setInvestmentProducts(seededData as InvestmentProduct[]);
+            }
+        } else {
+            setInvestmentProducts(data as InvestmentProduct[]);
+        }
     }, []);
 
-    // Save to localStorage
     useEffect(() => {
-        if (isLoaded) {
-            try {
-                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(investmentProducts));
-            } catch (error) {
-                console.error("Failed to save investment settings to localStorage", error);
-            }
-        }
-    }, [investmentProducts, isLoaded]);
+        fetchProducts();
+    }, [fetchProducts]);
     
 
-    const addProduct = useCallback((category: 'staking' | 'finance') => {
-        const newProduct: InvestmentProduct = {
-            id: `prod-${Date.now()}`,
+    const addProduct = async (category: 'staking' | 'finance') => {
+        const newProductData: Partial<InvestmentProduct> = {
             name: '新产品',
             price: 100,
-            dailyRate: 0.01,
-            period: 30,
             maxPurchase: 1,
             imgSrc: "https://placehold.co/80x80.png",
             productType: category === 'staking' ? 'daily' : 'hourly',
             category: category,
         };
-        if (category === 'finance') {
-            newProduct.hourlyTiers = [{ hours: 1, rate: 0.01 }];
-            delete newProduct.dailyRate;
-            delete newProduct.period;
+        if (category === 'staking') {
+            newProductData.dailyRate = 0.01;
+            newProductData.period = 30;
+        } else {
+            newProductData.hourlyTiers = [{ hours: 1, rate: 0.01 }];
         }
-        setInvestmentProducts(prev => [...prev, newProduct]);
-    }, []);
+        
+        const { data, error } = await supabase.from('investment_products').insert(newProductData).select().single();
+        if (error) {
+            console.error("Error adding product:", error);
+        } else if (data) {
+           await fetchProducts();
+        }
+    };
     
-    const removeProduct = useCallback((id: string) => {
-        setInvestmentProducts(prev => prev.filter(p => p.id !== id));
-    }, []);
+    const removeProduct = async (id: string) => {
+        const { error } = await supabase.from('investment_products').delete().eq('id', id);
+        if (error) {
+             console.error("Error removing product:", error);
+        } else {
+            await fetchProducts();
+        }
+    };
 
-    const updateProduct = useCallback((id: string, updates: Partial<InvestmentProduct>) => {
-        setInvestmentProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-    }, []);
+    const updateProduct = async (id: string, updates: Partial<InvestmentProduct>) => {
+        const { error } = await supabase.from('investment_products').update(updates).eq('id', id);
+        if (error) {
+            console.error("Error updating product:", error);
+        } else {
+            await fetchProducts();
+        }
+    };
 
     return (
         <InvestmentSettingsContext.Provider value={{ investmentProducts, addProduct, removeProduct, updateProduct }}>

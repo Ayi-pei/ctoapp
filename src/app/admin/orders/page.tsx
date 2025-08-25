@@ -50,7 +50,7 @@ const getOrderStatusText = (order: FormattedOrder) => {
 
 
 export default function AdminOrdersPage() {
-    const { isAdmin, getUserById, getAllUsers } = useAuth();
+    const { isAdmin } = useAuth();
     const { getAllHistoricalTrades, getAllUserInvestments } = useBalance();
     const router = useRouter();
     const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
@@ -60,20 +60,17 @@ export default function AdminOrdersPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
 
-    const loadData = useCallback(() => {
+    const loadData = useCallback(async () => {
         if (isAdmin === true) {
-            const allUsers = getAllUsers();
-            const userMap = new Map(allUsers.map(u => [u.id, u.username]));
-
-            const allTrades = getAllHistoricalTrades();
-            const allInvestments = getAllUserInvestments();
+            const allTrades = await getAllHistoricalTrades();
+            const allInvestments = await getAllUserInvestments();
             
             const combinedOrders: AllOrderTypes[] = [...allTrades, ...allInvestments];
 
             const formatted = combinedOrders.map(t => {
-                const username = userMap.get(t.user_id) || t.user_id;
+                const username = (t as any).user?.username || t.user_id;
                 let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
-                if ('orderType' in t) {
+                if ('orderType' in t && t.orderType) {
                     orderTypeText = t.orderType;
                 } else if ('product_name' in t) {
                     orderTypeText = 'investment';
@@ -91,7 +88,7 @@ export default function AdminOrdersPage() {
 
             setAllOrders(formatted);
         }
-    }, [isAdmin, getAllUsers, getAllHistoricalTrades, getAllUserInvestments]);
+    }, [isAdmin, getAllHistoricalTrades, getAllUserInvestments]);
     
     useEffect(() => {
         if (isAdmin === false) {

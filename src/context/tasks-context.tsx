@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';;
@@ -7,13 +6,10 @@ import { DailyTask, UserTaskState, TaskTriggerType } from '@/types';
 import { useAuth } from './auth-context';
 import { useLogs } from './logs-context';
 import { useBalance } from './balance-context';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
-const TASKS_STORAGE_KEY = 'tradeflow_daily_tasks';
-const USER_TASKS_STATE_KEY_PREFIX = 'tradeflow_user_tasks_';
-
-const defaultTasks: DailyTask[] = [
+const defaultTasks: Omit<DailyTask, 'id'>[] = [
   {
-    id: 'task-contract-trade',
     title: '完成一次合约交易',
     description: '在秒合约市场完成任意一笔交易，不限金额。',
     reward: 0.2,
@@ -24,7 +20,6 @@ const defaultTasks: DailyTask[] = [
     imgSrc: 'https://placehold.co/600x400.png'
   },
   {
-    id: 'task-spot-trade',
     title: '进行一次币币交易',
     description: '在币币市场完成任意一笔买入或卖出操作。',
     reward: 0.2,
@@ -35,7 +30,6 @@ const defaultTasks: DailyTask[] = [
     imgSrc: 'https://placehold.co/600x400.png'
   },
   {
-    id: 'task-investment',
     title: '参与一次理财投资',
     description: '购买任意一款理财产品，体验稳定收益。',
     reward: 1,
@@ -48,12 +42,10 @@ const defaultTasks: DailyTask[] = [
 ];
 
 interface TasksContextType {
-  // Admin functions
   dailyTasks: DailyTask[];
-  addDailyTask: () => void;
-  removeDailyTask: (id: string) => void;
-  updateDailyTask: (id: string, updates: Partial<DailyTask>) => void;
-  // User functions
+  addDailyTask: () => Promise<void>;
+  removeDailyTask: (id: string) => Promise<void>;
+  updateDailyTask: (id: string, updates: Partial<DailyTask>) => Promise<void>;
   userTasksState: UserTaskState[];
   triggerTaskCompletion: (type: TaskTriggerType) => Promise<void>;
 }
@@ -67,58 +59,41 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    try {
-      const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
-      setDailyTasks(storedTasks ? JSON.parse(storedTasks) : defaultTasks);
-    } catch (e) {
-      console.error("Failed to load tasks", e);
-      setDailyTasks(defaultTasks);
+  const fetchDailyTasks = useCallback(async () => {
+    if (!isSupabaseEnabled) return;
+    let { data, error } = await supabase.from('daily_tasks').select('*');
+    if (error) {
+        console.error("Error fetching daily tasks:", error);
+    } else if (data && data.length === 0) {
+        const { error: seedError } = await supabase.from('daily_tasks').insert(defaultTasks);
+        if (seedError) console.error("Error seeding daily tasks:", seedError);
+        else await fetchDailyTasks();
+    } else {
+        setDailyTasks(data as DailyTask[]);
     }
+  }, []);
+  
+  const fetchUserTaskStates = useCallback(async (userId: string) => {
+    if (!isSupabaseEnabled) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase.from('user_task_states').select('*').eq('user_id', userId).eq('date', today);
+    if (error) console.error("Error fetching user task states:", error);
+    else setUserTasksState(data as UserTaskState[]);
   }, []);
 
   useEffect(() => {
-    if (user) {
-      try {
-        const key = `${USER_TASKS_STATE_KEY_PREFIX}${user.id}`;
-        const storedState = localStorage.getItem(key);
-        setUserTasksState(storedState ? JSON.parse(storedState) : []);
-      } catch (e) {
-        console.error("Failed to load user task state", e);
-        setUserTasksState([]);
-      }
+    fetchDailyTasks();
+    if (user?.id) {
+        fetchUserTaskStates(user.id);
     } else {
-      setUserTasksState([]);
+        setUserTasksState([]);
     }
-    setIsLoaded(true);
-  }, [user]);
-  
-  useEffect(() => {
-    if (isLoaded) {
-        try {
-            localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(dailyTasks));
-        } catch (e) {
-            console.error("Failed to save tasks", e);
-        }
-    }
-  }, [dailyTasks, isLoaded]);
-  
-  useEffect(() => {
-    if (user && isLoaded) {
-       try {
-        const key = `${USER_TASKS_STATE_KEY_PREFIX}${user.id}`;
-        localStorage.setItem(key, JSON.stringify(userTasksState));
-      } catch (e) {
-        console.error("Failed to save user task state", e);
-      }
-    }
-  }, [userTasksState, user, isLoaded]);
+  }, [user, fetchDailyTasks, fetchUserTaskStates]);
 
-  const addDailyTask = useCallback(() => {
-    const newTask: DailyTask = {
-      id: `task-${Date.now()}`,
+  const addDailyTask = async () => {
+    if (!isSupabaseEnabled) return;
+    const newTask: Partial<DailyTask> = {
       title: '新任务',
       description: '任务描述...',
       reward: 1,
@@ -128,16 +103,24 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       trigger: 'contract_trade',
       imgSrc: 'https://placehold.co/600x400.png'
     };
-    setDailyTasks(prev => [...prev, newTask]);
-  }, []);
+    const { error } = await supabase.from('daily_tasks').insert(newTask);
+    if (error) console.error("Error adding daily task:", error);
+    else await fetchDailyTasks();
+  };
 
-  const removeDailyTask = useCallback((id: string) => {
-    setDailyTasks(prev => prev.filter(task => task.id !== id));
-  }, []);
+  const removeDailyTask = async (id: string) => {
+    if (!isSupabaseEnabled) return;
+    const { error } = await supabase.from('daily_tasks').delete().eq('id', id);
+    if (error) console.error("Error removing daily task:", error);
+    else await fetchDailyTasks();
+  };
 
-  const updateDailyTask = useCallback((id:string, updates: Partial<DailyTask>) => {
-    setDailyTasks(prev => prev.map(task => task.id === id ? { ...task, ...updates } : task));;
-  }, []);
+  const updateDailyTask = async (id:string, updates: Partial<DailyTask>) => {
+    if (!isSupabaseEnabled) return;
+    const { error } = await supabase.from('daily_tasks').update(updates).eq('id', id);
+    if (error) console.error("Error updating daily task:", error);
+    else await fetchDailyTasks();
+  };
   
   const triggerTaskCompletion = useCallback(async (type: TaskTriggerType) => {
     if (!user) return;
@@ -148,7 +131,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const isAlreadyCompleted = userTasksState.some(state => state.taskId === task.id && state.date === today);
     if (isAlreadyCompleted) return;
-
+    
     if (task.reward_type === 'usdt') {
       creditReward({
           userId: user.id,
@@ -168,12 +151,21 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         entity_id: task.id,
         action: 'user_complete',
         details: `User ${user.username} completed task: "${task.title}" and received ${task.reward} ${task.reward_type}.`,
-        actor: user, // Explicitly log this action on behalf of the user
+        actor: user,
     });
 
-    const newState: UserTaskState = { taskId: task.id, date: today, completed: true };
-    setUserTasksState(prev => [...prev, newState]);
-  }, [user, dailyTasks, userTasksState, creditReward, updateUser, addLog]);
+    const newState: Omit<UserTaskState, 'id'> = { 
+        taskId: task.id, 
+        date: today, 
+        completed: true,
+        user_id: user.id,
+    };
+    
+    const { error } = await supabase.from('user_task_states').insert(newState);
+    if (error) console.error("Error saving user task state:", error);
+    else await fetchUserTaskStates(user.id);
+    
+  }, [user, dailyTasks, userTasksState, creditReward, updateUser, addLog, fetchUserTaskStates]);
 
   const value: TasksContextType = {
     dailyTasks,

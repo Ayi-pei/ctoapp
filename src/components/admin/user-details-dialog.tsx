@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAnnouncements } from "@/context/announcements-context";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { getUserData } from "@/lib/user-data";
 import type { Investment, User } from '@/types';
 import { useLogs } from "@/context/logs-context";
 import {
@@ -38,6 +37,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 
 
 type UserDetailsDialogProps = {
@@ -46,13 +46,6 @@ type UserDetailsDialogProps = {
     onOpenChange: (open: boolean) => void;
     onUserUpdate: () => void; // Callback to refresh user list
 };
-
-type UserBalance = {
-    [key: string]: {
-        available: number;
-        frozen: number;
-    }
-} | null;
 
 type BalanceAdjustments = {
     [key: string]: string;
@@ -67,11 +60,14 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!userId) return;
-        setIsLoading(true);
-        const fetchedDownline = getDownline(userId);
-        setDownline(fetchedDownline);
-        setIsLoading(false);
+        const loadDownline = async () => {
+             if (!userId) return;
+            setIsLoading(true);
+            const fetchedDownline = await getDownline(userId);
+            setDownline(fetchedDownline);
+            setIsLoading(false);
+        }
+       loadDownline();
     }, [userId, getDownline]);
     
     if (isLoading) {
@@ -103,7 +99,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
 
 export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: UserDetailsDialogProps) {
     const { updateUser, getUserById } = useAuth();
-    const { recalculateBalanceForUser, adjustBalance } = useBalance();
+    const { adjustBalance } = useBalance();
     const { addAnnouncement } = useAnnouncements();
     const { addLog } = useLogs();
     const { toast } = useToast();
@@ -112,26 +108,37 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
     const [isLoading, setIsLoading] = useState(true);
     const [newPassword, setNewPassword] = useState("");
     const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustments>({});
-    const [calculatedBalances, setCalculatedBalances] = useState<UserBalance>({});
+    const [calculatedBalances, setCalculatedBalances] = useState<any>({});
     const [userInvestments, setUserInvestments] = useState<Investment[]>([]);
     const [creditScore, setCreditScore] = useState("100");
     const [messageTitle, setMessageTitle] = useState("");
     const [messageContent, setMessageContent] = useState("");
 
     const loadUserData = useCallback(async () => {
-        if (!currentUser) return;
+        if (!currentUser || !isSupabaseEnabled) return;
         setIsLoading(true);
-        const fetchedUser = getUserById(currentUser.id);
+        const fetchedUser = await getUserById(currentUser.id);
         if (fetchedUser) {
             setCurrentUser(fetchedUser);
             setCreditScore((fetchedUser.credit_score ?? 100).toString());
-            const bal = await recalculateBalanceForUser(fetchedUser.id);
-            setCalculatedBalances(bal);
-            const data = getUserData(fetchedUser.id);
-            setUserInvestments(data.investments);
+            
+            const { data: balances, error: balanceError } = await supabase.from('balances').select('*').eq('user_id', fetchedUser.id);
+            if (balanceError) console.error("Error fetching user balances:", balanceError);
+            else {
+                const formattedBalances = balances.reduce((acc, b) => {
+                    acc[b.asset] = { available: b.available_balance, frozen: b.frozen_balance };
+                    return acc;
+                }, {} as any);
+                setCalculatedBalances(formattedBalances);
+            }
+            
+            const { data: investments, error: investmentError } = await supabase.from('investments').select('*').eq('user_id', fetchedUser.id);
+             if (investmentError) console.error("Error fetching user investments:", investmentError);
+             else setUserInvestments(investments as Investment[]);
+
         }
         setIsLoading(false);
-    }, [currentUser, getUserById, recalculateBalanceForUser]);
+    }, [currentUser, getUserById]);
 
     useEffect(() => {
         if (isOpen) {
@@ -158,7 +165,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
             return;
         }
         
-        adjustBalance(currentUser.id, asset, amount);
+        await adjustBalance(currentUser.id, asset, amount);
 
         toast({ title: "成功", description: `为 ${currentUser.username} 的 ${asset} 余额调整了 ${amount}。` });
         addLog({
@@ -169,8 +176,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
         });
         setBalanceAdjustments(prev => ({ ...prev, [asset]: ''}));
         
-        const bal = await recalculateBalanceForUser(currentUser.id);
-        setCalculatedBalances(bal);
+        await loadUserData();
     };
 
     const handlePasswordChange = async () => {
@@ -256,13 +262,13 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
             return;
         }
         
-        addAnnouncement({
+        await addAnnouncement({
             title: messageTitle,
             content: messageContent,
             user_id: currentUser.id,
         });
         
-         addLog({
+         await addLog({
             entity_type: 'request',
             entity_id: currentUser.id,
             action: 'create',
@@ -292,7 +298,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
                         </TableRow>
                     )) : allAssets.map(asset => {
                         const balance = calculatedBalances?.[asset] || { available: 0, frozen: 0 };
-                        if(balance.available === 0 && balance.frozen === 0 && balanceAdjustments[asset] === undefined) return null;
+                        if(balance.available === 0 && balance.frozen === 0 && !balanceAdjustments[asset]) return null;
                         return (
                             <TableRow key={asset}>
                                 <TableCell className="font-medium">{asset}</TableCell>

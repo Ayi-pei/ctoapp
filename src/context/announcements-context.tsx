@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-
-const ANNOUNCEMENTS_STORAGE_KEY = 'tradeflow_announcements_v3'; // Updated key
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 export type Announcement = {
     id: string;
@@ -30,50 +29,25 @@ export type HornAnnouncement = {
 };
 
 
-// Default static data if nothing is in storage
+// Default static data for carousel images. Text content will come from DB.
 const defaultCarouselItems: CarouselItemData[] = [
-    {
-        title: "智能秒合约",
-        description: "预测市场，秒速盈利",
-        href: "/trade?tab=contract",
-        imgSrc: "/images/lun.png",
-    },
-    {
-        title: "高收益理财",
-        description: "稳定增值，安心之选",
-        href: "/finance",
-        imgSrc: "/images/lun01.png",
-    },
-    {
-        title: "邀请好友赚佣金",
-        description: "分享链接，共享收益",
-        href: "/profile/promotion",
-        imgSrc: "/images/lun02.png",
-    }
-];
-
-const defaultHornAnnouncements: HornAnnouncement[] = [
-    { id: 'horn-1', theme: '重磅通知', content: '平台已于2024年8月5日正式上线 DOGE/USDT, ADA/USDT, 和 SHIB/USDT 交易对。', priority: 10, expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'horn-2', theme: '更新公告', content: '为了提供更优质的服务，我们将在2024年8月15日凌晨2:00至4:00进行系统升级维护。', priority: 5, expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() },
+    { title: "智能秒合约", description: "预测市场，秒速盈利", href: "/trade?tab=contract", imgSrc: "/images/lun.png" },
+    { title: "高收益理财", description: "稳定增值，安心之选", href: "/finance", imgSrc: "/images/lun01.png" },
+    { title: "邀请好友赚佣金", description: "分享链接，共享收益", href: "/profile/promotion", imgSrc: "/images/lun02.png" }
 ];
 
 
 interface AnnouncementsContextType {
-    // General Announcements
     announcements: Announcement[];
     platformAnnouncements: Announcement[];
-    addAnnouncement: (announcement: Omit<Announcement, 'id' | 'date'>) => void;
-    // Carousel
+    addAnnouncement: (announcement: Omit<Announcement, 'id' | 'date' | 'is_read'>) => Promise<void>;
     carouselItems: CarouselItemData[];
-    updateCarouselItem: (index: number, updates: Partial<CarouselItemData>) => void;
-    // Horn Announcements
+    updateCarouselItem: (index: number, updates: Partial<CarouselItemData>) => Promise<void>;
     hornAnnouncements: HornAnnouncement[];
-    addHornAnnouncement: () => void;
-    removeHornAnnouncement: (id: string) => void;
-    updateHornAnnouncement: (id: string, updates: Partial<HornAnnouncement>) => void;
-    reorderHornAnnouncements: (id: string, direction: 'up' | 'down') => void;
-    // General Save
-    saveAllAnnouncements: () => void;
+    addHornAnnouncement: () => Promise<void>;
+    removeHornAnnouncement: (id: string) => Promise<void>;
+    updateHornAnnouncement: (id: string, updates: Partial<HornAnnouncement>) => Promise<void>;
+    reorderHornAnnouncements: (id: string, direction: 'up' | 'down') => Promise<void>;
 }
 
 const AnnouncementsContext = createContext<AnnouncementsContextType | undefined>(undefined);
@@ -81,110 +55,107 @@ const AnnouncementsContext = createContext<AnnouncementsContextType | undefined>
 export function AnnouncementsProvider({ children }: { children: ReactNode }) {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [carouselItems, setCarouselItems] = useState<CarouselItemData[]>(defaultCarouselItems);
-    const [hornAnnouncements, setHornAnnouncements] = useState<HornAnnouncement[]>(defaultHornAnnouncements);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [hornAnnouncements, setHornAnnouncements] = useState<HornAnnouncement[]>([]);
 
-    // Load from localStorage
-    useEffect(() => {
-        try {
-            const storedData = localStorage.getItem(ANNOUNCEMENTS_STORAGE_KEY);
-            if (storedData) {
-                const parsed = JSON.parse(storedData);
-                setAnnouncements(parsed.announcements || []);
-                setCarouselItems(prevItems => 
-                    prevItems.map((item, index) => ({
-                        ...item,
-                        ...(parsed.carouselItems?.[index] || {})
-                    }))
-                );
-                // Ensure priority is a number
-                const loadedHorns = (parsed.hornAnnouncements || defaultHornAnnouncements).map((h: HornAnnouncement) => ({...h, priority: Number(h.priority) || 0}));
-                setHornAnnouncements(loadedHorns);
+    const fetchAnnouncements = useCallback(async () => {
+        if (!isSupabaseEnabled) return;
+        const { data, error } = await supabase.from('announcements').select('*');
+        if (error) {
+            console.error("Error fetching announcements:", error);
+        } else {
+            const allAnns = data as any[];
+            setAnnouncements(allAnns.filter(a => a.type === 'personal_message'));
+
+            const dbCarousel = allAnns.find(a => a.type === 'carousel');
+            if (dbCarousel && dbCarousel.content) {
+                 setCarouselItems(prevItems => prevItems.map((item, index) => ({
+                    ...item,
+                    ...(dbCarousel.content[index] || {})
+                 })));
             }
-        } catch (error) {
-            console.error("Failed to load announcements from localStorage", error);
+            
+            setHornAnnouncements(allAnns.filter(a => a.type === 'horn'));
         }
-        setIsLoaded(true);
     }, []);
 
-    // Save all announcement data to localStorage automatically
-    const saveAllAnnouncements = useCallback(() => {
-        if (isLoaded) {
-            try {
-                const dataToStore = {
-                    announcements,
-                    carouselItems,
-                    hornAnnouncements,
-                };
-                localStorage.setItem(ANNOUNCEMENTS_STORAGE_KEY, JSON.stringify(dataToStore));
-            } catch (error) {
-                console.error("Failed to save announcements to localStorage", error);
-            }
-        }
-    }, [isLoaded, announcements, carouselItems, hornAnnouncements]);
-    
-    // Auto-save on any change
     useEffect(() => {
-        saveAllAnnouncements();
-    }, [announcements, carouselItems, hornAnnouncements, saveAllAnnouncements]);
+        fetchAnnouncements();
+    }, [fetchAnnouncements]);
     
-    // --- General Announcement Methods ---
-    const addAnnouncement = useCallback((announcement: Omit<Announcement, 'id' | 'date'>) => {
-        const newAnnouncement: Announcement = {
-            ...announcement,
-            id: `anno-${Date.now()}`,
-            date: new Date().toISOString(),
-        };
-        setAnnouncements(prev => [newAnnouncement, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    }, []);
+    const addAnnouncement = async (announcement: Omit<Announcement, 'id' | 'date' | 'is_read'>) => {
+        if (!isSupabaseEnabled) return;
+        const { error } = await supabase.from('announcements').insert({ 
+            ...announcement, 
+            type: 'personal_message'
+        });
+        if (error) console.error("Error adding announcement:", error);
+        else await fetchAnnouncements();
+    };
 
-    // --- Carousel Methods ---
-    const updateCarouselItem = useCallback((index: number, updates: Partial<CarouselItemData>) => {
-        setCarouselItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
-    }, []);
+    const updateCarouselItem = async (index: number, updates: Partial<CarouselItemData>) => {
+        const newCarouselState = [...carouselItems];
+        newCarouselState[index] = { ...newCarouselState[index], ...updates };
+        setCarouselItems(newCarouselState);
+        
+        const contentToSave = newCarouselState.map(({ title, description, href }) => ({ title, description, href }));
+        
+        const { error } = await supabase.from('announcements').upsert({
+            type: 'carousel',
+            content: contentToSave
+        }, { onConflict: 'type' });
 
-    // --- Horn Announcement Methods ---
-    const addHornAnnouncement = useCallback(() => {
-        if (hornAnnouncements.length >= 3) return;
-        const newHorn: HornAnnouncement = {
-            id: `horn-${Date.now()}`,
+        if (error) console.error("Error updating carousel:", error);
+    };
+
+    const addHornAnnouncement = async () => {
+        if (hornAnnouncements.length >= 3 || !isSupabaseEnabled) return;
+        const newHorn: Partial<HornAnnouncement> = {
             theme: '更新公告',
             content: '新的公告内容...',
             priority: 0,
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         };
-        setHornAnnouncements(prev => [...prev, newHorn]);
-    }, [hornAnnouncements.length]);
-
-    const removeHornAnnouncement = useCallback((id: string) => {
-        setHornAnnouncements(prev => prev.filter(ann => ann.id !== id));
-    }, []);
-
-    const updateHornAnnouncement = useCallback((id: string, updates: Partial<HornAnnouncement>) => {
-        setHornAnnouncements(prev => prev.map(ann => ann.id === id ? { ...ann, ...updates } : ann));
-    }, []);
-
-    const reorderHornAnnouncements = useCallback((id: string, direction: 'up' | 'down') => {
-        setHornAnnouncements(prev => {
-            const index = prev.findIndex(ann => ann.id === id);
-            if (index === -1) return prev;
-
-            const newIndex = direction === 'up' ? index - 1 : index + 1;
-            if (newIndex < 0 || newIndex >= prev.length) return prev;
-            
-            const newArray = [...prev];
-            const [movedItem] = newArray.splice(index, 1);
-            newArray.splice(newIndex, 0, movedItem);
-            return newArray;
-        });
-    }, []);
-    
-    const getActiveSortedAnnouncements = () => {
-        return hornAnnouncements
-            .filter(ann => !ann.expires_at || new Date(ann.expires_at) > new Date())
-            .sort((a, b) => b.priority - a.priority);
+        const { error } = await supabase.from('announcements').insert({ ...newHorn, type: 'horn' });
+        if (error) console.error("Error adding horn announcement:", error);
+        else await fetchAnnouncements();
     };
 
+    const removeHornAnnouncement = async (id: string) => {
+        if (!isSupabaseEnabled) return;
+        const { error } = await supabase.from('announcements').delete().eq('id', id);
+        if (error) console.error("Error removing horn announcement:", error);
+        else await fetchAnnouncements();
+    };
+
+    const updateHornAnnouncement = async (id: string, updates: Partial<HornAnnouncement>) => {
+        if (!isSupabaseEnabled) return;
+        const { error } = await supabase.from('announcements').update(updates).eq('id', id);
+        if (error) console.error("Error updating horn announcement:", error);
+        else await fetchAnnouncements();
+    };
+    
+    const reorderHornAnnouncements = async (id: string, direction: 'up' | 'down') => {
+        const sortedAnnouncements = [...hornAnnouncements].sort((a,b) => b.priority - a.priority);
+        const index = sortedAnnouncements.findIndex(ann => ann.id === id);
+        if (index === -1) return;
+
+        const newIndex = direction === 'up' ? index - 1 : index + 1;
+        if (newIndex < 0 || newIndex >= sortedAnnouncements.length) return;
+        
+        // Swap priorities
+        const currentPriority = sortedAnnouncements[index].priority;
+        const otherPriority = sortedAnnouncements[newIndex].priority;
+        
+        if (!isSupabaseEnabled) return;
+        const { error: error1 } = await supabase.from('announcements').update({ priority: otherPriority }).eq('id', sortedAnnouncements[index].id);
+        const { error: error2 } = await supabase.from('announcements').update({ priority: currentPriority }).eq('id', sortedAnnouncements[newIndex].id);
+
+        if (error1 || error2) {
+             console.error("Error reordering announcements", error1, error2);
+        } else {
+            await fetchAnnouncements();
+        }
+    };
 
     const value = {
         announcements,
@@ -192,13 +163,11 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         addAnnouncement,
         carouselItems,
         updateCarouselItem,
-        hornAnnouncements, // For admin page
-        activeHornAnnouncements: getActiveSortedAnnouncements(), // For user-facing pages
+        hornAnnouncements: hornAnnouncements.sort((a,b) => a.priority - b.priority),
         addHornAnnouncement,
         removeHornAnnouncement,
         updateHornAnnouncement,
         reorderHornAnnouncements,
-        saveAllAnnouncements,
     };
 
     return (

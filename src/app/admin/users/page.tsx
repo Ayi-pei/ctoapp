@@ -28,9 +28,9 @@ export default function AdminUsersPage() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     
-    const loadData = useCallback(() => {
+    const loadData = useCallback(async () => {
         if (!isAdmin) return;
-        const allUsers = getAllUsers();
+        const allUsers = await getAllUsers();
         setUsers(allUsers);
     }, [isAdmin, getAllUsers]);
 

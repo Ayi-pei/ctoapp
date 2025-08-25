@@ -2,78 +2,66 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { ActionLog, AnyRequest, User } from '@/types';
+import type { ActionLog, User } from '@/types';
 import { useAuth } from './auth-context';
-
-const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v2';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 type LogParams = {
-    entity_type: 'request' | 'task_completion' | 'activity_participation';
+    entity_type: 'request' | 'task_completion' | 'activity_participation' | 'reward';
     entity_id: string;
     action: 'approve' | 'reject' | 'update' | 'delete' | 'create' | 'user_complete';
     details: string;
-    actor?: User; // Optional: specify the user performing the action, defaults to logged-in admin
+    actor?: User;
 };
 
 interface LogsContextType {
     logs: ActionLog[];
-    addLog: (params: LogParams) => void;
+    addLog: (params: LogParams) => Promise<void>;
 }
 
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-    const { user: adminUser } = useAuth(); // Renamed to avoid confusion
+    const { user: adminUser } = useAuth();
     const [logs, setLogs] = useState<ActionLog[]>([]);
-    const [isLoaded, setIsLoaded] = useState(false);
 
-    // Load from localStorage
-    useEffect(() => {
-        try {
-            const storedLogs = localStorage.getItem(LOGS_STORAGE_KEY);
-            if (storedLogs) {
-                setLogs(JSON.parse(storedLogs));
-            }
-        } catch (error) {
-            console.error("Failed to load action logs from localStorage", error);
+    const fetchLogs = useCallback(async () => {
+        if (!isSupabaseEnabled) return;
+        const { data, error } = await supabase.from('action_logs').select('*').order('created_at', { ascending: false });
+        if (error) {
+            console.error("Error fetching logs:", error);
+        } else {
+            setLogs(data as ActionLog[]);
         }
-        setIsLoaded(true);
     }, []);
 
-    // Save to localStorage
     useEffect(() => {
-        if (isLoaded) {
-            try {
-                localStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(logs));
-            } catch (error) {
-                console.error("Failed to save action logs to localStorage", error);
-            }
-        }
-    }, [logs, isLoaded]);
+        fetchLogs();
+    }, [fetchLogs]);
 
-    const addLog = useCallback((params: LogParams) => {
-        // The user performing the action can be specified, otherwise it's the logged-in admin
+    const addLog = async (params: LogParams) => {
         const actor = params.actor || adminUser;
-
-        if (!actor) {
-             console.warn("Log not added: No actor (neither specified nor logged in admin) found.");
-             return; 
+        if (!actor || !isSupabaseEnabled) {
+            console.warn("Log not added: No actor or Supabase not enabled.");
+            return;
         }
 
-        const newLog: ActionLog = {
-            id: `log_${Date.now()}`,
+        const newLog: Partial<ActionLog> = {
             entity_type: params.entity_type,
             entity_id: params.entity_id,
             action: params.action,
             details: params.details,
             operator_id: actor.id,
             operator_username: actor.username,
-            created_at: new Date().toISOString(),
         };
 
-        setLogs(prev => [newLog, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-
-    }, [adminUser]);
+        const { error } = await supabase.from('action_logs').insert(newLog);
+        if (error) {
+            console.error("Failed to add log:", error);
+        } else {
+            await fetchLogs(); // Refresh logs after adding a new one
+        }
+    };
 
     const value = { logs, addLog };
 

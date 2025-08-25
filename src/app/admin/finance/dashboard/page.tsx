@@ -6,12 +6,11 @@ import { useAuth } from '@/context/auth-context';
 import { useRequests } from '@/context/requests-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { User, Users, UserCheck, UserX, ArrowUpCircle, ArrowDownCircle, Briefcase, CalendarDays, ClipboardList, Wallet } from 'lucide-react';
+import { Briefcase, Wallet } from 'lucide-react';
 import { User as UserType, AnyRequest } from '@/types';
-import { isToday, isThisMonth, parseISO, subHours } from 'date-fns';
+import { isToday, isThisMonth, parseISO } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { useBalance } from '@/context/balance-context';
-import { getUserData } from '@/lib/user-data';
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -27,35 +26,26 @@ const StatCard = ({ title, value, icon: Icon, description }: { title: string, va
     </Card>
 );
 
-const getAllUsers = (): UserType[] => {
-    if (typeof window === 'undefined') return [];
-    const storedUsers = localStorage.getItem('tradeflow_users');
-    return storedUsers ? Object.values(JSON.parse(storedUsers)) : [];
-};
-
-
 export default function AdminFinanceDashboardPage() {
-    const { getDownline } = useAuth();
+    const { getDownline, getAllUsers } = useAuth();
     const { requests } = useRequests();
-    const { balances } = useBalance();
+    
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
     const [platformTotalBalance, setPlatformTotalBalance] = useState(0);
 
-    useEffect(() => {
-        const users = getAllUsers();
-        setAllUsers(users);
+     useEffect(() => {
+        const loadAllData = async () => {
+            const users = await getAllUsers();
+            setAllUsers(users);
 
-        // Calculate total platform balance
-        let totalBalance = 0;
-        users.forEach(u => {
-            const userData = getUserData(u.id);
-            Object.values(userData.balances).forEach(bal => {
-                totalBalance += bal.available;
-            });
-        });
-        setPlatformTotalBalance(totalBalance);
-
-    }, [requests, balances]);
+            if (isSupabaseEnabled) {
+                const { data, error } = await supabase.rpc('get_total_platform_balance');
+                if (error) console.error("Error fetching total balance:", error);
+                else setPlatformTotalBalance(data || 0);
+            }
+        };
+        loadAllData();
+    }, [getAllUsers]);
     
     const financialStats = useMemo(() => {
         const approvedRequests = requests.filter(r => r.status === 'approved');
@@ -82,24 +72,48 @@ export default function AdminFinanceDashboardPage() {
         };
     }, [requests]);
 
-    const userStats = useMemo(() => {
-        const totalUsers = allUsers.length;
-        const now = new Date();
-        const onlineUsers = allUsers.filter(u => u.last_login_at && (now.getTime() - new Date(u.last_login_at).getTime()) < 5 * 60 * 1000).length;
-        
-        const registeredToday = allUsers.filter(u => isToday(parseISO(u.created_at))).length;
-        
-        const offline48h = allUsers.filter(u => !u.last_login_at || new Date(u.last_login_at) < subHours(now, 48)).length;
+    const [userStats, setUserStats] = useState({
+         totalUsers: 0, 
+         onlineUsers: 0, 
+         registeredToday: 0, 
+         offline48h: 0, 
+         level1: 0, 
+         level2: 0, 
+         level3: 0 
+    });
 
-        const adminUser = allUsers.find(u => u.is_admin);
-        const downline = adminUser ? getDownline(adminUser.id) : [];
+    useEffect(() => {
+        const calculateUserStats = async () => {
+             const now = new Date();
+             const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+             const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
 
-        const level1 = downline.filter(u => (u as any).level === 1).length;
-        const level2 = downline.filter(u => (u as any).level === 2).length;
-        const level3 = downline.filter(u => (u as any).level === 3).length;
-
-        return { totalUsers, onlineUsers, registeredToday, offline48h, level1, level2, level3 };
+             const totalUsers = allUsers.length;
+             const onlineUsers = allUsers.filter(u => u.last_login_at && u.last_login_at > fiveMinAgo).length;
+             const registeredToday = allUsers.filter(u => isToday(parseISO(u.created_at))).length;
+             const offline48h = allUsers.filter(u => !u.last_login_at || u.last_login_at < fortyEightHoursAgo).length;
+             
+             const adminUser = allUsers.find(u => u.is_admin);
+             if (adminUser) {
+                const downline = await getDownline(adminUser.id);
+                setUserStats({
+                    totalUsers,
+                    onlineUsers,
+                    registeredToday,
+                    offline48h,
+                    level1: downline.filter(u => (u as any).level === 1).length,
+                    level2: downline.filter(u => (u as any).level === 2).length,
+                    level3: downline.filter(u => (u as any).level === 3).length
+                });
+             } else {
+                 setUserStats({ totalUsers, onlineUsers, registeredToday, offline48h, level1:0, level2:0, level3:0 });
+             }
+        };
+        if (allUsers.length > 0) {
+            calculateUserStats();
+        }
     }, [allUsers, getDownline]);
+
 
     const chartData = [
         { name: '总计', 充值: financialStats.totalDeposits, 提现: financialStats.totalWithdrawals },
