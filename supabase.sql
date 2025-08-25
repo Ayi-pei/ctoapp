@@ -1,687 +1,602 @@
--- TradeFlow - Supabase SQL Setup
--- Version: 4.0
--- Description: Fully idempotent script with backend logic for settlement and commissions.
+-- supabase.sql
 
--- 1. EXTENSIONS
--- Enable pg_cron for scheduled jobs. Run this only once from the Supabase Dashboard.
--- We are commenting it out here as it requires dashboard interaction.
--- CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 1. 启用必要的扩展
+create extension if not exists "uuid-ossp" with schema extensions;
+create extension if not exists "pg_cron" with schema extensions;
 
+-- 2. 创建表结构
 
--- 2. TABLES
--- User Profiles
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id uuid NOT NULL PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
-    username text UNIQUE,
+-- 存储用户公开信息
+create table if not exists public.profiles (
+    id uuid not null primary key,
+    updated_at timestamp with time zone,
+    username text not null,
     nickname text,
     avatar_url text,
-    email text UNIQUE,
-    inviter_id uuid REFERENCES public.profiles(id),
-    is_admin boolean DEFAULT false,
-    is_test_user boolean DEFAULT false,
-    is_frozen boolean DEFAULT false,
-    invitation_code text UNIQUE,
-    credit_score integer DEFAULT 100,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    invitation_code text not null,
+    inviter_id uuid references public.profiles(id),
+    is_admin boolean default false,
+    is_test_user boolean default true,
+    is_frozen boolean default false,
+    credit_score integer default 100,
+    last_login_at timestamp with time zone,
+    email text not null,
+    constraint username_length check (char_length(username) >= 3),
+    constraint username_unique unique(username)
 );
-COMMENT ON TABLE public.profiles IS 'Stores public user profile information.';
 
--- Balances
-CREATE TABLE IF NOT EXISTS public.balances (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    asset text NOT NULL,
-    available_balance numeric NOT NULL DEFAULT 0,
-    frozen_balance numeric NOT NULL DEFAULT 0,
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    UNIQUE (user_id, asset)
+comment on table public.profiles is 'Stores public profile information for each user.';
+comment on column public.profiles.id is 'References auth.users.id';
+
+-- 存储用户资产余额
+create table if not exists public.balances (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    asset text not null,
+    available_balance numeric(30, 8) not null default 0.0,
+    frozen_balance numeric(30, 8) not null default 0.0,
+    created_at timestamp with time zone default now(),
+    updated_at timestamp with time zone default now(),
+    constraint positive_available_balance check (available_balance >= 0),
+    constraint positive_frozen_balance check (frozen_balance >= 0),
+    constraint user_asset_unique unique(user_id, asset)
 );
-COMMENT ON TABLE public.balances IS 'Stores user asset balances.';
 
--- Trades (Contract and Spot)
-CREATE TABLE IF NOT EXISTS public.trades (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    trading_pair text NOT NULL,
-    orderType text NOT NULL, -- 'contract' or 'spot'
-    type text NOT NULL, -- 'buy' or 'sell'
-    status text NOT NULL, -- 'active', 'settled', 'filled', 'cancelled'
-    amount numeric NOT NULL,
-    entry_price numeric,
+comment on table public.balances is 'Stores asset balances for each user.';
+
+-- 存储所有交易记录（币币 & 秒合约）
+create table if not exists public.trades (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    order_type text not null, -- 'spot' or 'contract'
+    trading_pair text not null,
+    type text not null, -- 'buy' or 'sell'
+    status text not null, -- 'active', 'settled', 'filled', 'cancelled'
+    amount numeric(30, 8),
+    price numeric(30, 8),
+    total numeric(30, 8),
+    entry_price numeric(30, 8),
+    settlement_price numeric(30, 8),
     settlement_time timestamp with time zone,
     period integer,
-    profit_rate numeric,
-    settlement_price numeric,
-    outcome text,
-    profit numeric,
+    profit_rate numeric(10, 4),
+    outcome text, -- 'win' or 'loss'
+    profit numeric(30, 8),
     base_asset text,
     quote_asset text,
-    total numeric,
-    price numeric,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    created_at timestamp with time zone default now()
 );
-COMMENT ON TABLE public.trades IS 'Stores all user trades, both contract and spot.';
 
--- Requests (Deposit, Withdrawal, Password Reset)
-CREATE TABLE IF NOT EXISTS public.requests (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type text NOT NULL,
+comment on table public.trades is 'Stores all spot and contract trade records.';
+
+-- 存储理财投资记录
+create table if not exists public.investments (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    product_name text not null,
+    amount numeric(30, 8) not null,
+    status text not null, -- 'active', 'settled'
+    created_at timestamp with time zone default now(),
+    settlement_date timestamp with time zone not null,
+    profit numeric(30, 8),
+    category text, -- 'staking' or 'finance'
+    product_type text, -- 'daily' or 'hourly'
+    daily_rate numeric(10, 4),
+    period integer,
+    hourly_rate numeric(10, 4),
+    duration_hours integer,
+    staking_asset text,
+    staking_amount numeric(30, 8)
+);
+
+comment on table public.investments is 'Stores user investment records.';
+
+-- 存储管理员审核请求
+create table if not exists public.requests (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    type text not null, -- 'deposit', 'withdrawal', 'password_reset'
     asset text,
-    amount numeric,
+    amount numeric(30, 8),
     address text,
     transaction_hash text,
     new_password text,
-    status text NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    status text not null default 'pending', -- 'pending', 'approved', 'rejected'
+    created_at timestamp with time zone default now()
 );
-COMMENT ON TABLE public.requests IS 'Stores user requests for admin approval.';
 
--- Investments
-CREATE TABLE IF NOT EXISTS public.investments (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    product_name text NOT NULL,
-    amount numeric NOT NULL,
-    status text NOT NULL DEFAULT 'active', -- 'active', 'settled'
-    profit numeric,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    settlement_date timestamp with time zone,
-    daily_rate numeric,
-    period integer,
-    productType text,
-    duration_hours integer,
-    hourly_rate numeric,
-    category text,
-    staking_asset text,
-    staking_amount numeric
-);
-COMMENT ON TABLE public.investments IS 'Stores user investments in financial products.';
+comment on table public.requests is 'Stores user requests like deposits and withdrawals for admin approval.';
 
--- Reward Logs
-CREATE TABLE IF NOT EXISTS public.reward_logs (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type text NOT NULL, -- 'dailyTask', 'team', 'event', 'system'
-    amount numeric NOT NULL,
-    asset text NOT NULL,
+-- 存储佣金和奖励日志
+create table if not exists public.reward_logs (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    type text not null, -- 'team', 'dailyTask', 'event', 'system'
+    amount numeric(30, 8) not null,
+    asset text not null,
     source_id text,
     source_username text,
     source_level integer,
     description text,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    created_at timestamp with time zone default now()
 );
-COMMENT ON TABLE public.reward_logs IS 'Logs all rewards and commissions given to users.';
 
--- User Task States
-CREATE TABLE IF NOT EXISTS public.user_task_states (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    taskId text NOT NULL,
-    date date NOT NULL,
-    completed boolean DEFAULT false,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    UNIQUE(user_id, taskId, date)
+comment on table public.reward_logs is 'Logs all rewards and commissions credited to users.';
+
+-- 存储用户每日任务完成状态
+create table if not exists public.user_task_states (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    task_id text not null,
+    date date not null,
+    completed boolean not null,
+    constraint user_task_date_unique unique (user_id, task_id, date)
 );
-COMMENT ON TABLE public.user_task_states IS 'Tracks completion of daily tasks for each user.';
 
--- Swap Orders (P2P)
-CREATE TABLE IF NOT EXISTS public.swap_orders (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    username text,
-    from_asset text NOT NULL,
-    from_amount numeric NOT NULL,
-    to_asset text NOT NULL,
-    to_amount numeric NOT NULL,
-    status text NOT NULL DEFAULT 'open',
-    taker_id uuid REFERENCES public.profiles(id),
+comment on table public.user_task_states is 'Tracks daily task completion for each user.';
+
+-- 存储P2P闪兑订单
+create table if not exists public.swap_orders (
+    id uuid primary key default uuid_generate_v4(),
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    username text not null,
+    from_asset text not null,
+    from_amount numeric(30, 8) not null,
+    to_asset text not null,
+    to_amount numeric(30, 8) not null,
+    status text not null,
+    created_at timestamp with time zone default now(),
+    taker_id uuid references public.profiles(id),
     taker_username text,
-    payment_proof_url text,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
-);
-COMMENT ON TABLE public.swap_orders IS 'Stores P2P swap orders.';
-
--- Action Logs (for Admin Auditing)
-CREATE TABLE IF NOT EXISTS public.action_logs (
-    id bigserial PRIMARY KEY,
-    entity_type text,
-    entity_id text,
-    action text,
-    operator_id uuid,
-    operator_username text,
-    details text,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
-);
-COMMENT ON TABLE public.action_logs IS 'Audit trail for admin actions.';
-
--- Content Tables (Managed by Admin)
-CREATE TABLE IF NOT EXISTS public.daily_tasks (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    title text,
-    description text,
-    reward numeric,
-    reward_type text,
-    link text,
-    status text,
-    trigger text,
-    imgSrc text,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    payment_proof_url text
 );
 
-CREATE TABLE IF NOT EXISTS public.activities (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    title text,
-    description text,
-    rewardRule text,
-    howToClaim text,
-    expiresAt timestamp with time zone,
-    imgSrc text,
-    status text,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
-);
+comment on table public.swap_orders is 'Stores peer-to-peer swap orders.';
 
-CREATE TABLE IF NOT EXISTS public.announcements (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    type text NOT NULL, -- 'personal_message', 'carousel', 'horn'
+-- 系统设置 (KV store)
+create table if not exists public.system_settings (
+  id bigint primary key,
+  settings jsonb,
+  constraint singleton check (id = 1)
+);
+comment on table public.system_settings is 'Stores global system settings as a single JSONB object.';
+
+-- 活动
+create table if not exists public.activities (
+    id uuid primary key default uuid_generate_v4(),
+    title text not null,
+    description text not null,
+    reward_rule text,
+    how_to_claim text,
+    expires_at timestamp with time zone,
+    img_src text,
+    status text not null,
+    created_at timestamp with time zone default now()
+);
+comment on table public.activities is 'Stores limited-time activities and promotions.';
+
+-- 公告
+create table if not exists public.announcements (
+    id uuid primary key default uuid_generate_v4(),
+    type text not null,
     content jsonb,
     title text,
-    user_id uuid REFERENCES public.profiles(id),
+    user_id uuid references public.profiles(id),
     theme text,
     priority integer,
     expires_at timestamp with time zone,
-    date timestamp with time zone DEFAULT timezone('utc'::text, now()),
-    is_read boolean DEFAULT false
+    created_at timestamp with time zone default now()
 );
--- Ensure 'type' can be used as a unique key for singleton settings
-ALTER TABLE public.announcements ADD CONSTRAINT announcements_type_unique UNIQUE (type);
+comment on table public.announcements is 'Stores system announcements, carousel content, and horn messages.';
 
-
-CREATE TABLE IF NOT EXISTS public.investment_products (
-    id uuid NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
-    name text,
-    price numeric,
-    dailyRate numeric,
+-- 理财产品
+create table if not exists public.investment_products (
+    id uuid primary key default uuid_generate_v4(),
+    name text not null,
+    price numeric(30, 8),
+    daily_rate numeric(10, 4),
     period integer,
-    maxPurchase integer,
-    imgSrc text,
+    max_purchase integer,
+    img_src text,
     category text,
-    productType text,
-    activeStartTime text,
-    activeEndTime text,
-    hourlyTiers jsonb,
-    stakingAsset text,
-    stakingAmount numeric
+    product_type text,
+    active_start_time text,
+    active_end_time text,
+    hourly_tiers jsonb,
+    staking_asset text,
+    staking_amount numeric(30, 8)
 );
+comment on table public.investment_products is 'Stores definitions for all investment products.';
 
--- System Settings Table (Singleton)
-CREATE TABLE IF NOT EXISTS public.system_settings (
-    id integer PRIMARY KEY,
-    settings jsonb
+-- 每日任务
+create table if not exists public.daily_tasks (
+    id uuid primary key default uuid_generate_v4(),
+    title text not null,
+    description text not null,
+    reward numeric(30, 8) not null,
+    reward_type text not null,
+    link text not null,
+    status text not null,
+    trigger text not null,
+    img_src text
 );
+comment on table public.daily_tasks is 'Stores definitions for daily tasks.';
 
--- Market Data Tables
-CREATE TABLE IF NOT EXISTS public.market_summary_data (
-    pair text PRIMARY KEY,
-    price numeric,
-    change numeric,
-    volume numeric,
-    high numeric,
-    low numeric,
+-- 管理员操作日志
+create table if not exists public.action_logs (
+    id uuid primary key default uuid_generate_v4(),
+    entity_type text not null,
+    entity_id text not null,
+    action text not null,
+    operator_id uuid not null,
+    operator_username text not null,
+    details text,
+    created_at timestamp with time zone default now()
+);
+comment on table public.action_logs is 'Logs actions performed by administrators.';
+
+-- 市场数据
+create table if not exists public.market_summary_data (
+    pair text primary key,
+    price numeric(30, 8),
+    change numeric(10, 4),
+    volume numeric(30, 8),
+    high numeric(30, 8),
+    low numeric(30, 8),
     icon text,
-    updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    updated_at timestamp with time zone default now()
 );
+comment on table public.market_summary_data is 'Stores the latest summary data for each market.';
 
-CREATE TABLE IF NOT EXISTS public.market_kline_data (
-    id bigserial PRIMARY KEY,
-    trading_pair text NOT NULL,
-    time timestamp with time zone NOT NULL,
-    open numeric,
-    high numeric,
-    low numeric,
-    close numeric,
-    UNIQUE(trading_pair, time)
+create table if not exists public.market_kline_data (
+    time timestamp with time zone not null,
+    trading_pair text not null,
+    open numeric(30, 8),
+    high numeric(30, 8),
+    low numeric(30, 8),
+    close numeric(30, 8),
+    primary key (time, trading_pair)
 );
-
--- 3. INDEXES
--- Create indexes for foreign keys and frequently queried columns.
-CREATE INDEX IF NOT EXISTS idx_profiles_inviter_id ON public.profiles(inviter_id);
-CREATE INDEX IF NOT EXISTS idx_balances_user_id ON public.balances(user_id);
-CREATE INDEX IF NOT EXISTS idx_trades_user_id ON public.trades(user_id);
-CREATE INDEX IF NOT EXISTS idx_trades_status ON public.trades(status);
-CREATE INDEX IF NOT EXISTS idx_requests_user_id ON public.requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_requests_status ON public.requests(status);
-CREATE INDEX IF NOT EXISTS idx_investments_user_id ON public.investments(user_id);
-CREATE INDEX IF NOT EXISTS idx_investments_status ON public.investments(status);
-CREATE INDEX IF NOT EXISTS idx_reward_logs_user_id ON public.reward_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_task_states_user_id ON public.user_task_states(user_id);
-CREATE INDEX IF NOT EXISTS idx_swap_orders_user_id ON public.swap_orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_swap_orders_status ON public.swap_orders(status);
-CREATE INDEX IF NOT EXISTS idx_market_kline_data_trading_pair_time ON public.market_kline_data(trading_pair, time DESC);
+comment on table public.market_kline_data is 'Stores OHLC (candlestick) data for markets.';
 
 
--- 4. FUNCTIONS AND TRIGGERS
+-- 3. 数据库函数
 
--- Function to handle new user profile creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.profiles (id, username, email, nickname, invitation_code, avatar_url)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data->>'username',
-    NEW.email,
-    NEW.raw_user_meta_data->>'nickname',
-    NEW.raw_user_meta_data->>'invitation_code',
-    NEW.raw_user_meta_data->>'avatar_url'
+-- 调整用户余额
+create or replace function public.adjust_balance(p_user_id uuid, p_asset text, p_amount numeric, p_is_frozen boolean default false, p_is_debit_frozen boolean default false)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+    current_available numeric(30, 8);
+    current_frozen numeric(30, 8);
+begin
+    -- 确保余额记录存在
+    insert into public.balances (user_id, asset)
+    values (p_user_id, p_asset)
+    on conflict (user_id, asset) do nothing;
+
+    -- 锁定行以防止并发问题
+    select available_balance, frozen_balance
+    into current_available, current_frozen
+    from public.balances
+    where user_id = p_user_id and asset = p_asset
+    for update;
+
+    if p_is_debit_frozen then
+        -- 处理冻结余额的借方（扣款），例如提现批准或合约亏损
+        if current_frozen < p_amount then
+            raise exception 'Insufficient frozen balance for user % and asset %', p_user_id, p_asset;
+        end if;
+        update public.balances
+        set frozen_balance = frozen_balance - p_amount,
+            updated_at = now()
+        where user_id = p_user_id and asset = p_asset;
+    elsif p_is_frozen then
+        -- 处理可用余额与冻结余额之间的转移
+        if p_amount > 0 then
+            -- 增加冻结余额 (例如：理财质押)
+            if current_available < p_amount then
+                 raise exception 'Insufficient available balance for user % and asset % to freeze', p_user_id, p_asset;
+            end if;
+             update public.balances
+             set available_balance = available_balance - p_amount,
+                 frozen_balance = frozen_balance + p_amount,
+                 updated_at = now()
+             where user_id = p_user_id and asset = p_asset;
+        else
+            -- 减少冻结余额，返还到可用余额 (例如: 提现拒绝)
+            if current_frozen < abs(p_amount) then
+                 raise exception 'Insufficient frozen balance for user % and asset % to unfreeze', p_user_id, p_asset;
+            end if;
+             update public.balances
+             set available_balance = available_balance + abs(p_amount),
+                 frozen_balance = frozen_balance - abs(p_amount),
+                 updated_at = now()
+             where user_id = p_user_id and asset = p_asset;
+        end if;
+    else
+        -- 直接调整可用余额
+        if current_available + p_amount < 0 then
+            raise exception 'Insufficient available balance for user % and asset %', p_user_id, p_asset;
+        end if;
+        update public.balances
+        set available_balance = available_balance + p_amount,
+            updated_at = now()
+        where user_id = p_user_id and asset = p_asset;
+    end if;
+end;
+$$;
+
+
+-- 自动创建用户资料
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, username, nickname, email, invitation_code, inviter_id, is_test_user, credit_score, avatar_url)
+  values (
+    new.id,
+    new.raw_user_meta_data->>'username',
+    new.raw_user_meta_data->>'nickname',
+    new.email,
+    new.raw_user_meta_data->>'invitation_code',
+    (new.raw_user_meta_data->>'inviter_id')::uuid,
+    (new.raw_user_meta_data->>'is_test_user')::boolean,
+    (new.raw_user_meta_data->>'credit_score')::integer,
+    new.raw_user_meta_data->>'avatar_url'
   );
-  -- Also set inviter_id if provided
-  IF NEW.raw_user_meta_data->>'inviter_id' IS NOT NULL THEN
-      UPDATE public.profiles
-      SET inviter_id = (NEW.raw_user_meta_data->>'inviter_id')::uuid
-      WHERE id = NEW.id;
-  END IF;
-  RETURN NEW;
-END;
+  return new;
+end;
 $$;
 
--- Trigger to call handle_new_user on new user signup
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- Function to automatically update `updated_at` columns
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  NEW.updated_at = timezone('utc', now());
-  RETURN NEW;
-END;
-$$;
-
--- Triggers for updated_at
-DROP TRIGGER IF EXISTS on_profiles_updated ON public.profiles;
-CREATE TRIGGER on_profiles_updated BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-DROP TRIGGER IF EXISTS on_balances_updated ON public.balances;
-CREATE TRIGGER on_balances_updated BEFORE UPDATE ON public.balances FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-DROP TRIGGER IF EXISTS on_requests_updated ON public.requests;
-CREATE TRIGGER on_requests_updated BEFORE UPDATE ON public.requests FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-DROP TRIGGER IF EXISTS on_swap_orders_updated ON public.swap_orders;
-CREATE TRIGGER on_swap_orders_updated BEFORE UPDATE ON public.swap_orders FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-
-
--- 5. BALANCE MANAGEMENT FUNCTION
-CREATE OR REPLACE FUNCTION public.adjust_balance(
-    p_user_id uuid,
-    p_asset text,
-    p_amount numeric,
-    p_is_frozen boolean DEFAULT false,
-    p_is_debit_frozen boolean DEFAULT false
-)
-RETURNS void
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF p_is_debit_frozen THEN
-        -- This branch handles reducing the frozen balance, typically for approved/rejected withdrawals
-        INSERT INTO public.balances (user_id, asset, available_balance, frozen_balance)
-        VALUES (p_user_id, p_asset, 0, p_amount)
-        ON CONFLICT (user_id, asset) DO UPDATE
-        SET frozen_balance = public.balances.frozen_balance - p_amount;
-    ELSIF p_is_frozen THEN
-         -- This branch handles moving balance to/from frozen, typically for placing orders or withdrawal requests
-        INSERT INTO public.balances (user_id, asset, available_balance, frozen_balance)
-        VALUES (p_user_id, p_asset, -p_amount, p_amount)
-        ON CONFLICT (user_id, asset) DO UPDATE
-        SET available_balance = public.balances.available_balance - p_amount,
-            frozen_balance = public.balances.frozen_balance + p_amount;
-    ELSE
-        -- This is for standard credits/debits to the available balance
-        INSERT INTO public.balances (user_id, asset, available_balance, frozen_balance)
-        VALUES (p_user_id, p_asset, p_amount, 0)
-        ON CONFLICT (user_id, asset) DO UPDATE
-        SET available_balance = public.balances.available_balance + p_amount;
-    END IF;
-END;
-$$;
-
-
--- 6. TEAM AND COMMISSION FUNCTIONS
-
--- Drop the function before creating it to allow for signature changes
-DROP FUNCTION IF EXISTS public.get_downline(uuid);
-
--- Function to recursively get all downline members
-CREATE OR REPLACE FUNCTION public.get_downline(p_user_id uuid)
-RETURNS TABLE(id uuid, username text, email text, nickname text, created_at timestamp with time zone, inviter_id uuid, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, credit_score integer, avatar_url text, level int)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-    WITH RECURSIVE downline_cte AS (
-        SELECT p.id, p.username, p.email, p.nickname, p.created_at, p.inviter_id, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.credit_score, p.avatar_url, 1 AS level
-        FROM public.profiles p
-        WHERE p.inviter_id = p_user_id
-
-        UNION ALL
-
-        SELECT p.id, p.username, p.email, p.nickname, p.created_at, p.inviter_id, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.credit_score, p.avatar_url, d.level + 1
-        FROM public.profiles p
-        JOIN downline_cte d ON p.inviter_id = d.id
-        WHERE d.level < 3 -- Limit to 3 levels
+-- 获取用户的下级代理
+create or replace function public.get_downline(p_user_id uuid)
+returns table(id uuid, username text, nickname text, email text, inviter_id uuid, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, created_at timestamp with time zone, credit_score integer, last_login_at timestamp with time zone, avatar_url text, level int)
+language plpgsql
+as $$
+begin
+    return query
+    with recursive downline as (
+        select p.id, p.username, p.nickname, p.email, p.inviter_id, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.created_at, p.credit_score, p.last_login_at, p.avatar_url, 1 as level
+        from public.profiles p
+        where p.inviter_id = p_user_id
+        union all
+        select p.id, p.username, p.nickname, p.email, p.inviter_id, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.created_at, p.credit_score, p.last_login_at, p.avatar_url, d.level + 1
+        from public.profiles p
+        join downline d on p.inviter_id = d.id
+        where d.level < 3
     )
-    SELECT * FROM downline_cte;
-END;
+    select * from downline;
+end;
 $$;
 
--- Function to distribute commissions
-CREATE OR REPLACE FUNCTION public.distribute_trade_commissions()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
-DECLARE
-    v_inviter_id_l1 uuid;
-    v_inviter_id_l2 uuid;
-    v_inviter_id_l3 uuid;
-    v_commission_amount_l1 numeric;
-    v_commission_amount_l2 numeric;
-    v_commission_amount_l3 numeric;
-    v_trade_amount numeric;
-BEGIN
-    -- Determine the amount to base commission on
-    IF NEW.orderType = 'contract' THEN
-        v_trade_amount := NEW.amount;
-    ELSIF NEW.orderType = 'spot' THEN
-        v_trade_amount := NEW.total;
-    ELSE
-        RETURN NEW; -- Not a trade type that generates commission
-    END IF;
-
-    -- Get 3 levels of inviters
-    SELECT inviter_id INTO v_inviter_id_l1 FROM public.profiles WHERE id = NEW.user_id;
-    IF v_inviter_id_l1 IS NOT NULL THEN
-        SELECT inviter_id INTO v_inviter_id_l2 FROM public.profiles WHERE id = v_inviter_id_l1;
-        IF v_inviter_id_l2 IS NOT NULL THEN
-            SELECT inviter_id INTO v_inviter_id_l3 FROM public.profiles WHERE id = v_inviter_id_l2;
-        END IF;
-    END IF;
-
-    -- Calculate and distribute commissions
-    IF v_inviter_id_l1 IS NOT NULL THEN
-        v_commission_amount_l1 := v_trade_amount * 0.08;
-        PERFORM public.adjust_balance(v_inviter_id_l1, 'USDT', v_commission_amount_l1);
-        INSERT INTO public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
-        VALUES (v_inviter_id_l1, 'team', v_commission_amount_l1, 'USDT', NEW.id::text, (SELECT username FROM profiles WHERE id = NEW.user_id), 1, 'L1 Commission from trade ' || NEW.id);
-    END IF;
-
-    IF v_inviter_id_l2 IS NOT NULL THEN
-        v_commission_amount_l2 := v_trade_amount * 0.05;
-        PERFORM public.adjust_balance(v_inviter_id_l2, 'USDT', v_commission_amount_l2);
-         INSERT INTO public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
-        VALUES (v_inviter_id_l2, 'team', v_commission_amount_l2, 'USDT', NEW.id::text, (SELECT username FROM profiles WHERE id = NEW.user_id), 2, 'L2 Commission from trade ' || NEW.id);
-    END IF;
-
-    IF v_inviter_id_l3 IS NOT NULL THEN
-        v_commission_amount_l3 := v_trade_amount * 0.02;
-        PERFORM public.adjust_balance(v_inviter_id_l3, 'USDT', v_commission_amount_l3);
-         INSERT INTO public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
-        VALUES (v_inviter_id_l3, 'team', v_commission_amount_l3, 'USDT', NEW.id::text, (SELECT username FROM profiles WHERE id = NEW.user_id), 3, 'L3 Commission from trade ' || NEW.id);
-    END IF;
-
-    RETURN NEW;
-END;
+-- 获取平台总资金
+create or replace function public.get_total_platform_balance()
+returns numeric
+language sql
+as $$
+    select sum(available_balance + frozen_balance) from public.balances where asset = 'USDT';
 $$;
 
--- Trigger for commission distribution
-DROP TRIGGER IF EXISTS on_trade_inserted ON public.trades;
-CREATE TRIGGER on_trade_inserted
-  AFTER INSERT ON public.trades
-  FOR EACH ROW EXECUTE FUNCTION public.distribute_trade_commissions();
-
-
--- 7. AUTO-SETTLEMENT FUNCTION
-
-DROP FUNCTION IF EXISTS public.settle_due_records();
-CREATE OR REPLACE FUNCTION public.settle_due_records()
-RETURNS void
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    trade_record RECORD;
-    investment_record RECORD;
-    settlement_price numeric;
-    outcome text;
+-- 自动结算到期的秒合约和理财
+create or replace function public.settle_due_records()
+returns void
+language plpgsql
+as $$
+declare
+    trade_record record;
+    investment_record record;
     profit numeric;
-BEGIN
-    -- Settle due contract trades
-    FOR trade_record IN
-        SELECT * FROM public.trades
-        WHERE status = 'active' AND orderType = 'contract' AND settlement_time <= now()
-        FOR UPDATE
-    LOOP
-        -- In a real scenario, you'd fetch the live price here.
-        -- For this simulation, we'll use the entry_price +/- a random amount.
-        settlement_price := trade_record.entry_price + (random() * 0.02 - 0.01) * trade_record.entry_price;
+    total_return numeric;
+begin
+    -- 结算秒合约
+    for trade_record in
+        select * from public.trades
+        where status = 'active' and order_type = 'contract' and settlement_time <= now()
+        for update
+    loop
+        -- 模拟获取最新价格（在生产环境中，这应该从一个价格表中读取）
+        declare
+             latest_price numeric;
+        begin
+             select price into latest_price from public.market_summary_data where pair = trade_record.trading_pair;
+             if latest_price is null then
+                -- 如果找不到价格，跳过此订单的结算
+                continue;
+             end if;
 
-        IF (trade_record.type = 'buy' AND settlement_price > trade_record.entry_price) OR
-           (trade_record.type = 'sell' AND settlement_price < trade_record.entry_price) THEN
-            outcome := 'win';
-            profit := trade_record.amount * trade_record.profit_rate;
-            -- Return principal + profit
-            PERFORM public.adjust_balance(trade_record.user_id, 'USDT', trade_record.amount + profit, false, true);
-        ELSE
-            outcome := 'loss';
-            profit := -trade_record.amount;
-            -- Only debit the frozen balance, principal is lost
-            PERFORM public.adjust_balance(trade_record.user_id, 'USDT', trade_record.amount, true, true);
-        END IF;
+             if trade_record.type = 'buy' then -- 看涨
+                if latest_price > trade_record.entry_price then
+                    profit := trade_record.amount * trade_record.profit_rate;
+                    update public.trades set outcome = 'win', profit = profit where id = trade_record.id;
+                else
+                    profit := -trade_record.amount;
+                    update public.trades set outcome = 'loss', profit = profit where id = trade_record.id;
+                end if;
+            else -- 看跌
+                 if latest_price < trade_record.entry_price then
+                    profit := trade_record.amount * trade_record.profit_rate;
+                    update public.trades set outcome = 'win', profit = profit where id = trade_record.id;
+                else
+                    profit := -trade_record.amount;
+                    update public.trades set outcome = 'loss', profit = profit where id = trade_record.id;
+                end if;
+            end if;
 
-        UPDATE public.trades
-        SET status = 'settled',
-            settlement_price = settlement_price,
-            outcome = outcome,
-            profit = profit
-        WHERE id = trade_record.id;
-    END LOOP;
+            total_return := trade_record.amount + profit;
 
-    -- Settle due investments
-    FOR investment_record IN
-        SELECT * FROM public.investments
-        WHERE status = 'active' AND settlement_date <= now()
-        FOR UPDATE
-    LOOP
-        IF investment_record.productType = 'daily' THEN
+            -- 返还本金和利润
+            perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, total_return, false, true);
+
+            -- 更新交易状态
+            update public.trades set status = 'settled', settlement_price = latest_price where id = trade_record.id;
+
+        end;
+
+    end loop;
+
+    -- 结算理财产品
+    for investment_record in
+        select * from public.investments
+        where status = 'active' and settlement_date <= now()
+        for update
+    loop
+        if investment_record.product_type = 'daily' and investment_record.daily_rate is not null and investment_record.period is not null then
             profit := investment_record.amount * investment_record.daily_rate * investment_record.period;
-        ELSIF investment_record.productType = 'hourly' THEN
-             profit := investment_record.amount * investment_record.hourly_rate * investment_record.duration_hours;
-        ELSE
+        elsif investment_record.product_type = 'hourly' and investment_record.hourly_rate is not null and investment_record.duration_hours is not null then
+            profit := investment_record.amount * investment_record.hourly_rate; -- The rate is for the entire duration
+        else
             profit := 0;
-        END IF;
+        end if;
 
-        -- Return principal and profit to available balance
-        PERFORM public.adjust_balance(investment_record.user_id, 'USDT', investment_record.amount + profit);
+        total_return := investment_record.amount + profit;
+
+        -- 返还本金和收益
+        perform public.adjust_balance(investment_record.user_id, 'USDT', total_return);
         
-        -- If there was a staked asset, unfreeze it
-        IF investment_record.staking_asset IS NOT NULL AND investment_record.staking_amount IS NOT NULL THEN
-            PERFORM public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, true, true);
-        END IF;
+        -- 如果有质押资产，解冻
+        if investment_record.staking_asset is not null and investment_record.staking_amount is not null then
+             perform public.adjust_balance(investment_record.user_id, investment_record.staking_asset, -investment_record.staking_amount, true);
+        end if;
 
-        UPDATE public.investments
-        SET status = 'settled',
-            profit = profit
-        WHERE id = investment_record.id;
-    END LOOP;
-END;
+        -- 更新投资状态
+        update public.investments set status = 'settled', profit = profit where id = investment_record.id;
+    end loop;
+end;
 $$;
 
 
--- 8. HELPER/UTILITY FUNCTIONS
--- Function to get total platform balance
-CREATE OR REPLACE FUNCTION public.get_total_platform_balance()
-RETURNS numeric
-LANGUAGE sql
-AS $$
-  SELECT SUM(available_balance) FROM public.balances WHERE asset = 'USDT';
-$$;
+-- 自动分配三级返佣
+create or replace function public.distribute_trade_commissions()
+returns trigger
+language plpgsql
+as $$
+declare
+    source_user record;
+    upline_user record;
+    commission_amount numeric;
+    commission_rate numeric;
+    trade_amount numeric;
+    level int := 1;
+begin
+    -- 仅为USDT交易对的合约和币币交易计算佣金
+    if new.quote_asset = 'USDT' and (new.order_type = 'contract' or new.order_type = 'spot') then
+        
+        if new.order_type = 'contract' then
+            trade_amount := new.amount;
+        else -- spot
+            trade_amount := new.total;
+        end if;
 
+        select * into source_user from public.profiles where id = new.user_id;
+        
+        -- 循环查找上三级
+        while level <= 3 and source_user.inviter_id is not null loop
+            select * into upline_user from public.profiles where id = source_user.inviter_id;
+            
+            if upline_user is null or upline_user.is_frozen then
+                exit; -- 如果上级不存在或被冻结，则停止
+            end if;
 
--- 9. ROW-LEVEL SECURITY (RLS)
--- Create a helper function to check for admin role
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER SET search_path = public
-AS $$
-DECLARE
-    is_admin_user boolean;
-BEGIN
-    SELECT is_admin INTO is_admin_user FROM public.profiles WHERE id = auth.uid();
-    RETURN COALESCE(is_admin_user, false);
-END;
-$$;
+            -- 根据级别确定佣金率
+            if level = 1 then
+                commission_rate := 0.08;
+            elsif level = 2 then
+                commission_rate := 0.05;
+            else -- level = 3
+                commission_rate := 0.02;
+            end if;
 
--- Enable RLS for all tables that store user-specific data.
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.balances ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reward_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_task_states ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.swap_orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.action_logs ENABLE ROW LEVEL SECURITY;
--- Also enable RLS for content tables to restrict management to admins
-ALTER TABLE public.daily_tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.investment_products ENABLE ROW LEVEL SECURITY;
+            commission_amount := trade_amount * commission_rate;
 
+            -- 增加上级余额
+            perform public.adjust_balance(upline_user.id, 'USDT', commission_amount);
 
--- Drop existing policies before creating new ones to avoid conflicts.
-DROP POLICY IF EXISTS "Users can view their own profile." ON public.profiles;
-DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
-DROP POLICY IF EXISTS "Admins can manage all profiles." ON public.profiles;
+            -- 记录佣金日志
+            insert into public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
+            values (upline_user.id, 'team', commission_amount, 'USDT', new.id::text, source_user.username, level, '交易佣金');
 
-DROP POLICY IF EXISTS "Users can view their own balances." ON public.balances;
-DROP POLICY IF EXISTS "Admins can manage all balances." ON public.balances;
-
-DROP POLICY IF EXISTS "Users can view their own trades." ON public.trades;
-DROP POLICY IF EXISTS "Admins can view all trades." ON public.trades;
-
-DROP POLICY IF EXISTS "Users can manage their own requests." ON public.requests;
-DROP POLICY IF EXISTS "Admins can manage all requests." ON public.requests;
-
-DROP POLICY IF EXISTS "Users can view their own investments." ON public.investments;
-DROP POLICY IF EXISTS "Admins can view all investments." ON public.investments;
-
-DROP POLICY IF EXISTS "Users can view their own reward logs." ON public.reward_logs;
-DROP POLICY IF EXISTS "Admins can view all reward logs." ON public.reward_logs;
-
-DROP POLICY IF EXISTS "Users can manage their own task states." ON public.user_task_states;
-DROP POLICY IF EXISTS "Admins can manage all task states." ON public.user_task_states;
-
-DROP POLICY IF EXISTS "Users can manage their own swap orders." ON public.swap_orders;
-DROP POLICY IF EXISTS "Users can view open swap orders." ON public.swap_orders;
-DROP POLICY IF EXISTS "Admins can manage all swap orders." ON public.swap_orders;
-
-DROP POLICY IF EXISTS "Public can read daily tasks" ON public.daily_tasks;
-DROP POLICY IF EXISTS "Public can read activities" ON public.activities;
-DROP POLICY IF EXISTS "Public can read announcements" ON public.announcements;
-DROP POLICY IF EXISTS "Public can read investment products" ON public.investment_products;
-DROP POLICY IF EXISTS "Admins can manage content tables" ON public.daily_tasks;
-DROP POLICY IF EXISTS "Admins can manage content tables" ON public.activities;
-DROP POLICY IF EXISTS "Admins can manage content tables" ON public.announcements;
-DROP POLICY IF EXISTS "Admins can manage content tables" ON public.investment_products;
-DROP POLICY IF EXISTS "Admins can manage logs" ON public.action_logs;
-
-
--- RLS Policies for PROFILES
-CREATE POLICY "Users can view their own profile." ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update their own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Admins can manage all profiles." ON public.profiles FOR ALL USING (public.is_admin());
-
--- RLS Policies for BALANCES
-CREATE POLICY "Users can view their own balances." ON public.balances FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins can manage all balances." ON public.balances FOR ALL USING (public.is_admin());
-
--- RLS Policies for TRADES
-CREATE POLICY "Users can view their own trades." ON public.trades FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins can view all trades." ON public.trades FOR ALL USING (public.is_admin());
-
--- RLS Policies for REQUESTS
-CREATE POLICY "Users can manage their own requests." ON public.requests FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Admins can manage all requests." ON public.requests FOR ALL USING (public.is_admin());
-
--- RLS Policies for INVESTMENTS
-CREATE POLICY "Users can view their own investments." ON public.investments FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins can view all investments." ON public.investments FOR ALL USING (public.is_admin());
-
--- RLS Policies for REWARD_LOGS
-CREATE POLICY "Users can view their own reward logs." ON public.reward_logs FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins can view all reward logs." ON public.reward_logs FOR ALL USING (public.is_admin());
-
--- RLS Policies for USER_TASK_STATES
-CREATE POLICY "Users can manage their own task states." ON public.user_task_states FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Admins can manage all task states." ON public.user_task_states FOR ALL USING (public.is_admin());
-
--- RLS Policies for SWAP_ORDERS
-CREATE POLICY "Users can manage their own swap orders." ON public.swap_orders FOR ALL USING (auth.uid() = user_id OR auth.uid() = taker_id);
-CREATE POLICY "Users can view open swap orders." ON public.swap_orders FOR SELECT USING (status = 'open');
-CREATE POLICY "Admins can manage all swap orders." ON public.swap_orders FOR ALL USING (public.is_admin());
-
--- Policies for CONTENT tables
-CREATE POLICY "Public can read daily tasks" ON public.daily_tasks FOR SELECT USING (true);
-CREATE POLICY "Public can read activities" ON public.activities FOR SELECT USING (true);
-CREATE POLICY "Public can read announcements" ON public.announcements FOR SELECT USING (true);
-CREATE POLICY "Public can read investment products" ON public.investment_products FOR SELECT USING (true);
-CREATE POLICY "Admins can manage content tables" ON public.daily_tasks FOR ALL USING (public.is_admin());
-CREATE POLICY "Admins can manage content tables" ON public.activities FOR ALL USING (public.is_admin());
-CREATE POLICY "Admins can manage content tables" ON public.announcements FOR ALL USING (public.is_admin());
-CREATE POLICY "Admins can manage content tables" ON public.investment_products FOR ALL USING (public.is_admin());
-
--- Policies for LOGS
-CREATE POLICY "Admins can manage logs" ON public.action_logs FOR ALL USING (public.is_admin());
-
-
--- 10. CRON JOBS
--- Schedule the settlement function to run every minute.
--- Note: pg_cron must be enabled in the Supabase dashboard.
--- This command is run once in the SQL editor.
--- SELECT cron.schedule('settle-due-records-job', '*/1 * * * *', 'SELECT public.settle_due_records()');
-
--- To unschedule:
--- SELECT cron.unschedule('settle-due-records-job');
-
-
--- 11. PUBLICATION FOR REALTIME
--- Drop existing publications if they exist to start fresh
-DROP PUBLICATION IF EXISTS supabase_realtime;
-
--- Create a new publication for all tables to enable realtime functionality
--- Supabase handles this automatically, but being explicit can be useful.
--- We'll add all tables that might need real-time updates.
-CREATE PUBLICATION supabase_realtime FOR TABLE 
-    public.profiles, 
-    public.balances, 
-    public.trades, 
-    public.requests, 
-    public.investments,
-    public.swap_orders,
-    public.market_summary_data, 
-    public.market_kline_data;
-
+            -- 准备下一次循环
+            source_user := upline_user;
+            level := level + 1;
+        end loop;
+    end if;
     
+    return new;
+end;
+$$;
+
+
+-- 4. 触发器
+
+-- 用户注册后自动创建资料
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+  
+-- 交易成功后自动分配佣金
+drop trigger if exists on_trade_inserted on public.trades;
+create trigger on_trade_inserted
+    after insert on public.trades
+    for each row
+    execute function public.distribute_trade_commissions();
+
+-- 5. 行级安全策略 (RLS)
+alter table public.profiles enable row level security;
+alter table public.balances enable row level security;
+alter table public.trades enable row level security;
+alter table public.investments enable row level security;
+alter table public.requests enable row level security;
+alter table public.reward_logs enable row level security;
+alter table public.user_task_states enable row level security;
+alter table public.swap_orders enable row level security;
+-- 系统设置等公开表不需要RLS
+
+drop policy if exists "Users can view all profiles" on public.profiles;
+create policy "Users can view all profiles" on public.profiles for select using (true);
+
+drop policy if exists "Users can insert their own profile" on public.profiles;
+create policy "Users can insert their own profile" on public.profiles for insert with check (auth.uid() = id);
+
+drop policy if exists "Users can update their own profile" on public.profiles;
+create policy "Users can update their own profile" on public.profiles for update using (auth.uid() = id);
+
+drop policy if exists "Users can view their own balances" on public.balances;
+create policy "Users can view their own balances" on public.balances for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can view their own trades" on public.trades;
+create policy "Users can view their own trades" on public.trades for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can view their own investments" on public.investments;
+create policy "Users can view their own investments" on public.investments for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can view their own requests" on public.requests;
+create policy "Users can view their own requests" on public.requests for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can create requests" on public.requests;
+create policy "Users can create requests" on public.requests for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can view their own reward logs" on public.reward_logs;
+create policy "Users can view their own reward logs" on public.reward_logs for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can view and manage their own task states" on public.user_task_states;
+create policy "Users can view and manage their own task states" on public.user_task_states for all using (auth.uid() = user_id);
+
+drop policy if exists "Users can view all open swap orders" on public.swap_orders;
+create policy "Users can view all open swap orders" on public.swap_orders for select using (true);
+
+drop policy if exists "Users can manage their own swap orders" on public.swap_orders;
+create policy "Users can manage their own swap orders" on public.swap_orders for all using (auth.uid() = user_id or auth.uid() = taker_id);
+
+-- 6. Cron Jobs
+-- 每分钟运行一次结算函数
+select cron.schedule('settle-due-records', '*/1 * * * *', 'select public.settle_due_records()');
+
+-- 可以在这里添加其他定时任务, 例如:
+-- select cron.schedule('fetch-market-data', '*/5 * * * *', 'select public.fetch_all_market_data()');
