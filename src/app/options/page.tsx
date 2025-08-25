@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip"
 
 const OptionsTable = ({ contracts, type }: { contracts: OptionContract[], type: 'call' | 'put' }) => {
+    if (!contracts) return null; // Add guard clause here
     return (
         <Table>
             <TableHeader>
@@ -168,4 +169,3 @@ export default function OptionsPage() {
         </DashboardLayout>
     );
 }
-
