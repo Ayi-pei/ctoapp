@@ -9,8 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useLogs } from './logs-context';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
-const COMMISSION_RATES = [0.08, 0.05, 0.02]; // Level 1, 2, 3
-
 export type DailyInvestmentParams = {
     productName: string;
     amount: number;
@@ -402,3 +400,5 @@ export function useBalance() {
   }
   return context;
 }
+
+    

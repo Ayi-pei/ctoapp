@@ -246,6 +246,8 @@ export type DailyTask = {
 
 // Represents the completion state of a task for a user for a specific day
 export type UserTaskState = {
+  id: string;
+  user_id: string;
   taskId: string;
   date: Timestamp; // YYYY-MM-DD
   completed: boolean;
@@ -339,3 +341,5 @@ export type NavItem = {
     icon: React.ElementType;
     subItems?: NavItem[];
 };
+
+    

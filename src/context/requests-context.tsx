@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -96,12 +95,13 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     const addWithdrawalRequest = useCallback(async (params: WithdrawalRequestParams) => {
         if (!user) return;
         
+        // This function now only submits the request. The balance adjustment will be a separate call.
         await addRequest({
             type: 'withdrawal',
             ...params,
         });
 
-        // The adjust_balance function will now handle freezing the balance
+        // The adjust_balance function with is_frozen=true will handle freezing the balance
         await adjustBalance(user.id, params.asset, -params.amount, true);
     }, [user, addRequest, adjustBalance]);
 
@@ -129,15 +129,15 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
                 await adjustBalance(request.user_id, request.asset, request.amount);
             } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                // Confirm the withdrawal by debiting the frozen balance
-                await adjustBalance(request.user_id, request.asset, -request.amount, true, true);
+                // Confirm the withdrawal by debiting the frozen balance. isDebitFrozen = true
+                await adjustBalance(request.user_id, request.asset, request.amount, true, true);
             } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
                 await updateUser(request.user_id, { password: request.new_password });
             }
-        } else { // 'reject' action
+        } else { // 'reject' action for withdrawal
              if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                // Revert the frozen amount back to available balance
-                await adjustBalance(request.user_id, request.asset, request.amount, false, true);
+                // Revert the frozen amount back to available balance. amount is positive, isFrozen is false, isDebitFrozen is true.
+                await adjustBalance(request.user_id, request.asset, -request.amount, true, true);
             }
         }
 
@@ -195,3 +195,5 @@ export function useRequests() {
     }
     return context;
 }
+
+    
