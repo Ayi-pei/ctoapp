@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Megaphone, ArrowRight, BookCheck, CalendarCheck, Users, Download, Repeat, Candlestick, Timer, Info } from "lucide-react";
+import { Megaphone, ArrowRight, BookCheck, CalendarCheck, Users, Download, Repeat, CandlestickChart, Timer, Info } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
@@ -50,7 +50,7 @@ export default function DashboardPage() {
         { name: '代理团队', icon: Users, href: '/profile/promotion' },
         { name: '下载中心', icon: Download, href: '/download' },
         { name: '闪兑', icon: Repeat, href: '/swap' },
-        { name: '秒合约', icon: Candlestick, href: '/trade?tab=contract' },
+        { name: '秒合约', icon: CandlestickChart, href: '/trade?tab=contract' },
         { name: '限时活动', icon: Timer, href: '/activities' },
         { name: '关于我们', icon: Info, href: '/coming-soon' },
     ];
