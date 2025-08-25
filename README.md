@@ -1,71 +1,70 @@
+# CoinSR - 全栈交易应用
 
-# CoinSR - A Full-Stack Trading Application
+这是一个在 Firebase Studio 中构建的 Next.js 应用，利用 Supabase 提供强大的后端、实时数据和身份认证功能。
 
-This is a Next.js application built in Firebase Studio, leveraging Supabase for a robust backend, real-time data, and authentication.
+## 核心技术
 
-## Core Technologies
+-   **框架**: Next.js (使用 App Router)
+-   **后端与数据库**: Supabase (PostgreSQL, Auth, Realtime, Storage)
+-   **样式**: Tailwind CSS & ShadCN UI
+-   **AI 集成**: Google AI & Genkit
 
--   **Framework**: Next.js (with App Router)
--   **Backend & DB**: Supabase (PostgreSQL, Auth, Realtime, Storage)
--   **Styling**: Tailwind CSS & ShadCN UI
--   **AI Integration**: Google AI & Genkit
+## 生产级架构概览
 
-## Production Architecture Overview
+该应用采用前后端分离架构，轻量级的前端负责展示，强大的后端负责驱动逻辑，从而保证了系统的可扩展性、数据一致性和安全性。
 
-The application is architected with a clear separation between a lightweight frontend and a powerful, logic-driven backend, ensuring scalability, data consistency, and security.
+### 1. 数据流与后端逻辑
 
-### 1. Data Flow & Backend Logic
+所有关键业务逻辑都由 Supabase 后端处理，主要通过 PostgreSQL 函数和触发器实现。
 
-All critical business logic is handled by the Supabase backend, primarily through PostgreSQL functions and triggers.
+-   **身份认证**: 完全由 **Supabase Auth** 管理。当新用户注册时，一个触发器会自动在我们的 `profiles` 公共表中创建对应的个人资料。
 
--   **Authentication**: Managed entirely by **Supabase Auth**. When a new user signs up, a trigger automatically creates a corresponding profile in our public `profiles` table.
+-   **市场数据管道**:
+    1.  **外部接口轮询**: 一个后端的定时任务（例如，使用 `pg_cron` 调度的 Supabase Edge Function）会周期性地从外部 API（如 Tatum 和 Yahoo Finance）获取实时市场数据。
+    2.  **数据暂存与干预**: 原始数据首先由一个后端函数处理。此函数会检查管理员在 `system_settings` 表中定义的任何活动的**市场干预规则**。如果某个交易对的规则处于激活状态，真实世界的数据将被管理员定义的模拟逻辑所覆盖（例如，在某个范围内强制拉升或压低价格）。
+    3.  **数据持久化**: 最终处理过的数据（无论是真实的还是模拟的）被保存到 `market_summary_data` 和 `market_kline_data` 表中。
 
--   **Market Data Pipeline**:
-    1.  **External API Polling**: A backend cron job (e.g., Supabase Edge Function scheduled with `pg_cron`) periodically fetches real-time market data from external APIs like Tatum and Yahoo Finance.
-    2.  **Staging & Intervention**: The raw data is first processed by a backend function. This function checks for any active **market intervention rules** defined by admins in the `system_settings` table. If a rule is active for a specific trading pair, the real-world data is overridden by the admin-defined simulation logic (e.g., force price up/down within a range).
-    3.  **Data Persistence**: The final, processed data (either real or simulated) is saved to the `market_summary_data` and `market_kline_data` tables.
+-   **自动化交易结算**:
+    *   一个名为 `settle_due_records()` 的数据库函数通过 `pg_cron` 每分钟自动运行。
+    *   它会查询所有 `settlement_time` 已到期的“进行中”状态的合约交易和投资。
+    *   在一个安全的数据库事务中，它会计算盈亏，将订单状态更新为“已结算”，并将本金和利润返还到用户在 `balances` 表中的余额里。
 
--   **Automated Trade Settlement**:
-    *   A database function `settle_due_records()` runs automatically every minute via `pg_cron`.
-    *   It queries for all "active" contract trades and investments whose `settlement_time` has passed.
-    *   Within a secure database transaction, it calculates profit/loss, updates the order's status to "settled", and transfers the principal and profit back to the user's balance in the `balances` table.
+-   **自动化佣金分配**:
+    *   `trades` 表上附加了一个数据库触发器。
+    *   每当一条新交易成功插入时，一个名为 `distribute_trade_commissions()` 的函数就会被自动执行。
+    *   此函数会递归地找到交易者的上三级邀请人，为每一级计算合适的佣金，并直接更新他们在 `balances` 表中的 USDT 余额。
 
--   **Automated Commission Distribution**:
-    *   A database trigger is attached to the `trades` table.
-    *   Whenever a new trade is successfully inserted, a function `distribute_trade_commissions()` is automatically executed.
-    *   This function recursively finds the trader's three levels of inviters, calculates the appropriate commission for each level, and directly updates their USDT balance in the `balances` table.
+### 2. 前端职责
 
-### 2. Frontend Responsibilities
+Next.js 前端主要是一个 **响应式的展示层**。
 
-The Next.js frontend is primarily a **reactive presentation layer**.
+-   **数据消费**: 组件不直接调用业务数据的 API，而是使用订阅了 **Supabase Realtime 频道** 的 `Context` 提供者。
+-   **实时更新**: 当后端数据发生变化时（例如，新的价格点到达、一笔交易被结算、余额被更新），Supabase 会通过实时连接推送这个变化，React 组件会自动使用新数据重新渲染。
+-   **用户输入**: 前端负责安全地捕获用户输入（例如，下单交易、更新个人资料），并通过 Supabase 的客户端库将其发送到后端。它不包含任何复杂的业务逻辑。
 
--   **Data Consumption**: Instead of making direct API calls for business data, components use `Context` providers that subscribe to **Supabase Realtime channels**.
--   **Real-time Updates**: When data changes in the backend (e.g., a new price point arrives, a trade is settled, a balance is updated), Supabase pushes the change through the real-time connection, and the React components automatically re-render with the new data.
--   **User Input**: The frontend is responsible for securely capturing user input (e.g., placing a trade, updating profile) and sending it to the backend via Supabase's client library. It does not contain any complex business logic.
+### 3. 此架构的优势
 
-### 3. Advantages of this Architecture
+*   **轻量级客户端**: 用户的浏览器从市场模拟或佣金计算等繁重计算中解放出来，带来更快、更流畅的用户体验。
+*   **数据一致性与原子性**: 所有用户看到完全相同的市场数据。关键的金融计算（结算、佣金）在原子性的数据库事务中执行，防止了部分更新并确保了财务完整性。
+*   **安全性与可靠性**: 核心业务逻辑在后端受到保护，客户端无法访问。自动化的、服务器端的定时任务确保了像交易结算这样的流程能够可靠地发生，无论用户是否在线。
+*   **可扩展性**: 以后端为中心的逻辑比客户端方法具有更强的可扩展性，能够高效地处理不断增长的用户和交易数量。
 
-*   **Lightweight Client**: The user's browser is freed from heavy computations like market simulation or commission calculations, leading to a faster, smoother user experience.
-*   **Data Consistency & Atomicity**: All users see the exact same market data. Critical financial calculations (settlements, commissions) are performed in atomic database transactions, preventing partial updates and ensuring financial integrity.
-*   **Security & Reliability**: Core business logic is protected within the backend, inaccessible from the client-side. Automated, server-side cron jobs ensure that processes like trade settlement occur reliably, regardless of whether the user is online.
-*   **Scalability**: The backend-centric logic is far more scalable than a client-side approach, capable of handling a growing number of users and transactions efficiently.
+## Supabase 设置指南
 
-## Supabase Setup Guide
+要在本地运行和开发此项目，需要一个 Supabase 项目。
 
-To run and develop this project locally, a Supabase project is required.
+1.  **创建 Supabase 项目**: 访问 [supabase.com](https://supabase.com) 并创建一个新项目。
 
-1.  **Create a Supabase Project**: Go to [supabase.com](https://supabase.com) and create a new project.
+2.  **获取 API 凭证**: 在您的 Supabase 项目仪表盘中，导航到 **项目设置** > **API**。您将找到您的 **项目 URL** 和 **anon (public) 密钥**。
 
-2.  **Get API Credentials**: In your Supabase project dashboard, navigate to **Project Settings** > **API**. You will find your **Project URL** and your **anon (public) key**.
-
-3.  **Set Environment Variables**: Create a `.env` file in the root of this project and add your credentials:
+3.  **设置环境变量**: 在本项目的根目录下创建一个 `.env` 文件，并添加您的凭证：
     ```
-    NEXT_PUBLIC_SUPABASE_URL=YOUR_PROJECT_URL
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+    NEXT_PUBLIC_SUPABASE_URL=你的项目URL
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=你的ANON_KEY
     ```
 
-4.  **Run SQL Script**: Go to the **SQL Editor** in your Supabase dashboard, paste the entire content of the `supabase.sql` file from this project's root directory, and click **"Run"**. This will create all the necessary tables, functions, triggers, and security policies.
+4.  **运行 SQL 脚本**: 进入您 Supabase 仪表盘的 **SQL 编辑器**，将本项目根目录下 `supabase.sql` 文件的全部内容粘贴进去，然后点击 **"Run"**。这将创建所有必需的表、函数、触发器和安全策略。
 
-5.  **Enable pg_cron (for automated settlement)**:
-    *   In your Supabase dashboard, go to **Database** -> **Extensions**.
-    *   Find `pg_cron` in the list and enable it. The `supabase.sql` script already contains the job scheduling command.
+5.  **启用 pg_cron (用于自动结算)**:
+    *   在您的 Supabase 仪表盘中，访问 **Database** -> **Extensions**。
+    *   在列表中找到 `pg_cron` 并启用它。`supabase.sql` 脚本已经包含了任务调度命令。
