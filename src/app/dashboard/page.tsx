@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { Megaphone, ArrowRight } from "lucide-react";
+import { Megaphone, ArrowRight, BookCheck, CalendarCheck, Users, Download, Repeat, Candlestick, Timer, Info } from "lucide-react";
 import { MarketList } from "@/components/market-list";
 import Link from 'next/link';
 import { useBalance } from "@/context/balance-context";
@@ -45,14 +45,14 @@ export default function DashboardPage() {
     }, [activeHornAnnouncements]);
 
     const features = [
-        { name: '每日任务', imgSrc: '/images/book.png', href: '/tasks', labelPosition: 'top' },
-        { name: '签到中心', imgSrc: '/images/sup.png', action: () => setIsCheckInOpen(true), labelPosition: 'top' },
-        { name: '代理团队', imgSrc: '/images/dai.png', href: '/profile/promotion', labelPosition: 'top' },
-        { name: '下载中心', imgSrc: '/images/downloadss.png', href: '/download', labelPosition: 'top' },
-        { name: '闪兑', imgSrc: '/images/dui.png', href: '/swap', labelPosition: 'bottom' },
-        { name: '秒合约', imgSrc: '/images/tt.png', href: '/trade?tab=contract', labelPosition: 'bottom' },
-        { name: '限时活动', imgSrc: '/images/time.png', href: '/activities', labelPosition: 'bottom' },
-        { name: '关于我们', imgSrc: '/images/me.png', href: '/coming-soon', labelPosition: 'bottom' },
+        { name: '每日任务', icon: BookCheck, href: '/tasks' },
+        { name: '签到中心', icon: CalendarCheck, action: () => setIsCheckInOpen(true) },
+        { name: '代理团队', icon: Users, href: '/profile/promotion' },
+        { name: '下载中心', icon: Download, href: '/download' },
+        { name: '闪兑', icon: Repeat, href: '/swap' },
+        { name: '秒合约', icon: Candlestick, href: '/trade?tab=contract' },
+        { name: '限时活动', icon: Timer, href: '/activities' },
+        { name: '关于我们', icon: Info, href: '/coming-soon' },
     ];
     
     const getUsdtValue = (assetName: string, amount: number) => {
@@ -150,38 +150,25 @@ export default function DashboardPage() {
 
                 {/* Features Grid */}
                 <div className="bg-card/50 backdrop-blur-sm rounded-lg p-2">
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 gap-4">
                         {features.map((feature) => {
                             const content = (
-                                <div className="relative w-full overflow-hidden rounded-lg group aspect-square">
-                                    {feature.imgSrc ? (
-                                        <Image
-                                            src={feature.imgSrc}
-                                            alt={feature.name}
-                                            fill
-                                            sizes="(max-width: 768px) 25vw, 10vw"
-                                            className="object-cover"
-                                        />
-                                    ) : null}
-                                    <div className={cn(
-                                        "absolute left-0 right-0 text-center",
-                                        feature.labelPosition === 'top' ? 'top-0 pt-2 px-2' : 'bottom-0 p-2'
-                                    )}>
-                                         <p className="text-sm font-bold text-blue-900">{feature.name}</p>
-                                    </div>
+                                <div className="flex flex-col items-center justify-center gap-2 py-3 rounded-lg group">
+                                    <feature.icon className="h-8 w-8 text-yellow-500" />
+                                    <p className="text-xs font-semibold text-foreground">{feature.name}</p>
                                 </div>
                             );
 
                             if (feature.href) {
                                 return (
-                                    <Link href={feature.href} key={feature.name} className="cursor-pointer">
+                                    <Link href={feature.href} key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors">
                                         {content}
                                     </Link>
                                 );
                             }
 
                             return (
-                                <div key={feature.name} className="cursor-pointer" onClick={feature.action}>
+                                <div key={feature.name} className="cursor-pointer hover:bg-muted/50 rounded-lg transition-colors" onClick={feature.action}>
                                     {content}
                                 </div>
                             );
@@ -210,3 +197,4 @@ export default function DashboardPage() {
         </DashboardLayout>
     );
 }
+
