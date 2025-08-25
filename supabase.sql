@@ -1,172 +1,154 @@
+
 -- 1. EXTENSIONS
--- Enable pg_cron for scheduled jobs and pgcrypto for UUID generation if not already enabled.
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Enable pg_cron for scheduled tasks
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+
+-- Enable pgcrypto for UUID generation if not already enabled
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 
 -- 2. TABLES
--- User Profiles table
+-- Create a table for public user profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id uuid NOT NULL PRIMARY KEY,
+  id uuid NOT NULL PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   updated_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
   username text UNIQUE,
   nickname text,
   avatar_url text,
   email text UNIQUE,
-  inviter_id uuid,
-  is_admin boolean DEFAULT false,
-  is_test_user boolean DEFAULT false,
-  is_frozen boolean DEFAULT false,
   invitation_code text UNIQUE,
-  credit_score integer DEFAULT 100,
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  CONSTRAINT username_length CHECK (char_length(username) >= 3)
+  inviter_id uuid REFERENCES public.profiles(id),
+  is_admin boolean DEFAULT false,
+  is_test_user boolean DEFAULT true,
+  is_frozen boolean DEFAULT false,
+  credit_score integer DEFAULT 100
 );
+-- Add comments to tables and columns
+COMMENT ON TABLE public.profiles IS 'Public profile information for each user.';
+COMMENT ON COLUMN public.profiles.id IS 'References the internal Supabase auth user.';
 
--- User Balances table
+-- Create a table for user balances
 CREATE TABLE IF NOT EXISTS public.balances (
-  id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   asset text NOT NULL,
   available_balance numeric NOT NULL DEFAULT 0,
   frozen_balance numeric NOT NULL DEFAULT 0,
-  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  UNIQUE (user_id, asset)
+  updated_at timestamp with time zone,
+  UNIQUE(user_id, asset)
 );
+COMMENT ON TABLE public.balances IS 'Stores the available and frozen balances for each asset a user holds.';
 
--- Trades table (for both spot and contract trades)
+-- Create a table for trades
 CREATE TABLE IF NOT EXISTS public.trades (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  trading_pair text NOT NULL,
-  orderType text NOT NULL, -- 'spot' or 'contract'
-  type text NOT NULL, -- 'buy' or 'sell'
-  status text NOT NULL, -- 'active', 'settled', 'filled', 'cancelled'
-  amount numeric NOT NULL,
-  price numeric, -- For spot trades
-  total numeric, -- For spot trades
-  entry_price numeric, -- For contract trades
-  settlement_time timestamptz, -- For contract trades
-  period integer, -- For contract trades
-  profit_rate numeric, -- For contract trades
-  settlement_price numeric, -- For contract trades
-  outcome text, -- 'win' or 'loss'
-  profit numeric,
-  base_asset text, -- For spot trades
-  quote_asset text, -- For spot trades
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    trading_pair text NOT NULL,
+    type text NOT NULL CHECK (type IN ('buy', 'sell')),
+    status text NOT NULL,
+    orderType text NOT NULL,
+    amount numeric NOT NULL,
+    entry_price numeric,
+    settlement_time timestamp with time zone,
+    period integer,
+    profit_rate numeric,
+    settlement_price numeric,
+    outcome text,
+    profit numeric,
+    base_asset text,
+    quote_asset text,
+    total numeric,
+    price numeric,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
-CREATE INDEX IF NOT EXISTS trades_user_id_idx ON public.trades(user_id);
-CREATE INDEX IF NOT EXISTS trades_status_idx ON public.trades(status);
-CREATE INDEX IF NOT EXISTS trades_settlement_time_idx ON public.trades(settlement_time) WHERE status = 'active';
+COMMENT ON TABLE public.trades IS 'Records all user trades, both spot and contract.';
 
-
--- Requests table (deposits, withdrawals, password resets)
+-- Create a table for user requests (deposits, withdrawals, etc.)
 CREATE TABLE IF NOT EXISTS public.requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  type text NOT NULL, -- 'deposit', 'withdrawal', 'password_reset'
-  asset text,
-  amount numeric,
-  address text,
-  transaction_hash text,
-  new_password text,
-  status text NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    type text NOT NULL,
+    asset text,
+    amount numeric,
+    address text,
+    transaction_hash text,
+    new_password text,
+    status text NOT NULL DEFAULT 'pending',
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
-CREATE INDEX IF NOT EXISTS requests_user_id_idx ON public.requests(user_id);
-CREATE INDEX IF NOT EXISTS requests_status_idx ON public.requests(status);
+COMMENT ON TABLE public.requests IS 'Manages user requests like deposits, withdrawals, and password resets.';
 
-
--- Investments table
+-- Create a table for investments
 CREATE TABLE IF NOT EXISTS public.investments (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     product_name text NOT NULL,
     amount numeric NOT NULL,
-    status text NOT NULL, -- 'active' or 'settled'
-    category text, -- 'staking' or 'finance'
-    productType text, -- 'daily' or 'hourly'
+    status text NOT NULL,
+    category text,
+    productType text,
     daily_rate numeric,
     period integer,
-    hourly_rate numeric,
     duration_hours integer,
-    profit numeric,
+    hourly_rate numeric,
     staking_asset text,
     staking_amount numeric,
-    created_at timestamptz DEFAULT now() NOT NULL,
-    settlement_date timestamptz NOT NULL
+    profit numeric,
+    settlement_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
-CREATE INDEX IF NOT EXISTS investments_user_id_idx ON public.investments(user_id);
-CREATE INDEX IF NOT EXISTS investments_status_idx ON public.investments(status);
-CREATE INDEX IF NOT EXISTS investments_settlement_date_idx ON public.investments(settlement_date) WHERE status = 'active';
+COMMENT ON TABLE public.investments IS 'Tracks user investments in various financial products.';
 
-
--- Reward Logs table
+-- Create a table for reward logs
 CREATE TABLE IF NOT EXISTS public.reward_logs (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type text NOT NULL, -- 'dailyTask', 'team', 'event', 'system'
+    type text NOT NULL,
     amount numeric NOT NULL,
     asset text NOT NULL,
     source_id text,
     source_username text,
     source_level integer,
     description text,
-    created_at timestamptz DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
-CREATE INDEX IF NOT EXISTS reward_logs_user_id_idx ON public.reward_logs(user_id);
+COMMENT ON TABLE public.reward_logs IS 'Logs all rewards and commissions credited to users.';
 
-
--- User Task States table
+-- Create a table for user task states
 CREATE TABLE IF NOT EXISTS public.user_task_states (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     taskId text NOT NULL,
     date date NOT NULL,
     completed boolean DEFAULT false,
     UNIQUE(user_id, taskId, date)
 );
-CREATE INDEX IF NOT EXISTS user_task_states_user_id_date_idx ON public.user_task_states(user_id, date);
+COMMENT ON TABLE public.user_task_states IS 'Tracks daily task completion for each user.';
 
-
--- Swap Orders table
+-- Create a table for P2P swap orders
 CREATE TABLE IF NOT EXISTS public.swap_orders (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    username text,
+    username text NOT NULL,
     from_asset text NOT NULL,
     from_amount numeric NOT NULL,
     to_asset text NOT NULL,
     to_amount numeric NOT NULL,
     status text NOT NULL,
-    taker_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+    taker_id uuid REFERENCES public.profiles(id),
     taker_username text,
     payment_proof_url text,
-    created_at timestamptz DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
-CREATE INDEX IF NOT EXISTS swap_orders_status_idx ON public.swap_orders(status);
-CREATE INDEX IF NOT EXISTS swap_orders_user_id_idx ON public.swap_orders(user_id);
+COMMENT ON TABLE public.swap_orders IS 'Stores peer-to-peer asset swap orders.';
 
--- Action Logs table (for admin auditing)
-CREATE TABLE IF NOT EXISTS public.action_logs (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
-    entity_type text,
-    entity_id text,
-    action text,
-    operator_id uuid,
-    operator_username text,
-    details text
-);
-
--- Content Tables (publicly readable, admin managed)
+-- Create tables for system content and settings (publicly readable)
 CREATE TABLE IF NOT EXISTS public.daily_tasks (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    title text,
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    title text NOT NULL,
     description text,
-    reward numeric,
+    reward numeric NOT NULL,
     reward_type text,
     link text,
     status text,
@@ -175,33 +157,34 @@ CREATE TABLE IF NOT EXISTS public.daily_tasks (
 );
 
 CREATE TABLE IF NOT EXISTS public.activities (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    title text,
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    title text NOT NULL,
     description text,
     rewardRule text,
     howToClaim text,
-    expiresAt timestamptz,
+    expiresAt timestamp with time zone,
     imgSrc text,
     status text,
-    createdAt timestamptz DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
 CREATE TABLE IF NOT EXISTS public.announcements (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    type text NOT NULL, -- 'horn', 'personal_message', 'carousel'
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    type text NOT NULL,
+    content jsonb,
     title text,
-    content jsonb, -- For carousel items
-    theme text, -- For horn
-    priority integer, -- For horn
-    expires_at timestamptz, -- For horn
-    user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE, -- For personal messages
-    UNIQUE (type) WHERE (type = 'carousel')
+    user_id uuid REFERENCES public.profiles(id),
+    date timestamp with time zone DEFAULT timezone('utc'::text, now()),
+    is_read boolean,
+    theme text,
+    priority integer,
+    expires_at timestamp with time zone
 );
 
 CREATE TABLE IF NOT EXISTS public.investment_products (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
     name text NOT NULL,
-    price numeric NOT NULL,
+    price numeric,
     dailyRate numeric,
     period integer,
     maxPurchase integer,
@@ -215,49 +198,68 @@ CREATE TABLE IF NOT EXISTS public.investment_products (
     stakingAmount numeric
 );
 
--- System Settings table (singleton)
-CREATE TABLE IF NOT EXISTS public.system_settings (
-    id integer PRIMARY KEY,
-    settings jsonb,
-    updated_at timestamptz DEFAULT now() NOT NULL
+CREATE TABLE IF NOT EXISTS public.action_logs (
+    id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    entity_type text,
+    entity_id text,
+    action text,
+    operator_id uuid,
+    operator_username text,
+    details text,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now())
 );
 
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    id integer NOT NULL PRIMARY KEY,
+    settings jsonb NOT NULL
+);
 
--- Market Data Tables
+-- Realtime Market Data Tables (no RLS, public access)
 CREATE TABLE IF NOT EXISTS public.market_summary_data (
-    pair text PRIMARY KEY,
+    pair text NOT NULL PRIMARY KEY,
     price numeric,
     change numeric,
     volume numeric,
     high numeric,
     low numeric,
     icon text,
-    updated_at timestamptz DEFAULT now() NOT NULL
+    updated_at timestamp with time zone
 );
 
 CREATE TABLE IF NOT EXISTS public.market_kline_data (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    id BIGSERIAL PRIMARY KEY,
     trading_pair text NOT NULL,
-    time timestamptz NOT NULL,
-    open numeric,
-    high numeric,
-    low numeric,
-    close numeric,
-    UNIQUE (trading_pair, time)
+    time timestamp with time zone NOT NULL,
+    open numeric NOT NULL,
+    high numeric NOT NULL,
+    low numeric NOT NULL,
+    close numeric NOT NULL,
+    UNIQUE(trading_pair, time)
 );
-CREATE INDEX IF NOT EXISTS market_kline_data_trading_pair_time_idx ON public.market_kline_data(trading_pair, time DESC);
 
 
--- 3. HELPER FUNCTIONS & TRIGGERS
+-- 3. INDEXES
+-- Create indexes for foreign keys and commonly queried columns
+CREATE INDEX IF NOT EXISTS idx_balances_user_id ON public.balances(user_id);
+CREATE INDEX IF NOT EXISTS idx_trades_user_id ON public.trades(user_id);
+CREATE INDEX IF NOT EXISTS idx_requests_user_id ON public.requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_investments_user_id ON public.investments(user_id);
+CREATE INDEX IF NOT EXISTS idx_reward_logs_user_id ON public.reward_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_task_states_user_id ON public.user_task_states(user_id);
+CREATE INDEX IF NOT EXISTS idx_swap_orders_user_id ON public.swap_orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_swap_orders_status ON public.swap_orders(status);
+CREATE INDEX IF NOT EXISTS idx_market_kline_data_pair_time ON public.market_kline_data(trading_pair, time DESC);
 
--- Function to create a user profile when a new user signs up in auth.users
+
+-- 4. FUNCTIONS
+-- Function to automatically create a public profile for a new user
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, nickname, email, invitation_code, inviter_id, credit_score, is_test_user, avatar_url)
+  INSERT INTO public.profiles (id, username, nickname, email, invitation_code, inviter_id, is_admin, is_test_user, credit_score, avatar_url)
   VALUES (
     new.id,
     new.raw_user_meta_data->>'username',
@@ -265,62 +267,54 @@ BEGIN
     new.email,
     new.raw_user_meta_data->>'invitation_code',
     (new.raw_user_meta_data->>'inviter_id')::uuid,
-    (new.raw_user_meta_data->>'credit_score')::integer,
+    (new.raw_user_meta_data->>'is_admin')::boolean,
     (new.raw_user_meta_data->>'is_test_user')::boolean,
+    (new.raw_user_meta_data->>'credit_score')::integer,
     new.raw_user_meta_data->>'avatar_url'
   );
   RETURN new;
 END;
 $$;
--- Trigger for the function
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
-
--- Function to automatically update the `updated_at` timestamp on relevant tables
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
+-- Function to handle automatic timestamp updates
+CREATE OR REPLACE FUNCTION public.set_current_timestamp_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
-   NEW.updated_at = now();
-   RETURN NEW;
+  NEW.updated_at = now();
+  RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
--- Triggers for updated_at
-DROP TRIGGER IF EXISTS handle_profiles_update ON public.profiles;
-CREATE TRIGGER handle_profiles_update BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
-DROP TRIGGER IF EXISTS handle_balances_update ON public.balances;
-CREATE TRIGGER handle_balances_update BEFORE UPDATE ON public.balances FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
-DROP TRIGGER IF EXISTS handle_requests_update ON public.requests;
-CREATE TRIGGER handle_requests_update BEFORE UPDATE ON public.requests FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
-DROP TRIGGER IF EXISTS handle_system_settings_update ON public.system_settings;
-CREATE TRIGGER handle_system_settings_update BEFORE UPDATE ON public.system_settings FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+$$;
 
-
--- 4. RPC FUNCTIONS
--- Function to adjust user balances safely
-CREATE OR REPLACE FUNCTION public.adjust_balance(p_user_id uuid, p_asset text, p_amount numeric, p_is_frozen boolean DEFAULT false)
+-- Function to adjust user balances
+CREATE OR REPLACE FUNCTION public.adjust_balance(
+  p_user_id uuid,
+  p_asset text,
+  p_amount numeric,
+  p_is_frozen boolean DEFAULT false
+)
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF p_is_frozen THEN
-        INSERT INTO public.balances(user_id, asset, frozen_balance)
-        VALUES (p_user_id, p_asset, p_amount)
-        ON CONFLICT (user_id, asset)
-        DO UPDATE SET frozen_balance = public.balances.frozen_balance + p_amount;
-    ELSE
-        INSERT INTO public.balances(user_id, asset, available_balance)
-        VALUES (p_user_id, p_asset, p_amount)
-        ON CONFLICT (user_id, asset)
-        DO UPDATE SET available_balance = public.balances.available_balance + p_amount;
-    END IF;
+  INSERT INTO public.balances(user_id, asset, available_balance, frozen_balance)
+  VALUES (p_user_id, p_asset, 0, 0)
+  ON CONFLICT (user_id, asset) DO NOTHING;
+
+  IF p_is_frozen THEN
+    UPDATE public.balances
+    SET frozen_balance = frozen_balance + p_amount
+    WHERE user_id = p_user_id AND asset = p_asset;
+  ELSE
+    UPDATE public.balances
+    SET available_balance = available_balance + p_amount
+    WHERE user_id = p_user_id AND asset = p_asset;
+  END IF;
 END;
 $$;
 
 -- Function to get the total platform balance
-DROP FUNCTION IF EXISTS public.get_total_platform_balance();
 CREATE OR REPLACE FUNCTION public.get_total_platform_balance()
 RETURNS numeric
 LANGUAGE sql
@@ -328,81 +322,39 @@ AS $$
   SELECT COALESCE(SUM(available_balance), 0) FROM public.balances;
 $$;
 
--- Function to recursively get all downline members
+-- Function to get a user's downline
 DROP FUNCTION IF EXISTS public.get_downline(uuid);
 CREATE OR REPLACE FUNCTION public.get_downline(p_user_id uuid)
-RETURNS TABLE (
-    id uuid,
-    username text,
-    nickname text,
-    email text,
-    inviter_id uuid,
-    is_admin boolean,
-    is_test_user boolean,
-    is_frozen boolean,
-    invitation_code text,
-    credit_score integer,
-    created_at timestamptz,
-    last_login_at timestamptz,
-    avatar_url text,
-    level int
-) AS $$
+RETURNS TABLE(id uuid, username text, email text, nickname text, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, inviter_id uuid, created_at timestamp with time zone, credit_score integer, avatar_url text, level int)
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    RETURN QUERY
-    WITH RECURSIVE downline_cte AS (
-        SELECT
-            p.id,
-            p.username,
-            p.nickname,
-            p.email,
-            p.inviter_id,
-            p.is_admin,
-            p.is_test_user,
-            p.is_frozen,
-            p.invitation_code,
-            p.credit_score,
-            p.created_at,
-            p.last_login_at,
-            p.avatar_url,
-            1 AS level
-        FROM public.profiles p
-        WHERE p.inviter_id = p_user_id
+  RETURN QUERY
+  WITH RECURSIVE downline_cte AS (
+    SELECT p.id, p.username, p.email, p.nickname, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.inviter_id, p.created_at, p.credit_score, p.avatar_url, 1 AS level
+    FROM public.profiles p
+    WHERE p.inviter_id = p_user_id
 
-        UNION ALL
+    UNION ALL
 
-        SELECT
-            p.id,
-            p.username,
-            p.nickname,
-            p.email,
-            p.inviter_id,
-            p.is_admin,
-            p.is_test_user,
-            p.is_frozen,
-            p.invitation_code,
-            p.credit_score,
-            p.created_at,
-            p.last_login_at,
-            p.avatar_url,
-            d.level + 1
-        FROM public.profiles p
-        JOIN downline_cte d ON p.inviter_id = d.id
-        WHERE d.level < 3
-    )
-    SELECT * FROM downline_cte;
+    SELECT p.id, p.username, p.email, p.nickname, p.is_admin, p.is_test_user, p.is_frozen, p.invitation_code, p.inviter_id, p.created_at, p.credit_score, p.avatar_url, d.level + 1
+    FROM public.profiles p
+    JOIN downline_cte d ON p.inviter_id = d.id
+    WHERE d.level < 3
+  )
+  SELECT * FROM downline_cte;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
--- 5. FUNCTION & TRIGGER FOR SETTLEMENTS
-DROP FUNCTION IF EXISTS public.settle_due_records();
+-- Function to settle due records
 CREATE OR REPLACE FUNCTION public.settle_due_records()
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    trade_record RECORD;
-    investment_record RECORD;
-    profit numeric;
-    settlement_price numeric;
-    outcome text;
+    trade_record record;
+    investment_record record;
+    profit_amount numeric;
 BEGIN
     -- Settle due contract trades
     FOR trade_record IN
@@ -410,33 +362,20 @@ BEGIN
         WHERE status = 'active' AND orderType = 'contract' AND settlement_time <= now()
         FOR UPDATE
     LOOP
-        -- In a real scenario, you'd fetch the latest price from a reliable source.
-        -- For this simulation, we'll use a placeholder or the entry price for simplicity.
-        SELECT price INTO settlement_price FROM public.market_summary_data WHERE pair = trade_record.trading_pair;
-        IF settlement_price IS NULL THEN
-            settlement_price := trade_record.entry_price; -- Fallback
-        END IF;
+        -- Calculate profit/loss (simplified logic)
+        profit_amount := CASE
+            WHEN (trade_record.type = 'buy' AND (SELECT price FROM public.market_summary_data WHERE pair = trade_record.trading_pair) > trade_record.entry_price) THEN trade_record.amount * trade_record.profit_rate
+            WHEN (trade_record.type = 'sell' AND (SELECT price FROM public.market_summary_data WHERE pair = trade_record.trading_pair) < trade_record.entry_price) THEN trade_record.amount * trade_record.profit_rate
+            ELSE -trade_record.amount
+        END;
 
-        IF trade_record.type = 'buy' THEN
-            outcome := CASE WHEN settlement_price > trade_record.entry_price THEN 'win' ELSE 'loss' END;
-        ELSE -- 'sell'
-            outcome := CASE WHEN settlement_price < trade_record.entry_price THEN 'win' ELSE 'loss' END;
-        END IF;
-
-        profit := CASE WHEN outcome = 'win' THEN trade_record.amount * trade_record.profit_rate ELSE -trade_record.amount END;
-
+        -- Update trade status and profit
         UPDATE public.trades
-        SET status = 'settled',
-            settlement_price = settlement_price,
-            outcome = outcome,
-            profit = profit
+        SET status = 'settled', profit = profit_amount, outcome = CASE WHEN profit_amount > 0 THEN 'win' ELSE 'loss' END
         WHERE id = trade_record.id;
 
-        -- Adjust balances
-        PERFORM public.adjust_balance(trade_record.user_id, trade_record.quote_asset, -trade_record.amount, true); -- Unfreeze
-        IF outcome = 'win' THEN
-            PERFORM public.adjust_balance(trade_record.user_id, trade_record.quote_asset, trade_record.amount + profit); -- Return principal + profit
-        END IF; -- If loss, principal is lost, so nothing is returned to available.
+        -- Return principal and profit/loss to user's balance
+        PERFORM public.adjust_balance(trade_record.user_id, (string_to_array(trade_record.trading_pair, '/'))[2], trade_record.amount + profit_amount);
     END LOOP;
 
     -- Settle due investments
@@ -445,111 +384,116 @@ BEGIN
         WHERE status = 'active' AND settlement_date <= now()
         FOR UPDATE
     LOOP
-        IF investment_record.productType = 'daily' THEN
-            profit := investment_record.amount * investment_record.daily_rate * investment_record.period;
-        ELSE -- 'hourly'
-            profit := investment_record.amount * investment_record.hourly_rate;
-        END IF;
+        -- Calculate profit
+        profit_amount := investment_record.amount * COALESCE(investment_record.daily_rate, 0) * COALESCE(investment_record.period, 0) + investment_record.amount * COALESCE(investment_record.hourly_rate, 0) * COALESCE(investment_record.duration_hours, 0);
         
+        -- Update investment status
         UPDATE public.investments
-        SET status = 'settled', profit = profit
+        SET status = 'settled', profit = profit_amount
         WHERE id = investment_record.id;
 
         -- Return principal and profit
-        PERFORM public.adjust_balance(investment_record.user_id, 'USDT', investment_record.amount + profit);
+        PERFORM public.adjust_balance(investment_record.user_id, 'USDT', investment_record.amount + profit_amount);
 
-        -- Unfreeze staking asset if any
-        IF investment_record.staking_asset IS NOT NULL AND investment_record.staking_amount > 0 THEN
+        -- If it was a staking investment with a frozen balance, unfreeze it
+        IF investment_record.staking_asset IS NOT NULL AND investment_record.staking_amount IS NOT NULL THEN
+            PERFORM public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, false);
             PERFORM public.adjust_balance(investment_record.user_id, investment_record.staking_asset, -investment_record.staking_amount, true);
         END IF;
+
     END LOOP;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-
--- 6. FUNCTION & TRIGGER FOR COMMISSION DISTRIBUTION
-DROP FUNCTION IF EXISTS public.distribute_trade_commissions();
+-- Function to distribute commissions up the chain
 CREATE OR REPLACE FUNCTION public.distribute_trade_commissions()
-RETURNS TRIGGER AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    source_user public.profiles;
-    upline_user public.profiles;
-    level INT;
-    commission_rate numeric;
+    inviter1_id uuid;
+    inviter2_id uuid;
+    inviter3_id uuid;
+    trader_profile public.profiles;
     commission_amount numeric;
-    current_inviter_id uuid;
 BEGIN
-    -- Only distribute for contract trades in USDT
-    IF NEW.orderType = 'contract' AND NEW.quote_asset = 'USDT' THEN
-        SELECT * INTO source_user FROM public.profiles WHERE id = NEW.user_id;
-        
-        IF source_user.inviter_id IS NOT NULL THEN
-            current_inviter_id := source_user.inviter_id;
-            
-            FOR level IN 1..3 LOOP
-                IF current_inviter_id IS NULL THEN
-                    EXIT;
-                END IF;
+    -- Get the trader's profile
+    SELECT * INTO trader_profile FROM public.profiles WHERE id = NEW.user_id;
 
-                SELECT * INTO upline_user FROM public.profiles WHERE id = current_inviter_id;
-                
-                IF upline_user IS NULL OR upline_user.is_frozen THEN
-                    EXIT;
-                END IF;
+    -- Level 1
+    inviter1_id := trader_profile.inviter_id;
+    IF inviter1_id IS NOT NULL THEN
+        commission_amount := NEW.amount * 0.08;
+        PERFORM public.adjust_balance(inviter1_id, 'USDT', commission_amount);
+        INSERT INTO public.reward_logs(user_id, type, amount, asset, source_user_id, source_username, source_level, description)
+        VALUES (inviter1_id, 'team', commission_amount, 'USDT', NEW.user_id, trader_profile.username, 1, 'Level 1 commission from ' || trader_profile.username);
 
-                commission_rate := CASE level
-                    WHEN 1 THEN 0.08
-                    WHEN 2 THEN 0.05
-                    WHEN 3 THEN 0.02
-                END;
+        -- Level 2
+        SELECT inviter_id INTO inviter2_id FROM public.profiles WHERE id = inviter1_id;
+        IF inviter2_id IS NOT NULL THEN
+            commission_amount := NEW.amount * 0.05;
+            PERFORM public.adjust_balance(inviter2_id, 'USDT', commission_amount);
+            INSERT INTO public.reward_logs(user_id, type, amount, asset, source_user_id, source_username, source_level, description)
+            VALUES (inviter2_id, 'team', commission_amount, 'USDT', NEW.user_id, trader_profile.username, 2, 'Level 2 commission from ' || trader_profile.username);
 
-                commission_amount := NEW.amount * commission_rate;
-
-                -- Credit reward to upline user
-                PERFORM public.adjust_balance(upline_user.id, 'USDT', commission_amount);
-
-                -- Log the commission
-                INSERT INTO public.reward_logs (user_id, type, amount, asset, source_id, source_username, source_level, description)
-                VALUES (upline_user.id, 'team', commission_amount, 'USDT', NEW.id, source_user.username, level, 'Level ' || level || ' trade commission');
-                
-                -- Move to the next inviter
-                current_inviter_id := upline_user.inviter_id;
-            END LOOP;
+            -- Level 3
+            SELECT inviter_id INTO inviter3_id FROM public.profiles WHERE id = inviter2_id;
+            IF inviter3_id IS NOT NULL THEN
+                commission_amount := NEW.amount * 0.02;
+                PERFORM public.adjust_balance(inviter3_id, 'USDT', commission_amount);
+                INSERT INTO public.reward_logs(user_id, type, amount, asset, source_user_id, source_username, source_level, description)
+                VALUES (inviter3_id, 'team', commission_amount, 'USDT', NEW.user_id, trader_profile.username, 3, 'Level 3 commission from ' || trader_profile.username);
+            END IF;
         END IF;
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-DROP TRIGGER IF EXISTS on_trade_insert_distribute_commission ON public.trades;
-CREATE TRIGGER on_trade_insert_distribute_commission
-    AFTER INSERT ON public.trades
-    FOR EACH ROW
-    EXECUTE FUNCTION public.distribute_trade_commissions();
-
-
--- 7. SCHEDULED JOBS (using pg_cron)
--- Cron job to run the settlement function every minute
-SELECT cron.schedule('settle-records-job', '* * * * *', 'SELECT public.settle_due_records()');
-
-
--- 8. HELPER FUNCTION FOR RLS
--- A function to check if the current user is an admin.
+-- Helper function to check for admin privileges
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE plpgsql
 AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM public.profiles
-        WHERE id = auth.uid() AND is_admin = TRUE
-    );
+BEGIN
+  RETURN (
+    SELECT is_admin
+    FROM public.profiles
+    WHERE id = auth.uid()
+  );
+END;
 $$;
 
 
--- 9. ROW-LEVEL SECURITY (RLS)
--- Enable RLS for all tables that store user-specific data.
+-- 5. TRIGGERS
+-- Trigger to create a profile when a new user signs up
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Trigger to update the 'updated_at' timestamp
+DROP TRIGGER IF EXISTS handle_updated_at ON public.profiles;
+CREATE TRIGGER handle_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.set_current_timestamp_updated_at();
+
+-- Trigger to distribute commissions after a trade
+DROP TRIGGER IF EXISTS on_trade_insert_distribute_commission ON public.trades;
+CREATE TRIGGER on_trade_insert_distribute_commission
+  AFTER INSERT ON public.trades
+  FOR EACH ROW
+  WHEN (NEW.orderType = 'contract' AND NEW.status = 'active')
+  EXECUTE FUNCTION public.distribute_trade_commissions();
+
+
+-- 6. CRON JOBS
+-- Schedule the settlement function to run every minute
+SELECT cron.schedule('settle-due-records', '*/1 * * * *', 'SELECT public.settle_due_records()');
+
+
+-- 7. ROW-LEVEL SECURITY (RLS)
+-- Enable RLS for all user-specific tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
@@ -560,7 +504,7 @@ ALTER TABLE public.user_task_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.swap_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.action_logs ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies before creating new ones to avoid conflicts.
+-- Drop existing policies to avoid conflicts
 DROP POLICY IF EXISTS "Users can view their own profile." ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile." ON public.profiles;
 DROP POLICY IF EXISTS "Admins can manage all profiles." ON public.profiles;
@@ -628,36 +572,9 @@ CREATE POLICY "Admins can manage all swap orders." ON public.swap_orders FOR ALL
 CREATE POLICY "Admins can manage logs" ON public.action_logs FOR ALL USING (public.is_admin());
 
 
--- Allow public read access for non-user-specific content tables
-ALTER TABLE public.daily_tasks ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public can read daily tasks" ON public.daily_tasks;
-CREATE POLICY "Public can read daily tasks" ON public.daily_tasks FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage daily tasks" ON public.daily_tasks;
-CREATE POLICY "Admins can manage daily tasks" ON public.daily_tasks FOR ALL USING (public.is_admin());
-
-ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public can read activities" ON public.activities;
-CREATE POLICY "Public can read activities" ON public.activities FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage activities" ON public.activities;
-CREATE POLICY "Admins can manage activities" ON public.activities FOR ALL USING (public.is_admin());
-
-ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public can read announcements" ON public.announcements;
-CREATE POLICY "Public can read announcements" ON public.announcements FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage announcements" ON public.announcements;
-CREATE POLICY "Admins can manage announcements" ON public.announcements FOR ALL USING (public.is_admin());
-
-ALTER TABLE public.investment_products ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public can read investment products" ON public.investment_products;
-CREATE POLICY "Public can read investment products" ON public.investment_products FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Admins can manage investment products" ON public.investment_products;
-CREATE POLICY "Admins can manage investment products" ON public.investment_products FOR ALL USING (public.is_admin());
-
-
--- 10. PUBLICATION FOR REALTIME
+-- 8. PUBLICATION FOR REALTIME
 -- Drop existing publications if they exist to ensure a clean state
 DROP PUBLICATION IF EXISTS supabase_realtime;
 
--- Create a new publication for all tables that need realtime updates.
--- Supabase handles this automatically for tables with RLS, but being explicit ensures desired tables are included.
-CREATE PUBLICATION supabase_realtime FOR TABLE public.market_summary_data, public.market_kline_data, public.swap_orders, public.trades, public.investments, public.balances;
+-- Create a new publication for all tables to enable realtime functionality
+CREATE PUBLICATION supabase_realtime FOR ALL TABLES;

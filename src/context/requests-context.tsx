@@ -83,15 +83,17 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         });
     }, [addRequest]);
 
-    const addWithdrawalRequest = useCallback((params: WithdrawalRequestParams) => {
+    const addWithdrawalRequest = useCallback(async (params: WithdrawalRequestParams) => {
         if (!user) return;
-        addRequest({
+        
+        await addRequest({
             type: 'withdrawal',
             ...params,
         });
+
         // Freeze balance on request
-        adjustBalance(user.id, params.asset, -params.amount); // Decrease available
-        adjustBalance(user.id, params.asset, params.amount, true); // Increase frozen
+        await adjustBalance(user.id, params.asset, -params.amount); 
+        await adjustBalance(user.id, params.asset, params.amount, true);
     }, [user, addRequest, adjustBalance]);
 
     const addPasswordResetRequest = useCallback(async (newPassword: string) => {
@@ -124,8 +126,8 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         } else { // 'reject' action
              if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
                 // Return amount from frozen to available
-                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Decrease frozen
-                await adjustBalance(request.user_id, request.asset, request.amount); // Increase available
+                await adjustBalance(request.user_id, request.asset, -request.amount, true); 
+                await adjustBalance(request.user_id, request.asset, request.amount); 
             }
         }
 

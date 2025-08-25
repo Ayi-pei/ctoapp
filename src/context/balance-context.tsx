@@ -140,22 +140,29 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
 
+    const handleDataChange = () => {
+        if (!user) return;
+        fetchUserTradeData(user.id);
+        fetchUserInvestmentData(user.id);
+        fetchUserBalanceData(user.id);
+    }
+
     const tradesChannel = supabase
       .channel(`trades-channel-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}` }, 
-        () => fetchUserTradeData(user.id)
+        handleDataChange
       ).subscribe();
       
     const investmentsChannel = supabase
       .channel(`investments-channel-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}` }, 
-        () => fetchUserInvestmentData(user.id)
+        handleDataChange
       ).subscribe();
 
     const balancesChannel = supabase
       .channel(`balances-channel-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `user_id=eq.${user.id}` }, 
-        () => fetchUserBalanceData(user.id)
+        handleDataChange
       ).subscribe();
       
     return () => {
