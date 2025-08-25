@@ -5,10 +5,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/auth-context';
-import { useBalance } from '@/context/balance-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
-import { SpotTrade, ContractTrade, Investment } from '@/types';
+import { SpotTrade, ContractTrade, Investment, SwapOrder } from '@/types';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,28 +21,41 @@ import {
 } from "@/components/ui/popover"
 import { DateRange } from "react-day-picker"
 import { format } from "date-fns"
+import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
-type AllOrderTypes = SpotTrade | ContractTrade | Investment;
+type AllOrderTypes = SpotTrade | ContractTrade | Investment | SwapOrder;
 
 type FormattedOrder = AllOrderTypes & {
     username: string;
-    orderTypeText: 'spot' | 'contract' | 'investment';
+    orderTypeText: 'spot' | 'contract' | 'investment' | 'swap';
     statusText: string;
 };
 
-const getOrderStatusText = (order: FormattedOrder) => {
-    if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
-    if (order.orderTypeText === 'contract') {
-        const contract = order as ContractTrade;
-        if (contract.status === 'active') return '进行中';
-        if (contract.outcome === 'win') return '盈利';
-        if (contract.outcome === 'loss') return '亏损';
-    }
-    if (order.orderTypeText === 'investment') {
-        const investment = order as Investment;
-        if (investment.status === 'active') return '进行中';
-        if (investment.status === 'settled') return '已结算';
+const getOrderStatusText = (order: FormattedOrder): string => {
+    switch(order.orderTypeText) {
+        case 'spot':
+            return (order as SpotTrade).status === 'filled' ? '已成交' : '未知';
+        case 'contract':
+            const contract = order as ContractTrade;
+            if (contract.status === 'active') return '进行中';
+            if (contract.outcome === 'win') return '盈利';
+            if (contract.outcome === 'loss') return '亏损';
+            return '已结算';
+        case 'investment':
+            const investment = order as Investment;
+            return investment.status === 'active' ? '进行中' : '已结算';
+        case 'swap':
+            const swap = order as SwapOrder;
+            const statusMap: Record<SwapOrder['status'], string> = {
+                open: '开放中',
+                pending_payment: '待支付',
+                pending_confirmation: '待确认',
+                completed: '已完成',
+                cancelled: '已取消',
+                disputed: '申诉中'
+            };
+            return statusMap[swap.status];
     }
     return '未知';
 }
@@ -51,44 +63,50 @@ const getOrderStatusText = (order: FormattedOrder) => {
 
 export default function AdminOrdersPage() {
     const { isAdmin } = useAuth();
-    const { getAllHistoricalTrades, getAllUserInvestments } = useBalance();
     const router = useRouter();
     const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
     
-    // Filter states
     const [typeFilter, setTypeFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState<DateRange | undefined>(undefined);
 
     const loadData = useCallback(async () => {
-        if (isAdmin === true) {
-            const allTrades = await getAllHistoricalTrades();
-            const allInvestments = await getAllUserInvestments();
+        if (!isAdmin || !isSupabaseEnabled) return;
+
+        const [tradesRes, investmentsRes, swapsRes] = await Promise.all([
+            supabase.from('trades').select('*, user:profiles(username)'),
+            supabase.from('investments').select('*, user:profiles(username)'),
+            supabase.from('swap_orders').select('*, user:profiles(username)')
+        ]);
+
+        const allTrades = tradesRes.data || [];
+        const allInvestments = investmentsRes.data || [];
+        const allSwaps = swapsRes.data || [];
+
+        const combinedOrders = [...allTrades, ...allInvestments, ...allSwaps];
+
+        const formatted = combinedOrders.map((o: any) => {
+            let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
+            if ('orderType' in o) { // trades
+                orderTypeText = o.orderType;
+            } else if ('product_name' in o) { // investments
+                orderTypeText = 'investment';
+            } else if ('from_asset' in o) { // swaps
+                orderTypeText = 'swap';
+            }
             
-            const combinedOrders: AllOrderTypes[] = [...allTrades, ...allInvestments];
+            const baseFormatted = {
+                ...o,
+                username: o.user?.username || o.user_id || '未知用户',
+                orderTypeText: orderTypeText,
+            } as FormattedOrder;
+            
+            return { ...baseFormatted, statusText: getOrderStatusText(baseFormatted) };
 
-            const formatted = combinedOrders.map(t => {
-                const username = (t as any).user?.username || t.user_id;
-                let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
-                if ('orderType' in t && t.orderType) {
-                    orderTypeText = t.orderType;
-                } else if ('product_name' in t) {
-                    orderTypeText = 'investment';
-                }
-                
-                const baseFormatted = {
-                    ...t,
-                    username: username,
-                    orderTypeText: orderTypeText,
-                } as FormattedOrder;
-                
-                return { ...baseFormatted, statusText: getOrderStatusText(baseFormatted) };
+        }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-            }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-            setAllOrders(formatted);
-        }
-    }, [isAdmin, getAllHistoricalTrades, getAllUserInvestments]);
+        setAllOrders(formatted);
+    }, [isAdmin]);
     
     useEffect(() => {
         if (isAdmin === false) {
@@ -127,27 +145,41 @@ export default function AdminOrdersPage() {
         )
     }
 
-    const getOrderAmount = (order: FormattedOrder) => {
+    const getOrderAmount = (order: FormattedOrder): string => {
         if (order.orderTypeText === 'spot') return (order as SpotTrade).total.toFixed(4);
         if (order.orderTypeText === 'contract') return (order as ContractTrade).amount.toFixed(4);
         if (order.orderTypeText === 'investment') return (order as Investment).amount.toFixed(2);
+        if (order.orderTypeText === 'swap') return `${(order as SwapOrder).from_amount.toFixed(4)} -> ${(order as SwapOrder).to_amount.toFixed(4)}`;
         return 'N/A';
     }
     
     const getStatusBadge = (order: FormattedOrder) => {
-        if (order.orderTypeText === 'spot') return (order as SpotTrade).status === 'filled' ? <Badge variant="outline" className="text-green-500">已成交</Badge> : <Badge variant="secondary">未知</Badge>;
+        const text = order.statusText;
+        if (order.orderTypeText === 'spot') return <Badge variant="outline" className="text-green-500">{text}</Badge>;
         if (order.orderTypeText === 'contract') {
             const contract = order as ContractTrade;
-            if (contract.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
-            if (contract.outcome === 'win') return <Badge variant="outline" className="text-green-500">盈利 (+{(contract.profit || 0).toFixed(2)})</Badge>;
-            if (contract.outcome === 'loss') return <Badge variant="outline" className="text-red-500">亏损 ({(contract.profit || 0).toFixed(2)})</Badge>;
+            if (contract.status === 'active') return <Badge variant="outline" className="text-yellow-500">{text}</Badge>;
+            if (contract.outcome === 'win') return <Badge variant="outline" className="text-green-500">{text} (+{(contract.profit || 0).toFixed(2)})</Badge>;
+            if (contract.outcome === 'loss') return <Badge variant="outline" className="text-red-500">{text} ({(contract.profit || 0).toFixed(2)})</Badge>;
         }
         if (order.orderTypeText === 'investment') {
             const investment = order as Investment;
-            if (investment.status === 'active') return <Badge variant="outline" className="text-yellow-500">进行中</Badge>;
-            if (investment.status === 'settled') return <Badge variant="outline" className="text-green-500">已结算 (+{(investment.profit || 0).toFixed(2)})</Badge>;
+            if (investment.status === 'active') return <Badge variant="outline" className="text-yellow-500">{text}</Badge>;
+            if (investment.status === 'settled') return <Badge variant="outline" className="text-green-500">{text} (+{(investment.profit || 0).toFixed(2)})</Badge>;
         }
-        return <Badge variant="secondary">未知</Badge>;
+        if (order.orderTypeText === 'swap') {
+            const status = (order as SwapOrder).status;
+            const colorMap = {
+                open: 'bg-blue-500/20 text-blue-500',
+                pending_payment: 'bg-yellow-500/20 text-yellow-500',
+                pending_confirmation: 'bg-orange-500/20 text-orange-500',
+                completed: 'bg-green-500/20 text-green-500',
+                cancelled: 'bg-gray-500/20 text-gray-500',
+                disputed: 'bg-red-500/20 text-red-500'
+            };
+            return <Badge className={colorMap[status]}>{text}</Badge>
+        }
+        return <Badge variant="secondary">{text}</Badge>;
     }
     
     const getOrderDirection = (order: FormattedOrder) => {
@@ -159,8 +191,9 @@ export default function AdminOrdersPage() {
     }
     
      const getPairOrProduct = (order: FormattedOrder) => {
-        if ('trading_pair' in order) return order.trading_pair;
-        if ('product_name' in order) return order.product_name;
+        if ('trading_pair' in order && order.trading_pair) return order.trading_pair;
+        if ('product_name' in order && order.product_name) return order.product_name;
+        if ('from_asset' in order && 'to_asset' in order) return `${order.from_asset}/${order.to_asset}`;
         return 'N/A';
     }
 
@@ -207,6 +240,7 @@ export default function AdminOrdersPage() {
                                     <SelectItem value="spot">币币</SelectItem>
                                     <SelectItem value="contract">合约</SelectItem>
                                     <SelectItem value="investment">理财</SelectItem>
+                                    <SelectItem value="swap">闪兑</SelectItem>
                                 </SelectContent>
                             </Select>
                             
@@ -221,6 +255,10 @@ export default function AdminOrdersPage() {
                                     <SelectItem value="已结算">已结算</SelectItem>
                                     <SelectItem value="盈利">盈利</SelectItem>
                                     <SelectItem value="亏损">亏损</SelectItem>
+                                    <SelectItem value="开放中">开放中</SelectItem>
+                                    <SelectItem value="待支付">待支付</SelectItem>
+                                    <SelectItem value="待确认">待确认</SelectItem>
+                                    <SelectItem value="已完成">已完成</SelectItem>
                                 </SelectContent>
                             </Select>
                             
@@ -274,7 +312,7 @@ export default function AdminOrdersPage() {
                                     <TableHead>类型</TableHead>
                                     <TableHead>方向</TableHead>
                                     <TableHead>价格 (入场/出场)</TableHead>
-                                    <TableHead>金额 (USDT)</TableHead>
+                                    <TableHead>金额/数量</TableHead>
                                     <TableHead>状态/结果</TableHead>
                                     <TableHead>时间</TableHead>
                                 </TableRow>
@@ -288,9 +326,10 @@ export default function AdminOrdersPage() {
                                             <span className={cn('px-2 py-1 text-xs font-semibold rounded-full', 
                                                 order.orderTypeText === 'spot' && 'bg-blue-500/20 text-blue-500',
                                                 order.orderTypeText === 'contract' && 'bg-purple-500/20 text-purple-500',
-                                                order.orderTypeText === 'investment' && 'bg-yellow-500/20 text-yellow-500'
+                                                order.orderTypeText === 'investment' && 'bg-yellow-500/20 text-yellow-500',
+                                                order.orderTypeText === 'swap' && 'bg-indigo-500/20 text-indigo-500'
                                             )}>
-                                                {order.orderTypeText === 'spot' ? '币币' : order.orderTypeText === 'contract' ? '合约' : '理财'}
+                                                {order.orderTypeText === 'spot' ? '币币' : order.orderTypeText === 'contract' ? '合约' : order.orderTypeText === 'investment' ? '理财' : '闪兑'}
                                             </span>
                                         </TableCell>
                                         <TableCell>
@@ -316,3 +355,5 @@ export default function AdminOrdersPage() {
         </DashboardLayout>
     );
 }
+
+    

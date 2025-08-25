@@ -157,24 +157,26 @@ export default function SwapPage() {
             return;
         }
 
-        const success = createOrder({ fromAsset, fromAmount: fromAmountNum, toAsset, toAmount: toAmountNum });
-        if(success) {
-            setFromAmount("");
-            setToAmount("");
-        }
+        createOrder({ from_asset: fromAsset, from_amount: fromAmountNum, to_asset: toAsset, to_amount: toAmountNum }).then(success => {
+            if(success) {
+                setFromAmount("");
+                setToAmount("");
+            }
+        });
+        
         setIsSubmitting(false);
     }
 
     const OrderRow = ({ order }: { order: SwapOrder }) => (
         <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 p-3 border rounded-lg bg-muted/50">
             <div className="flex flex-col items-end text-right">
-                <p className="font-bold">{order.fromAmount} <span className="text-xs text-muted-foreground">{order.fromAsset}</span></p>
+                <p className="font-bold">{order.from_amount} <span className="text-xs text-muted-foreground">{order.from_asset}</span></p>
                 <p className="text-xs text-muted-foreground">挂单者: {order.username}</p>
             </div>
             <ArrowRight className="h-5 w-5 text-primary" />
              <div className="flex flex-col items-start">
-                <p className="font-bold">{order.toAmount} <span className="text-xs text-muted-foreground">{order.toAsset}</span></p>
-                <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
+                <p className="font-bold">{order.to_amount} <span className="text-xs text-muted-foreground">{order.to_asset}</span></p>
+                <p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</p>
             </div>
              <Button size="sm" onClick={() => acceptOrder(order.id)}>兑换</Button>
         </div>
@@ -183,13 +185,13 @@ export default function SwapPage() {
     const MyOrderRow = ({ order }: { order: SwapOrder }) => (
          <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 p-3 border rounded-lg bg-muted/50">
              <div className="flex flex-col items-end text-right">
-                <p className="font-bold">{order.fromAmount} <span className="text-xs text-muted-foreground">{order.fromAsset}</span></p>
+                <p className="font-bold">{order.from_amount} <span className="text-xs text-muted-foreground">{order.from_asset}</span></p>
                 <p className="text-xs text-muted-foreground">兑换为</p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
              <div className="flex flex-col items-start">
-                <p className="font-bold">{order.toAmount} <span className="text-xs text-muted-foreground">{order.toAsset}</span></p>
-                <p className="text-xs text-muted-foreground">对方: {order.takerUsername || '等待中...'}</p>
+                <p className="font-bold">{order.to_amount} <span className="text-xs text-muted-foreground">{order.to_asset}</span></p>
+                <p className="text-xs text-muted-foreground">对方: {order.taker_username || '等待中...'}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
                 {getStatusBadge(order.status)}
@@ -207,20 +209,20 @@ export default function SwapPage() {
     );
 
     const PendingOrderRow = ({ order }: { order: SwapOrder }) => {
-        const isBuyer = user?.id === order.takerId;
-        const isSeller = user?.id === order.userId;
+        const isBuyer = user?.id === order.taker_id;
+        const isSeller = user?.id === order.user_id;
         
         return (
             <div className="flex flex-col gap-3 p-3 border rounded-lg bg-muted/50">
                 <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2">
                     <div className="flex flex-col items-end text-right">
-                        <p className="font-bold">{order.fromAmount} <span className="text-xs text-muted-foreground">{order.fromAsset}</span></p>
+                        <p className="font-bold">{order.from_amount} <span className="text-xs text-muted-foreground">{order.from_asset}</span></p>
                         <p className="text-xs text-muted-foreground">卖家: {order.username}</p>
                     </div>
                     <ArrowRight className="h-5 w-5 text-muted-foreground" />
                      <div className="flex flex-col items-start">
-                        <p className="font-bold">{order.toAmount} <span className="text-xs text-muted-foreground">{order.toAsset}</span></p>
-                        <p className="text-xs text-muted-foreground">买家: {order.takerUsername}</p>
+                        <p className="font-bold">{order.to_amount} <span className="text-xs text-muted-foreground">{order.to_asset}</span></p>
+                        <p className="text-xs text-muted-foreground">买家: {order.taker_username}</p>
                     </div>
                     {getStatusBadge(order.status)}
                 </div>
@@ -234,7 +236,7 @@ export default function SwapPage() {
                     {isSeller && order.status === 'pending_confirmation' && (
                         <>
                             <p className="text-sm text-blue-500 mr-auto">请核验交易凭证</p>
-                            <Button variant="secondary" size="sm" onClick={() => openProofDialog(order.paymentProofUrl!)}><Eye className="mr-1 h-4 w-4" />查看</Button>
+                            <Button variant="secondary" size="sm" onClick={() => openProofDialog(order.payment_proof_url!)}><Eye className="mr-1 h-4 w-4" />查看</Button>
                             <Button variant="default" size="sm" onClick={() => confirmCompletion(order.id)}><CheckCircle className="mr-1 h-4 w-4"/>成交</Button>
                             <Button variant="destructive" size="sm" onClick={() => reportDispute(order.id)}><AlertTriangle className="mr-1 h-4 w-4"/>申诉</Button>
                         </>
@@ -317,8 +319,8 @@ export default function SwapPage() {
                              <CardContent className="pt-6">
                                 <ScrollArea className="h-72">
                                     <div className="space-y-2 pr-4">
-                                    {orders.filter(o => o.status === 'open' && o.userId !== user?.id).length > 0 ? 
-                                        orders.filter(o => o.status === 'open' && o.userId !== user?.id).map(order => (
+                                    {orders.filter(o => o.status === 'open' && o.user_id !== user?.id).length > 0 ? 
+                                        orders.filter(o => o.status === 'open' && o.user_id !== user?.id).map(order => (
                                             <OrderRow key={order.id} order={order} />
                                         )) : <p className="text-center text-muted-foreground p-8">暂无挂单</p>
                                     }
@@ -332,8 +334,8 @@ export default function SwapPage() {
                              <CardContent className="pt-6">
                                 <ScrollArea className="h-72">
                                     <div className="space-y-3 pr-4">
-                                    {orders.filter(o => (o.status === 'pending_payment' || o.status === 'pending_confirmation') && (o.userId === user?.id || o.takerId === user?.id)).length > 0 ? 
-                                        orders.filter(o => (o.status === 'pending_payment' || o.status === 'pending_confirmation') && (o.userId === user?.id || o.takerId === user?.id)).map(order => (
+                                    {orders.filter(o => (o.status === 'pending_payment' || o.status === 'pending_confirmation') && (o.user_id === user?.id || o.taker_id === user?.id)).length > 0 ? 
+                                        orders.filter(o => (o.status === 'pending_payment' || o.status === 'pending_confirmation') && (o.user_id === user?.id || o.taker_id === user?.id)).map(order => (
                                             <PendingOrderRow key={order.id} order={order} />
                                         )) : <p className="text-center text-muted-foreground p-8">没有待处理的订单</p>
                                     }
@@ -347,8 +349,8 @@ export default function SwapPage() {
                              <CardContent className="pt-6">
                                 <ScrollArea className="h-72">
                                     <div className="space-y-2 pr-4">
-                                        {orders.filter(o => o.userId === user?.id).length > 0 ? 
-                                            orders.filter(o => o.userId === user?.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(order => (
+                                        {orders.filter(o => o.user_id === user?.id).length > 0 ? 
+                                            orders.filter(o => o.user_id === user?.id).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
                                             <MyOrderRow key={order.id} order={order} />
                                         )) : <p className="text-center text-muted-foreground p-8">您还没有挂单</p>}
                                     </div>
@@ -368,3 +370,5 @@ export default function SwapPage() {
         </DashboardLayout>
     )
 }
+
+    
