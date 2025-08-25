@@ -32,10 +32,10 @@ const OptionsTable = ({ contracts, type }: { contracts: OptionContract[], type: 
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {contracts.map(contract => {
+                {contracts.map((contract, index) => {
                     const isPositive = contract.change >= 0;
                     return (
-                        <TableRow key={contract.contract_id} className={cn(contract.in_the_money && (type === 'call' ? 'bg-green-500/10' : 'bg-red-500/10'))}>
+                        <TableRow key={`${contract.contract_id}-${index}`} className={cn(contract.in_the_money && (type === 'call' ? 'bg-green-500/10' : 'bg-red-500/10'))}>
                             <TableCell>
                                 <div className="flex flex-col">
                                     <span className="font-medium">{contract.last_price.toFixed(2)}</span>
@@ -62,13 +62,13 @@ const OptionsChainSkeleton = () => (
         <Card>
             <CardHeader><Skeleton className="h-8 w-24" /></CardHeader>
             <CardContent>
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full my-2" />)}
+                {[...Array(5)].map((_, i) => <Skeleton key={`call-skeleton-${i}`} className="h-12 w-full my-2" />)}
             </CardContent>
         </Card>
         <Card>
             <CardHeader><Skeleton className="h-8 w-24" /></CardHeader>
             <CardContent>
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full my-2" />)}
+                {[...Array(5)].map((_, i) => <Skeleton key={`put-skeleton-${i}`} className="h-12 w-full my-2" />)}
             </CardContent>
         </Card>
     </div>
@@ -79,24 +79,19 @@ export default function OptionsPage() {
     const { optionsChain, isLoading, selectedSymbol, changeSymbol, availableSymbols } = useOptions();
     const [selectedExpiration, setSelectedExpiration] = useState<string | undefined>(undefined);
 
-    // Effect to handle selecting an expiration date when the chain data changes.
     useEffect(() => {
-        // If the options chain is available
         if (optionsChain && optionsChain.length > 0) {
             const currentExpirationExists = optionsChain.some(c => c.expiration_date === selectedExpiration);
-            // If the currently selected expiration doesn't exist in the new chain,
-            // or if no expiration is selected yet, default to the first one.
-            if (!currentExpirationExists) {
+            if (!currentExpirationExists || !selectedExpiration) {
                 setSelectedExpiration(optionsChain[0].expiration_date);
             }
         } else {
-            // If the options chain is empty, reset the selection.
             setSelectedExpiration(undefined);
         }
     }, [optionsChain, selectedExpiration]);
 
 
-    const currentChain = optionsChain.find(c => c.expiration_date === selectedExpiration);
+    const currentChain = optionsChain?.find(c => c.expiration_date === selectedExpiration);
 
     return (
         <DashboardLayout>
@@ -117,13 +112,15 @@ export default function OptionsPage() {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Select value={selectedExpiration} onValueChange={setSelectedExpiration} disabled={optionsChain.length === 0}>
+                        <Select value={selectedExpiration} onValueChange={setSelectedExpiration} disabled={!optionsChain || optionsChain.length === 0}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="选择到期日" />
                             </SelectTrigger>
                             <SelectContent>
                                 {optionsChain.map(chain => (
-                                    <SelectItem key={chain.expiration_date} value={chain.expiration_date}>{chain.expiration_date}</SelectItem>
+                                    <SelectItem key={chain.expiration_date} value={chain.expiration_date}>
+                                        {chain.expiration_date}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
