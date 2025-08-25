@@ -79,24 +79,22 @@ export default function OptionsPage() {
     const { optionsChain, isLoading, selectedSymbol, changeSymbol, availableSymbols } = useOptions();
     const [selectedExpiration, setSelectedExpiration] = useState<string | undefined>(undefined);
 
-    // Effect to select the first expiration date when data loads or changes
+    // Effect to handle selecting an expiration date when the chain data changes.
     useEffect(() => {
-        if (optionsChain.length > 0 && !selectedExpiration) {
-            setSelectedExpiration(optionsChain[0].expiration_date);
-        }
-    }, [optionsChain, selectedExpiration]);
-    
-     // This effect handles updates when optionsChain changes AFTER initial load.
-    useEffect(() => {
-        if (optionsChain.length > 0) {
-            // If the currently selected expiration doesn't exist in the new chain, reset to the first one.
-            if (!optionsChain.some(c => c.expiration_date === selectedExpiration)) {
+        // If the options chain is available
+        if (optionsChain && optionsChain.length > 0) {
+            const currentExpirationExists = optionsChain.some(c => c.expiration_date === selectedExpiration);
+            // If the currently selected expiration doesn't exist in the new chain,
+            // or if no expiration is selected yet, default to the first one.
+            if (!currentExpirationExists) {
                 setSelectedExpiration(optionsChain[0].expiration_date);
             }
         } else {
+            // If the options chain is empty, reset the selection.
             setSelectedExpiration(undefined);
         }
     }, [optionsChain, selectedExpiration]);
+
 
     const currentChain = optionsChain.find(c => c.expiration_date === selectedExpiration);
 
