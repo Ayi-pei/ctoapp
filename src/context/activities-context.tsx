@@ -71,7 +71,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
 
   const addActivity = async () => {
     if (!isSupabaseEnabled) return;
-    const newActivity: Omit<LimitedTimeActivity, 'id'|'createdAt'> = {
+    const newActivity: Omit<LimitedTimeActivity, 'id'|'created_at'> = {
       title: '新活动',
       description: '活动描述...',
       rewardRule: '奖励规则...',
