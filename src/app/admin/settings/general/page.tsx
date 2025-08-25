@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSystemSettings } from "@/context/system-settings-context";
+import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
 import { useToast } from "@/hooks/use-toast";
 
-const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
+const supportedAssets: (keyof ReturnType<typeof useEnhancedSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
 export default function AdminGeneralSettingsPage() {
-    const { systemSettings, updateDepositAddress } = useSystemSettings();
+    const { systemSettings, updateDepositAddress } = useEnhancedSystemSettings();
     const { toast } = useToast();
     
     const handleSaveSettings = () => {

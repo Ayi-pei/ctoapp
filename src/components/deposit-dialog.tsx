@@ -16,7 +16,7 @@ import { Copy, Send, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useSystemSettings } from "@/context/system-settings-context";
+import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRequests } from "@/context/requests-context";
 
@@ -25,13 +25,13 @@ type DepositDialogProps = {
     onOpenChange: (isOpen: boolean) => void;
 };
 
-const supportedAssets: (keyof ReturnType<typeof useSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
+const supportedAssets: (keyof ReturnType<typeof useEnhancedSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
 export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { toast } = useToast();
     const { user } = useAuth();
     const { addDepositRequest } = useRequests();
-    const { systemSettings } = useSystemSettings();
+    const { systemSettings } = useEnhancedSystemSettings();
     const [selectedAsset, setSelectedAsset] = useState<keyof typeof systemSettings.depositAddresses>("USDT");
     const [amount, setAmount] = useState("");
     const [transactionHash, setTransactionHash] = useState("");

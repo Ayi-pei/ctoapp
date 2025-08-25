@@ -5,7 +5,7 @@ import { MarketSummary, OHLC } from "@/types";
 import { Area, AreaChart } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
 import { useRouter } from "next/navigation";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +15,7 @@ type MarketListProps = {
 };
 
 export function MarketList({ summary, klineData }: MarketListProps) {
-  const { changeTradingPair } = useMarket();
+  const { changeTradingPair } = useEnhancedMarket();
   const router = useRouter();
 
   const handlePairClick = (pair: string) => {

@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 
 const availableAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
@@ -66,7 +66,7 @@ export default function SwapPage() {
         reportDispute
     } = useSwap();
     const { balances } = useBalance();
-    const { summaryData } = useMarket();
+    const { summaryData } = useEnhancedMarket();
     const { toast } = useToast();
     
     const [fromAsset, setFromAsset] = useState("USDT");

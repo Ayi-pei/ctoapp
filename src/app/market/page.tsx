@@ -3,10 +3,10 @@
 import DashboardLayout from "@/components/dashboard-layout";
 import { MarketList } from "@/components/market-list";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 
 export default function MarketPage() {
-    const { cryptoSummaryData, klineData, summaryData } = useMarket();
+    const { cryptoSummaryData, klineData, summaryData } = useEnhancedMarket();
 
     const renderMarketList = (data: any[], type: string) => {
         if (summaryData.length === 0 && data.length === 0) {

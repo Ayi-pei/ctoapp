@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
-import { useSystemSettings } from "@/context/system-settings-context";
+import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
 import { useTasks } from "@/context/tasks-context";
 
 type ContractTradeParams = {
@@ -56,7 +56,7 @@ export function ContractOrderSheet({
   quoteAsset
 }: ContractOrderSheetProps) {
   const { toast } = useToast();
-  const { systemSettings } = useSystemSettings();
+  const { systemSettings } = useEnhancedSystemSettings();
   const { triggerTaskCompletion } = useTasks();
   const [selectedPeriod, setSelectedPeriod] = useState(periods[0]);
   const [amount, setAmount] = useState("");
