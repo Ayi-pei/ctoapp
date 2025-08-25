@@ -13,13 +13,13 @@ import { useBalance } from "@/context/balance-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketSummary } from "@/types";
 
 const ProfileHeader = () => {
     const { user, updateUser } = useAuth();
     const { balances } = useBalance();
-    const { summaryData } = useMarket(); // Get real-time market data
+    const { summaryData } = useEnhancedMarket(); // Get real-time market data
     const { toast } = useToast();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
     const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);

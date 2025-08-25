@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { useBalance } from "@/context/balance-context";
 import { OrderForm } from "./order-form";
 import { SpotOrderForm } from "./spot-order-form";
@@ -35,7 +35,7 @@ const getCssVar = (() => {
 
 
 export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: string }) {
-  const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice, cryptoSummaryData, klineData } = useMarket();
+  const { tradingPair, klineData: allKlineData, summaryData, getLatestPrice, cryptoSummaryData, klineData } = useEnhancedMarket();
   const { balances, placeContractTrade, placeSpotTrade } = useBalance();
   
   const [activeTab, setActiveTab] = useState(initialTab);

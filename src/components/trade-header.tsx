@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User, LogOut, Home, CandlestickChart } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { useAuth } from "@/context/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useState, useEffect } from 'react';
@@ -36,7 +36,7 @@ const Logo = () => (
 export function TradeHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { tradingPair, availablePairs, changeTradingPair } = useMarket();
+  const { tradingPair, availablePairs, changeTradingPair } = useEnhancedMarket();
   const { logout, user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState('');
 

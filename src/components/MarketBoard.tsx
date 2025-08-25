@@ -2,7 +2,7 @@
 
 "use client";
 import React, { useState } from "react";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import ReactECharts from "echarts-for-react";
 
 const symbols = [
@@ -13,7 +13,7 @@ const symbols = [
 ];
 
 export function MarketBoard() {
-  const { tradingPair, changeTradingPair, getLatestPrice, klineData } = useMarket();
+  const { tradingPair, changeTradingPair, getLatestPrice, klineData } = useEnhancedMarket();
 
   const currentKlineData = klineData[tradingPair] || [];
 

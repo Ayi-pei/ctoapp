@@ -7,14 +7,14 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/context/auth-context';
 import { BalanceProvider } from '@/context/balance-context';
-import { MarketDataProvider } from '@/context/market-data-context';
-import { SystemSettingsProvider } from '@/context/system-settings-context';
+import { EnhancedMarketDataProvider } from '@/context/enhanced-market-data-context';
+import { EnhancedSystemSettingsProvider } from '@/context/enhanced-system-settings-context';
 import { RequestsProvider } from '@/context/requests-context';
 import { AnnouncementsProvider } from '@/context/announcements-context';
 import { InvestmentSettingsProvider } from '@/context/investment-settings-context';
 import { TasksProvider } from '@/context/tasks-context';
 import { ActivitiesProvider } from '@/context/activities-context';
-import { LogsProvider } from '@/context/logs-context';
+import { SimpleEnhancedLogsProvider } from '@/context/simple-enhanced-logs-context';
 import { SwapProvider } from '@/context/swap-context';
 import { OptionsProvider } from '@/context/options-context';
 
@@ -37,10 +37,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased text-foreground">
         <AuthProvider>
-          <LogsProvider>
-            <SystemSettingsProvider>
+          <SimpleEnhancedLogsProvider>
+            <EnhancedSystemSettingsProvider>
               <InvestmentSettingsProvider>
-                  <MarketDataProvider>
+                  <EnhancedMarketDataProvider>
                     <OptionsProvider>
                         <BalanceProvider>
                           <TasksProvider>
@@ -57,10 +57,10 @@ export default function RootLayout({
                           </TasksProvider>
                         </BalanceProvider>
                     </OptionsProvider>
-                  </MarketDataProvider>
+                  </EnhancedMarketDataProvider>
               </InvestmentSettingsProvider>
-            </SystemSettingsProvider>
-          </LogsProvider>
+            </EnhancedSystemSettingsProvider>
+          </SimpleEnhancedLogsProvider>
         </AuthProvider>
       </body>
     </html>

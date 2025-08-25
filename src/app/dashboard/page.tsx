@@ -12,7 +12,7 @@ import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";

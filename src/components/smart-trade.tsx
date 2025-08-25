@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useBalance } from "@/context/balance-context";
 import { Clock, ListTodo, Trash2 } from "lucide-react";
-import { useSystemSettings } from "@/context/system-settings-context";
-import { useMarket } from "@/context/market-data-context";
+import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { availablePairs as allAvailablePairs } from "@/types"; // Renamed to avoid conflict
 
@@ -31,8 +31,8 @@ type SmartTradeProps = {
 export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps) {
   const { toast } = useToast();
   const { balances, placeContractTrade } = useBalance();
-  const { systemSettings } = useSystemSettings();
-  const { summaryData } = useMarket();
+  const { systemSettings } = useEnhancedSystemSettings();
+  const { summaryData } = useEnhancedMarket();
 
   const marketData = useMemo(() => {
     return summaryData.reduce((acc: any, curr: any) => {

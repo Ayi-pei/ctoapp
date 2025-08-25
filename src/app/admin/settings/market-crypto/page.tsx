@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useSystemSettings, MarketIntervention } from "@/context/system-settings-context";
+import { useEnhancedSystemSettings, EnhancedMarketIntervention } from "@/context/enhanced-system-settings-context";
 import { availablePairs as allAvailablePairs } from "@/types";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,9 +20,9 @@ const InterventionCard = ({
     updateIntervention,
     removeIntervention,
 }: { 
-    intervention: MarketIntervention,
+    intervention: EnhancedMarketIntervention,
     index: number,
-    updateIntervention: (id: string, updates: Partial<MarketIntervention>) => void,
+    updateIntervention: (id: string, updates: Partial<EnhancedMarketIntervention>) => void,
     removeIntervention: (id: string) => void,
 }) => {
     return (
@@ -117,7 +117,7 @@ export default function AdminCryptoMarketSettingsPage() {
         addMarketIntervention,
         removeMarketIntervention,
         updateMarketIntervention,
-    } = useSystemSettings();
+    } = useEnhancedSystemSettings();
     const { toast } = useToast();
     
     const handleSaveChanges = () => {
