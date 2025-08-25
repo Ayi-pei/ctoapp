@@ -71,19 +71,23 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
 
   const addActivity = async () => {
     if (!isSupabaseEnabled) return;
-    const newActivity: Omit<LimitedTimeActivity, 'id'|'created_at'> = {
+  
+    const newActivity: Omit<LimitedTimeActivity, 'id'> = {
       title: '新活动',
       description: '活动描述...',
       rewardRule: '奖励规则...',
       howToClaim: '领取方式...',
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       status: 'draft',
-      imgSrc: 'https://placehold.co/600x400.png'
+      imgSrc: 'https://placehold.co/600x400.png',
+      createdAt: new Date().toISOString(), // ✅ 加上 createdAt
     };
+  
     const { error } = await supabase.from('activities').insert(newActivity);
     if (error) console.error("Error adding activity:", error);
     else await fetchActivities();
   };
+  
 
   const removeActivity = async (id: string) => {
     if (!isSupabaseEnabled) return;
