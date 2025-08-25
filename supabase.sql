@@ -1,100 +1,70 @@
--- supabase.sql
+-- 1. 数据库表结构
 
--- 1. 开启扩展
-create extension if not exists "uuid-ossp";
-create extension if not exists pgroonga;
-create extension if not exists pg_cron;
-
--- 2. 自定义类型
-drop type if exists public.order_type;
-create type public.order_type as enum ('buy', 'sell');
-
-drop type if exists public.order_outcome;
-create type public.order_outcome as enum ('win', 'loss');
-
-drop type if exists public.contract_status;
-create type public.contract_status as enum ('active', 'settled');
-
-drop type if exists public.spot_status;
-create type public.spot_status as enum ('filled', 'cancelled');
-
-drop type if exists public.investment_status;
-create type public.investment_status as enum ('active', 'settled');
-
-drop type if exists public.request_status;
-create type public.request_status as enum ('pending', 'approved', 'rejected');
-
-drop type if exists public.transaction_type;
-create type public.transaction_type as enum ('deposit', 'withdrawal', 'adjustment');
-
-drop type if exists public.swap_order_status;
-create type public.swap_order_status as enum ('open', 'pending_payment', 'pending_confirmation', 'completed', 'cancelled', 'disputed');
-
--- 3. 表定义
+-- 核心用户表
 create table if not exists public.profiles (
-    id uuid primary key,
-    username text unique not null,
-    nickname text,
-    email text unique,
-    inviter_id uuid references public.profiles(id),
-    is_admin boolean default false,
-    is_test_user boolean default false,
-    is_frozen boolean default false,
-    invitation_code text unique,
-    credit_score integer default 100,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    last_login_at timestamp with time zone,
-    avatar_url text
+  id uuid not null primary key,
+  username text unique,
+  nickname text,
+  email text unique,
+  inviter_id uuid references public.profiles(id),
+  is_admin boolean default false,
+  is_test_user boolean default true,
+  is_frozen boolean default false,
+  invitation_code text unique,
+  credit_score integer default 100,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  last_login_at timestamp with time zone,
+  avatar_url text
 );
-comment on table public.profiles is 'Stores user profile information.';
+-- 补充说明: `profiles.id` 与 `auth.users.id` 关联
 
+-- 用户资产余额表
 create table if not exists public.balances (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
-    asset text not null,
-    available_balance double precision default 0,
-    frozen_balance double precision default 0,
-    unique(user_id, asset)
+  id bigserial primary key,
+  user_id uuid not null references public.profiles(id),
+  asset text not null,
+  available_balance double precision default 0,
+  frozen_balance double precision default 0,
+  unique(user_id, asset)
 );
-comment on table public.balances is 'Stores user asset balances.';
 
+-- 交易记录表 (包含币币和秒合约)
 create table if not exists public.trades (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
-    trading_pair text not null,
-    type public.order_type not null,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    -- Contract-specific
-    amount double precision,
-    entry_price double precision,
-    settlement_time timestamp with time zone,
-    period integer,
-    profit_rate double precision,
-    status public.contract_status,
-    settlement_price double precision,
-    outcome public.order_outcome,
-    profit double precision,
-    orderType text, -- 'contract' or 'spot'
-    -- Spot-specific
-    base_asset text,
-    quote_asset text,
-    total double precision, -- For spot trades (amount * price)
-    price double precision, -- For spot trades
-    spot_status public.spot_status
+  id bigserial primary key,
+  user_id uuid not null references public.profiles(id),
+  trading_pair text not null,
+  orderType text not null check (orderType in ('spot', 'contract')),
+  type text not null check (type in ('buy', 'sell')),
+  status text not null, -- spot: 'filled', 'cancelled'; contract: 'active', 'settled'
+  amount double precision not null, -- 对于spot是基础货币数量, 对于contract是投资额
+  -- For Spot Trades
+  total double precision, -- a.k.a quote_asset_amount
+  price double precision,
+  base_asset text,
+  quote_asset text,
+  -- For Contract Trades
+  entry_price double precision,
+  settlement_time timestamp with time zone,
+  period integer,
+  profit_rate double precision,
+  settlement_price double precision,
+  outcome text, -- 'win' or 'loss'
+  profit double precision,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
-comment on table public.trades is 'Stores all user trades, both contract and spot.';
 
+-- 理财投资记录表
 create table if not exists public.investments (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
+    id bigserial primary key,
+    user_id uuid not null references public.profiles(id),
     product_name text not null,
     amount double precision not null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     settlement_date timestamp with time zone not null,
-    status public.investment_status not null default 'active',
-    category text,
+    status text not null, -- 'active', 'settled'
+    category text, -- 'staking', 'finance'
     profit double precision,
-    productType text,
+    productType text, -- 'daily', 'hourly'
     daily_rate double precision,
     period integer,
     staking_asset text,
@@ -102,25 +72,11 @@ create table if not exists public.investments (
     duration_hours integer,
     hourly_rate double precision
 );
-comment on table public.investments is 'Stores user investments in financial products.';
 
-create table if not exists public.requests (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
-    type text not null, -- 'deposit', 'withdrawal', 'password_reset'
-    status public.request_status not null default 'pending',
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-    asset text,
-    amount double precision,
-    address text,
-    transaction_hash text,
-    new_password text
-);
-comment on table public.requests is 'Stores user requests for admin approval.';
-
+-- 奖励/佣金日志表
 create table if not exists public.reward_logs (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
+    id bigserial primary key,
+    user_id uuid not null references public.profiles(id),
     type text not null, -- 'dailyTask', 'team', 'event', 'system'
     amount double precision not null,
     asset text not null,
@@ -130,102 +86,128 @@ create table if not exists public.reward_logs (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     description text
 );
-comment on table public.reward_logs is 'Logs all rewards and commissions.';
 
-create table if not exists public.investment_products (
-    id uuid primary key default gen_random_uuid(),
-    name text not null,
-    price double precision,
-    daily_rate double precision,
-    period integer,
-    max_purchase integer,
-    img_src text,
-    category text,
-    product_type text,
-    active_start_time text,
-    active_end_time text,
-    hourly_tiers jsonb,
-    staking_asset text,
-    staking_amount double precision
+-- 用户请求表 (充值、提现、密码重置)
+create table if not exists public.requests (
+    id bigserial primary key,
+    user_id uuid not null references public.profiles(id),
+    type text not null, -- 'deposit', 'withdrawal', 'password_reset'
+    asset text,
+    amount double precision,
+    address text,
+    transaction_hash text,
+    new_password text,
+    status text not null, -- 'pending', 'approved', 'rejected'
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 系统设置表 (单行记录，用于全局配置)
 create table if not exists public.system_settings (
-    id integer primary key,
-    settings jsonb not null
+  id int primary key default 1,
+  settings jsonb,
+  constraint single_row_check check (id = 1)
 );
 
+-- 公告表
 create table if not exists public.announcements (
-    id uuid primary key default gen_random_uuid(),
+    id bigserial primary key,
     type text not null, -- 'personal_message', 'carousel', 'horn'
+    user_id uuid references public.profiles(id), -- Null for system-wide announcements
     content jsonb,
     title text,
-    user_id uuid references public.profiles(id),
-    is_read boolean default false,
-    date timestamp with time zone default timezone('utc'::text, now()) not null,
     theme text,
     priority integer,
-    expires_at timestamp with time zone
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    is_read boolean default false,
+    constraint unique_type_for_singletons unique (type)
 );
 
+-- 活动表
+create table if not exists public.activities (
+    id bigserial primary key,
+    title text not null,
+    description text,
+    rewardRule text,
+    howToClaim text,
+    expiresAt timestamp with time zone,
+    imgSrc text,
+    status text, -- 'published', 'draft'
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 每日任务定义表
 create table if not exists public.daily_tasks (
-    id uuid primary key default gen_random_uuid(),
+    id bigserial primary key,
     title text not null,
     description text,
     reward double precision,
     reward_type text,
     link text,
-    img_src text,
-    status text,
-    trigger text
+    imgSrc text,
+    status text, -- 'published', 'draft'
+    trigger text unique
 );
 
+-- 用户任务完成状态表
 create table if not exists public.user_task_states (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
-    task_id uuid references public.daily_tasks(id) not null,
+    id bigserial primary key,
+    user_id uuid not null references public.profiles(id),
+    taskId text not null references public.daily_tasks(trigger),
     date date not null,
     completed boolean default false,
-    unique(user_id, task_id, date)
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    unique(user_id, taskId, date)
 );
 
-create table if not exists public.activities (
-    id uuid primary key default gen_random_uuid(),
-    title text not null,
-    description text,
-    reward_rule text,
-    how_to_claim text,
-    expires_at timestamp with time zone,
-    img_src text,
-    status text,
-    created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
+-- 管理员操作日志
 create table if not exists public.action_logs (
-    id uuid primary key default gen_random_uuid(),
+    id bigserial primary key,
     entity_type text,
     entity_id text,
     action text,
-    operator_id uuid,
+    operator_id uuid references public.profiles(id),
     operator_username text,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     details text
 );
 
+-- P2P闪兑订单表
 create table if not exists public.swap_orders (
-    id uuid primary key default gen_random_uuid(),
-    user_id uuid references public.profiles(id) not null,
-    username text not null,
-    from_asset text not null,
-    from_amount double precision not null,
-    to_asset text not null,
-    to_amount double precision not null,
-    status public.swap_order_status not null default 'open',
+    id bigserial primary key,
+    user_id uuid not null references public.profiles(id),
+    username text,
+    from_asset text,
+    from_amount double precision,
+    to_asset text,
+    to_amount double precision,
+    status text,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     taker_id uuid references public.profiles(id),
     taker_username text,
     payment_proof_url text
 );
 
+
+-- 理财产品配置表
+create table if not exists public.investment_products (
+    id bigserial primary key,
+    name text not null,
+    price double precision,
+    dailyRate double precision,
+    period integer,
+    maxPurchase integer,
+    imgSrc text,
+    category text,
+    productType text,
+    activeStartTime text,
+    activeEndTime text,
+    hourlyTiers jsonb,
+    stakingAsset text,
+    stakingAmount double precision
+);
+
+-- 实时市场数据 - 汇总
 create table if not exists public.market_summary_data (
     pair text primary key,
     price double precision,
@@ -237,17 +219,22 @@ create table if not exists public.market_summary_data (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 实时市场数据 - K线
 create table if not exists public.market_kline_data (
+    id bigserial primary key,
     trading_pair text not null,
     time timestamp with time zone not null,
-    open double precision not null,
-    high double precision not null,
-    low double precision not null,
-    close double precision not null,
-    primary key (trading_pair, time)
+    open double precision,
+    high double precision,
+    low double precision,
+    close double precision,
+    unique(trading_pair, time)
 );
+create index if not exists market_kline_data_time_idx on public.market_kline_data (time desc);
 
--- 4. 数据库函数和触发器
+
+-- 2. 数据库函数和触发器
+
 -- Function to handle new user setup
 create or replace function public.handle_new_user()
 returns trigger
@@ -255,26 +242,25 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  -- Create a profile for the new user
-  insert into public.profiles (id, username, nickname, email, invitation_code, avatar_url, inviter_id, is_test_user, credit_score)
+  insert into public.profiles (id, username, nickname, email, invitation_code, inviter_id, avatar_url, credit_score, is_test_user)
   values (
     new.id,
     new.raw_user_meta_data->>'username',
     new.raw_user_meta_data->>'nickname',
     new.email,
     new.raw_user_meta_data->>'invitation_code',
-    new.raw_user_meta_data->>'avatar_url',
     (new.raw_user_meta_data->>'inviter_id')::uuid,
-    (new.raw_user_meta_data->>'is_test_user')::boolean,
-    (new.raw_user_meta_data->>'credit_score')::integer
+    new.raw_user_meta_data->>'avatar_url',
+    (new.raw_user_meta_data->>'credit_score')::integer,
+    (new.raw_user_meta_data->>'is_test_user')::boolean
   );
-  
-  -- Initialize balances for the new user
-  insert into public.balances (user_id, asset, available_balance, frozen_balance)
-  values
-    (new.id, 'USDT', 10000.00, 0), -- Welcome bonus
-    (new.id, 'BTC', 0, 0),
-    (new.id, 'ETH', 0, 0);
+  -- Initialize balances for all specified assets
+  insert into public.balances(user_id, asset, available_balance, frozen_balance)
+  select new.id, asset_name, 0, 0 from unnest(array[
+    'BTC', 'ETH', 'USDT', 'SOL', 'XRP', 'LTC', 'BNB', 'MATIC', 'DOGE', 'ADA', 'SHIB', 
+    'AVAX', 'LINK', 'DOT', 'UNI', 'TRX', 'XLM', 'VET', 'EOS', 'FIL', 'ICP',
+    'XAU', 'USD', 'EUR', 'GBP'
+  ]) as asset_name;
   return new;
 end;
 $$;
@@ -296,19 +282,19 @@ create or replace function public.adjust_balance(
 returns void as $$
 begin
     if p_is_debit_frozen then
-        -- This branch handles movements from the frozen balance
+        -- This branch handles movements from the frozen balance (e.g. confirming withdrawal, or cancelling a contract trade)
         update public.balances
         set frozen_balance = frozen_balance - p_amount
         where user_id = p_user_id and asset = p_asset;
     elsif p_is_frozen then
-         -- This branch handles movements into the frozen balance
+         -- This branch handles movements into the frozen balance (e.g. creating withdrawal request, placing contract trade)
         update public.balances
         set 
             available_balance = available_balance - p_amount,
             frozen_balance = frozen_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
     else
-        -- This is a standard adjustment to the available balance
+        -- This is a standard adjustment to the available balance (e.g. deposit, profit/loss settlement)
         update public.balances
         set available_balance = available_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
@@ -317,6 +303,8 @@ end;
 $$ language plpgsql volatile security definer;
 
 
+-- Drop the old function signature first to avoid errors on column changes
+drop function if exists public.get_downline(uuid);
 -- Function to get the full downline of a user
 create or replace function public.get_downline(p_user_id uuid)
 returns table(id uuid, username text, nickname text, email text, inviter_id uuid, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, credit_score integer, created_at timestamp with time zone, last_login_at timestamp with time zone, avatar_url text, level int) as $$
@@ -397,14 +385,14 @@ begin
 end;
 $$ language plpgsql;
 
--- Trigger to execute commission distribution on new trades
+-- Trigger to distribute commissions on new trades
 drop trigger if exists on_new_trade on public.trades;
 create trigger on_new_trade
-    after insert on public.trades
-    for each row
-    execute function public.distribute_trade_commissions();
+  after insert on public.trades
+  for each row
+  execute procedure public.distribute_trade_commissions();
 
--- Function to automatically settle due records
+-- Function to settle due trades and investments
 create or replace function public.settle_due_records()
 returns void as $$
 declare
@@ -413,18 +401,22 @@ declare
     profit double precision;
     total_return double precision;
     settlement_price double precision;
-    outcome public.order_outcome;
+    outcome text;
 begin
     -- Settle due contract trades
-    for trade_record in select * from public.trades where status = 'active' and settlement_time <= now() loop
-        -- Simple mock settlement price logic, replace with real data if available
-        select close into settlement_price from public.market_kline_data where trading_pair = trade_record.trading_pair order by time desc limit 1;
+    for trade_record in
+        select * from public.trades
+        where status = 'active' and orderType = 'contract' and settlement_time <= now()
+    loop
+        -- For simplicity, we'll use the last known price from market_summary_data
+        -- In a real system, you'd want a more robust price feed at the exact settlement moment.
+        select price into settlement_price from public.market_summary_data where pair = trade_record.trading_pair;
         
         if settlement_price is null then
-           -- Fallback if no kline data is available
-           settlement_price := trade_record.entry_price * (1 + (random() - 0.5) * 0.001);
+            -- Fallback or error handling if no price is found
+            settlement_price := trade_record.entry_price;
         end if;
-        
+
         if (trade_record.type = 'buy' and settlement_price > trade_record.entry_price) or (trade_record.type = 'sell' and settlement_price < trade_record.entry_price) then
             outcome := 'win';
             profit := trade_record.amount * trade_record.profit_rate;
@@ -434,52 +426,69 @@ begin
             profit := -trade_record.amount;
             total_return := 0;
         end if;
-        
+
+        -- Update the trade record
         update public.trades
-        set status = 'settled',
-            settlement_price = settlement_price,
+        set 
+            status = 'settled',
             outcome = outcome,
+            settlement_price = settlement_price,
             profit = profit
         where id = trade_record.id;
 
-        -- Return funds
-        perform public.adjust_balance(trade_record.user_id, 'USDT', total_return);
-        -- Debit the frozen amount
-        perform public.adjust_balance(trade_record.user_id, 'USDT', trade_record.amount, true, true);
+        -- Return funds: Unfreeze the original amount first
+        perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, trade_record.amount, false, true);
+        
+        -- Add the return (principal + profit, or 0 if loss)
+        if total_return > 0 then
+            perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, total_return);
+        end if;
 
     end loop;
-    
+
     -- Settle due investments
-    for investment_record in select * from public.investments where status = 'active' and settlement_date <= now() loop
-        if investment_record.productType = 'daily' and investment_record.daily_rate is not null and investment_record.period is not null then
+    for investment_record in
+        select * from public.investments
+        where status = 'active' and settlement_date <= now()
+    loop
+        if investment_record.productType = 'daily' then
             profit := investment_record.amount * investment_record.daily_rate * investment_record.period;
-        elsif investment_record.productType = 'hourly' and investment_record.hourly_rate is not null and investment_record.duration_hours is not null then
-            profit := investment_record.amount * investment_record.hourly_rate;
+        elsif investment_record.productType = 'hourly' then
+            profit := investment_record.amount * investment_record.hourly_rate * investment_record.duration_hours;
         else
             profit := 0;
         end if;
-        
+
         total_return := investment_record.amount + profit;
-        
+
+        -- Update the investment record
         update public.investments
-        set status = 'settled',
+        set 
+            status = 'settled',
             profit = profit
         where id = investment_record.id;
-        
+
         -- Return funds
         perform public.adjust_balance(investment_record.user_id, 'USDT', total_return);
 
         -- If there was a staked asset, unfreeze it
         if investment_record.staking_asset is not null and investment_record.staking_amount is not null then
-            perform public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, true, true);
+            perform public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, false, true);
         end if;
     end loop;
 
 end;
 $$ language plpgsql;
 
--- Schedule the settlement function to run every minute
-select cron.schedule('settle-due-records-job', '*/1 * * * *', 'select public.settle_due_records()');
+
+-- 3. 启用 PostGIS (如果需要地理位置功能)
+-- create extension if not exists postgis with schema extensions;
+
+-- 4. 启用 pg_cron (用于定时任务)
+create extension if not exists pg_cron with schema extensions;
+-- grant usage on schema cron to postgres;
+-- alter user supabase_admin with password 'your-postgres-password';
+-- select cron.schedule('settle-records-job', '*/1 * * * *', 'select public.settle_due_records()');
 
 
 -- 5. 行级安全策略 (RLS)
