@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useOptions } from '@/context/options-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -80,11 +80,12 @@ export default function OptionsPage() {
     const [selectedExpiration, setSelectedExpiration] = useState<string | undefined>(undefined);
 
     // Effect to select the first expiration date when data loads or changes
-    useState(() => {
+    useEffect(() => {
         if (optionsChain.length > 0 && !selectedExpiration) {
             setSelectedExpiration(optionsChain[0].expiration_date);
         }
-    });
+    }, [optionsChain, selectedExpiration]);
+    
      // This effect handles updates when optionsChain changes AFTER initial load.
     useEffect(() => {
         if (optionsChain.length > 0) {
@@ -171,4 +172,3 @@ export default function OptionsPage() {
         </DashboardLayout>
     );
 }
-
