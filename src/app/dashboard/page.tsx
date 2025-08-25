@@ -152,13 +152,10 @@ export default function DashboardPage() {
                     <div className="grid grid-cols-4 gap-2">
                         {features.map((feature) => {
                             const content = (
-                                <div
-                                    className="relative w-full overflow-hidden rounded-lg group aspect-square"
-                                    onClick={(feature as any).action}
-                                >
-                                    {(feature as any).imgSrc ? (
+                                <div className="relative w-full overflow-hidden rounded-lg group aspect-square">
+                                    {feature.imgSrc ? (
                                         <Image
-                                            src={(feature as any).imgSrc}
+                                            src={feature.imgSrc}
                                             alt={feature.name}
                                             fill
                                             sizes="(max-width: 768px) 25vw, 10vw"
@@ -174,16 +171,16 @@ export default function DashboardPage() {
                                 </div>
                             );
 
-                            if ((feature as any).href) {
+                            if (feature.href) {
                                 return (
-                                    <Link href={(feature as any).href} key={feature.name}>
+                                    <Link href={feature.href} key={feature.name} className="cursor-pointer">
                                         {content}
                                     </Link>
                                 );
                             }
 
                             return (
-                                <div key={feature.name} className="cursor-pointer">
+                                <div key={feature.name} className="cursor-pointer" onClick={feature.action}>
                                     {content}
                                 </div>
                             );

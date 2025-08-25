@@ -127,7 +127,7 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
             type,
             amount: finalAmountInQuote, // Use the more current amount
             period: defaultPeriod,
-            profitRate: profitRate
+            profit_rate: profitRate
         }, selectedPair);
         
         toast({
@@ -179,7 +179,7 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
              <div>
                 <Label htmlFor="trade-pair">交易币种</Label>
                  <Select value={selectedPair} onValueChange={setSelectedPair}>
-                    <SelectTrigger>
+                    <SelectTrigger id="trade-pair">
                         <SelectValue placeholder="选择一个交易对" />
                     </SelectTrigger>
                     <SelectContent>
