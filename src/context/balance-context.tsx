@@ -41,6 +41,8 @@ interface BalanceContextType {
   handleCheckIn: () => Promise<{ success: boolean, reward: number, message?: string }>;
   lastCheckInDate?: string;
   consecutiveCheckIns: number;
+  creditReward: (params: { userId: string; amount: number; asset: string; type: RewardLog['type']; sourceId: string; description: string; }) => Promise<void>;
+  adjustBalance: (userId: string, asset: string, amount: number, isFrozen?: boolean, isDebitFrozen?: boolean) => Promise<void>;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -61,7 +63,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
   const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
-  // --- DATA FETCHING ---
   const fetchUserBalanceData = useCallback(async (userId: string) => {
       if (!isSupabaseEnabled) return;
       const { data, error } = await supabase.from('balances').select('*').eq('user_id', userId);
@@ -179,6 +180,42 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(profileChannel);
     };
   }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData, fetchUserProfileForCheckin]);
+
+  const adjustBalance = useCallback(async (userId: string, asset: string, amount: number, isFrozen: boolean = false, isDebitFrozen: boolean = false) => {
+    if (!isSupabaseEnabled) return;
+    const { error } = await supabase.rpc('adjust_balance', {
+        p_user_id: userId,
+        p_asset: asset,
+        p_amount: amount,
+        p_is_frozen: isFrozen,
+        p_is_debit_frozen: isDebitFrozen,
+    });
+    if (error) {
+        console.error("Error adjusting balance:", error);
+        if (user?.id === userId) {
+            toast({ variant: 'destructive', title: 'Balance Update Failed', description: error.message });
+        }
+    } else {
+        if (user?.id === userId) {
+            fetchUserBalanceData(userId);
+        }
+    }
+  }, [toast, user?.id, fetchUserBalanceData]);
+
+  const creditReward = useCallback(async (params: { userId: string; amount: number; asset: string; type: RewardLog['type']; sourceId: string; description: string; }) => {
+    if (!isSupabaseEnabled) return;
+    const { error } = await supabase.rpc('credit_reward', {
+        p_user_id: params.userId,
+        p_amount: params.amount,
+        p_asset: params.asset,
+        p_reward_type: params.type,
+        p_source_id: params.sourceId,
+        p_description: params.description
+    });
+    if (error) {
+        console.error("Error crediting reward:", error);
+    }
+  }, []);
 
   const placeContractTrade = useCallback(async (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => {
     if (!user || !isSupabaseEnabled) return;
@@ -323,7 +360,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return { success: data.success, reward: data.reward_amount, message: data.message };
   }
 
-  const value = { 
+  const value: BalanceContextType = { 
       balances, 
       placeContractTrade, 
       placeSpotTrade, 
@@ -337,6 +374,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       handleCheckIn,
       lastCheckInDate,
       consecutiveCheckIns,
+      creditReward,
+      adjustBalance,
     };
 
     return (
