@@ -52,11 +52,8 @@ interface BalanceContextType {
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
-  adjustBalance: (userId: string, asset: string, amount: number, isFrozen?: boolean) => Promise<void>;
+  adjustBalance: (userId: string, asset: string, amount: number, isFrozen?: boolean, isDebitFrozen?: boolean) => Promise<void>;
   creditReward: (params: CreditRewardParams) => void;
-  // Admin functions
-  getAllHistoricalTrades: () => Promise<(SpotTrade | ContractTrade)[]>;
-  getAllUserInvestments: () => Promise<Investment[]>;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -174,25 +171,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   
   // --- CORE FUNCTIONS ---
-  const adjustBalance = useCallback(async (userId: string, asset: string, amount: number, isFrozen: boolean = false) => {
+  const adjustBalance = useCallback(async (userId: string, asset: string, amount: number, isFrozen: boolean = false, isDebitFrozen: boolean = false) => {
         if (!isSupabaseEnabled) return;
         const { error } = await supabase.rpc('adjust_balance', {
             p_user_id: userId,
             p_asset: asset,
             p_amount: amount,
-            p_is_frozen: isFrozen
+            p_is_frozen: isFrozen,
+            p_is_debit_frozen: isDebitFrozen,
         });
         if (error) {
             console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
-            toast({ variant: 'destructive', title: 'Balance update failed' });
-        } else {
-            // Data will be refreshed via the realtime subscription,
-            // but we can force a refresh for the current user for immediate feedback in some cases.
-            if (user?.id === userId) {
-                await fetchUserBalanceData(userId);
-            }
+            toast({ variant: 'destructive', title: 'Balance update failed', description: error.message });
         }
-  }, [toast, user?.id, fetchUserBalanceData]);
+  }, [toast]);
 
   const creditReward = useCallback(async (params: CreditRewardParams) => {
     const targetUser = await getUserById(params.userId);
@@ -220,11 +212,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         action: 'create',
         details: `Credited ${params.amount.toFixed(4)} ${params.asset} to ${targetUser.username} for ${params.type}. Desc: ${params.description || 'N/A'}`
     });
-
-    if (user?.id === params.userId) {
-      await fetchUserRewardLogs(params.userId);
-    }
-  }, [adjustBalance, user?.id, addLog, getUserById, fetchUserRewardLogs]);
+  }, [adjustBalance, addLog, getUserById]);
 
 
   const placeContractTrade = useCallback(async (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => {
@@ -256,26 +244,18 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       orderType: 'contract',
     }
 
-    // Freeze balance before creating trade record
-    await adjustBalance(user.id, quoteAsset, -trade.amount);
-    await adjustBalance(user.id, quoteAsset, trade.amount, true);
-    
+    // Backend will handle balance adjustments via triggers or functions
     const { data: insertedTrade, error } = await supabase.from('trades').insert(newTrade).select().single();
 
     if (error || !insertedTrade) {
       console.error("Failed to place contract trade:", error);
-      // Revert balance change on failure
-      await adjustBalance(user.id, quoteAsset, trade.amount);
-      await adjustBalance(user.id, quoteAsset, -trade.amount, true);
       toast({ variant: 'destructive', title: '下单失败', description: '无法保存交易记录，请重试。' });
       return;
     }
     
-    // Commission distribution is now handled by a database trigger.
-    
     toast({ title: '下单成功', description: '您的合约订单已成功建立。' });
 
-  }, [user, balances, getLatestPrice, toast, adjustBalance]);
+  }, [user, balances, getLatestPrice, toast]);
   
   
   const placeSpotTrade = useCallback(async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
@@ -311,37 +291,23 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         orderType: 'spot'
     }
 
-    // Adjust balances before inserting trade record
-    if (trade.type === 'buy') {
-        await adjustBalance(user.id, quoteAsset, -trade.total);
-        await adjustBalance(user.id, baseAsset, trade.amount);
-    } else { // sell
-        await adjustBalance(user.id, baseAsset, -trade.amount);
-        await adjustBalance(user.id, quoteAsset, trade.total);
-    }
-    
     const { data: insertedTrade, error } = await supabase.from('trades').insert(newTrade).select().single();
     if (error || !insertedTrade) {
       console.error("Failed to place spot trade:", error);
-      // TODO: Add logic to revert balance changes if trade insertion fails.
-      // This is a critical step for production systems.
       toast({ variant: 'destructive', title: '下单失败', description: '无法保存交易记录，请联系客服。' });
       return;
     }
-
-    // Commission distribution is now handled by a database trigger.
      
      toast({ title: '交易成功', description: '您的币币交易已完成。' });
-  }, [user, balances, getLatestPrice, toast, adjustBalance]);
+  }, [user, balances, getLatestPrice, toast]);
 
 
     const addDailyInvestment = async (params: DailyInvestmentParams) => {
         if (!user || !isSupabaseEnabled) return false;
         
-        // Adjust balances first
         await adjustBalance(user.id, 'USDT', -params.amount);
         if (params.stakingAsset && params.stakingAmount) {
-            await adjustBalance(user.id, params.stakingAsset, -params.stakingAmount, true);
+            await adjustBalance(user.id, params.stakingAsset, params.stakingAmount, true);
         }
 
         const now = new Date();
@@ -365,15 +331,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('investments').insert(newInvestment);
         if (error) {
             console.error("Failed to add daily investment:", error);
-            // Revert balance changes on failure
             await adjustBalance(user.id, 'USDT', params.amount);
              if (params.stakingAsset && params.stakingAmount) {
-                await adjustBalance(user.id, params.stakingAsset, params.stakingAmount, false); // un-freeze
+                await adjustBalance(user.id, params.stakingAsset, -params.stakingAmount, true);
             }
             return false;
         }
-        
-        // No need to fetch, realtime will update
         return true;
     }
   
@@ -407,31 +370,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             await adjustBalance(user.id, 'USDT', params.amount);
             return false;
         }
-
-        // No need to fetch, realtime will update
         return true;
   }
-  
-  // --- ADMIN FUNCTIONS ---
-  const getAllHistoricalTrades = async () => {
-    if (!isSupabaseEnabled) return [];
-    const { data, error } = await supabase.from('trades').select('*, user:profiles(username)').order('created_at', { ascending: false });
-    if (error) {
-        console.error("Admin: Error fetching all trades:", error);
-        return [];
-    }
-    return data as (SpotTrade | ContractTrade)[];
-  };
-
-  const getAllUserInvestments = async () => {
-     if (!isSupabaseEnabled) return [];
-    const { data, error } = await supabase.from('investments').select('*, user:profiles(username)').order('created_at', { ascending: false });
-    if (error) {
-        console.error("Admin: Error fetching all investments:", error);
-        return [];
-    }
-    return data as Investment[];
-  };
 
   const value = { 
       balances, 
@@ -446,8 +386,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       historicalTrades,
       adjustBalance,
       creditReward,
-      getAllHistoricalTrades,
-      getAllUserInvestments,
     };
 
     return (

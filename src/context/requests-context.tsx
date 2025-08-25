@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -55,6 +56,16 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         fetchAllRequests();
+        if (!isSupabaseEnabled) return;
+        
+        const channel = supabase
+            .channel('requests-channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, fetchAllRequests)
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [fetchAllRequests]);
 
 
@@ -70,11 +81,10 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('requests').insert(fullRequest);
         if (error) {
             console.error("Failed to add request:", error);
-        } else {
-            await fetchAllRequests(); // Refresh list after adding
         }
+        // No need to fetch, realtime will update
     
-    }, [user, fetchAllRequests]);
+    }, [user]);
 
     const addDepositRequest = useCallback((params: DepositRequestParams) => {
         addRequest({
@@ -91,9 +101,8 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             ...params,
         });
 
-        // Freeze balance on request
-        await adjustBalance(user.id, params.asset, -params.amount); 
-        await adjustBalance(user.id, params.asset, params.amount, true);
+        // The adjust_balance function will now handle freezing the balance
+        await adjustBalance(user.id, params.asset, -params.amount, true);
     }, [user, addRequest, adjustBalance]);
 
     const addPasswordResetRequest = useCallback(async (newPassword: string) => {
@@ -114,20 +123,21 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
 
         const newStatus = action === 'approve' ? 'approved' : 'rejected';
 
+        // The logic for balance adjustment is now much simpler.
+        // The backend function will handle the details based on the request type.
         if (action === 'approve') {
             if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
                 await adjustBalance(request.user_id, request.asset, request.amount);
             } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                 // The frozen amount just needs to be removed.
-                await adjustBalance(request.user_id, request.asset, -request.amount, true);
+                // Confirm the withdrawal by debiting the frozen balance
+                await adjustBalance(request.user_id, request.asset, -request.amount, true, true);
             } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
                 await updateUser(request.user_id, { password: request.new_password });
             }
         } else { // 'reject' action
              if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                // Return amount from frozen to available
-                await adjustBalance(request.user_id, request.asset, -request.amount, true); 
-                await adjustBalance(request.user_id, request.asset, request.amount); 
+                // Revert the frozen amount back to available balance
+                await adjustBalance(request.user_id, request.asset, request.amount, false, true);
             }
         }
 
@@ -143,9 +153,8 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
                 action: action,
                 details: `Request for user ${request.user?.username || request.user_id} was ${newStatus}.`
             });
-            await fetchAllRequests();
         }
-    }, [requests, adjustBalance, updateUser, addLog, fetchAllRequests]);
+    }, [requests, adjustBalance, updateUser, addLog]);
 
 
     const approveRequest = async (requestId: string) => {
