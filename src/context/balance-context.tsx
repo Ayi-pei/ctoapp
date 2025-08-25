@@ -135,6 +135,35 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
     loadAllData();
   }, [user, isSupabaseEnabled, fetchUserBalanceData, fetchUserTradeData, fetchUserInvestmentData, fetchUserRewardLogs]);
+  
+  // Realtime Subscriptions
+  useEffect(() => {
+    if (!user || !isSupabaseEnabled) return;
+
+    const tradesChannel = supabase
+      .channel(`trades-channel-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}` }, 
+        () => fetchUserTradeData(user.id)
+      ).subscribe();
+      
+    const investmentsChannel = supabase
+      .channel(`investments-channel-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}` }, 
+        () => fetchUserInvestmentData(user.id)
+      ).subscribe();
+
+    const balancesChannel = supabase
+      .channel(`balances-channel-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `user_id=eq.${user.id}` }, 
+        () => fetchUserBalanceData(user.id)
+      ).subscribe();
+      
+    return () => {
+      supabase.removeChannel(tradesChannel);
+      supabase.removeChannel(investmentsChannel);
+      supabase.removeChannel(balancesChannel);
+    };
+  }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData]);
 
   
   // --- CORE FUNCTIONS ---
@@ -150,13 +179,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
             toast({ variant: 'destructive', title: 'Balance update failed' });
         } else {
-            // Always refetch for the currently logged-in user if their balance might have changed.
-            // Admin operations on other users don't need to trigger a client-side refresh for the admin's own balances.
-            if (user?.id === userId) {
-                await fetchUserBalanceData(userId);
-            }
+            // No need to refetch, realtime subscription will handle it.
         }
-  }, [toast, user?.id, fetchUserBalanceData]);
+  }, [toast]);
 
   const creditReward = useCallback(async (params: CreditRewardParams) => {
     const targetUser = await getUserById(params.userId);
@@ -270,10 +295,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       await distributeCommissions(user, trade.amount, insertedTrade.id);
     }
     
-    await fetchUserTradeData(user.id);
+    // No need to fetch, realtime will update
     toast({ title: '下单成功', description: '您的合约订单已成功建立。' });
 
-  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions, fetchUserTradeData]);
+  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions]);
   
   
   const placeSpotTrade = useCallback(async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
@@ -329,9 +354,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         await distributeCommissions(user, trade.total, insertedTrade.id);
      }
      
-     await fetchUserTradeData(user.id);
+     // No need to fetch, realtime will update
      toast({ title: '交易成功', description: '您的币币交易已完成。' });
-  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions, fetchUserTradeData]);
+  }, [user, balances, getLatestPrice, toast, adjustBalance, distributeCommissions]);
 
 
     const addDailyInvestment = async (params: DailyInvestmentParams) => {
@@ -371,7 +396,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             return false;
         }
         
-        await fetchUserInvestmentData(user.id);
+        // No need to fetch, realtime will update
         return true;
     }
   
@@ -406,7 +431,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             return false;
         }
 
-        await fetchUserInvestmentData(user.id);
+        // No need to fetch, realtime will update
         return true;
   }
   
