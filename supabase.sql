@@ -232,38 +232,28 @@ create table if not exists public.market_kline_data (
 );
 create index if not exists market_kline_data_time_idx on public.market_kline_data (time desc);
 
+-- 2. 数据库函数
 
--- 2. 数据库函数和触发器
-
--- Function to handle new user setup
+-- Function to create a user profile when a new user signs up in auth.users
 create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
+returns trigger as $$
 begin
-  insert into public.profiles (id, username, nickname, email, invitation_code, inviter_id, avatar_url, credit_score, is_test_user)
+  insert into public.profiles (id, username, nickname, email, inviter_id, is_admin, is_test_user, invitation_code, credit_score, avatar_url)
   values (
     new.id,
-    new.raw_user_meta_data->>'username',
-    new.raw_user_meta_data->>'nickname',
+    new.raw_user_meta_data ->> 'username',
+    new.raw_user_meta_data ->> 'nickname',
     new.email,
-    new.raw_user_meta_data->>'invitation_code',
-    (new.raw_user_meta_data->>'inviter_id')::uuid,
-    new.raw_user_meta_data->>'avatar_url',
-    (new.raw_user_meta_data->>'credit_score')::integer,
-    (new.raw_user_meta_data->>'is_test_user')::boolean
+    (new.raw_user_meta_data ->> 'inviter_id')::uuid,
+    (new.raw_user_meta_data ->> 'is_admin')::boolean,
+    (new.raw_user_meta_data ->> 'is_test_user')::boolean,
+    new.raw_user_meta_data ->> 'invitation_code',
+    (new.raw_user_meta_data ->> 'credit_score')::integer,
+    new.raw_user_meta_data ->> 'avatar_url'
   );
-  -- Initialize balances for all specified assets
-  insert into public.balances(user_id, asset, available_balance, frozen_balance)
-  select new.id, asset_name, 0, 0 from unnest(array[
-    'BTC', 'ETH', 'USDT', 'SOL', 'XRP', 'LTC', 'BNB', 'MATIC', 'DOGE', 'ADA', 'SHIB', 
-    'AVAX', 'LINK', 'DOT', 'UNI', 'TRX', 'XLM', 'VET', 'EOS', 'FIL', 'ICP',
-    'XAU', 'USD', 'EUR', 'GBP'
-  ]) as asset_name;
   return new;
 end;
-$$;
+$$ language plpgsql security definer;
 
 -- Trigger to call the function when a new user signs up
 drop trigger if exists on_auth_user_created on auth.users;
@@ -282,19 +272,19 @@ create or replace function public.adjust_balance(
 returns void as $$
 begin
     if p_is_debit_frozen then
-        -- This branch handles movements from the frozen balance (e.g. confirming withdrawal, or cancelling a contract trade)
+        -- This branch handles movements from the frozen balance
         update public.balances
         set frozen_balance = frozen_balance - p_amount
         where user_id = p_user_id and asset = p_asset;
     elsif p_is_frozen then
-         -- This branch handles movements into the frozen balance (e.g. creating withdrawal request, placing contract trade)
+         -- This branch handles movements into the frozen balance
         update public.balances
         set 
             available_balance = available_balance - p_amount,
             frozen_balance = frozen_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
     else
-        -- This is a standard adjustment to the available balance (e.g. deposit, profit/loss settlement)
+        -- This is a standard adjustment to the available balance
         update public.balances
         set available_balance = available_balance + p_amount
         where user_id = p_user_id and asset = p_asset;
@@ -303,9 +293,8 @@ end;
 $$ language plpgsql volatile security definer;
 
 
--- Drop the old function signature first to avoid errors on column changes
-drop function if exists public.get_downline(uuid);
 -- Function to get the full downline of a user
+drop function if exists public.get_downline(uuid);
 create or replace function public.get_downline(p_user_id uuid)
 returns table(id uuid, username text, nickname text, email text, inviter_id uuid, is_admin boolean, is_test_user boolean, is_frozen boolean, invitation_code text, credit_score integer, created_at timestamp with time zone, last_login_at timestamp with time zone, avatar_url text, level int) as $$
 begin
@@ -325,6 +314,7 @@ end;
 $$ language plpgsql;
 
 -- Function to get total platform balance
+drop function if exists public.get_total_platform_balance();
 create or replace function public.get_total_platform_balance()
 returns double precision as $$
 begin
@@ -385,65 +375,48 @@ begin
 end;
 $$ language plpgsql;
 
--- Trigger to distribute commissions on new trades
-drop trigger if exists on_new_trade on public.trades;
-create trigger on_new_trade
+
+-- 3. 数据库触发器
+
+-- Trigger for trade commissions
+drop trigger if exists on_trade_commission on public.trades;
+create trigger on_trade_commission
   after insert on public.trades
   for each row
   execute procedure public.distribute_trade_commissions();
+  
 
--- Function to settle due trades and investments
+-- 4. 数据库定时任务 (pg_cron)
+-- First, ensure pg_cron is enabled in your Supabase project (Database -> Extensions)
+
+-- Function for auto-settlement
 create or replace function public.settle_due_records()
 returns void as $$
 declare
     trade_record record;
     investment_record record;
-    profit double precision;
+    profit_amount double precision;
     total_return double precision;
-    settlement_price double precision;
-    outcome text;
 begin
     -- Settle due contract trades
-    for trade_record in
-        select * from public.trades
+    for trade_record in 
+        select * from public.trades 
         where status = 'active' and orderType = 'contract' and settlement_time <= now()
     loop
-        -- For simplicity, we'll use the last known price from market_summary_data
-        -- In a real system, you'd want a more robust price feed at the exact settlement moment.
-        select price into settlement_price from public.market_summary_data where pair = trade_record.trading_pair;
-        
-        if settlement_price is null then
-            -- Fallback or error handling if no price is found
-            settlement_price := trade_record.entry_price;
-        end if;
-
-        if (trade_record.type = 'buy' and settlement_price > trade_record.entry_price) or (trade_record.type = 'sell' and settlement_price < trade_record.entry_price) then
-            outcome := 'win';
-            profit := trade_record.amount * trade_record.profit_rate;
-            total_return := trade_record.amount + profit;
+        -- Determine outcome
+        if (trade_record.type = 'buy' and trade_record.settlement_price > trade_record.entry_price) or 
+           (trade_record.type = 'sell' and trade_record.settlement_price < trade_record.entry_price) then
+            profit_amount := trade_record.amount * trade_record.profit_rate;
+            update public.trades set status = 'settled', outcome = 'win', profit = profit_amount where id = trade_record.id;
+            perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, trade_record.amount + profit_amount);
         else
-            outcome := 'loss';
-            profit := -trade_record.amount;
-            total_return := 0;
+            profit_amount := -trade_record.amount;
+            update public.trades set status = 'settled', outcome = 'loss', profit = profit_amount where id = trade_record.id;
+            -- For loss, the frozen amount is just lost, no available balance is returned for the principal
         end if;
-
-        -- Update the trade record
-        update public.trades
-        set 
-            status = 'settled',
-            outcome = outcome,
-            settlement_price = settlement_price,
-            profit = profit
-        where id = trade_record.id;
-
-        -- Return funds: Unfreeze the original amount first
-        perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, trade_record.amount, false, true);
         
-        -- Add the return (principal + profit, or 0 if loss)
-        if total_return > 0 then
-            perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, total_return);
-        end if;
-
+        -- Unfreeze balance
+         perform public.adjust_balance(trade_record.user_id, trade_record.quote_asset, trade_record.amount, false, true);
     end loop;
 
     -- Settle due investments
@@ -451,44 +424,33 @@ begin
         select * from public.investments
         where status = 'active' and settlement_date <= now()
     loop
+        -- Calculate profit
         if investment_record.productType = 'daily' then
-            profit := investment_record.amount * investment_record.daily_rate * investment_record.period;
+            profit_amount := investment_record.amount * investment_record.daily_rate * investment_record.period;
         elsif investment_record.productType = 'hourly' then
-            profit := investment_record.amount * investment_record.hourly_rate * investment_record.duration_hours;
+            profit_amount := investment_record.amount * investment_record.hourly_rate;
         else
-            profit := 0;
+            profit_amount := 0;
         end if;
 
-        total_return := investment_record.amount + profit;
+        total_return := investment_record.amount + profit_amount;
 
-        -- Update the investment record
-        update public.investments
-        set 
-            status = 'settled',
-            profit = profit
-        where id = investment_record.id;
+        -- Update investment status
+        update public.investments set status = 'settled', profit = profit_amount where id = investment_record.id;
 
-        -- Return funds
+        -- Return principal + profit
         perform public.adjust_balance(investment_record.user_id, 'USDT', total_return);
 
-        -- If there was a staked asset, unfreeze it
-        if investment_record.staking_asset is not null and investment_record.staking_amount is not null then
-            perform public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, false, true);
+        -- Unfreeze staked assets if any
+        if investment_record.staking_asset is not null and investment_record.staking_amount > 0 then
+             perform public.adjust_balance(investment_record.user_id, investment_record.staking_asset, investment_record.staking_amount, false, true);
         end if;
     end loop;
-
 end;
 $$ language plpgsql;
 
-
--- 3. 启用 PostGIS (如果需要地理位置功能)
--- create extension if not exists postgis with schema extensions;
-
--- 4. 启用 pg_cron (用于定时任务)
-create extension if not exists pg_cron with schema extensions;
--- grant usage on schema cron to postgres;
--- alter user supabase_admin with password 'your-postgres-password';
--- select cron.schedule('settle-records-job', '*/1 * * * *', 'select public.settle_due_records()');
+-- Schedule the settlement function to run every minute
+select cron.schedule('settle_due_records_job', '*/1 * * * *', 'select public.settle_due_records()');
 
 
 -- 5. 行级安全策略 (RLS)
