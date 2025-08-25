@@ -5,7 +5,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter } from 'next/navigation';
 import type { User as UserType, SecureUser } from '@/types';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
-import { useLogs } from './logs-context'; // Import useLogs
 
 export type User = UserType;
 
@@ -29,8 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SecureUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { addLog } = useLogs(); // Get addLog from the context
-
+  
   useEffect(() => {
     if (!isSupabaseEnabled) {
         console.warn("Supabase is disabled. Auth will not function.");
@@ -180,6 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'supabase_error' };
     }
 
+    if (typeof window !== 'undefined') {
+        console.log(`New user registered: ${username} (ID: ${data.user.id})`);
+    }
+
     return { success: true };
   };
 
@@ -274,5 +276,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
