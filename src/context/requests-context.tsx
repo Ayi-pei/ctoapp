@@ -89,7 +89,9 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             type: 'withdrawal',
             ...params,
         });
-        adjustBalance(user.id, params.asset, params.amount, true); // Freeze balance on request
+        // Freeze balance on request
+        adjustBalance(user.id, params.asset, -params.amount); // Decrease available
+        adjustBalance(user.id, params.asset, params.amount, true); // Increase frozen
     }, [user, addRequest, adjustBalance]);
 
     const addPasswordResetRequest = useCallback(async (newPassword: string) => {
@@ -114,14 +116,16 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
             if (request.type === 'deposit' && 'asset' in request && 'amount' in request) {
                 await adjustBalance(request.user_id, request.asset, request.amount);
             } else if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Unfreeze by removing from frozen
+                 // The frozen amount just needs to be removed.
+                await adjustBalance(request.user_id, request.asset, -request.amount, true);
             } else if (request.type === 'password_reset' && 'new_password' in request && request.new_password) {
                 await updateUser(request.user_id, { password: request.new_password });
             }
         } else { // 'reject' action
              if (request.type === 'withdrawal' && 'asset' in request && 'amount' in request) {
-                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Unfreeze
-                await adjustBalance(request.user_id, request.asset, request.amount); // Return to available
+                // Return amount from frozen to available
+                await adjustBalance(request.user_id, request.asset, -request.amount, true); // Decrease frozen
+                await adjustBalance(request.user_id, request.asset, request.amount); // Increase available
             }
         }
 

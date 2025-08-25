@@ -178,8 +178,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         if (error) {
             console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
             toast({ variant: 'destructive', title: 'Balance update failed' });
+        } else {
+            // Data will be refreshed via the realtime subscription,
+            // but we can force a refresh for the current user for immediate feedback in some cases.
+            if (user?.id === userId) {
+                await fetchUserBalanceData(userId);
+            }
         }
-  }, [toast]);
+  }, [toast, user?.id, fetchUserBalanceData]);
 
   const creditReward = useCallback(async (params: CreditRewardParams) => {
     const targetUser = await getUserById(params.userId);
@@ -243,6 +249,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       orderType: 'contract',
     }
 
+    // Freeze balance before creating trade record
     await adjustBalance(user.id, quoteAsset, -trade.amount);
     await adjustBalance(user.id, quoteAsset, trade.amount, true);
     
@@ -257,7 +264,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Commission distribution is now handled by a database trigger
+    // Commission distribution is now handled by a database trigger.
     
     toast({ title: '下单成功', description: '您的合约订单已成功建立。' });
 
@@ -297,6 +304,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         orderType: 'spot'
     }
 
+    // Adjust balances before inserting trade record
     if (trade.type === 'buy') {
         await adjustBalance(user.id, quoteAsset, -trade.total);
         await adjustBalance(user.id, baseAsset, trade.amount);
@@ -308,12 +316,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const { data: insertedTrade, error } = await supabase.from('trades').insert(newTrade).select().single();
     if (error || !insertedTrade) {
       console.error("Failed to place spot trade:", error);
-      // TODO: Add logic to revert balance changes if trade insertion fails
+      // TODO: Add logic to revert balance changes if trade insertion fails.
+      // This is a critical step for production systems.
       toast({ variant: 'destructive', title: '下单失败', description: '无法保存交易记录，请联系客服。' });
       return;
     }
 
-    // Commission distribution is now handled by a database trigger
+    // Commission distribution is now handled by a database trigger.
      
      toast({ title: '交易成功', description: '您的币币交易已完成。' });
   }, [user, balances, getLatestPrice, toast, adjustBalance]);
@@ -322,9 +331,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     const addDailyInvestment = async (params: DailyInvestmentParams) => {
         if (!user || !isSupabaseEnabled) return false;
         
+        // Adjust balances first
         await adjustBalance(user.id, 'USDT', -params.amount);
         if (params.stakingAsset && params.stakingAmount) {
-            await adjustBalance(user.id, params.stakingAsset, params.stakingAmount, true);
+            await adjustBalance(user.id, params.stakingAsset, -params.stakingAmount, true);
         }
 
         const now = new Date();
@@ -351,7 +361,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             // Revert balance changes on failure
             await adjustBalance(user.id, 'USDT', params.amount);
              if (params.stakingAsset && params.stakingAmount) {
-                await adjustBalance(user.id, params.stakingAsset, -params.stakingAmount, true);
+                await adjustBalance(user.id, params.stakingAsset, params.stakingAmount, false); // un-freeze
             }
             return false;
         }
