@@ -27,18 +27,6 @@ export type HourlyInvestmentParams = {
     category: 'staking' | 'finance';
 }
 
-type CreditRewardParams = {
-    userId: string;
-    amount: number;
-    asset: string;
-    type: RewardLog['type'];
-    sourceId?: string;
-    sourceUsername?: string;
-    sourceLevel?: number;
-    description?: string;
-};
-
-
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
@@ -50,14 +38,15 @@ interface BalanceContextType {
   isLoading: boolean;
   activeContractTrades: ContractTrade[];
   historicalTrades: (SpotTrade | ContractTrade)[];
-  adjustBalance: (userId: string, asset: string, amount: number, isFrozen?: boolean, isDebitFrozen?: boolean) => Promise<void>;
-  creditReward: (params: CreditRewardParams) => void;
+  handleCheckIn: () => Promise<{ success: boolean, reward: number, message?: string }>;
+  lastCheckInDate?: string;
+  consecutiveCheckIns: number;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, getUserById, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const { getLatestPrice } = useMarket();
   const { toast } = useToast();
   const { addLog } = useLogs();
@@ -68,6 +57,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
   const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
+  const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
   // --- DATA FETCHING ---
   const fetchUserBalanceData = useCallback(async (userId: string) => {
@@ -107,6 +99,16 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       else setRewardLogs(data as RewardLog[]);
   }, []);
 
+   const fetchUserProfileForCheckin = useCallback(async (userId: string) => {
+        if (!isSupabaseEnabled) return;
+        const { data, error } = await supabase.from('profiles').select('last_check_in_date, consecutive_check_ins').eq('id', userId).single();
+        if (error) {
+            console.error("Error fetching user profile for check-in:", error);
+        } else if (data) {
+            setLastCheckInDate(data.last_check_in_date);
+            setConsecutiveCheckIns(data.consecutive_check_ins || 0);
+        }
+    }, []);
 
   useEffect(() => {
     const loadAllData = async () => {
@@ -117,6 +119,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
                 fetchUserTradeData(user.id),
                 fetchUserInvestmentData(user.id),
                 fetchUserRewardLogs(user.id),
+                fetchUserProfileForCheckin(user.id),
             ]);
         } else {
             // Clear data on logout
@@ -125,11 +128,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             setRewardLogs([]);
             setActiveContractTrades([]);
             setHistoricalTrades([]);
+            setLastCheckInDate(undefined);
+            setConsecutiveCheckIns(0);
         }
         setIsLoading(false);
     }
     loadAllData();
-  }, [user, isSupabaseEnabled, fetchUserBalanceData, fetchUserTradeData, fetchUserInvestmentData, fetchUserRewardLogs]);
+  }, [user, isSupabaseEnabled, fetchUserBalanceData, fetchUserTradeData, fetchUserInvestmentData, fetchUserRewardLogs, fetchUserProfileForCheckin]);
   
   // Realtime Subscriptions
   useEffect(() => {
@@ -140,6 +145,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         fetchUserTradeData(user.id);
         fetchUserInvestmentData(user.id);
         fetchUserBalanceData(user.id);
+        fetchUserProfileForCheckin(user.id);
     }
 
     const tradesChannel = supabase
@@ -159,59 +165,20 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `user_id=eq.${user.id}` }, 
         handleDataChange
       ).subscribe();
+    
+    const profileChannel = supabase
+      .channel(`profile-channel-${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+        handleDataChange
+      ).subscribe();
       
     return () => {
       supabase.removeChannel(tradesChannel);
       supabase.removeChannel(investmentsChannel);
       supabase.removeChannel(balancesChannel);
+      supabase.removeChannel(profileChannel);
     };
-  }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData]);
-
-  
-  // --- CORE FUNCTIONS ---
-  const adjustBalance = useCallback(async (userId: string, asset: string, amount: number, isFrozen: boolean = false, isDebitFrozen: boolean = false) => {
-        if (!isSupabaseEnabled) return;
-        const { error } = await supabase.rpc('adjust_balance', {
-            p_user_id: userId,
-            p_asset: asset,
-            p_amount: amount,
-            p_is_frozen: isFrozen,
-            p_is_debit_frozen: isDebitFrozen,
-        });
-        if (error) {
-            console.error(`Failed to adjust ${asset} for user ${userId}:`, error);
-            toast({ variant: 'destructive', title: 'Balance update failed', description: error.message });
-        }
-  }, [toast]);
-
-  const creditReward = useCallback(async (params: CreditRewardParams) => {
-    const targetUser = await getUserById(params.userId);
-    if (!targetUser || !isSupabaseEnabled) return;
-      
-    await adjustBalance(params.userId, params.asset, params.amount);
-
-    const newLog: Omit<RewardLog, 'id' | 'created_at'> = {
-      user_id: params.userId,
-      type: params.type,
-      amount: params.amount,
-      asset: params.asset,
-      source_id: params.sourceId,
-      source_username: params.sourceUsername,
-      source_level: params.sourceLevel,
-      description: params.description,
-    };
-    
-    const { error: logError } = await supabase.from('reward_logs').insert(newLog);
-    if (logError) console.error("Failed to insert reward log:", logError);
-    
-    addLog({
-        entity_type: 'reward',
-        entity_id: params.sourceId || params.userId,
-        action: 'create',
-        details: `Credited ${params.amount.toFixed(4)} ${params.asset} to ${targetUser.username} for ${params.type}. Desc: ${params.description || 'N/A'}`
-    });
-  }, [adjustBalance, addLog, getUserById]);
-
+  }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData, fetchUserProfileForCheckin]);
 
   const placeContractTrade = useCallback(async (trade: Pick<ContractTrade, 'type' | 'amount' | 'period' | 'profit_rate'>, tradingPair: string) => {
     if (!user || !isSupabaseEnabled) return;
@@ -242,7 +209,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       orderType: 'contract',
     }
 
-    // Backend will handle balance adjustments via triggers or functions
     const { data: insertedTrade, error } = await supabase.from('trades').insert(newTrade).select().single();
 
     if (error || !insertedTrade) {
@@ -299,40 +265,23 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
      toast({ title: '交易成功', description: '您的币币交易已完成。' });
   }, [user, balances, getLatestPrice, toast]);
 
-
     const addDailyInvestment = async (params: DailyInvestmentParams) => {
         if (!user || !isSupabaseEnabled) return false;
         
-        await adjustBalance(user.id, 'USDT', -params.amount);
-        if (params.stakingAsset && params.stakingAmount) {
-            await adjustBalance(user.id, params.stakingAsset, params.stakingAmount, true);
-        }
+        const { error } = await supabase.rpc('create_daily_investment', {
+            p_user_id: user.id,
+            p_product_name: params.productName,
+            p_amount: params.amount,
+            p_daily_rate: params.dailyRate,
+            p_period: params.period,
+            p_category: 'staking',
+            p_staking_asset: params.stakingAsset,
+            p_staking_amount: params.stakingAmount
+        });
 
-        const now = new Date();
-        const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
-
-        const newInvestment: Omit<Investment, 'id'> = {
-            user_id: user.id,
-            product_name: params.productName,
-            amount: params.amount,
-            created_at: now.toISOString(),
-            settlement_date: settlementDate.toISOString(),
-            daily_rate: params.dailyRate,
-            period: params.period,
-            status: 'active',
-            productType: 'daily',
-            category: 'staking',
-            staking_asset: params.stakingAsset,
-            staking_amount: params.stakingAmount,
-        }
-        
-        const { error } = await supabase.from('investments').insert(newInvestment);
         if (error) {
             console.error("Failed to add daily investment:", error);
-            await adjustBalance(user.id, 'USDT', params.amount);
-             if (params.stakingAsset && params.stakingAmount) {
-                await adjustBalance(user.id, params.stakingAsset, -params.stakingAmount, true);
-            }
+            toast({ variant: 'destructive', title: '购买失败', description: error.message });
             return false;
         }
         return true;
@@ -344,31 +293,34 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
         const selectedTier = params.tiers.find(t => t.hours === params.durationHours);
         if (!selectedTier) return false;
 
-        await adjustBalance(user.id, 'USDT', -params.amount);
-        
-        const now = new Date();
-        const settlementDate = new Date(now.getTime() + params.durationHours * 60 * 60 * 1000);
+        const { error } = await supabase.rpc('create_hourly_investment', {
+            p_user_id: user.id,
+            p_product_name: params.productName,
+            p_amount: params.amount,
+            p_duration_hours: params.durationHours,
+            p_hourly_rate: selectedTier.rate
+        });
 
-        const newInvestment: Omit<Investment, 'id'> = {
-            user_id: user.id,
-            product_name: params.productName,
-            amount: params.amount,
-            created_at: now.toISOString(),
-            settlement_date: settlementDate.toISOString(),
-            status: 'active',
-            productType: 'hourly',
-            duration_hours: params.durationHours,
-            hourly_rate: selectedTier.rate,
-            category: 'finance',
-        }
-        
-        const { error } = await supabase.from('investments').insert(newInvestment);
         if (error) {
             console.error("Failed to add hourly investment:", error);
-            await adjustBalance(user.id, 'USDT', params.amount);
+            toast({ variant: 'destructive', title: '购买失败', description: error.message });
             return false;
         }
         return true;
+  }
+  
+  const handleCheckIn = async (): Promise<{ success: boolean, reward: number, message?: string }> => {
+      if (!user || !isSupabaseEnabled) {
+          return { success: false, reward: 0, message: "User not logged in." };
+      }
+      
+      const { data, error } = await supabase.rpc('handle_user_check_in', { p_user_id: user.id });
+
+      if (error) {
+          return { success: false, reward: 0, message: error.message };
+      }
+      
+      return { success: data.success, reward: data.reward_amount, message: data.message };
   }
 
   const value = { 
@@ -382,8 +334,9 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       addHourlyInvestment,
       activeContractTrades,
       historicalTrades,
-      adjustBalance,
-      creditReward,
+      handleCheckIn,
+      lastCheckInDate,
+      consecutiveCheckIns,
     };
 
     return (
@@ -400,5 +353,3 @@ export function useBalance() {
   }
   return context;
 }
-
-    
