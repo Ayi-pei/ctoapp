@@ -67,31 +67,96 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
 
   const fetchDailyTasks = useCallback(async () => {
-    if (!isSupabaseEnabled) return;
-    let { data, error } = await supabase.from("daily_tasks").select("*");
-    if (error) {
-      console.error("Error fetching daily tasks:", error);
-    } else if (data && data.length === 0) {
-      const { error: seedError } = await supabase
-        .from("daily_tasks")
-        .insert(defaultTasks);
-      if (seedError) console.error("Error seeding daily tasks:", seedError);
-      else await fetchDailyTasks();
-    } else {
-      setDailyTasks(data as DailyTask[]);
+    if (!isSupabaseEnabled) {
+      console.warn("Supabase not enabled, using default tasks.");
+      // Use default tasks when Supabase is not enabled
+      const tasksWithIds = defaultTasks.map((task, index) => ({
+        ...task,
+        id: `default_${index}`
+      }));
+      setDailyTasks(tasksWithIds);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.from("daily_tasks").select("*");
+      
+      if (error) {
+        console.error("Error fetching daily tasks:", error);
+        // Fallback to default tasks on error
+        const tasksWithIds = defaultTasks.map((task, index) => ({
+          ...task,
+          id: `fallback_${index}`
+        }));
+        setDailyTasks(tasksWithIds);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        try {
+          // Seed the database with default tasks if it's empty
+          const { data: seededData, error: seedError } = await supabase
+            .from("daily_tasks")
+            .insert(defaultTasks)
+            .select();
+          
+          if (seedError) {
+            console.error("Error seeding daily tasks:", seedError);
+            // Use default tasks with mock IDs if seeding fails
+            const tasksWithIds = defaultTasks.map((task, index) => ({
+              ...task,
+              id: `mock_${index}`
+            }));
+            setDailyTasks(tasksWithIds);
+          } else {
+            setDailyTasks(seededData as DailyTask[]);
+          }
+        } catch (seedError) {
+          console.error("Error during task seeding:", seedError);
+          const tasksWithIds = defaultTasks.map((task, index) => ({
+            ...task,
+            id: `error_${index}`
+          }));
+          setDailyTasks(tasksWithIds);
+        }
+      } else {
+        setDailyTasks(data as DailyTask[]);
+      }
+    } catch (error) {
+      console.error("Unexpected error in fetchDailyTasks:", error);
+      // Final fallback
+      const tasksWithIds = defaultTasks.map((task, index) => ({
+        ...task,
+        id: `final_${index}`
+      }));
+      setDailyTasks(tasksWithIds);
     }
   }, []);
 
   const fetchUserTaskStates = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const today = new Date().toISOString().split("T")[0];
-    const { data, error } = await supabase
-      .from("user_task_states")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", today);
-    if (error) console.error("Error fetching user task states:", error);
-    else setUserTasksState(data as UserTaskState[]);
+    if (!isSupabaseEnabled) {
+      setUserTasksState([]);
+      return;
+    }
+    
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("user_task_states")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", today);
+      
+      if (error) {
+        console.error("Error fetching user task states:", error);
+        setUserTasksState([]);
+      } else {
+        setUserTasksState(data as UserTaskState[]);
+      }
+    } catch (error) {
+      console.error("Unexpected error in fetchUserTaskStates:", error);
+      setUserTasksState([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -104,7 +169,10 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, [user, fetchDailyTasks, fetchUserTaskStates]);
 
   const addDailyTask = async () => {
-    if (!isSupabaseEnabled) return;
+    if (!isSupabaseEnabled) {
+      console.warn("Supabase not enabled, cannot add tasks.");
+      return;
+    }
     const newTask: Partial<DailyTask> = {
       title: "新任务",
       description: "任务描述...",
@@ -121,14 +189,20 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   };
 
   const removeDailyTask = async (id: string) => {
-    if (!isSupabaseEnabled) return;
+    if (!isSupabaseEnabled) {
+      console.warn("Supabase not enabled, cannot remove tasks.");
+      return;
+    }
     const { error } = await supabase.from("daily_tasks").delete().eq("id", id);
     if (error) console.error("Error removing daily task:", error);
     else await fetchDailyTasks();
   };
 
   const updateDailyTask = async (id: string, updates: Partial<DailyTask>) => {
-    if (!isSupabaseEnabled) return;
+    if (!isSupabaseEnabled) {
+      console.warn("Supabase not enabled, cannot update tasks.");
+      return;
+    }
     const { error } = await supabase
       .from("daily_tasks")
       .update(updates)

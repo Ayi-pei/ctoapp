@@ -35,27 +35,27 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const { success, isAdmin: loggedInIsAdmin, error } = await login(values.username, values.password);
+              const { success, isAdmin: loggedInIsAdmin, error } = await login(values.username, values.password);
 
-    if (success) {
-       toast({
-        title: '登录成功',
-        description: '正在跳转到您的仪表盘...',
-      });
-       
-       // 延迟跳转，让用户看到提示（与退出登录保持一致）
-       setTimeout(() => {
-         if (loggedInIsAdmin) {
-              router.replace('/admin');
-         } else {
-              router.replace('/dashboard');
-         }
-       }, 1500);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: '登录失败',
-        description: error || '用户名或密码错误',
+              if (success) {
+                  toast({
+                      title: '登录成功',
+                      description: '正在跳转到您的仪表盘...',
+                  });
+
+                  // 延迟跳转，让用户看到提示（与退出登录保持一致）
+                  setTimeout(() => {
+                      if (loggedInIsAdmin) {
+                          router.replace('/admin');
+                      } else {
+                          router.replace('/dashboard');
+                      }
+                  }, 1500);
+              } else {
+                  toast({
+                      variant: 'destructive',
+                      title: '登录失败',
+                      description: error || '用户名或密码错误',
       });
     }
   };

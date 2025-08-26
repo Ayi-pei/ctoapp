@@ -1,54 +1,49 @@
 
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
-import { isSupabaseEnabled, supabase } from '@/lib/supabaseClient';
+import { cookies } from 'next/headers';
+import { verifySession, sessionCookieName } from '@/lib/auth/session';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: Request) {
-    
-    if (!isSupabaseEnabled) {
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+export async function GET() {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
         return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 503 });
     }
 
-    // Note: This API route needs to be updated for custom auth
-    // Currently it still uses Supabase Auth which is incompatible with custom auth
-    return NextResponse.json({ error: 'This API route needs to be updated for custom auth.' }, { status: 501 });
-
-    // TODO: Replace Supabase Auth with custom session validation
-    // const authHeader = headers().get('Authorization');
-    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    //     return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
-    // }
-    
-    // const jwt = authHeader.split(' ')[1];
-    // // Need to implement custom session validation here
-    // const userId = validateCustomSession(jwt);
-    // if (!userId) {
-    //     return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 401 });
-    // }
+    // Validate session from HttpOnly cookie
+    const cookieStore = cookies();
+    const token = cookieStore.get(sessionCookieName)?.value;
+    const { valid, userId } = verifySession(token);
+    if (!valid || !userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         const { data: balances, error: balanceError } = await supabase
             .from('balances')
             .select('*')
-            .eq('user_id', user.id);
+            .eq('user_id', userId);
 
         if (balanceError) throw balanceError;
 
         const { data: investments, error: investmentError } = await supabase
             .from('investments')
             .select('*')
-            .eq('user_id', user.id);
+            .eq('user_id', userId);
         
         if (investmentError) throw investmentError;
 
-        const formattedBalances = balances.reduce((acc, b) => {
+        const formattedBalances = (balances || []).reduce((acc: any, b: any) => {
             acc[b.asset] = { available: b.available_balance, frozen: b.frozen_balance };
             return acc;
         }, {} as any);
 
         const assetData = {
             balances: formattedBalances,
-            investments: investments,
+            investments: investments || [],
         };
 
         return NextResponse.json(assetData);
