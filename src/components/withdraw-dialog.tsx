@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WithdrawalAddress } from "@/app/profile/payment/page";
@@ -42,7 +42,7 @@ type WithdrawDialogProps = {
 
 export function WithdrawDialog({ isOpen, onOpenChange }: WithdrawDialogProps) {
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { balances } = useBalance();
     const { addWithdrawalRequest } = useRequests();
     const [selectedAddress, setSelectedAddress] = useState("");

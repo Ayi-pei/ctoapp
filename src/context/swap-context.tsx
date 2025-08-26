@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useAuth } from './auth-context';
+import { useSimpleAuth } from './simple-custom-auth';
 import { useBalance } from './balance-context';
 import { useToast } from '@/hooks/use-toast';
 import type { SwapOrder } from '@/types';
@@ -23,7 +23,7 @@ interface SwapContextType {
 const SwapContext = createContext<SwapContextType | undefined>(undefined);
 
 export function SwapProvider({ children }: { children: ReactNode }) {
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { balances, adjustBalance } = useBalance();
     const { toast } = useToast();
     const [orders, setOrders] = useState<SwapOrder[]>([]);

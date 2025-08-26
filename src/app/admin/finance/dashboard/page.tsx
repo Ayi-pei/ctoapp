@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRequests } from '@/context/requests-context';
 import DashboardLayout from '@/components/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,7 +27,7 @@ const StatCard = ({ title, value, icon: Icon, description }: { title: string, va
 );
 
 export default function AdminFinanceDashboardPage() {
-    const { getDownline, getAllUsers } = useAuth();
+    const { getDownline, getAllUsers } = useSimpleAuth();
     const { requests } = useRequests();
     
     const [allUsers, setAllUsers] = useState<UserType[]>([]);

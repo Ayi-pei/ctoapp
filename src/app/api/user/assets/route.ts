@@ -9,17 +9,22 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 503 });
     }
 
-    const authHeader = headers().get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
-    }
-    
-    const jwt = authHeader.split(' ')[1];
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    // Note: This API route needs to be updated for custom auth
+    // Currently it still uses Supabase Auth which is incompatible with custom auth
+    return NextResponse.json({ error: 'This API route needs to be updated for custom auth.' }, { status: 501 });
 
-    if (userError || !user) {
-        return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 401 });
-    }
+    // TODO: Replace Supabase Auth with custom session validation
+    // const authHeader = headers().get('Authorization');
+    // if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    //     return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
+    // }
+    
+    // const jwt = authHeader.split(' ')[1];
+    // // Need to implement custom session validation here
+    // const userId = validateCustomSession(jwt);
+    // if (!userId) {
+    //     return NextResponse.json({ error: 'Unauthorized: Invalid token.' }, { status: 401 });
+    // }
 
     try {
         const { data: balances, error: balanceError } = await supabase

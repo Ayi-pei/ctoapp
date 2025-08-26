@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Send, Users, Repeat, Archive, LoaderCircle } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { availablePairs } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { useAnnouncements } from "@/context/announcements-context";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Investment, User } from '@/types';
-import { useLogs } from "@/context/logs-context";
+import { useSimpleEnhancedLogs } from "@/context/simple-enhanced-logs-context";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +55,7 @@ const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 
 const DownlineTree = ({ userId }: { userId: string; }) => {
-    const { getDownline } = useAuth();
+    const { getDownline } = useSimpleAuth();
     const [downline, setDownline] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -98,10 +98,10 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
 
 
 export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: UserDetailsDialogProps) {
-    const { updateUser, getUserById } = useAuth();
+    const { updateUser, getUserById } = useSimpleAuth();
     const { adjustBalance } = useBalance();
     const { addAnnouncement } = useAnnouncements();
-    const { addLog } = useLogs();
+    const { addLog } = useSimpleEnhancedLogs();
     const { toast } = useToast();
 
     const [currentUser, setCurrentUser] = useState<User | null>(user);

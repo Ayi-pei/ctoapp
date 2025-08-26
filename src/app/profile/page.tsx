@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronRight, Bell, LogOut, FileText, Shield, Landmark, Users, Edit2, Crown } from "lucide-react";
 import { DepositDialog } from "@/components/deposit-dialog";
@@ -17,7 +17,7 @@ import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketSummary } from "@/types";
 
 const ProfileHeader = () => {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser } = useSimpleAuth();
     const { balances } = useBalance();
     const { summaryData } = useEnhancedMarket(); // Get real-time market data
     const { toast } = useToast();
@@ -177,7 +177,7 @@ const ActionItem = ({ icon, label, action }: { icon: React.ElementType; label: s
 
 
 export default function ProfilePage() {
-    const { logout } = useAuth();
+    const { logout } = useSimpleAuth();
     
     const menuItems = [
         { label: "交易订单", icon: FileText, href: "/profile/orders" },

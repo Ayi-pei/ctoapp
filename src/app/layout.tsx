@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/context/auth-context";
+import { SimpleAuthProvider } from "@/context/simple-custom-auth";
 import { BalanceProvider } from "@/context/balance-context";
 import { EnhancedMarketDataProvider } from "@/context/enhanced-market-data-context";
 import { EnhancedSystemSettingsProvider } from "@/context/enhanced-system-settings-context";
@@ -37,7 +37,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased text-foreground">
-        <AuthProvider>
+        <SimpleAuthProvider>
           <SimpleEnhancedLogsProvider>
             <LogsProvider>
               <EnhancedSystemSettingsProvider>
@@ -64,7 +64,7 @@ export default function RootLayout({
               </EnhancedSystemSettingsProvider>
             </LogsProvider>
           </SimpleEnhancedLogsProvider>
-        </AuthProvider>
+        </SimpleAuthProvider>
       </body>
     </html>
   );

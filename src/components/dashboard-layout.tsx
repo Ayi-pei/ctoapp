@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
@@ -16,7 +16,7 @@ type DashboardLayoutProps = {
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useSimpleAuth();
   const router = useRouter();
   const pathname = usePathname();
 

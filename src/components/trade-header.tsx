@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { User, LogOut, Home, CandlestickChart } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useState, useEffect } from 'react';
 
@@ -37,7 +37,7 @@ export function TradeHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { tradingPair, availablePairs, changeTradingPair } = useEnhancedMarket();
-  const { logout, user } = useAuth();
+  const { logout, user } = useSimpleAuth();
   const [avatarUrl, setAvatarUrl] = useState('');
 
   useEffect(() => {

@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '@/components/auth-layout';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 
@@ -30,7 +30,7 @@ const registerSchema = z.object({
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register } = useAuth();
+  const { register } = useSimpleAuth();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof registerSchema>>({
@@ -55,15 +55,29 @@ export default function RegisterPage() {
     const { success, error } = await register(values.username, values.password, values.invitationCode);
 
     if (success) {
-        toast({ title: '注册成功', description: '您的账户已创建，请登录。' });
-        router.replace('/login');
+        toast({ title: '注册成功', description: '您的账户已创建，正在跳转到登录页面...' });
+        
+        // 延迟跳转，让用户看到提示（与其他操作保持一致）
+        setTimeout(() => {
+          router.replace('/login');
+        }, 1500);
     } else {
-        let description = '未知错误，请稍后重试。';
-        if (error === 'username_exists') {
-            description = '该用户名已被占用，请换一个。';
-        } else if (error === 'invalid_code') {
-            description = '无效的邀请码。';
+        let description = '注册失败，请稍后重试。';
+        
+        switch (error) {
+            case '用户名已存在':
+                description = '该用户名已被占用，请换一个。';
+                break;
+            case '邀请码无效':
+                description = '无效的邀请码，请检查后重试。';
+                break;
+            case '注册失败':
+                description = '注册过程中发生错误，请稍后重试。';
+                break;
+            default:
+                description = error || '未知错误，请稍后重试。';
         }
+        
         toast({ 
           variant: 'destructive', 
           title: '注册失败', 
@@ -77,6 +91,9 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">注册</CardTitle>
+          <p className="text-center text-sm text-muted-foreground">
+            创建新账户，无需邮箱验证
+          </p>
         </CardHeader>
         <CardContent>
           <Form {...form}>

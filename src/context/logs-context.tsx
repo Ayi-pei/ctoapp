@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { ActionLog, User } from '@/types';
-import { useAuth } from './auth-context';
+import { useSimpleAuth } from './simple-custom-auth';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 type LogParams = {
@@ -22,7 +22,7 @@ interface LogsContextType {
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-    const { user: adminUser } = useAuth();
+    const { user: adminUser } = useSimpleAuth();
     const [logs, setLogs] = useState<ActionLog[]>([]);
 
     const fetchLogs = useCallback(async () => {

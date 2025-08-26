@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -22,7 +22,7 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useSimpleAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -35,23 +35,27 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
-    const { success, isAdmin: loggedInIsAdmin } = await login(values.username, values.password);
+    const { success, isAdmin: loggedInIsAdmin, error } = await login(values.username, values.password);
 
     if (success) {
        toast({
         title: '登录成功',
         description: '正在跳转到您的仪表盘...',
       });
-       if (loggedInIsAdmin) {
-            router.replace('/admin');
-       } else {
-            router.replace('/dashboard');
-       }
+       
+       // 延迟跳转，让用户看到提示（与退出登录保持一致）
+       setTimeout(() => {
+         if (loggedInIsAdmin) {
+              router.replace('/admin');
+         } else {
+              router.replace('/dashboard');
+         }
+       }, 1500);
     } else {
       toast({
         variant: 'destructive',
         title: '登录失败',
-        description: '用户名或密码错误。',
+        description: error || '用户名或密码错误',
       });
     }
   };
@@ -74,6 +78,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl text-center">登录</CardTitle>
+          <p className="text-center text-sm text-muted-foreground">
+            使用用户名和密码登录
+          </p>
         </CardHeader>
         <CardContent>
           <Form {...form}>

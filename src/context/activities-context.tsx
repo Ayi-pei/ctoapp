@@ -3,8 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { LimitedTimeActivity } from '@/types';
-import { useLogs } from './logs-context';
-import { useAuth } from './auth-context';
+import { useSimpleEnhancedLogs } from './simple-enhanced-logs-context';
+import { useSimpleAuth } from './simple-custom-auth';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 
@@ -42,8 +42,8 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(undef
 
 export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<LimitedTimeActivity[]>([]);
-  const { user } = useAuth();
-  const { addLog } = useLogs();
+  const { user } = useSimpleAuth();
+  const { addLog } = useSimpleEnhancedLogs();
 
   const fetchActivities = useCallback(async () => {
     if (!isSupabaseEnabled) return;

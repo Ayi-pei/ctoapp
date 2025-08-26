@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { ActionLog, AnyRequest, User } from '@/types';
-import { useAuth } from './auth-context';
+import { useSimpleAuth } from './simple-custom-auth';
 
 const LOGS_STORAGE_KEY = 'tradeflow_action_logs_v3';
 const AUDIT_LOGS_STORAGE_KEY = 'tradeflow_audit_logs_v1';
@@ -94,7 +94,7 @@ interface EnhancedLogsContextType {
 const EnhancedLogsContext = createContext<EnhancedLogsContextType | undefined>(undefined);
 
 export function EnhancedLogsProvider({ children }: { children: ReactNode }) {
-    const { user: adminUser } = useAuth();
+    const { user: adminUser } = useSimpleAuth();
     const [logs, setLogs] = useState<ActionLog[]>([]);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [interventionLogs, setInterventionLogs] = useState<MarketInterventionLog[]>([]);

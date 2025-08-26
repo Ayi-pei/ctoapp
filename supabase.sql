@@ -22,6 +22,125 @@ DROP TABLE IF EXISTS public.market_interventions CASCADE;
 DROP TABLE IF EXISTS public.commission_rates CASCADE;
 DROP TABLE IF EXISTS public.supported_assets CASCADE;
 DROP TABLE IF EXISTS public.cron_job_logs CASCADE;
+-- 0. 注册流程与管理员初始化（幂等）
+-- 管理员邀请码硬编码数组（可根据实际需求调整）
+DO $$
+DECLARE admin_codes text [] := ARRAY ['ADMIN8888', 'SUPERADMIN', 'CTO2024'];
+admin_email text := 'admin@ctoapp.com';
+admin_usernames text [] := ARRAY ['adminsrf','adminayi','admin8888'];
+admin_id uuid;
+BEGIN -- 删除已存在管理员，避免唯一约束冲突
+DELETE FROM auth.users
+WHERE email = admin_email;
+DELETE FROM public.profiles
+WHERE username = admin_username
+    OR email = admin_email;
+-- 创建管理员用户（如 auth.users 表存在）
+INSERT INTO auth.users (
+        id,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        raw_user_meta_data
+    )
+VALUES (
+        uuid_generate_v4(),
+        admin_email,
+        crypt('admin123', gen_salt('bf')),
+        now(),
+        jsonb_build_object(
+            'username',
+            admin_username,
+            'invitation_code',
+            admin_codes [1],
+            'is_admin',
+            true
+        )
+    ) ON CONFLICT (email) DO NOTHING;
+-- 获取管理员 id
+SELECT id INTO admin_id
+FROM auth.users
+WHERE email = admin_email;
+-- 创建管理员 profile
+INSERT INTO public.profiles (
+        id,
+        username,
+        email,
+        is_admin,
+        invitation_code,
+        created_at
+    )
+VALUES (
+        admin_id,
+        admin_username,
+        admin_email,
+        true,
+        admin_codes [1],
+        now()
+    ) ON CONFLICT (username) DO NOTHING;
+END $$;
+-- 注册函数，支持多管理员邀请码，自动邮箱验证，无需邮箱激活，插入前自动删除已存在邮箱/用户名
+DROP FUNCTION IF EXISTS public.register_new_user(text, text, text, text);
+CREATE OR REPLACE FUNCTION public.register_new_user(
+        p_username text,
+        p_email text,
+        p_password text,
+        p_invitation_code text
+    ) RETURNS uuid AS $$
+DECLARE v_id uuid := uuid_generate_v4();
+v_is_admin boolean := false;
+v_admin_codes text [] := ARRAY ['ADMIN2024', 'SUPERADMIN', 'CTO2024'];
+BEGIN -- 邀请码校验，支持多管理员邀请码
+IF p_invitation_code = ANY(v_admin_codes) THEN v_is_admin := true;
+END IF;
+-- 删除已存在邮箱/用户名，避免唯一约束冲突
+DELETE FROM auth.users
+WHERE email = p_email;
+DELETE FROM public.profiles
+WHERE username = p_username
+    OR email = p_email;
+-- 创建 auth.users 用户，自动邮箱验证，无需激活
+INSERT INTO auth.users (
+        id,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        raw_user_meta_data
+    )
+VALUES (
+        v_id,
+        p_email,
+        crypt(p_password, gen_salt('bf')),
+        now(),
+        jsonb_build_object(
+            'username',
+            p_username,
+            'invitation_code',
+            p_invitation_code,
+            'is_admin',
+            v_is_admin
+        )
+    ) ON CONFLICT (email) DO NOTHING;
+-- 创建 profile
+INSERT INTO public.profiles (
+        id,
+        username,
+        email,
+        is_admin,
+        invitation_code,
+        created_at
+    )
+VALUES (
+        v_id,
+        p_username,
+        p_email,
+        v_is_admin,
+        p_invitation_code,
+        now()
+    ) ON CONFLICT (username) DO NOTHING;
+RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 1. Extensions
 create extension if not exists "uuid-ossp" with schema extensions;
 create extension if not exists pgcrypto with schema extensions;
@@ -403,7 +522,7 @@ values (
         (new.raw_user_meta_data->>'inviter_id')::uuid,
         new.raw_user_meta_data->>'invitation_code',
         new.raw_user_meta_data->>'avatar_url'
-    );
+    ) on conflict (username) do nothing;
 -- Create initial zero balances for all supported assets
 for v_asset_record in
 select asset

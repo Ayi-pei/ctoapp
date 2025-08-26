@@ -9,7 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import { DailyTask, UserTaskState, TaskTriggerType } from "@/types";
-import { useAuth } from "./auth-context";
+import { useSimpleAuth } from './simple-custom-auth';
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
 import { useBalance } from "./balance-context";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
@@ -59,7 +59,7 @@ interface TasksContextType {
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser } = useSimpleAuth();
   const { addLog } = useSimpleEnhancedLogs();
   const { creditReward } = useBalance();
 

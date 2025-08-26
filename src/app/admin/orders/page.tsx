@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
 import { SpotTrade, ContractTrade, Investment, SwapOrder } from '@/types';
@@ -62,7 +62,7 @@ const getOrderStatusText = (order: FormattedOrder): string => {
 
 
 export default function AdminOrdersPage() {
-    const { isAdmin } = useAuth();
+    const { isAdmin } = useSimpleAuth();
     const router = useRouter();
     const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
     

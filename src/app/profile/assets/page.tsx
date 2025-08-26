@@ -11,7 +11,7 @@ import type { Investment } from "@/types";
 import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useBalance } from "@/context/balance-context";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB", "AVAX", "LINK", "DOT", "UNI", "TRX", "XLM", "VET", "EOS", "FIL", "ICP"];

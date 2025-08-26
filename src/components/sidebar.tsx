@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { adminNavItems, userNavItems } from '@/lib/nav-config';
 import {
   Collapsible,
@@ -15,7 +15,7 @@ import { ChevronRight } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin } = useSimpleAuth();
 
   const navItems = isAdmin && pathname.startsWith('/admin') ? adminNavItems : userNavItems;
   

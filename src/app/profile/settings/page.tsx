@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRequests } from "@/context/requests-context";
 import { LifeBuoy } from "lucide-react";
 
@@ -26,7 +26,7 @@ const changePasswordSchema = z.object({
 
 export default function ProfileSettingsPage() {
     const { toast } = useToast();
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { addPasswordResetRequest } = useRequests();
 
 

@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import type { User } from '@/types';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import { UserDetailsDialog } from '@/components/admin/user-details-dialog';
 
 
 export default function AdminUsersPage() {
-    const { user, isAdmin, getAllUsers } = useAuth();
+    const { user, isAdmin, getAllUsers } = useSimpleAuth();
     const router = useRouter();
     const { toast } = useToast();
     

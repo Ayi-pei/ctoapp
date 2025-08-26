@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ const StatCard = ({ label, value }: { label: string, value: string | number }) =
 );
 
 export default function PromotionPage() {
-    const { user, getDownline } = useAuth();
+    const { user, getDownline } = useSimpleAuth();
     const { rewardLogs } = useBalance();
     const { requests } = useRequests();
     const { toast } = useToast();

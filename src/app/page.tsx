@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRouter } from 'next/navigation';
 import { LoaderCircle } from 'lucide-react';
 import AuthLayout from '@/components/auth-layout';
@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
  * For unauthenticated users, it provides a clear message before redirecting.
  */
 export default function Home() {
-    const { isAuthenticated, isLoading, isAdmin } = useAuth();
+    const { isAuthenticated, isLoading, isAdmin } = useSimpleAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [redirectMessage, setRedirectMessage] = useState<string | null>(null);

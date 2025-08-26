@@ -3,9 +3,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { AnyRequest, PasswordResetRequest, Transaction } from '@/types';
-import { useAuth } from './auth-context';
+import { useSimpleAuth } from './simple-custom-auth';
 import { useBalance } from './balance-context';
-import { useLogs } from './logs-context';
+import { useSimpleEnhancedLogs } from './simple-enhanced-logs-context';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
 type DepositRequestParams = {
@@ -34,9 +34,9 @@ interface RequestsContextType {
 const RequestsContext = createContext<RequestsContextType | undefined>(undefined);
 
 export function RequestsProvider({ children }: { children: ReactNode }) {
-    const { user, updateUser } = useAuth();
+    const { user, updateUser } = useSimpleAuth();
     const { adjustBalance } = useBalance();
-    const { addLog } = useLogs();
+    const { addLog } = useSimpleEnhancedLogs();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
 
     const fetchAllRequests = useCallback(async () => {

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useAuth } from '@/context/auth-context';
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,7 +9,7 @@ import AuthLayout from '@/components/auth-layout';
 import { LoaderCircle } from 'lucide-react';
 
 export default function AdminPage() {
-    const { isAdmin, isLoading } = useAuth();
+    const { isAdmin, isLoading } = useSimpleAuth();
     const router = useRouter();
 
     useEffect(() => {

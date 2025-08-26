@@ -13,7 +13,7 @@ import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { availablePairs } from "@/types";
 import { ArrowRight, LoaderCircle, Upload, Eye, CheckCircle, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -53,7 +53,7 @@ const getStatusBadge = (status: SwapOrder['status']) => {
 }
 
 export default function SwapPage() {
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { 
         orders,
         createOrder, 

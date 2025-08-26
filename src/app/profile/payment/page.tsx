@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { ChevronLeft, PlusCircle, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -42,7 +42,7 @@ export type WithdrawalAddress = {
 
 export default function PaymentPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { toast } = useToast();
     const [addresses, setAddresses] = useState<WithdrawalAddress[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

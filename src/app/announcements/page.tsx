@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChevronLeft, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/auth-context";
+import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useAnnouncements } from "@/context/announcements-context";
 
 
 export default function AnnouncementsPage() {
     const router = useRouter();
-    const { user } = useAuth();
+    const { user } = useSimpleAuth();
     const { announcements, platformAnnouncements } = useAnnouncements();
     const [userAnnouncements, setUserAnnouncements] = useState<any[]>([]);
 
