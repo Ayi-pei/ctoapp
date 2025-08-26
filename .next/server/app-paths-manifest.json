@@ -1,0 +1,7 @@
+{
+  "/api/coindesk/route": "app/api/coindesk/route.js",
+  "/api/coingecko/route": "app/api/coingecko/route.js",
+  "/login/page": "app/login/page.js",
+  "/register/page": "app/register/page.js",
+  "/page": "app/page.js"
+}

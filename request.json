@@ -1,0 +1,26 @@
+{
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "INSERT_INPUT_HERE"
+          },
+        ]
+      },
+    ],
+    "generationConfig": {
+      "thinkingConfig": {
+        "thinkingBudget": 8192,
+      },
+    },
+    "tools": [
+      {
+        "codeExecution": {}
+      },
+      {
+        "googleSearch": {
+        }
+      },
+    ],
+}
