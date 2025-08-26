@@ -41,6 +41,13 @@ export type HourlyInvestmentParams = {
   category: "staking" | "finance";
 };
 
+export type BalanceRow = {
+  asset: string;
+  available_balance: number;
+  frozen_balance: number;
+};
+export type TradeRow = SpotTrade | ContractTrade;
+
 interface BalanceContextType {
   balances: { [key: string]: { available: number; frozen: number } };
   investments: Investment[];
@@ -116,7 +123,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       const formattedBalances: {
         [key: string]: { available: number; frozen: number };
       } = {};
-      data?.forEach((b) => {
+      (data as BalanceRow[] | undefined)?.forEach((b: BalanceRow) => {
         formattedBalances[b.asset] = {
           available: b.available_balance,
           frozen: b.frozen_balance,
@@ -136,15 +143,14 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if (error) console.error("Error fetching trades:", error);
     else {
       setActiveContractTrades(
-        data.filter(
-          (t) => t.orderType === "contract" && t.status === "active"
+        (data as TradeRow[] | undefined)?.filter(
+          (t: TradeRow) => t.orderType === "contract" && t.status === "active"
         ) as ContractTrade[]
       );
       setHistoricalTrades(
-        data.filter((t) => t.status !== "active") as (
-          | SpotTrade
-          | ContractTrade
-        )[]
+        (data as TradeRow[] | undefined)?.filter(
+          (t: TradeRow) => t.status !== "active"
+        ) as (SpotTrade | ContractTrade)[]
       );
     }
   }, []);

@@ -51,8 +51,11 @@ create table if not exists public.balances (
     id bigserial primary key,
     user_id uuid not null references public.profiles(id) on delete cascade,
     asset text not null,
-    available_balance double precision default 0,
-    frozen_balance double precision default 0,
+    asset_type text default 'crypto',
+    available_balance numeric(30, 8) default 0,
+    -- 精确财务计算
+    frozen_balance numeric(30, 8) default 0,
+    -- 精确财务计算
     unique(user_id, asset)
 );
 create index if not exists balances_user_id_asset_idx on public.balances(user_id, asset);
@@ -91,6 +94,7 @@ create table if not exists public.trades (
 );
 create index if not exists trades_status_settlement_time_idx on public.trades(status, settlement_time);
 create index if not exists trades_trading_pair_status_idx on public.trades(trading_pair, status, settlement_time);
+create index if not exists idx_trades_user_status_time on public.trades(user_id, status, created_at);
 comment on table public.trades is 'Records all user spot and contract trading activities.';
 -- Investment records
 create table if not exists public.investments (
@@ -114,6 +118,7 @@ create table if not exists public.investments (
     hourly_rate double precision
 );
 create index if not exists investments_status_settlement_date_idx on public.investments(status, settlement_date);
+create index if not exists idx_investments_user_status_date on public.investments(user_id, status, settlement_date);
 comment on table public.investments is 'Tracks user investments in various financial products.';
 -- Reward and commission logs
 create table if not exists public.reward_logs (
@@ -130,6 +135,7 @@ create table if not exists public.reward_logs (
     description text
 );
 create index if not exists reward_logs_user_id_created_at_idx on public.reward_logs(user_id, created_at);
+create index if not exists idx_reward_logs_user_asset_date on public.reward_logs(user_id, asset, created_at);
 comment on table public.reward_logs is 'A log of all rewards and commissions distributed to users.';
 -- User requests (deposit, withdrawal, password reset)
 create table if not exists public.requests (
@@ -725,9 +731,6 @@ drop function if exists public.settle_and_log();
 create or replace function public.settle_and_log() returns void as $$
 declare log_id bigint;
 result_text text;
-v_sqlstate text;
-v_message text;
-v_context text;
 begin
 insert into public.cron_job_logs (job_name, run_status, start_time)
 values ('settle_due_records', 'started', now())
@@ -739,12 +742,10 @@ set run_status = 'success',
     end_time = now()
 where id = log_id;
 exception
-when others then get stacked diagnostics v_sqlstate = returned_sqlstate,
-v_message = message_text,
-v_context = pg_exception_context;
+when others then
 update public.cron_job_logs
 set run_status = 'failed',
-    details = 'SQLSTATE: ' || v_sqlstate || ' | ' || v_message || ' | CONTEXT: ' || v_context,
+    details = SQLERRM,
     end_time = now()
 where id = log_id;
 end;
