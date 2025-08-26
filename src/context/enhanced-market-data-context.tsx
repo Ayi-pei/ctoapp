@@ -347,34 +347,51 @@ export function EnhancedMarketDataProvider({ children }: { children: ReactNode }
         let generatedCount = 0;
 
         const loadBatchForPair = async () => {
-          if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
+          try {
+            if (!isMounted || generatedCount >= TOTAL_SECONDS) return;
 
-          const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
-          const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
-          const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
+            const startTimestamp = Date.now() - (TOTAL_SECONDS - generatedCount) * 1000;
+            const count = Math.min(BATCH_SIZE, TOTAL_SECONDS - generatedCount);
+            
+            // 确保 generateKlineBatch 函数存在
+            if (typeof generateKlineBatch !== 'function') {
+              console.error('generateKlineBatch function not found');
+              return;
+            }
+            
+            const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
 
-          if (isSupabaseEnabled) {
-            const dbBatch = batch.map(d => ({ 
-              trading_pair: pair, 
-              time: d.time,
-              open: d.open, 
-              high: d.high, 
-              low: d.low, 
-              close: d.close 
-            }));
-            await supabase.from('market_kline_data').insert(dbBatch);
-          }
-          
-          lastPrice = newPrice;
-          generatedCount += count;
-          
-          setKlineData(prev => ({ 
-            ...prev, 
-            [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) 
-          }));
+            if (isSupabaseEnabled && batch && batch.length > 0) {
+              try {
+                const dbBatch = batch.map(d => ({ 
+                  trading_pair: pair, 
+                  time: d.time,
+                  open: d.open, 
+                  high: d.high, 
+                  low: d.low, 
+                  close: d.close 
+                }));
+                await supabase.from('market_kline_data').insert(dbBatch);
+              } catch (dbError) {
+                console.warn('Database insert failed:', dbError);
+              }
+            }
+            
+            lastPrice = newPrice;
+            generatedCount += count;
+            
+            if (batch && batch.length > 0) {
+              setKlineData(prev => ({ 
+                ...prev, 
+                [pair]: [...(prev[pair] || []), ...batch.map(d => ({...d, trading_pair: pair}))].slice(-DATA_POINTS_TO_KEEP) 
+              }));
+            }
 
-          if (generatedCount < TOTAL_SECONDS) {
-            setTimeout(loadBatchForPair, 50);
+            if (generatedCount < TOTAL_SECONDS && isMounted) {
+              setTimeout(loadBatchForPair, 50);
+            }
+          } catch (error) {
+            console.error('Error in loadBatchForPair:', error);
           }
         };
         await loadBatchForPair();
