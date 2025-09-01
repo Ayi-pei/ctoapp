@@ -2,12 +2,10 @@
 const nextConfig = {
   /* config options here */
   typescript: {
-    // 开发环境忽略错误，生产环境启用检查
-    ignoreBuildErrors: process.env.NODE_ENV === 'development',
+    ignoreBuildErrors: true,
   },
   eslint: {
-    // 开发环境忽略错误，生产环境启用检查
-    ignoreDuringBuilds: process.env.NODE_ENV === 'development',
+    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [

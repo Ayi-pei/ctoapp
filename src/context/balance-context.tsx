@@ -17,7 +17,7 @@ import {
   InvestmentTier,
   SecureUser,
 } from "@/types";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./auth-context";
 import { useEnhancedMarket } from "./enhanced-market-data-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
@@ -91,7 +91,7 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useSimpleAuth();
+  const { user, updateUser } = useAuth();
   const { getLatestPrice } = useEnhancedMarket();
   const { toast } = useToast();
   const { addLog } = useSimpleEnhancedLogs();

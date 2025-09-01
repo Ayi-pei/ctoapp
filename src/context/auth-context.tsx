@@ -63,21 +63,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
-    // 前端不再使用环境变量进行管理员登录，统一走服务端校验
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        return { success: true, isAdmin: !!json.user?.is_admin };
-      }
-      return { success: false, isAdmin: false };
-    } catch (e) {
-      console.error('Login via API failed:', e);
-      return { success: false, isAdmin: false };
+    // Special case for admin login via environment variables
+    if (
+        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+        password === process.env.NEXT_PUBLIC_ADMIN_KEY
+    ) {
+         const { data, error } = await supabase.auth.signInWithPassword({
+            email: `${username}@noemail.app`,
+            password: password,
+        });
+
+        if (error || !data.user) {
+             // If admin user doesn't exist in Supabase auth, create it
+            if (error && error.message.includes('Invalid login credentials')) {
+                 const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                    email: `${username}@noemail.app`,
+                    password: password,
+                    options: {
+                        data: {
+                            username: username,
+                            nickname: 'Administrator',
+                            is_admin: true,
+                            is_test_user: false,
+                            credit_score: 999,
+                            invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH,
+                        }
+                    }
+                });
+
+                if (signUpError || !signUpData.user) {
+                     console.error("Admin sign-up failed:", signUpError);
+                     return { success: false, isAdmin: false };
+                }
+                
+                // Manually update user profile after sign up if needed, since options.data might not work on all Supabase versions
+                 await supabase.from('profiles').upsert({
+                     id: signUpData.user.id,
+                     username: username,
+                     nickname: 'Administrator',
+                     is_admin: true,
+                     is_test_user: false,
+                     credit_score: 999,
+                     invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH,
+                     email: `${username}@noemail.app`,
+                 }, { onConflict: 'id' });
+
+                return { success: true, isAdmin: true };
+            }
+            console.error("Admin login failed:", error);
+            return { success: false, isAdmin: false };
+        }
+        
+        return { success: true, isAdmin: true };
     }
 
     // Regular user login

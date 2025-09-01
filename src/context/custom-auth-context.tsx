@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import type { User as UserType, SecureUser } from '@/types';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import bcrypt from 'bcrypt';
 
 export type User = UserType;
 
@@ -83,17 +84,90 @@ export function CustomAuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success && json.user) {
-        setSession(json.user as SecureUser);
-        return { success: true, isAdmin: !!json.user.is_admin };
+      // 1. 检查管理员登录
+      if (
+        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+        password === process.env.NEXT_PUBLIC_ADMIN_KEY
+      ) {
+        // 查找或创建管理员账户
+        let { data: adminProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('username', username)
+          .single();
+
+        if (error && error.code === 'PGRST116') {
+          // 管理员不存在，创建一个
+          const adminId = crypto.randomUUID();
+          const { data: newAdmin, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: adminId,
+              username: username,
+              nickname: 'Administrator',
+              email: null, // 不使用邮箱
+              is_admin: true,
+              is_test_user: false,
+              invitation_code: process.env.NEXT_PUBLIC_ADMIN_AUTH || 'ADMIN001',
+              password_hash: await bcrypt.hash(password, 10),
+              created_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            return { success: false, isAdmin: false, error: '管理员账户创建失败' };
+          }
+          adminProfile = newAdmin;
+        } else if (error) {
+          return { success: false, isAdmin: false, error: '登录失败' };
+        }
+
+        // 验证密码（对于已存在的管理员）
+        if (adminProfile.password_hash) {
+          const isValidPassword = await bcrypt.compare(password, adminProfile.password_hash);
+          if (!isValidPassword) {
+            return { success: false, isAdmin: false, error: '密码错误' };
+          }
+        }
+
+        // 设置会话
+        setSession(adminProfile);
+        return { success: true, isAdmin: true };
       }
-      return { success: false, isAdmin: false, error: json?.error || '用户名或密码错误' };
+
+      // 2. 普通用户登录
+      const { data: userProfile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', username)
+        .eq('is_frozen', false)
+        .single();
+
+      if (error || !userProfile) {
+        return { success: false, isAdmin: false, error: '用户不存在或已被冻结' };
+      }
+
+      // 验证密码
+      if (!userProfile.password_hash) {
+        return { success: false, isAdmin: false, error: '账户配置错误' };
+      }
+
+      const isValidPassword = await bcrypt.compare(password, userProfile.password_hash);
+      if (!isValidPassword) {
+        return { success: false, isAdmin: false, error: '密码错误' };
+      }
+
+      // 更新最后登录时间
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', userProfile.id);
+
+      // 设置会话
+      setSession(userProfile);
+      return { success: true, isAdmin: !!userProfile.is_admin };
+
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, isAdmin: false, error: '登录过程中发生错误' };
@@ -102,19 +176,65 @@ export function CustomAuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (username: string, password: string, invitationCode: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, invitationCode }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success) {
-        return { success: true };
+      // 1. 检查用户名是否已存在
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        return { success: false, error: 'username_exists' };
       }
-      return { success: false, error: json?.error || '注册失败' };
+
+      // 2. 验证邀请码
+      const { data: inviter, error: inviterError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('invitation_code', invitationCode)
+        .single();
+
+      if (inviterError || !inviter) {
+        return { success: false, error: 'invalid_code' };
+      }
+
+      // 3. 创建新用户
+      const userId = crypto.randomUUID();
+      const passwordHash = await bcrypt.hash(password, 10);
+      const newInvitationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      const { data: newUser, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          username: username,
+          nickname: username,
+          email: null, // 不使用邮箱
+          inviter_id: inviter.id,
+          invitation_code: newInvitationCode,
+          password_hash: passwordHash,
+          is_admin: false,
+          is_test_user: true,
+          credit_score: 95,
+          avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('User creation error:', createError);
+        return { success: false, error: 'database_error' };
+      }
+
+      // 4. 创建初始余额（调用数据库函数）
+      await supabase.rpc('create_initial_balances', { p_user_id: userId });
+
+      return { success: true };
+
     } catch (error) {
       console.error('Registration error:', error);
-      return { success: false, error: '注册过程中发生错误' };
+      return { success: false, error: 'database_error' };
     }
   };
 
@@ -149,13 +269,18 @@ export function CustomAuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = async (userId: string, updates: Partial<User>): Promise<boolean> => {
     try {
-      const res = await fetch('/api/auth/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, updates }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) return false;
+      const { password, ...profileUpdates } = updates as any;
+
+      if (password) {
+        profileUpdates.password_hash = await bcrypt.hash(password, 10);
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', userId);
+
+      if (error) throw error;
 
       // 如果更新的是当前用户，刷新状态
       if (user && user.id === userId) {

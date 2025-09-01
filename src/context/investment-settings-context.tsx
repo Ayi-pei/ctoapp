@@ -65,68 +65,26 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
 
     const fetchProducts = useCallback(async () => {
         if (!isSupabaseEnabled) {
-            console.warn("Supabase not enabled, using default investment products.");
-            // Use default products when Supabase is not enabled
-            const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
-                ...product,
-                id: `default_${index}`
-            }));
-            setInvestmentProducts(productsWithIds);
+            console.warn("Supabase not enabled, cannot fetch investment products.");
+            return;
+        }
+        let { data, error } = await supabase.from('investment_products').select('*');
+        
+        if (error) {
+            console.error("Failed to load investment settings from Supabase", error);
             return;
         }
 
-        try {
-            const { data, error } = await supabase.from('investment_products').select('*');
-            
-            if (error) {
-                console.error("Failed to load investment settings from Supabase", error);
-                // Fallback to default products on error
-                const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
-                    ...product,
-                    id: `fallback_${index}`
-                }));
-                setInvestmentProducts(productsWithIds);
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                try {
-                    // Seed the database with default products if it's empty
-                    const { data: seededData, error: seedError } = await supabase
-                        .from('investment_products')
-                        .insert(defaultInvestmentProducts)
-                        .select();
-                    
-                    if (seedError) {
-                        console.error("Failed to seed investment products:", seedError);
-                        // Use default products with mock IDs if seeding fails
-                        const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
-                            ...product,
-                            id: `mock_${index}`
-                        }));
-                        setInvestmentProducts(productsWithIds);
-                    } else {
-                        setInvestmentProducts(seededData as InvestmentProduct[]);
-                    }
-                } catch (seedError) {
-                    console.error("Error during seeding:", seedError);
-                    const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
-                        ...product,
-                        id: `error_${index}`
-                    }));
-                    setInvestmentProducts(productsWithIds);
-                }
+        if (!data || data.length === 0) {
+            // Seed the database with default products if it's empty
+            const { data: seededData, error: seedError } = await supabase.from('investment_products').insert(defaultInvestmentProducts).select();
+             if (seedError) {
+                console.error("Failed to seed investment products:", seedError);
             } else {
-                setInvestmentProducts(data as InvestmentProduct[]);
+                setInvestmentProducts(seededData as InvestmentProduct[]);
             }
-        } catch (error) {
-            console.error("Unexpected error in fetchProducts:", error);
-            // Final fallback
-            const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
-                ...product,
-                id: `final_${index}`
-            }));
-            setInvestmentProducts(productsWithIds);
+        } else {
+            setInvestmentProducts(data as InvestmentProduct[]);
         }
     }, []);
 
@@ -136,10 +94,6 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
     
 
     const addProduct = async (category: 'staking' | 'finance') => {
-        if (!isSupabaseEnabled) {
-            console.warn("Supabase not enabled, cannot add products.");
-            return;
-        }
         const newProductData: Partial<InvestmentProduct> = {
             name: '新产品',
             price: 100,
@@ -164,10 +118,6 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
     };
     
     const removeProduct = async (id: string) => {
-        if (!isSupabaseEnabled) {
-            console.warn("Supabase not enabled, cannot remove products.");
-            return;
-        }
         const { error } = await supabase.from('investment_products').delete().eq('id', id);
         if (error) {
              console.error("Error removing product:", error);
@@ -177,10 +127,6 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
     };
 
     const updateProduct = async (id: string, updates: Partial<InvestmentProduct>) => {
-        if (!isSupabaseEnabled) {
-            console.warn("Supabase not enabled, cannot update products.");
-            return;
-        }
         const { error } = await supabase.from('investment_products').update(updates).eq('id', id);
         if (error) {
             console.error("Error updating product:", error);

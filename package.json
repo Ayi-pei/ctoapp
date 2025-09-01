@@ -55,7 +55,6 @@
     "mime": "^4.0.7",
     "next": "15.4.6",
     "next-themes": "^0.3.0",
-    "prop-types": "^15.8.1",
     "qrcode.react": "^3.1.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -71,10 +70,10 @@
     "@types/caseless": "^0.12.5",
     "@types/json-schema": "^7.0.15",
     "@types/long": "^4.0.2",
-    "@types/node": "20.19.11",
+    "@types/node": "^20.19.11",
     "@types/prop-types": "^15.7.15",
     "@types/qrcode.react": "^1.0.5",
-    "@types/react": "18.3.24",
+    "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/request": "^2.48.13",
     "@types/shimmer": "^1.2.0",
@@ -84,6 +83,6 @@
     "patch-package": "^8.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "5.9.2"
+    "typescript": "^5"
   }
 }

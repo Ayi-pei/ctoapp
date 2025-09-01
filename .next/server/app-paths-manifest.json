@@ -1,10 +1,1 @@
-{
-  "/api/coindesk/route": "app/api/coindesk/route.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/api/coingecko/route": "app/api/coingecko/route.js",
-  "/api/alpha-vantage/route": "app/api/alpha-vantage/route.js",
-  "/api/auth/me/route": "app/api/auth/me/route.js",
-  "/login/page": "app/login/page.js",
-  "/register/page": "app/register/page.js",
-  "/admin/page": "app/admin/page.js"
-}
+{}

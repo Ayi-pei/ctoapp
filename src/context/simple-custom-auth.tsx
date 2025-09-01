@@ -24,8 +24,9 @@ interface SimpleAuthContextType {
 
 const SimpleAuthContext = createContext<SimpleAuthContextType | undefined>(undefined);
 
-// 由服务端会话 Cookie 维护登录态，无需本地存储 token
-
+// 会话管理
+const SESSION_KEY = 'coinsr_user_session';
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24小时
 
 export function SimpleAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SecureUser | null>(null);
@@ -35,21 +36,39 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
   // 初始化检查会话
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        // 向后端请求当前登录用户
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        const json = await res.json();
-        if (res.ok && json.authenticated && json.user) {
-          setUser(json.user as SecureUser);
-        } else {
-          setUser(null);
-        }
-      } catch (e) {
-        console.warn('auth/me failed:', e);
-        setUser(null);
-      } finally {
+      if (!isSupabaseEnabled) {
+        console.warn("Supabase is disabled. Auth will not function.");
         setIsLoading(false);
+        return;
       }
+
+      const sessionData = localStorage.getItem(SESSION_KEY);
+      if (sessionData) {
+        try {
+          const { userId, expiry } = JSON.parse(sessionData);
+          
+          if (Date.now() < expiry) {
+            // 会话有效，获取用户数据
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .eq('is_frozen', false)
+              .single();
+
+            if (data && !error) {
+              setUser(data as SecureUser);
+            } else {
+              localStorage.removeItem(SESSION_KEY);
+            }
+          } else {
+            localStorage.removeItem(SESSION_KEY);
+          }
+        } catch (error) {
+          localStorage.removeItem(SESSION_KEY);
+        }
+      }
+      setIsLoading(false);
     };
 
     initAuth();
@@ -57,21 +76,69 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean; error?: string }> => {
     try {
-      // Delegate admin/secure checks to server API
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      const json = await res.json();
-      if (res.ok && json.success && json.user) {
-        // 会话由后端 Cookie 维护，这里只存到内存
-        setUser(json.user as SecureUser);
-        return { success: true, isAdmin: !!json.user.is_admin };
+      // 1. 管理员登录检查
+      if (
+        username === process.env.NEXT_PUBLIC_ADMIN_NAME &&
+        password === process.env.NEXT_PUBLIC_ADMIN_KEY
+      ) {
+        // 查找或创建管理员
+        let { data: admin, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('username', username)
+          .single();
+
+        if (error && error.code === 'PGRST116') {
+          // 创建管理员账户
+          const adminId = crypto.randomUUID();
+          const { data: newAdmin, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: adminId,
+              username: username,
+              nickname: 'Administrator',
+              email: null,
+              is_admin: true,
+              is_test_user: false,
+              invitation_code: '159753', // 管理员邀请码
+              password_plain: password, // 临时存储明文密码
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            return { success: false, isAdmin: false, error: '管理员创建失败' };
+          }
+          admin = newAdmin;
+        }
+
+        if (admin) {
+          setSession(admin);
+          return { success: true, isAdmin: true };
+        }
       }
 
-      // 如果服务端校验失败，直接按失败处理（不在前端做密码校验）
-      return { success: false, isAdmin: false, error: json?.error || '用户名或密码错误' };
+      // 2. 普通用户登录
+      const { data: userProfile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('username', username)
+        .eq('password_plain', password) // 使用明文密码比较
+        .eq('is_frozen', false)
+        .single();
+
+      if (error || !userProfile) {
+        return { success: false, isAdmin: false, error: '用户名或密码错误' };
+      }
+
+      // 更新最后登录时间
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', userProfile.id);
+
+      setSession(userProfile);
+      return { success: true, isAdmin: !!userProfile.is_admin };
 
     } catch (error) {
       console.error('Login error:', error);
@@ -116,7 +183,7 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
           email: null,
           inviter_id: inviter.id,
           invitation_code: newInvitationCode,
-          password_hash: password, // 存储密码哈希
+          password_plain: password, // 存储明文密码
           is_admin: false,
           is_test_user: true,
           credit_score: 95,
@@ -149,25 +216,29 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch {}
+  const logout = () => {
+    localStorage.removeItem(SESSION_KEY);
     setUser(null);
-
+    
+    // 显示退出成功提示
     toast({
       title: '退出成功',
       description: '您已安全退出登录，正在跳转到登录页面...',
     });
-
+    
+    // 延迟跳转，让用户看到提示
     setTimeout(() => {
       router.push('/login');
-    }, 800);
+    }, 1500);
   };
 
-  // 不再使用本地存储的“伪会话”
-  const setSession = (_userData: SecureUser) => {
-    setUser(_userData);
+  const setSession = (userData: SecureUser) => {
+    const sessionData = {
+      userId: userData.id,
+      expiry: Date.now() + SESSION_DURATION,
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    setUser(userData);
   };
 
   const getUserById = async (id: string): Promise<User | null> => {

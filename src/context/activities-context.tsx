@@ -46,82 +46,21 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const { addLog } = useSimpleEnhancedLogs();
 
   const fetchActivities = useCallback(async () => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, using default activities.");
-      // Use default activities when Supabase is not enabled
-      const activitiesWithIds = defaultActivities.map((activity, index) => ({
-        ...activity,
-        id: `default_${index}`,
-        createdAt: new Date().toISOString()
-      }));
-      setActivities(activitiesWithIds as LimitedTimeActivity[]);
-      return;
-    }
+    if (!isSupabaseEnabled) return;
+    let { data, error } = await supabase.from('activities').select('*').order('created_at', { ascending: false });
 
-    try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
+    if (error) {
         console.error("Error fetching activities:", error);
-        // Fallback to default activities on error
-        const activitiesWithIds = defaultActivities.map((activity, index) => ({
-          ...activity,
-          id: `fallback_${index}`,
-          createdAt: new Date().toISOString()
-        }));
-        setActivities(activitiesWithIds as LimitedTimeActivity[]);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        try {
-          // Seed the database with default activities if it's empty
-          const activitiesWithCreatedAt = defaultActivities.map(activity => ({
-            ...activity,
-            createdAt: new Date().toISOString()
-          }));
-          
-          const { data: seededData, error: seedError } = await supabase
-            .from('activities')
-            .insert(activitiesWithCreatedAt)
-            .select();
-          
-          if (seedError) {
-            console.error("Error seeding activities:", seedError);
-            // Use default activities with mock IDs if seeding fails
-            const activitiesWithIds = defaultActivities.map((activity, index) => ({
-              ...activity,
-              id: `mock_${index}`,
-              createdAt: new Date().toISOString()
-            }));
-            setActivities(activitiesWithIds as LimitedTimeActivity[]);
-          } else {
-            setActivities(seededData as LimitedTimeActivity[]);
-          }
-        } catch (seedError) {
-          console.error("Error during activity seeding:", seedError);
-          const activitiesWithIds = defaultActivities.map((activity, index) => ({
-            ...activity,
-            id: `error_${index}`,
-            createdAt: new Date().toISOString()
-          }));
-          setActivities(activitiesWithIds as LimitedTimeActivity[]);
+    } else if (data && data.length === 0) {
+        // Seed database if empty
+        const { error: seedError } = await supabase.from('activities').insert(defaultActivities);
+        if (seedError) {
+             console.error("Error seeding activities:", seedError);
+        } else {
+            await fetchActivities(); // Refetch after seeding
         }
-      } else {
+    } else {
         setActivities(data as LimitedTimeActivity[]);
-      }
-    } catch (error) {
-      console.error("Unexpected error in fetchActivities:", error);
-      // Final fallback
-      const activitiesWithIds = defaultActivities.map((activity, index) => ({
-        ...activity,
-        id: `final_${index}`,
-        createdAt: new Date().toISOString()
-      }));
-      setActivities(activitiesWithIds as LimitedTimeActivity[]);
     }
   }, []);
 
@@ -131,10 +70,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
 
 
   const addActivity = async () => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, cannot add activities.");
-      return;
-    }
+    if (!isSupabaseEnabled) return;
   
     const newActivity: Omit<LimitedTimeActivity, 'id'> = {
       title: '新活动',
@@ -154,20 +90,14 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
   
 
   const removeActivity = async (id: string) => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, cannot remove activities.");
-      return;
-    }
+    if (!isSupabaseEnabled) return;
     const { error } = await supabase.from('activities').delete().eq('id', id);
     if (error) console.error("Error removing activity:", error);
     else await fetchActivities();
   };
 
   const updateActivity = async (id: string, updates: Partial<LimitedTimeActivity>) => {
-     if (!isSupabaseEnabled) {
-       console.warn("Supabase not enabled, cannot update activities.");
-       return;
-     }
+     if (!isSupabaseEnabled) return;
      const { error } = await supabase.from('activities').update(updates).eq('id', id);
      if (error) console.error("Error updating activity:", error);
      else await fetchActivities();

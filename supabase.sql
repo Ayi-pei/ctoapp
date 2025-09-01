@@ -1,17 +1,6 @@
 -- supabase.sql
--- 完整的数据库初始化脚本 - 整合所有相关SQL
 -- This script is designed to be idempotent and can be run multiple times safely.
--- 版本: 完整整合版
--- 包含: 所有表结构、函数、策略、管理员初始化
-
--- 启用必要的扩展
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
-CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA extensions;
-
 -- 删除已存在的表，避免字段冲突
--- 删除所有相关表（包括从其他schema文件整合的表）
-DROP TABLE IF EXISTS public.users CASCADE;
-DROP TABLE IF EXISTS public.transactions CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TABLE IF EXISTS public.balances CASCADE;
 DROP TABLE IF EXISTS public.trades CASCADE;
@@ -36,110 +25,60 @@ DROP TABLE IF EXISTS public.cron_job_logs CASCADE;
 -- 0. 注册流程与管理员初始化（幂等）
 -- 管理员邀请码硬编码数组（可根据实际需求调整）
 DO $$
-DECLARE 
-    admin_codes text[] := ARRAY['ADMIN8888', 'SUPERADMIN', 'CTO2024'];
-    admin_usernames text[] := ARRAY['adminsrf', 'adminayi', 'admin8888'];
-    admin_username text;
-    admin_email text;
-    admin_id uuid;
-    i integer;
-BEGIN 
-    -- 循环创建多个管理员
-    FOR i IN 1..array_length(admin_usernames, 1) LOOP
-        admin_username := admin_usernames[i];
-        admin_email := admin_username || '@ctoapp.com';  -- 动态生成邮箱
-        
-        -- 删除已存在的管理员，避免唯一约束冲突
-        DELETE FROM auth.users WHERE email = admin_email;
-        DELETE FROM public.profiles WHERE username = admin_username OR email = admin_email;
-        
-        -- 创建管理员用户
-        INSERT INTO auth.users (
-            id,
-            email,
-            encrypted_password,
-            email_confirmed_at,
-            raw_user_meta_data
-        )
-        VALUES (
-            uuid_generate_v4(),
-            admin_email,
-            crypt('admin123', gen_salt('bf')),
-            now(),
-            jsonb_build_object(
-                'username', admin_username,
-                'invitation_code', admin_codes[i],
-                'is_admin', true
-            )
-        ) ON CONFLICT (email) DO NOTHING;
-        
-        -- 获取管理员 id
-        SELECT id INTO admin_id FROM auth.users WHERE email = admin_email;
-        
-        -- 创建管理员 profile
-        INSERT INTO public.profiles (
-            id,
-            username,
-            email,
-            is_admin,
-            invitation_code,
-            created_at
-        )
-        VALUES (
-            admin_id,
+DECLARE admin_codes text [] := ARRAY ['ADMIN8888', 'SUPERADMIN', 'CTO2024'];
+admin_email text := 'admin@ctoapp.com';
+admin_usernames text [] := ARRAY ['adminsrf','adminayi','admin8888'];
+admin_id uuid;
+BEGIN -- 删除已存在管理员，避免唯一约束冲突
+DELETE FROM auth.users
+WHERE email = admin_email;
+DELETE FROM public.profiles
+WHERE username = admin_username
+    OR email = admin_email;
+-- 创建管理员用户（如 auth.users 表存在）
+INSERT INTO auth.users (
+        id,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        raw_user_meta_data
+    )
+VALUES (
+        uuid_generate_v4(),
+        admin_email,
+        crypt('admin123', gen_salt('bf')),
+        now(),
+        jsonb_build_object(
+            'username',
             admin_username,
-            admin_email,
-            true,
-            admin_codes[i],
-            now()
-        ) ON CONFLICT (username) DO NOTHING;
-        
-        RAISE NOTICE '创建管理员: % (邮箱: %, 邀请码: %)', admin_username, admin_email, admin_codes[i];
-    END LOOP;
+            'invitation_code',
+            admin_codes [1],
+            'is_admin',
+            true
+        )
+    ) ON CONFLICT (email) DO NOTHING;
+-- 获取管理员 id
+SELECT id INTO admin_id
+FROM auth.users
+WHERE email = admin_email;
+-- 创建管理员 profile
+INSERT INTO public.profiles (
+        id,
+        username,
+        email,
+        is_admin,
+        invitation_code,
+        created_at
+    )
+VALUES (
+        admin_id,
+        admin_username,
+        admin_email,
+        true,
+        admin_codes [1],
+        now()
+    ) ON CONFLICT (username) DO NOTHING;
 END $$;
-
--- ================================================================
--- 1. 核心表结构创建（整合自 schema.sql）
--- ================================================================
-
--- Create the users table (from schema.sql)
-CREATE TABLE public.users (
-    id UUID PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE,
-    inviter_id UUID REFERENCES public.users(id),
-    is_admin BOOLEAN DEFAULT FALSE,
-    is_test_user BOOLEAN DEFAULT FALSE,
-    is_frozen BOOLEAN DEFAULT FALSE,
-    invitation_code TEXT UNIQUE,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT fk_auth_users FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
-);
-COMMENT ON TABLE public.users IS 'Stores public user profile information.';
-COMMENT ON COLUMN public.users.is_frozen IS 'If true, the user account is suspended.';
-COMMENT ON COLUMN public.users.invitation_code IS 'Unique code for inviting other users.';
-
--- Create the transactions table for deposits and withdrawals
-CREATE TABLE public.transactions (
-    id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES public.users(id),
-    type TEXT NOT NULL, -- 'deposit', 'withdrawal', 'adjustment'
-    asset TEXT NOT NULL,
-    amount NUMERIC(30, 10) NOT NULL,
-    status TEXT NOT NULL, -- 'pending', 'approved', 'rejected'
-    address TEXT, -- For withdrawals
-    transaction_hash TEXT, -- For deposits
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-COMMENT ON TABLE public.transactions IS 'Records user deposits, withdrawals, and administrative adjustments.';
-
--- ================================================================
--- 2. 自定义认证系统扩展（整合自 custom-auth-schema.sql）
--- ================================================================
-
--- 为 profiles 表添加密码哈希字段（用于自定义认证）
--- 注意：这里先创建 profiles 表，然后再添加字段
-
 -- 注册函数，支持多管理员邀请码，自动邮箱验证，无需邮箱激活，插入前自动删除已存在邮箱/用户名
 DROP FUNCTION IF EXISTS public.register_new_user(text, text, text, text);
 CREATE OR REPLACE FUNCTION public.register_new_user(
@@ -208,10 +147,9 @@ create extension if not exists pgcrypto with schema extensions;
 create extension if not exists pg_cron with schema extensions;
 -- 2. Table Definitions
 -- Core user table, linked to auth.users
--- 主要用户信息表（profiles表）- 整合了自定义认证功能
 create table if not exists public.profiles (
-    id uuid not null primary key references auth.users(id) on delete cascade,
-    username text unique not null,
+    id uuid not null primary key,
+    username text unique,
     nickname text,
     email text unique,
     inviter_id uuid references public.profiles(id),
@@ -219,7 +157,6 @@ create table if not exists public.profiles (
     is_test_user boolean default true,
     is_frozen boolean default false,
     invitation_code text unique,
-    password_hash text, -- 添加密码哈希字段用于自定义认证
     credit_score integer default 100,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     last_login_at timestamp with time zone,
@@ -488,31 +425,6 @@ create table if not exists public.market_kline_data (
     unique (trading_pair, time)
 );
 create index if not exists idx_kline_data_pair_time on public.market_kline_data(trading_pair, time);
-
--- ================================================================
--- 3. 确保所有必要的索引和约束
--- ================================================================
-
--- 为 users 表创建索引
-CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
-CREATE INDEX IF NOT EXISTS idx_users_invitation_code ON public.users(invitation_code);
-CREATE INDEX IF NOT EXISTS idx_users_inviter_id ON public.users(inviter_id);
-
--- 为 transactions 表创建索引
-CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_type ON public.transactions(type);
-CREATE INDEX IF NOT EXISTS idx_transactions_status ON public.transactions(status);
-CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON public.transactions(created_at);
-
--- 为 balances 表创建索引
-CREATE INDEX IF NOT EXISTS idx_balances_user_id ON public.balances(user_id);
-CREATE INDEX IF NOT EXISTS idx_balances_asset ON public.balances(asset);
-
--- 为 trades 表创建索引
-CREATE INDEX IF NOT EXISTS idx_trades_user_id ON public.trades(user_id);
-CREATE INDEX IF NOT EXISTS idx_trades_trading_pair ON public.trades(trading_pair);
-CREATE INDEX IF NOT EXISTS idx_trades_status ON public.trades(status);
-CREATE INDEX IF NOT EXISTS idx_trades_created_at ON public.trades(created_at);
 -- Intervention rules table
 create table if not exists public.market_interventions (
     id bigserial primary key,
@@ -1062,15 +974,6 @@ create policy "Admins can manage commission_rates" on public.commission_rates fo
         where id = auth.uid()
     )
 );
--- 纯 API 模式补丁：移除对 profiles 的公开读取策略，防止匿名用户读取用户资料
-DO $$ BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='profiles' AND policyname='Allow public read access to profiles'
-  ) THEN
-    EXECUTE 'DROP POLICY "Allow public read access to profiles" ON public.profiles';
-  END IF;
-END $$;
-
 -- 6. Cron Job Scheduling
 -- Unschedule existing job to prevent duplicates, then schedule the new one.
 DO $$
