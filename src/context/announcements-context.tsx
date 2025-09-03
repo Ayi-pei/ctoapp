@@ -63,7 +63,16 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         if (error) {
             console.error("Error fetching announcements:", error);
         } else {
-            const allAnns = data as any[];
+            const allAnns = data as Array<{
+                id: string;
+                type: string;
+                content?: any;
+                title?: string;
+                user_id?: string;
+                theme?: string;
+                priority?: number;
+                expires_at?: string;
+            }>;
             setAnnouncements(allAnns.filter(a => a.type === 'personal_message'));
 
             const dbCarousel = allAnns.find(a => a.type === 'carousel');

@@ -86,7 +86,7 @@ export function getDefaultCookieOptions(): CookieOptions {
   const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: isProd, // in dev you may keep false
+    secure: isProd,
     sameSite: 'strict',
     maxAge: ttl,
     path: '/',

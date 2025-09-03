@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { Megaphone, ArrowRight, BookCheck, CalendarCheck, Users, Download, Repeat, CandlestickChart, Timer, Info } from "lucide-react";
 import { MarketList } from "@/components/market-list";
@@ -12,13 +12,12 @@ import { useBalance } from "@/context/balance-context";
 import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { useAnnouncements } from "@/context/announcements-context";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import Autoplay from "embla-carousel-autoplay"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {useMarket} from "@/context/market-data-context";
 
 
 export default function DashboardPage() {
@@ -65,7 +64,7 @@ export default function DashboardPage() {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
     
-    const renderMarketList = (data: any[], type: string) => {
+    const renderMarketList = (data: Array<{ pair: string; price: number; change: number }>, type: string) => {
         if (summaryData.length === 0 && data.length === 0) { // Check both to avoid flicker
             return (
                 <div className="space-y-4 mt-4">

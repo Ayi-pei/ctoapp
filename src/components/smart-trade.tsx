@@ -35,7 +35,7 @@ export function SmartTrade({ tradingPair: initialTradingPair }: SmartTradeProps)
   const { summaryData } = useEnhancedMarket();
 
   const marketData = useMemo(() => {
-    return summaryData.reduce((acc: any, curr: any) => {
+    return summaryData.reduce((acc: Record<string, any>, curr: any) => {
         acc[curr.pair] = { price: curr.price };
         return acc;
     }, {});

@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     }
 
     // Session validation
-    const token = cookies().get(sessionCookieName)?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get(sessionCookieName)?.value;
     const { valid, userId } = verifySession(token);
     if (!valid || !userId) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });

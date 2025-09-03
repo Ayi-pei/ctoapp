@@ -29,14 +29,21 @@ export function SwapProvider({ children }: { children: ReactNode }) {
     const [orders, setOrders] = useState<SwapOrder[]>([]);
 
     const fetchOrders = useCallback(async () => {
-        if (!isSupabaseEnabled) return;
-        const { data, error } = await supabase.from('swap_orders').select('*').order('created_at', { ascending: false });
+        if (!isSupabaseEnabled || !user) return;
+        
+        // 查询用户相关的订单（作为创建者或接受者）
+        const { data, error } = await supabase
+            .from('swap_orders')
+            .select('*')
+            .or(`user_id.eq.${user.id},taker_id.eq.${user.id}`)
+            .order('created_at', { ascending: false });
+            
         if (error) {
             console.error("Error fetching swap orders:", error);
         } else {
             setOrders(data as SwapOrder[]);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         fetchOrders();

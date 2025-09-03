@@ -13,7 +13,7 @@ export async function GET() {
     }
 
     // Validate session from HttpOnly cookie
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get(sessionCookieName)?.value;
     const { valid, userId } = verifySession(token);
     if (!valid || !userId) {

@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
     });
     
-    if (error || !data.user) {
+    if (error || !data?.user) {
         console.error("User login failed:", error);
         return { success: false, isAdmin: false };
     }

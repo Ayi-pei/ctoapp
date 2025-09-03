@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSystemSettings, MarketIntervention } from "@/context/system-settings-context";
+import { useEnhancedSystemSettings, MarketIntervention } from "@/context/enhanced-system-settings-context";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -115,7 +115,7 @@ export default function AdminForexMarketSettingsPage() {
         addMarketIntervention,
         removeMarketIntervention,
         updateMarketIntervention,
-    } = useSystemSettings();
+    } = useEnhancedSystemSettings();
     const { availableSymbols: availableOptionsSymbols } = useOptions();
     const { toast } = useToast();
     

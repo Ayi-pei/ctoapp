@@ -15,7 +15,14 @@ export default function AnnouncementsPage() {
     const router = useRouter();
     const { user } = useSimpleAuth();
     const { announcements, platformAnnouncements } = useAnnouncements();
-    const [userAnnouncements, setUserAnnouncements] = useState<any[]>([]);
+    const [userAnnouncements, setUserAnnouncements] = useState<Array<{
+        id: string;
+        title: string;
+        content: string;
+        date: string;
+        user_id?: string;
+        is_read?: boolean;
+    }>>([]);
 
     useEffect(() => {
         if (user) {

@@ -29,8 +29,8 @@ interface AuditLog {
     action: string;
     targetType: string;
     targetId: string;
-    before?: any;
-    after?: any;
+    before?: Record<string, any>;
+    after?: Record<string, any>;
     timestamp: number;
     ipAddress?: string;
     userAgent?: string;
@@ -273,7 +273,7 @@ export function EnhancedLogsProvider({ children }: { children: ReactNode }) {
         startDate?: Date, 
         endDate?: Date
     ): string => {
-        let dataToExport: any[] = [];
+        let dataToExport: Array<Record<string, any>> = [];
         
         switch (type) {
             case 'action':

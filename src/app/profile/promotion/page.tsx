@@ -10,6 +10,9 @@ import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest, RewardLog } from "@/types";
+
+// 扩展 User 类型以包含 level 属性（从 getDownline 返回）
+type DownlineMemberWithLevel = DownlineMember & { level?: number };
 import { useBalance } from "@/context/balance-context";
 import { useRequests } from "@/context/requests-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +33,7 @@ export default function PromotionPage() {
     const { toast } = useToast();
     const router = useRouter();
 
-    const [teamMembers, setTeamMembers] = useState<DownlineMember[]>([]);
+    const [teamMembers, setTeamMembers] = useState<DownlineMemberWithLevel[]>([]);
     const [invitationLink, setInvitationLink] = useState('');
     const [teamStats, setTeamStats] = useState({
         totalDeposits: 0,
@@ -205,7 +208,7 @@ export default function PromotionPage() {
                                            {teamMembers.map(member => (
                                                <TableRow key={member.id}>
                                                    <TableCell className="font-medium">{member.username}</TableCell>
-                                                   <TableCell>LV {(member as any).level || 0}</TableCell>
+                                                   <TableCell>LV {member.level || 0}</TableCell>
                                                    <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                                                </TableRow>
                                            ))}

@@ -8,7 +8,7 @@ import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 export default function MarketPage() {
     const { cryptoSummaryData, klineData, summaryData } = useEnhancedMarket();
 
-    const renderMarketList = (data: any[], type: string) => {
+    const renderMarketList = (data: Array<{ pair: string; price: number; change: number }>, type: string) => {
         if (summaryData.length === 0 && data.length === 0) {
             return (
                 <div className="space-y-4 mt-4">

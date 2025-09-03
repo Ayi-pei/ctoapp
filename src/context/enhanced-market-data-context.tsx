@@ -78,7 +78,7 @@ interface MarketContextType {
 }
 
 // --- Enhanced Time Logic ---
-const isInterventionActive = (intervention: any, now: Date): boolean => {
+const isInterventionActive = (intervention: { startTime: string; endTime: string }, now: Date): boolean => {
   const currentTime = now.getHours() * 60 + now.getMinutes();
   const [startHour, startMin] = intervention.startTime.split(':').map(Number);
   const [endHour, endMin] = intervention.endTime.split(':').map(Number);

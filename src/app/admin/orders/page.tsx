@@ -85,7 +85,7 @@ export default function AdminOrdersPage() {
 
         const combinedOrders = [...allTrades, ...allInvestments, ...allSwaps];
 
-        const formatted = combinedOrders.map((o: any) => {
+        const formatted = combinedOrders.map((o: Record<string, any>) => {
             let orderTypeText: FormattedOrder['orderTypeText'] = 'spot';
             if ('orderType' in o) { // trades
                 orderTypeText = o.orderType;
