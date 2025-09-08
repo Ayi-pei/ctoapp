@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -145,7 +145,7 @@ export function SpotOrderForm({
   return (
     <Card className="bg-card/60">
       <CardContent className="p-4">
-        <Tabs defaultValue="buy" onValueChange={(value) => setOrderType(value as "buy" | "sell")}>
+        <Tabs defaultValue="buy" onValueChange={(value: string) => setOrderType(value as "buy" | "sell")}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="buy" className="data-[state=active]:bg-green-600/80 data-[state=active]:text-white">买入</TabsTrigger>
             <TabsTrigger value="sell" className="data-[state=active]:bg-red-600/80 data-[state=active]:text-white">卖出</TabsTrigger>

@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
 const FOREX_COMMODITY_PAIRS = ['XAU/USD', 'EUR/USD', 'GBP/USD'];
@@ -63,7 +64,7 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
             console.error("Error fetching initial k-line data:", klineError);
         } else if (kline) {
              const groupedData: Record<string, OHLC[]> = {};
-            kline.forEach(row => {
+            kline.forEach((row: { trading_pair: string; time: string; open: number; high: number; low: number; close: number; }) => {
                 if (!groupedData[row.trading_pair]) groupedData[row.trading_pair] = [];
                 groupedData[row.trading_pair].push({
                     time: new Date(row.time).getTime(),
@@ -89,17 +90,27 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'market_summary_data' },
-            (payload) => {
-                const updatedRecord = payload.new as MarketSummary;
-                setSummaryData(prev => {
-                    const index = prev.findIndex(s => s.pair === updatedRecord.pair);
-                    if (index > -1) {
-                        const newSummary = [...prev];
-                        newSummary[index] = updatedRecord;
-                        return newSummary;
+            (payload: RealtimePostgresChangesPayload<MarketSummary>) => {
+
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    const updatedRecord = payload.new as MarketSummary;
+                    if (updatedRecord.pair) {
+                        setSummaryData(prev => {
+                            const index = prev.findIndex(s => s.pair === updatedRecord.pair);
+                            if (index > -1) {
+                                const newSummary = [...prev];
+                                newSummary[index] = updatedRecord;
+                                return newSummary;
+                            }
+                            return [...prev, updatedRecord];
+                        });
                     }
-                    return [...prev, updatedRecord];
-                })
+                } else if (payload.eventType === 'DELETE') {
+                    const oldRecord = payload.old as Partial<MarketSummary>;
+                    if (oldRecord && oldRecord.pair) {
+                        setSummaryData(prev => prev.filter(item => item.pair !== oldRecord.pair));
+                    }
+                }
             }
         ).subscribe();
 
@@ -108,19 +119,21 @@ export function MarketDataProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'market_kline_data' },
-        (payload) => {
-          const newKlinePoint = payload.new as OHLC & { trading_pair: string };
-          setKlineData(prev => {
-              const updatedPairData = [...(prev[newKlinePoint.trading_pair] || []), {
-                  ...newKlinePoint,
-                  time: new Date(newKlinePoint.time).getTime()
-              }];
-              // Keep the chart from getting too crowded
-              if (updatedPairData.length > 3000) { 
-                  updatedPairData.shift();
-              }
-              return { ...prev, [newKlinePoint.trading_pair]: updatedPairData };
-          });
+        (payload: RealtimePostgresChangesPayload<OHLC & { trading_pair: string }>) => {
+          const newKlinePoint = payload.new as (OHLC & { trading_pair: string });
+          if (newKlinePoint && newKlinePoint.trading_pair) {
+              setKlineData(prev => {
+                  const updatedPairData = [...(prev[newKlinePoint.trading_pair] || []), {
+                      ...newKlinePoint,
+                      time: new Date(newKlinePoint.time).getTime()
+                  }];
+                  // Keep the chart from getting too crowded
+                  if (updatedPairData.length > 3000) { 
+                      updatedPairData.shift();
+                  }
+                  return { ...prev, [newKlinePoint.trading_pair]: updatedPairData };
+              });
+          }
         }
       ).subscribe();
       

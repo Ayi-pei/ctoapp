@@ -12,8 +12,6 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import React from "react";
 
 const Header = () => {
     const router = useRouter();
@@ -35,11 +33,11 @@ const Header = () => {
     );
 };
 
-const MiningProductCard = React.memo(function MiningProductCard({ product, purchasedCount, onInvest }: { 
+const MiningProductCard = ({ product, purchasedCount, onInvest }: { 
     product: InvestmentProduct, 
     purchasedCount: number,
     onInvest: (product: InvestmentProduct) => void 
-}) {
+}) => {
     const purchasePercentage = (purchasedCount / product.maxPurchase) * 100;
     
     const progressColor = 
@@ -109,7 +107,7 @@ const MiningProductCard = React.memo(function MiningProductCard({ product, purch
             </div>
         </Card>
     );
-});
+};
 
 export default function StakingPage() {
     const { toast } = useToast();

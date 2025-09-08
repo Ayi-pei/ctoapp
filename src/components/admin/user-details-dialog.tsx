@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Send, Users, Repeat, Archive, LoaderCircle } from "lucide-react";
+import { Send, Repeat, Archive, LoaderCircle } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { availablePairs } from "@/types";
@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useAnnouncements } from "@/context/announcements-context";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import type { Investment, User } from '@/types';
 import { useSimpleEnhancedLogs } from "@/context/simple-enhanced-logs-context";
 import {
@@ -316,7 +315,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
                                                 <AlertDialogTitle>确认资金调整？</AlertDialogTitle>
                                                 <AlertDialogDescription>
                                                     您确定要为用户 {currentUser?.username} 的 {asset} 余额调整 
-                                                    <span className={cn("font-bold", parseFloat(balanceAdjustments[asset] || '0') >= 0 ? "text-green-500" : "text-red-500")}>
+                                                    <span className={`${parseFloat(balanceAdjustments[asset] || '0') >= 0 ? "text-green-500" : "text-red-500"} font-bold`}>
                                                         {parseFloat(balanceAdjustments[asset] || '0').toFixed(2)}
                                                     </span> 吗？此操作无法撤销。
                                                 </AlertDialogDescription>
@@ -356,7 +355,7 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
                                 <TableCell>{inv.product_name}</TableCell>
                                 <TableCell>{inv.amount.toFixed(2)}</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className={cn(inv.status === 'active' ? 'text-yellow-500' : 'text-green-500')}>
+                                    <Badge variant="outline" className={`${inv.status === 'active' ? 'text-yellow-500' : 'text-green-500'}`}>
                                         {inv.status === 'active' ? '进行中' : `已结算 (+${(inv.profit || 0).toFixed(2)})`}
                                     </Badge>
                                 </TableCell>

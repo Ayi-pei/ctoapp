@@ -65,6 +65,7 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
         } else {
             const allAnns = data as Array<{
                 id: string;
+                created_at: string;
                 type: string;
                 content?: any;
                 title?: string;
@@ -73,17 +74,38 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
                 priority?: number;
                 expires_at?: string;
             }>;
-            setAnnouncements(allAnns.filter(a => a.type === 'personal_message'));
+
+            const personalMessages: Announcement[] = allAnns
+                .filter(a => a.type === 'personal_message')
+                .map(a => ({
+                    id: a.id,
+                    title: a.title ?? 'No Title',
+                    content: a.content ?? '',
+                    date: a.created_at,
+                    user_id: a.user_id,
+                }));
+            setAnnouncements(personalMessages);
 
             const dbCarousel = allAnns.find(a => a.type === 'carousel');
             if (dbCarousel && dbCarousel.content) {
-                 setCarouselItems(prevItems => prevItems.map((item, index) => ({
+                setCarouselItems(prevItems => prevItems.map((item, index) => ({
                     ...item,
                     ...(dbCarousel.content[index] || {})
-                 })));
+                })));
             }
-            
-            setHornAnnouncements(allAnns.filter(a => a.type === 'horn'));
+
+            const hornItems: HornAnnouncement[] = allAnns
+                .filter(a => {
+                    return a.type === 'horn' && ['更新公告', '重磅通知', '庆贺'].includes(a.theme ?? '');
+                })
+                .map(a => ({
+                    id: a.id,
+                    theme: a.theme as '更新公告' | '重磅通知' | '庆贺',
+                    content: a.content ?? '',
+                    priority: a.priority ?? 0,
+                    expires_at: a.expires_at,
+                }));
+            setHornAnnouncements(hornItems);
         }
     }, []);
 

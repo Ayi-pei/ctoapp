@@ -61,13 +61,13 @@ export default function DownloadPage() {
                     <CardContent className="space-y-4 text-muted-foreground text-sm">
                         <div>
                             <h4 className="font-semibold text-foreground mb-1">iOS 用户:</h4>
-                            <p>1. 点击 "立即下载" 按钮，您将被引导至 Apple App Store。</p>
-                            <p>2. 点击 "获取" 按钮进行安装。</p>
+                            <p>1. 点击 &quot;立即下载&quot; 按钮，您将被引导至 Apple App Store。</p>
+                            <p>2. 点击 &quot;获取&quot; 按钮进行安装。</p>
                             <p>3. 使用您的 Face ID, Touch ID, 或 Apple ID 密码确认安装。</p>
                         </div>
                         <div>
                             <h4 className="font-semibold text-foreground mb-1">Android 用户:</h4>
-                            <p>1. 点击 "立即下载" 按钮，.apk 文件将开始下载。</p>
+                            <p>1. 点击 &quot;立即下载&quot; 按钮，.apk 文件将开始下载。</p>
                             <p>2. 下载完成后，打开您的文件管理器找到该文件。</p>
                             <p>3. 点击文件进行安装。您可能需要授权您的浏览器或文件管理器“安装未知来源的应用”。</p>
                             <p>4. 按照屏幕上的指示完成安装。</p>

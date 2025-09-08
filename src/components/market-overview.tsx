@@ -1,7 +1,6 @@
 
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { MarketSummary } from "@/types";
 import { Skeleton } from "./ui/skeleton";
 

@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
+import { Copy, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest, RewardLog } from "@/types";
@@ -62,21 +62,25 @@ export default function PromotionPage() {
     }, []);
 
     useEffect(() => {
-        if (user) {
-            // "团队人员"：代理团队包括自己不含上级代理的总注册人数
-            const downline = getDownline(user.id);
-            const fullTeam = [user, ...downline];
-            setTeamMembers(fullTeam);
-            
-            if (typeof window !== 'undefined') {
-                 const link = `${window.location.origin}/register?code=${user.invitation_code}`;
-                 setInvitationLink(link);
+        const fetchTeamData = async () => {
+            if (user) {
+                // "团队人员"：代理团队包括自己不含上级代理的总注册人数
+                const downline = await getDownline(user.id);
+                const fullTeam = [user, ...downline];
+                setTeamMembers(fullTeam);
+                
+                if (typeof window !== 'undefined') {
+                     const link = `${window.location.origin}/register?code=${user.invitation_code}`;
+                     setInvitationLink(link);
+                }
+                
+                // "总充值" / "总提现"
+                const stats = calculateTeamStats(fullTeam, requests);
+                setTeamStats(stats);
             }
-            
-            // "总充值" / "总提现"
-            const stats = calculateTeamStats(fullTeam, requests);
-            setTeamStats(stats);
         }
+
+        fetchTeamData();
     }, [user, getDownline, requests, calculateTeamStats]);
 
     const copyToClipboard = (text: string) => {

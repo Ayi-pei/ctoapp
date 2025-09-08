@@ -34,6 +34,7 @@ export type MarketSummary = {
     volume: number;
     high: number;
     low: number;
+    profit_rate: number;
     icon?: string; // Optional icon URL from API
 };
 
@@ -155,6 +156,18 @@ export type Transaction = {
   // Properties for frontend rendering, optional
   user?: { username: string };
 };
+
+export type CommissionLog = {
+  id: string;
+  user_id: string;
+  amount: number;
+  asset: string;
+  source_user_id?: string;
+  source_username?: string;
+  source_order_id?: string;
+  commission_rate?: number;
+  created_at: Timestamp;
+}
 
 // Represents a user's password reset request submitted to admin
 export type PasswordResetRequest = {

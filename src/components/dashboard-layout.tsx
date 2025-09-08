@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useEffect } from 'react';
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';

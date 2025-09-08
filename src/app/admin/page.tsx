@@ -4,7 +4,6 @@
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
 import AuthLayout from '@/components/auth-layout';
 import { LoaderCircle } from 'lucide-react';
 

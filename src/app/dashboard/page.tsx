@@ -17,11 +17,12 @@ import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
 import Autoplay from "embla-carousel-autoplay"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {useMarket} from "@/context/market-data-context";
+import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
+import type { MarketSummary } from "@/types";
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, summaryData, klineData, forexAndOptionsSummaryData } = useMarket();
+    const { cryptoSummaryData, summaryData, klineData } = useEnhancedMarket();
     const { balances } = useBalance();
     const { hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -64,8 +65,10 @@ export default function DashboardPage() {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
     
-    const renderMarketList = (data: Array<{ pair: string; price: number; change: number }>, type: string) => {
-        if (summaryData.length === 0 && data.length === 0) { // Check both to avoid flicker
+    const forexAndOptionsSummaryData = summaryData.filter(s => ['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(s.pair));
+
+    const renderMarketList = (data: MarketSummary[] | undefined, type: string) => {
+        if (!data || (summaryData.length === 0 && data.length === 0)) { // Check both to avoid flicker
             return (
                 <div className="space-y-4 mt-4">
                     {[...Array(3)].map((_, i) => (
@@ -196,4 +199,3 @@ export default function DashboardPage() {
         </DashboardLayout>
     );
 }
-

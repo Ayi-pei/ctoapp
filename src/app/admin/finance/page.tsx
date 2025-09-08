@@ -15,20 +15,19 @@ export default function AdminFinanceRedirectPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!isLoading && isAdmin) {
-            // Redirect to the new data dashboard by default
-            router.replace('/admin/finance/dashboard');
-        } else if (!isLoading && !isAdmin) {
-             router.replace('/');
+        if (!isLoading) {
+            if (isAdmin) {
+                router.replace('/admin/finance/dashboard');
+            } else {
+                router.replace('/login');
+            }
         }
-    }, [isAdmin, isLoading, router]);
+    }, [isLoading, isAdmin, router]);
 
-    // Show a skeleton loader while the auth state is being determined.
     return (
         <AuthLayout>
-            <div className="flex flex-col items-center gap-4">
-                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">正在加载运营中心...</p>
+            <div className="flex items-center justify-center h-full">
+                <LoaderCircle className="w-8 h-8 animate-spin" />
             </div>
         </AuthLayout>
     );

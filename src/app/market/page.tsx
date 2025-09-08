@@ -4,11 +4,12 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { MarketList } from "@/components/market-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
+import type { MarketSummary } from "@/types";
 
 export default function MarketPage() {
     const { cryptoSummaryData, klineData, summaryData } = useEnhancedMarket();
 
-    const renderMarketList = (data: Array<{ pair: string; price: number; change: number }>, type: string) => {
+    const renderMarketList = (data: MarketSummary[], type: string) => {
         if (summaryData.length === 0 && data.length === 0) {
             return (
                 <div className="space-y-4 mt-4">

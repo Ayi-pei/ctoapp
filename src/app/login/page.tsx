@@ -34,6 +34,17 @@ export default function LoginPage() {
     },
   });
 
+  useEffect(() => {
+    // If the user is already authenticated, redirect them from the login page.
+    if (!isLoading && isAuthenticated) {
+      toast({
+        title: '您已登录',
+        description: `正在跳转到 ${isAdmin ? '管理员' : ''} 仪表盘...`,
+      });
+      router.replace(isAdmin ? '/admin' : '/dashboard');
+    }
+  }, [isAuthenticated, isAdmin, isLoading, router, toast]);
+
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
               const { success, isAdmin: loggedInIsAdmin, error } = await login(values.username, values.password);
 
@@ -60,13 +71,14 @@ export default function LoginPage() {
     }
   };
 
-  // While loading auth state, show a loader. The root page will handle redirects.
-  if (isLoading) {
+  // While loading auth state or if already logged in, show a loader.
+  // The useEffect above will handle the redirect.
+  if (isLoading || isAuthenticated) {
      return (
         <AuthLayout>
             <div className="flex flex-col items-center gap-4">
                 <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground">正在加载，请稍候...</p>
+                <p className="text-muted-foreground">正在验证您的身份...</p>
             </div>
         </AuthLayout>
      )

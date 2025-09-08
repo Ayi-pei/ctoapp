@@ -12,7 +12,7 @@ import type { SwapOrder } from "@/types";
 import { useBalance } from "@/context/balance-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { availablePairs } from "@/types";
-import { ArrowRight, LoaderCircle, Upload, Eye, CheckCircle, AlertTriangle } from "lucide-react";
+import { ArrowRight, LoaderCircle, Eye, CheckCircle, AlertTriangle } from "lucide-react";
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";

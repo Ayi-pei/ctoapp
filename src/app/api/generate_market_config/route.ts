@@ -31,7 +31,7 @@ const COINGECKO_ID_MAP: Record<string, string> = {
 // Coindesk 支持的 symbol
 const COINDESK_SYMBOLS = ["BTC", "ETH"]; // 可扩展
 
-export default async function handler() {
+export async function GET() {
   try {
     // 1. 查询所有激活的资产
     const { data: assets, error } = await supabase

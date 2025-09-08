@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -248,10 +248,6 @@ export function ContractOrderSheet({
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="rounded-t-lg">
         {isConfirming ? renderConfirmationView() : renderOrderCreationView()}
-         <SheetClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-          <X className="h-5 w-5" />
-          <span className="sr-only">Close</span>
-        </SheetClose>
       </SheetContent>
     </Sheet>
   );
