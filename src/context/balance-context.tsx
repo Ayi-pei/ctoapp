@@ -116,7 +116,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseEnabled) return;
     const { data, error } = await supabase
       .from("balances")
-      .select("*")
+      .select("asset, available_balance, frozen_balance")
       .eq("user_id", userId);
     if (error) console.error("Error fetching balances:", error);
     else {
@@ -177,20 +177,55 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     else setRewardLogs(data as RewardLog[]);
   }, []);
 
-  const fetchUserProfileForCheckin = useCallback(async (userId: string) => {
+  const fetchUserCheckInStatus = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
+    
     const { data, error } = await supabase
-      .from("profiles")
-      .select("last_check_in_date, consecutive_check_ins")
-      .eq("id", userId)
+      .from('daily_check_ins')
+      .select('checked_in_at, streak_day')
+      .eq('user_id', userId)
+      .order('checked_in_at', { ascending: false })
+      .limit(1)
       .single();
-    if (error) {
-      console.error("Error fetching user profile for check-in:", error);
-    } else if (data) {
-      setLastCheckInDate(data.last_check_in_date);
-      setConsecutiveCheckIns(data.consecutive_check_ins || 0);
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error("Error fetching user check-in status:", error);
+        return;
     }
-  }, []);
+
+    if (!data) {
+        setLastCheckInDate(undefined);
+        setConsecutiveCheckIns(0);
+        return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const lastCheckIn = new Date(data.checked_in_at);
+    lastCheckIn.setHours(0, 0, 0, 0);
+
+    setLastCheckInDate(lastCheckIn.toISOString().split('T')[0]);
+
+    const isToday = today.getTime() === lastCheckIn.getTime();
+    if (isToday) {
+        setConsecutiveCheckIns(data.streak_day);
+        return;
+    }
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const isYesterday = yesterday.getTime() === lastCheckIn.getTime();
+
+    // If streak was 7, it resets. If last check-in was before yesterday, it resets.
+    if (data.streak_day === 7 || !isYesterday) {
+        setConsecutiveCheckIns(0);
+    } else {
+        // Last check-in was yesterday, and streak is not over.
+        setConsecutiveCheckIns(data.streak_day);
+    }
+}, []);
+
 
   useEffect(() => {
     const loadAllData = async () => {
@@ -201,7 +236,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
           fetchUserTradeData(user.id),
           fetchUserInvestmentData(user.id),
           fetchUserRewardLogs(user.id),
-          fetchUserProfileForCheckin(user.id),
+          fetchUserCheckInStatus(user.id), // Use new function
         ]);
       } else {
         // Clear data on logout
@@ -223,91 +258,37 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     fetchUserTradeData,
     fetchUserInvestmentData,
     fetchUserRewardLogs,
-    fetchUserProfileForCheckin,
+    fetchUserCheckInStatus, // Add new function to dependency array
   ]);
 
   // Realtime Subscriptions
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
 
-    const handleDataChange = () => {
-      if (!user) return;
-      fetchUserTradeData(user.id);
-      fetchUserInvestmentData(user.id);
-      fetchUserBalanceData(user.id);
-      fetchUserProfileForCheckin(user.id);
-    };
+    const handleBalanceChange = () => user && fetchUserBalanceData(user.id);
+    const handleTradeChange = () => user && fetchUserTradeData(user.id);
+    const handleInvestmentChange = () => user && fetchUserInvestmentData(user.id);
+    const handleCheckInChange = () => {
+        if (user) {
+            fetchUserCheckInStatus(user.id);
+            fetchUserBalanceData(user.id); // Also refresh balance after check-in
+        }
+    }
 
-    const tradesChannel = supabase
-      .channel(`trades-channel-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "trades",
-          filter: `user_id=eq.${user.id}`,
-        },
-        handleDataChange
-      )
-      .subscribe();
-
-    const investmentsChannel = supabase
-      .channel(`investments-channel-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "investments",
-          filter: `user_id=eq.${user.id}`,
-        },
-        handleDataChange
-      )
-      .subscribe();
-
-    const balancesChannel = supabase
-      .channel(`balances-channel-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "balances",
-          filter: `user_id=eq.${user.id}`,
-        },
-        handleDataChange
-      )
-      .subscribe();
-
-    const profileChannel = supabase
-      .channel(`profile-channel-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${user.id}`,
-        },
-        handleDataChange
-      )
-      .subscribe();
+    const tradesChannel = supabase.channel(`trades-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}`}, handleTradeChange).subscribe();
+    const investmentsChannel = supabase.channel(`investments-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}`}, handleInvestmentChange).subscribe();
+    const balancesChannel = supabase.channel(`balances-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `user_id=eq.${user.id}`}, handleBalanceChange).subscribe();
+    
+    // Subscribe to new daily_check_ins table
+    const checkInChannel = supabase.channel(`check-in-channel-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'daily_check_ins', filter: `user_id=eq.${user.id}`}, handleCheckInChange).subscribe();
 
     return () => {
       supabase.removeChannel(tradesChannel);
       supabase.removeChannel(investmentsChannel);
       supabase.removeChannel(balancesChannel);
-      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(checkInChannel); // Unsubscribe from new channel
     };
-  }, [
-    user,
-    isSupabaseEnabled,
-    fetchUserTradeData,
-    fetchUserInvestmentData,
-    fetchUserBalanceData,
-    fetchUserProfileForCheckin,
-  ]);
+  }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData, fetchUserCheckInStatus]);
 
   const adjustBalance = useCallback(
     async (
@@ -565,23 +546,36 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     reward: number;
     message?: string;
   }> => {
-    if (!user || !isSupabaseEnabled) {
+    if (!user) {
       return { success: false, reward: 0, message: "User not logged in." };
     }
 
-    const { data, error } = await supabase.rpc("handle_user_check_in", {
-      p_user_id: user.id,
-    });
+    try {
+        const response = await fetch('/api/rewards/check-in', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
 
-    if (error) {
-      return { success: false, reward: 0, message: error.message };
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { success: false, reward: 0, message: data.error || '签到失败，请稍后再试。' };
+        }
+        
+        // On successful check-in, immediately refresh user's state
+        fetchUserCheckInStatus(user.id);
+        fetchUserBalanceData(user.id);
+
+        return {
+            success: data.success,
+            reward: data.reward,
+            message: data.message,
+        };
+
+    } catch (error: any) {
+        console.error("Check-in API call failed:", error);
+        return { success: false, reward: 0, message: '网络请求失败，请检查您的连接。' };
     }
-
-    return {
-      success: data.success,
-      reward: data.reward_amount,
-      message: data.message,
-    };
   };
 
   const value: BalanceContextType = {

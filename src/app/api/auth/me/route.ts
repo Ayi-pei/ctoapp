@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession, sessionCookieName } from '@/lib/auth/session';
@@ -10,7 +11,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
+    // Correctly await the cookies() promise
+    const cookieStore = await cookies(); 
     const token = cookieStore.get(sessionCookieName)?.value;
     const { valid, userId } = verifySession(token);
     if (!valid || !userId) {

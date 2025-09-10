@@ -1,169 +1,157 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useTasks } from '@/context/tasks-context';
-import type { DailyTask } from '@/types';
+import type { IncentiveTask } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Circle, ChevronLeft } from 'lucide-react';
+import { CheckCircle, ChevronLeft, Loader2, Lock, Gift } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { CheckInDialog } from "@/components/check-in-dialog";
+import { Skeleton } from '@/components/ui/skeleton';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+// Skeleton Loader for when tasks are being fetched
+const TaskSkeleton = () => (
+    <Card>
+        <CardHeader className="flex flex-row items-center gap-4">
+            <Skeleton className="w-16 h-16 rounded-lg" />
+            <div className='flex-1 space-y-2'>
+                <Skeleton className="h-5 w-3/5" />
+                <Skeleton className="h-4 w-4/5" />
+            </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-10 w-24" />
+            </div>
+        </CardContent>
+    </Card>
+);
 
-
-const TaskDetailsDialog = ({ task, isOpen, onOpenChange, onGo }: { 
-    task: DailyTask | null; 
-    isOpen: boolean; 
-    onOpenChange: (open: boolean) => void;
-    onGo: (link: string) => void;
+const TaskCard = ({ task, onClaim, onNavigate, isClaiming }: {
+    task: IncentiveTask;
+    onClaim: (key: string) => void;
+    onNavigate: (link: string, key: string) => void;
+    isClaiming: boolean;
 }) => {
-    if (!task) return null;
+    const progressValue = (task.progress.current / task.progress.target) * 100;
+
+    const renderButton = () => {
+        switch (task.status) {
+            case 'COMPLETED':
+                return <Button disabled variant="secondary"><CheckCircle className="mr-2 h-4 w-4" />已完成</Button>;
+            case 'ELIGIBLE':
+                 if (isClaiming) {
+                    return <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />处理中...</Button>;
+                }
+                if (task.key === 'daily_check_in') {
+                    return <Button onClick={() => onNavigate(task.link, task.key)}><Gift className="mr-2 h-4 w-4" />去签到</Button>;
+                }
+                return <Button onClick={() => onClaim(task.key)}><Gift className="mr-2 h-4 w-4" />领取奖励</Button>;
+            case 'IN_PROGRESS':
+            case 'LOCKED':
+                return <Button variant="outline" onClick={() => onNavigate(task.link, task.key)}>前往完成</Button>;
+            default:
+                return <Button disabled variant="outline">未知状态</Button>;
+        }
+    };
+
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{task.title}</DialogTitle>
-                     <DialogDescription>{task.description}</DialogDescription>
-                </DialogHeader>
+        <Card className={cn("transition-all", task.status === 'COMPLETED' && "bg-muted/50")}>
+            <CardHeader className="flex flex-row items-center gap-4">
                 {task.imgSrc && (
-                    <div className="relative w-full h-48 my-4 rounded-lg overflow-hidden">
-                        <Image src={task.imgSrc} alt={task.title} layout="fill" objectFit="cover" data-ai-hint="task reward" />
-                    </div>
+                    <Image src={task.imgSrc} alt={task.title} width={64} height={64} className="rounded-lg" />
                 )}
-                <div className="text-sm space-y-2">
-                    <p><strong>奖励:</strong> <span className="font-bold text-primary">{task.reward} {task.reward_type === 'usdt' ? 'USDT' : '信誉分'}</span></p>
-                    <p><strong>状态:</strong> <span className="text-muted-foreground">未完成</span></p>
+                <div className='flex-1'>
+                    <CardTitle className={cn(task.status === 'COMPLETED' && "text-muted-foreground line-through")}>{task.title}</CardTitle>
+                    <CardDescription className="mt-1">{task.description}</CardDescription>
                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>关闭</Button>
-                    <Button onClick={() => onGo(task.link)}>前往完成</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="flex justify-between items-center">
+                     <div className='space-y-1'>
+                        <p className="text-sm font-medium">奖励: <span className="text-primary font-bold">{task.reward}</span></p>
+                        {task.progress.target > 1 && (
+                             <p className="text-xs text-muted-foreground">
+                                进度: {task.progress.current.toFixed(0)} / {task.progress.target}
+                            </p>
+                        )}
+                    </div>
+                    {renderButton()}
+                 </div>
+                 {task.progress.target > 1 && <Progress value={progressValue} />}
+            </CardContent>
+        </Card>
     );
 };
 
 
 export default function TasksPage() {
-    const { dailyTasks, userTasksState } = useTasks();
-    const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const { tasks, isLoading, claimReward, fetchTaskStates } = useTasks();
+    const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+    const [claimingTask, setClaimingTask] = useState<string | null>(null);
     const router = useRouter();
 
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const { completedTasks, incompleteTasks, progress } = useMemo(() => {
-        const publishedTasks = dailyTasks.filter(t => t.status === 'published');
-        
-        const completedIds = userTasksState
-            .filter(state => state.date === todayStr && state.completed)
-            .map(state => state.taskId);
-
-        const completed = publishedTasks.filter(task => completedIds.includes(task.id));
-        const incomplete = publishedTasks.filter(task => !completedIds.includes(task.id));
-        
-        const calculatedProgress = publishedTasks.length > 0 ? (completed.length / publishedTasks.length) * 100 : 0;
-        
-        return { 
-            completedTasks: completed, 
-            incompleteTasks: incomplete, 
-            progress: calculatedProgress 
-        };
-    }, [dailyTasks, userTasksState, todayStr]);
-
-
-    const handleTaskClick = (task: DailyTask) => {
-        setSelectedTask(task);
-        setIsDetailsOpen(true);
+    const handleNavigate = (link: string, key: string) => {
+        if (link === 'action:openCheckIn') {
+            setIsCheckInOpen(true);
+        } else {
+            router.push(link);
+        }
     };
 
-    const handleGoToTask = (link: string) => {
-        setIsDetailsOpen(false);
-        router.push(link);
+    const handleClaim = async (taskKey: string) => {
+        setClaimingTask(taskKey);
+        await claimReward(taskKey);
+        setClaimingTask(null);
     };
-    
-    const totalTasks = incompleteTasks.length + completedTasks.length;
 
     return (
         <DashboardLayout>
-            <div className="p-4 md:p-8 space-y-6">
+            <div className="p-4 md:p-6 space-y-6">
                  <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.back()}>
                         <ChevronLeft className="h-6 w-6" />
                     </Button>
-                    <h1 className="text-2xl font-bold">每日任务</h1>
+                    <h1 className="text-2xl font-bold">任务中心</h1>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>任务中心</CardTitle>
-                        <CardDescription>完成每日任务，领取丰厚奖励！</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <p className="text-sm font-medium">今日进度</p>
-                                <p className="text-sm font-bold text-primary">{completedTasks.length} / {totalTasks}</p>
-                            </div>
-                            <Progress value={progress} />
-                        </div>
-                        
-                        <div className="space-y-2">
-                            {[...incompleteTasks, ...completedTasks].map((task) => {
-                                const isCompleted = completedTasks.some(ct => ct.id === task.id);
-                                return (
-                                     <div
-                                        key={task.id}
-                                        className={cn(
-                                            "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all",
-                                            isCompleted
-                                                ? "bg-muted/50 text-muted-foreground border-dashed"
-                                                : "bg-card hover:bg-muted"
-                                        )}
-                                        onClick={() => !isCompleted && handleTaskClick(task)}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            {isCompleted ? (
-                                                <CheckCircle className="h-6 w-6 text-green-500" />
-                                            ) : (
-                                                <Circle className="h-6 w-6 text-primary" />
-                                            )}
-                                            <div>
-                                                <p className={cn("font-semibold", isCompleted ? "line-through" : "")}>{task.title}</p>
-                                                <p className="text-xs text-muted-foreground">{task.description}</p>
-                                            </div>
-                                        </div>
-                                         <div className="text-right">
-                                            <p className="font-bold text-primary">+{task.reward}</p>
-                                            <p className="text-xs text-muted-foreground">{task.reward_type === 'usdt' ? 'USDT' : '信誉分'}</p>
-                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                    </CardContent>
-                </Card>
-
-                <TaskDetailsDialog 
-                    task={selectedTask}
-                    isOpen={isDetailsOpen}
-                    onOpenChange={setIsDetailsOpen}
-                    onGo={handleGoToTask}
-                />
-
+                <div className="space-y-4">
+                    {isLoading ? (
+                        <>
+                            <TaskSkeleton />
+                            <TaskSkeleton />
+                            <TaskSkeleton />
+                        </>
+                    ) : (
+                        tasks.map(task => (
+                            <TaskCard 
+                                key={task.key}
+                                task={task}
+                                onClaim={handleClaim}
+                                onNavigate={handleNavigate}
+                                isClaiming={claimingTask === task.key}
+                            />
+                        ))
+                    )}
+                </div>
+                 
+                <CheckInDialog 
+                    isOpen={isCheckInOpen} 
+                    onOpenChange={(isOpen) => {
+                        setIsCheckInOpen(isOpen);
+                        // If dialog is closed, refresh task states as check-in might have occurred
+                        if (!isOpen) {
+                            fetchTaskStates();
+                        }
+                    }}
+                 />
             </div>
         </DashboardLayout>
     );

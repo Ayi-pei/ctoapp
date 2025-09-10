@@ -38,7 +38,7 @@ export function InvestmentDialog({
     onConfirm 
 }: InvestmentDialogProps) {
     const { toast } = useToast();
-    const { triggerTaskCompletion } = useTasks();
+    const { fetchTaskStates } = useTasks(); // Correctly get fetchTaskStates
     const [amount, setAmount] = useState("");
     const isFixedAmount = product.minInvestment === product.maxInvestment;
 
@@ -85,7 +85,7 @@ export function InvestmentDialog({
         }
         
         onConfirm(numericAmount);
-        triggerTaskCompletion('investment');
+        fetchTaskStates(); // Replace triggerTaskCompletion with fetchTaskStates
     };
 
     return (

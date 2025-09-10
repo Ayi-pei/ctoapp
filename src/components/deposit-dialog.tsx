@@ -19,6 +19,7 @@ import { Label } from "./ui/label";
 import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRequests } from "@/context/requests-context";
+import { useTasks } from "@/context/tasks-context"; // Import useTasks
 
 type DepositDialogProps = {
     isOpen: boolean;
@@ -32,6 +33,7 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { user } = useSimpleAuth();
     const { addDepositRequest } = useRequests();
     const { systemSettings } = useEnhancedSystemSettings();
+    const { fetchTaskStates } = useTasks(); // Get fetchTaskStates from context
     const [selectedAsset, setSelectedAsset] = useState<keyof typeof systemSettings.depositAddresses>("USDT");
     const [amount, setAmount] = useState("");
     const [transactionHash, setTransactionHash] = useState("");
@@ -69,7 +71,7 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
             return;
         }
 
-        addDepositRequest({
+        await addDepositRequest({
             asset: selectedAsset,
             amount: numericAmount,
             transaction_hash: transactionHash
@@ -80,6 +82,9 @@ export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
             description: `您的 ${amount} ${selectedAsset} 充值请求已发送给管理员审核，请耐心等待。`,
         });
         
+        // Refresh tasks state after deposit request
+        fetchTaskStates();
+
         resetAndClose();
     }
 

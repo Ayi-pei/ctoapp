@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
@@ -18,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TaskEditorCard = ({ task, updateTask, removeTask }: {
     task: DailyTask,
@@ -109,7 +108,6 @@ const TaskEditorCard = ({ task, updateTask, removeTask }: {
                             width={80} 
                             height={80} 
                             className="object-cover rounded-md border"
-                            data-ai-hint="task reward"
                         />
                     )}
                     <Input 
@@ -145,18 +143,31 @@ const TaskEditorCard = ({ task, updateTask, removeTask }: {
 }
 
 export default function AdminTasksPage() {
-    const { dailyTasks, addDailyTask, removeDailyTask, updateDailyTask } = useTasks();
+    const { dailyTasks, addDailyTask, removeDailyTask, updateDailyTask, isLoadingDailyTasks } = useTasks();
     const { toast } = useToast();
 
+    const handleAddTask = () => {
+        const newTask: Omit<DailyTask, 'id' | 'created_at'> = {
+            title: '新任务',
+            description: '请填写任务描述',
+            status: 'draft',
+            trigger: 'contract_trade',
+            reward: 1,
+            reward_type: 'usdt',
+            link: '/',
+            imgSrc: '/images/tasks/task-default.png'
+        };
+        addDailyTask(newTask);
+    };
+
     const handleSave = () => {
-        // The context now saves automatically. This button provides user feedback.
         toast({ title: "成功", description: "所有任务设置已自动保存。" });
     }
 
     return (
         <DashboardLayout>
              <div className="p-4 md:p-8 space-y-6">
-                <h1 className="text-2xl font-bold">日常任务管理</h1>
+                <h1 className="text-2d font-bold">日常任务管理</h1>
                 <Card>
                      <CardHeader>
                         <CardTitle>每日必做</CardTitle>
@@ -164,18 +175,25 @@ export default function AdminTasksPage() {
                     </CardHeader>
                      <ScrollArea className="h-[calc(100vh-22rem)]">
                         <CardContent className="space-y-6 pr-6">
-                           {dailyTasks.map(task => (
-                                <TaskEditorCard
-                                    key={task.id}
-                                    task={task}
-                                    updateTask={updateDailyTask}
-                                    removeTask={removeDailyTask}
-                                />
-                            ))}
+                            {isLoadingDailyTasks ? (
+                                <div className="space-y-6">
+                                    <Skeleton className="w-full h-[320px] rounded-lg" />
+                                    <Skeleton className="w-full h-[320px] rounded-lg" />
+                                </div>
+                            ) : (
+                                dailyTasks.map((task: DailyTask) => (
+                                    <TaskEditorCard
+                                        key={task.id}
+                                        task={task}
+                                        updateTask={updateDailyTask}
+                                        removeTask={removeDailyTask}
+                                    />
+                                ))
+                            )}
                         </CardContent>
                      </ScrollArea>
                     <CardFooter className="flex-col items-start gap-4">
-                        <Button variant="outline" onClick={addDailyTask}>
+                        <Button variant="outline" onClick={handleAddTask}>
                             <PlusCircle className="mr-2 h-4 w-4"/>
                             添加新任务
                         </Button>

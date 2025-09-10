@@ -120,14 +120,27 @@ const FinanceProductEditor = ({
     const handleTierChange = (tierIndex: number, field: keyof InvestmentTier, value: string) => {
         const newTiers = [...(product.hourlyTiers || [])];
         const numValue = parseFloat(value);
-        if (!isNaN(numValue)) {
-             if(field === 'rate') {
-                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: numValue / 100 };
-             } else {
-                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: Math.max(0, numValue) };
-             }
-            updateProduct(product.id, { hourlyTiers: newTiers });
+
+        if (isNaN(numValue)) {
+            return; // Exit if the value is not a valid number
         }
+
+        // Safely access the tier, providing a default structure to satisfy TypeScript's
+        // `noUncheckedIndexedAccess` and prevent runtime errors.
+        const originalTier = newTiers[tierIndex] || { hours: 0, rate: 0 };
+
+        const updatedValue = field === 'rate' 
+            ? numValue / 100 
+            : Math.max(0, numValue);
+        
+        const updatedTier = { 
+            ...originalTier, 
+            [field]: updatedValue 
+        };
+
+        newTiers[tierIndex] = updatedTier;
+
+        updateProduct(product.id, { hourlyTiers: newTiers });
     };
 
     const addTier = () => {

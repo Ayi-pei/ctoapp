@@ -21,12 +21,12 @@ export type InvestmentProduct = {
     productType?: 'daily' | 'hourly';
     activeStartTime?: string; 
     activeEndTime?: string; 
-    hourlyTiers?: InvestmentTier[];
+    hourlyTiers?: InvestmentTier[] | string; // Allow string for JSON
     stakingAsset?: string;
     stakingAmount?: number;
 };
 
-// Default products if nothing is in storage. These will be used to seed the DB.
+// Default products with corrected JSON handling for seeding.
 const defaultInvestmentProducts: Omit<InvestmentProduct, 'id'>[] = [
     { 
         name: "富投宝", 
@@ -37,17 +37,22 @@ const defaultInvestmentProducts: Omit<InvestmentProduct, 'id'>[] = [
         productType: 'hourly',
         activeStartTime: '18:00',
         activeEndTime: '06:00',
-        hourlyTiers: [
+        // Explicitly stringify the JSON for the insert operation
+        hourlyTiers: JSON.stringify([
             { hours: 2, rate: 0.015 },
             { hours: 4, rate: 0.020 },
             { hours: 6, rate: 0.025 },
-        ]
+        ]),
+        dailyRate: undefined,
+        period: undefined,
+        stakingAsset: undefined,
+        stakingAmount: undefined,
     },
-    { name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily', stakingAsset: 'USDT', stakingAmount: 50 },
-    { name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily' },
-    { name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily' },
-    { name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily' },
-    { name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/0kio04.png", category: 'staking', productType: 'daily' },
+    { name: "ASIC 矿机", price: 98, dailyRate: 0.03, period: 25, maxPurchase: 1, imgSrc: "/images/0kio.png", category: 'staking', productType: 'daily', stakingAsset: 'USDT', stakingAmount: 50, hourlyTiers: null },
+    { name: "阿瓦隆矿机 (Avalon) A13", price: 103, dailyRate: 0.025, period: 30, maxPurchase: 1, imgSrc: "/images/0kio01.png", category: 'staking', productType: 'daily', hourlyTiers: null },
+    { name: "MicroBT Whatsminer M60S", price: 1, dailyRate: 0.80, period: 365, maxPurchase: 1, imgSrc: "/images/0kio02.png", category: 'staking', productType: 'daily', hourlyTiers: null },
+    { name: "Canaan Avalon A1566", price: 288, dailyRate: 0.027, period: 60, maxPurchase: 1, imgSrc: "/images/0kio03.png", category: 'staking', productType: 'daily', hourlyTiers: null },
+    { name: "Bitmain Antminer S21 Pro", price: 268, dailyRate: 0.019, period: 365, maxPurchase: 1, imgSrc: "/images/0kio04.png", category: 'staking', productType: 'daily', hourlyTiers: null },
 ];
 
 
@@ -60,18 +65,25 @@ interface InvestmentSettingsContextType {
 
 const InvestmentSettingsContext = createContext<InvestmentSettingsContextType | undefined>(undefined);
 
+// Helper to parse hourlyTiers if it's a string
+const parseProducts = (products: any[]): InvestmentProduct[] => {
+    return products.map(p => ({
+        ...p,
+        hourlyTiers: typeof p.hourlyTiers === 'string' ? JSON.parse(p.hourlyTiers) : p.hourlyTiers,
+    }));
+};
+
 export function InvestmentSettingsProvider({ children }: { children: ReactNode }) {
     const [investmentProducts, setInvestmentProducts] = useState<InvestmentProduct[]>([]);
 
     const fetchProducts = useCallback(async () => {
         if (!isSupabaseEnabled) {
             console.warn("Supabase not enabled, using default investment products.");
-            // Use default products when Supabase is not enabled
             const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                 ...product,
                 id: `default_${index}`
             }));
-            setInvestmentProducts(productsWithIds);
+            setInvestmentProducts(parseProducts(productsWithIds));
             return;
         }
 
@@ -79,54 +91,50 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             const { data, error } = await supabase.from('investment_products').select('*');
             
             if (error) {
-                console.error("Failed to load investment settings from Supabase", error);
-                // Fallback to default products on error
+                console.error("Failed to load investment settings from Supabase", JSON.stringify(error, null, 2));
                 const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                     ...product,
                     id: `fallback_${index}`
                 }));
-                setInvestmentProducts(productsWithIds);
+                setInvestmentProducts(parseProducts(productsWithIds));
                 return;
             }
 
             if (!data || data.length === 0) {
                 try {
-                    // Seed the database with default products if it's empty
                     const { data: seededData, error: seedError } = await supabase
                         .from('investment_products')
-                        .insert(defaultInvestmentProducts)
+                        .insert(defaultInvestmentProducts as any) // Use 'as any' to bypass strict type check for JSON string
                         .select();
                     
                     if (seedError) {
-                        console.error("Failed to seed investment products:", seedError);
-                        // Use default products with mock IDs if seeding fails
+                        console.error("Failed to seed investment products:", JSON.stringify(seedError, null, 2));
                         const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                             ...product,
                             id: `mock_${index}`
                         }));
-                        setInvestmentProducts(productsWithIds);
+                        setInvestmentProducts(parseProducts(productsWithIds));
                     } else {
-                        setInvestmentProducts(seededData as InvestmentProduct[]);
+                        setInvestmentProducts(parseProducts(seededData as InvestmentProduct[]));
                     }
                 } catch (seedError) {
-                    console.error("Error during seeding:", seedError);
+                    console.error("Error during seeding:", JSON.stringify(seedError, null, 2));
                     const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                         ...product,
                         id: `error_${index}`
                     }));
-                    setInvestmentProducts(productsWithIds);
+                    setInvestmentProducts(parseProducts(productsWithIds));
                 }
             } else {
-                setInvestmentProducts(data as InvestmentProduct[]);
+                setInvestmentProducts(parseProducts(data as InvestmentProduct[]));
             }
         } catch (error) {
-            console.error("Unexpected error in fetchProducts:", error);
-            // Final fallback
+            console.error("Unexpected error in fetchProducts:", JSON.stringify(error, null, 2));
             const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                 ...product,
                 id: `final_${index}`
             }));
-            setInvestmentProducts(productsWithIds);
+            setInvestmentProducts(parseProducts(productsWithIds));
         }
     }, []);
 
@@ -152,12 +160,13 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             newProductData.dailyRate = 0.01;
             newProductData.period = 30;
         } else {
-            newProductData.hourlyTiers = [{ hours: 1, rate: 0.01 }];
+            // Ensure hourlyTiers is a JSON string when adding
+            newProductData.hourlyTiers = JSON.stringify([{ hours: 1, rate: 0.01 }]);
         }
         
-        const { data, error } = await supabase.from('investment_products').insert(newProductData).select().single();
+        const { data, error } = await supabase.from('investment_products').insert(newProductData as any).select().single();
         if (error) {
-            console.error("Error adding product:", error);
+            console.error("Error adding product:", JSON.stringify(error, null, 2));
         } else if (data) {
            await fetchProducts();
         }
@@ -170,7 +179,7 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
         }
         const { error } = await supabase.from('investment_products').delete().eq('id', id);
         if (error) {
-             console.error("Error removing product:", error);
+             console.error("Error removing product:", JSON.stringify(error, null, 2));
         } else {
             await fetchProducts();
         }
@@ -181,9 +190,15 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             console.warn("Supabase not enabled, cannot update products.");
             return;
         }
-        const { error } = await supabase.from('investment_products').update(updates).eq('id', id);
+
+        // If updates include hourlyTiers, stringify it before sending
+        if (updates.hourlyTiers && typeof updates.hourlyTiers !== 'string') {
+            updates.hourlyTiers = JSON.stringify(updates.hourlyTiers);
+        }
+
+        const { error } = await supabase.from('investment_products').update(updates as any).eq('id', id);
         if (error) {
-            console.error("Error updating product:", error);
+            console.error("Error updating product:", JSON.stringify(error, null, 2));
         } else {
             await fetchProducts();
         }
