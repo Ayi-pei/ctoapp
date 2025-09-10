@@ -104,24 +104,42 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(true);
 
-    const [
-      claimedRewardsRes,
-      initialInvestmentRes,
-      snowballRes,
-      marketPredictionRes
-    ] = await Promise.all([
-      supabase.from("rewards").select("type").eq("user_id", user.id),
-      supabase.from("investments").select("id").eq("user_id", user.id).limit(1),
-      supabase.from("transactions").select("amount").eq("user_id", user.id).eq("type", "deposit"),
-      supabase.from("market_predictions").select("id").eq("user_id", user.id).limit(1)
-    ]);
+    try {
+      const { data, error } = await supabase.from("daily_tasks").select("*");
+      
+      if (error) {
+        console.error("Error fetching daily tasks:", (error as any)?.message || error);
+        // Fallback to default tasks on error
+        const tasksWithIds = defaultTasks.map((task, index) => ({
+          ...task,
+          id: `fallback_${index}`
+        }));
+        setDailyTasks(tasksWithIds);
+        return;
+      }
 
     const { data: claimedRewards } = claimedRewardsRes;
     const claimedSet = new Set(claimedRewards?.map(r => r.type) || []);
     
-    const newTasksState = coreIncentiveTasks.map((task, i) => {
-        let status: TaskStatus = "LOCKED";
-        let progress = { current: 0, target: 1 };
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("user_task_states")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", today);
+      
+      if (error) {
+        console.error("Error fetching user task states:", (error as any)?.message || error);
+        setUserTasksState([]);
+      } else {
+        setUserTasksState(data as UserTaskState[]);
+      }
+    } catch (error) {
+      console.error("Unexpected error in fetchUserTaskStates:", error);
+      setUserTasksState([]);
+    }
+  }, []);
 
         if (claimedSet.has(task.key)) {
             status = "COMPLETED";

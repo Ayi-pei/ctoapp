@@ -78,7 +78,7 @@ export function TradeHeader() {
                         <SelectValue placeholder="Select Pair" />
                     </SelectTrigger>
                     <SelectContent>
-                    {availablePairs.map((pair) => (
+                    {availablePairs.map((pair: string) => (
                         <SelectItem key={pair} value={pair}>
                         {pair}
                         </SelectItem>

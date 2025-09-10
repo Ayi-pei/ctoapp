@@ -143,8 +143,18 @@ export function CustomAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getDownline = async (userId: string): Promise<User[]> => {
-    const { data, error } = await supabase.rpc('get_downline', { p_user_id: userId });
-    return error ? [] : data;
+    try {
+      if (!isSupabaseEnabled) {
+        return [
+          { id: 'mock1', username: '下级一', nickname: '下级一', email: 'mock1@local', inviter_id: userId, is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'MOCK1', created_at: new Date().toISOString(), credit_score: 100 } as any,
+          { id: 'mock2', username: '下级二', nickname: '下级二', email: 'mock2@local', inviter_id: userId, is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'MOCK2', created_at: new Date().toISOString(), credit_score: 100 } as any,
+        ];
+      }
+      const { data, error } = await supabase.rpc('get_downline', { p_user_id: userId });
+      return error ? [] : data;
+    } catch {
+      return [];
+    }
   };
 
   const updateUser = async (userId: string, updates: Partial<User>): Promise<boolean> => {

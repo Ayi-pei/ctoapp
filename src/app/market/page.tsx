@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { MarketList } from "@/components/market-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
-import type { MarketSummary } from "@/types";
+import { MarketSummary } from "@/types";
 
 export default function MarketPage() {
     const { cryptoSummaryData, klineData, summaryData } = useEnhancedMarket();

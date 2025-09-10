@@ -22,6 +22,17 @@ export type EnhancedTradingPairSettings = {
   emergencyStop?: boolean; // 紧急停止开关
 };
 
+// 基础市场干预类型（向后兼容）
+export type MarketIntervention = {
+  id: string;
+  tradingPair: string;
+  startTime: string;
+  endTime: string;
+  minPrice: number;
+  maxPrice: number;
+  trend: "up" | "down" | "random";
+};
+
 // 增强的市场干预规则
 export type EnhancedMarketIntervention = {
   id: string;

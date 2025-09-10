@@ -157,17 +157,19 @@ export type Transaction = {
   user?: { username: string };
 };
 
+// Unified CommissionLog: used for both referral and generic commission tracking
 export type CommissionLog = {
   id: string;
-  user_id: string;
-  amount: number;
-  asset: string;
-  source_user_id?: string;
-  source_username?: string;
-  source_order_id?: string;
-  commission_rate?: number;
+  user_id: string;            // the receiver of commission
+  amount: number;             // amount of commission
+  asset: string;              // usually 'USDT'
+  source_user_id?: string;    // who generated the commission
+  source_username?: string;   // username of source
+  source_level?: number;      // upline level (1/2/3) if applicable
+  source_order_id?: string;   // related order id if exists
+  commission_rate?: number;   // rate used
   created_at: Timestamp;
-}
+};
 
 // Represents a user's password reset request submitted to admin
 export type PasswordResetRequest = {
@@ -355,22 +357,6 @@ export type NavItem = {
     label: string;
     icon: React.ElementType;
     subItems?: NavItem[];
-};
-
-export type IncentiveTask = {
-  key: string;
-  title: string;
-  description: string;
-  reward: string;
-  status: TaskStatus;
-  progress: {
-    current: number;
-    target: number;
-  };
-  link: string;
-  imgSrc?: string;
-  reward_type: string;
-  claim_api?: string;
 };
 
     

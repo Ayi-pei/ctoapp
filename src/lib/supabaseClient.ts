@@ -4,7 +4,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const isSupabaseEnabled = !!(supabaseUrl && supabaseAnonKey);
+const supabaseDisabled = String(process.env.NEXT_PUBLIC_SUPABASE_DISABLED).toLowerCase() === 'true';
+export const isSupabaseEnabled = !!(supabaseUrl && supabaseAnonKey) && !supabaseDisabled;
+export const isRealtimeEnabled = isSupabaseEnabled && String(process.env.NEXT_PUBLIC_SUPABASE_REALTIME ?? 'true').toLowerCase() !== 'false';
+export const isMarketDbPersistEnabled = isSupabaseEnabled && String(process.env.NEXT_PUBLIC_MARKET_DB_PERSIST ?? 'true').toLowerCase() !== 'false';
 
 let supabase: SupabaseClient;
 

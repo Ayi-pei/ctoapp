@@ -10,7 +10,7 @@ type ContractTradeParams = {
   type: 'buy' | 'sell';
   amount: number;
   period: number;
-  profitRate: number;
+  profit_rate: number;
 }
 
 type OrderFormProps = {

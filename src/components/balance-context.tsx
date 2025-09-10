@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier } from '@/types';
 import { useSimpleAuth } from '@/context/simple-custom-auth';
-import { useMarket } from '@/context/market-data-context';
+import { useEnhancedMarket } from '@/context/enhanced-market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
 
@@ -85,41 +85,89 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-    const { user, getUserById } = useSimpleAuth();
-    const { getLatestPrice } = useMarket();
-    const { toast } = useToast();
+  const { user, getUserById } = useSimpleAuth();
+  const { getLatestPrice } = useEnhancedMarket();
+  const { toast } = useToast();
+  
+  const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [commissionLogs, setCommissionLogs] = useState<CommissionLog[]>([]);
+  const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
+  const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
+  const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
-    const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
-    const [investments, setInvestments] = useState<Investment[]>([]);
-    const [commissionLogs, setCommissionLogs] = useState<CommissionLog[]>([]);
-    const [activeContractTrades, setActiveContractTrades] = useState<ContractTrade[]>([]);
-    const [historicalTrades, setHistoricalTrades] = useState<(SpotTrade | ContractTrade)[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
-    const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
+
+  // Load user data from storage
+  useEffect(() => {
+    setIsLoading(true);
+    if (user) {
+        const data = getUserData(user.id);
+        setBalances(data.balances);
+        setInvestments(data.investments);
+        setActiveContractTrades(data.activeContractTrades);
+        setHistoricalTrades(data.historicalTrades);
+        setCommissionLogs(data.commissionLogs);
+        setLastCheckInDate(data.lastCheckInDate);
+        setConsecutiveCheckIns(data.consecutiveCheckIns || 0);
+    } else {
+        // Logged out, clear all data
+        setBalances(INITIAL_BALANCES_USER);
+        setInvestments([]);
+        setActiveContractTrades([]);
+        setHistoricalTrades([]);
+        setCommissionLogs([]);
+        setLastCheckInDate(undefined);
+        setConsecutiveCheckIns(0);
+    }
+    setIsLoading(false);
+  }, [user]);
+
+  // Save user data to storage whenever it changes
+  useEffect(() => {
+      if (user && !isLoading) {
+          const dataToStore: UserData = {
+              balances,
+              investments,
+              activeContractTrades,
+              historicalTrades,
+              commissionLogs,
+              lastCheckInDate,
+              consecutiveCheckIns,
+          };
+          saveUserData(user.id, dataToStore);
+      }
+  }, [user, isLoading, balances, investments, activeContractTrades, historicalTrades, commissionLogs, lastCheckInDate, consecutiveCheckIns]);
 
 
-    // Load user data from storage
-    useEffect(() => {
-        setIsLoading(true);
-        if (user) {
-            const data = getUserData(user.id);
-            setBalances(data.balances);
-            setInvestments(data.investments);
-            setActiveContractTrades(data.activeContractTrades);
-            setHistoricalTrades(data.historicalTrades);
-            setCommissionLogs(data.commissionLogs);
-            setLastCheckInDate(data.lastCheckInDate);
-            setConsecutiveCheckIns(data.consecutiveCheckIns || 0);
-        } else {
-            // Logged out, clear all data
-            setBalances(INITIAL_BALANCES_USER);
-            setInvestments([]);
-            setActiveContractTrades([]);
-            setHistoricalTrades([]);
-            setCommissionLogs([]);
-            setLastCheckInDate(undefined);
-            setConsecutiveCheckIns(0);
+  const adjustBalance = useCallback((userId: string, asset: string, amount: number) => {
+      const userData = getUserData(userId);
+      const userBalances = userData.balances;
+      userBalances[asset] = {
+          ...userBalances[asset],
+          available: (userBalances[asset]?.available || 0) + amount,
+      };
+
+      userData.balances = userBalances;
+      saveUserData(userId, userData);
+
+      if (user?.id === userId) {
+          setBalances(userBalances);
+      }
+  }, [user?.id]);
+
+  const distributeCommissions = useCallback(async (sourceUser: User, tradeAmount: number) => {
+    if (!sourceUser.inviter_id) return;
+
+    let currentUplineId: string | null = sourceUser.inviter_id;
+    
+    for (const level = 1; level <= 3; level++) {
+        if (!currentUplineId) break;
+
+        const uplineUser = await getUserById(currentUplineId);
+        if (!uplineUser || uplineUser.is_frozen) {
+            break;
         }
         setIsLoading(false);
     }, [user]);
@@ -455,10 +503,169 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
             return newBalances;
         });
 
-        if (quoteAsset === 'USDT') {
-            distributeCommissions(user, trade.total);
-        }
-    };
+    return () => clearInterval(interval);
+  }, [activeContractTrades, settleContractTrade]);
+  
+  
+  const addDailyInvestment = async (params: DailyInvestmentParams) => {
+    if (!user) return false;
+    
+    if (balances.USDT.available < params.amount) {
+      return false;
+    }
+    
+    setBalances(prev => ({
+      ...prev,
+      USDT: { ...prev.USDT, available: prev.USDT.available - params.amount, frozen: prev.USDT.frozen }
+    }));
+
+    const now = new Date();
+    const settlementDate = new Date(now.getTime() + params.period * 24 * 60 * 60 * 1000);
+
+    const newInvestment: Investment = {
+        id: `inv-d-${Date.now()}`,
+        user_id: user.id,
+        product_name: params.productName,
+        amount: params.amount,
+        created_at: now.toISOString(),
+        settlement_date: settlementDate.toISOString(),
+        daily_rate: params.dailyRate,
+        period: params.period,
+        status: 'active',
+        productType: 'daily',
+        category: params.category,
+    }
+    setInvestments(prev => [newInvestment, ...prev]);
+    return true;
+  }
+  
+  const addHourlyInvestment = async (params: HourlyInvestmentParams) => {
+     if (!user) return false;
+    
+    if (balances.USDT.available < params.amount) {
+      return false;
+    }
+    
+    // Find the correct rate for the selected duration
+    const selectedTier = params.tiers.find(t => t.hours === params.durationHours);
+    if (!selectedTier) {
+        console.error("Invalid duration or tier not found for hourly investment");
+        return false;
+    }
+
+    setBalances(prev => ({
+      ...prev,
+      USDT: { ...prev.USDT, available: prev.USDT.available - params.amount, frozen: prev.USDT.frozen }
+    }));
+
+    const now = new Date();
+    const settlementDate = new Date(now.getTime() + params.durationHours * 60 * 60 * 1000);
+
+    const newInvestment: Investment = {
+        id: `inv-h-${Date.now()}`,
+        user_id: user.id,
+        product_name: params.productName,
+        amount: params.amount,
+        created_at: now.toISOString(),
+        settlement_date: settlementDate.toISOString(),
+        status: 'active',
+        productType: 'hourly',
+        duration_hours: params.durationHours,
+        hourly_rate: selectedTier.rate,
+        category: params.category,
+    }
+    setInvestments(prev => [newInvestment, ...prev]);
+    return true;
+  }
+
+  const placeContractTrade = async (trade: ContractTradeParams, tradingPair: string) => {
+    if (!user) return;
+
+    if (user.is_frozen) {
+        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
+        return;
+    }
+    
+    const quoteAsset = tradingPair.split('/')[1];
+    const currentPrice = getLatestPrice(tradingPair);
+
+     if (balances[quoteAsset].available < trade.amount) {
+        toast({ variant: 'destructive', title: '下单失败', description: `可用 ${quoteAsset} 余额不足。` });
+        return;
+    }
+    
+    const newTrade: ContractTrade = {
+      id: `ct-${Date.now()}`,
+      user_id: user.id,
+      trading_pair: tradingPair,
+      type: trade.type,
+      amount: trade.amount,
+      entry_price: currentPrice,
+      settlement_time: new Date(Date.now() + (trade.period * 1000)).toISOString(),
+      period: trade.period,
+      profit_rate: trade.profitRate,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      orderType: 'contract',
+    }
+
+    setActiveContractTrades(prev => [...prev, newTrade]);
+    setBalances(prev => ({
+      ...prev,
+      [quoteAsset]: { 
+        available: prev[quoteAsset].available - trade.amount,
+        frozen: prev[quoteAsset].frozen + trade.amount
+      }
+    }));
+
+    if(quoteAsset === 'USDT') {
+      void distributeCommissions(user, trade.amount);
+    }
+  };
+  
+  const placeSpotTrade = async (trade: Pick<SpotTrade, 'type' | 'amount' | 'total' | 'trading_pair'>) => {
+     if (!user) return;
+    
+     if (user.is_frozen) {
+        toast({ variant: 'destructive', title: 'Action Failed', description: 'Your account is frozen.'});
+        return;
+    }
+
+    const [baseAsset, quoteAsset] = trade.trading_pair.split('/');
+    const currentPrice = getLatestPrice(trade.trading_pair);
+    const fullTrade: SpotTrade = {
+        id: `st-${Date.now()}`,
+        type: trade.type,
+        amount: trade.amount,
+        price: currentPrice,
+        total: trade.total,
+        user_id: user.id,
+        trading_pair: trade.trading_pair,
+        base_asset: baseAsset,
+        quote_asset: quoteAsset,
+        status: 'filled',
+        created_at: new Date().toISOString(),
+        orderType: 'spot'
+    }
+
+    setHistoricalTrades(prev => [fullTrade, ...prev]);
+    
+    setBalances(prev => {
+      const newBalances = {...prev};
+      if (trade.type === 'buy') {
+        newBalances[quoteAsset].available -= trade.total;
+        newBalances[baseAsset].available += trade.amount;
+      } else {
+        newBalances[baseAsset].available -= trade.amount;
+        newBalances[quoteAsset].available += trade.total;
+      }
+      return newBalances;
+    });
+
+     if(quoteAsset === 'USDT') {
+        void distributeCommissions(user, trade.total);
+     }
+  };
 
     const handleCheckIn = useCallback(async (): Promise<{ success: boolean; reward: number; message?: string; }> => {
         if (!user) {

@@ -38,7 +38,12 @@ export function EnhancedSupabaseProvider({ children }: { children: ReactNode }) 
 export function useEnhancedSupabase() {
   const context = useContext(EnhancedSupabaseContext);
   if (context === undefined) {
-    throw new Error('useEnhancedSupabase must be used within an EnhancedSupabaseProvider');
+    // Provide a safe fallback to avoid runtime crash if provider is not mounted yet
+    return {
+      authenticatedClient: null,
+      setUserContext: async () => {},
+      isEnabled: isSupabaseEnabled,
+    } as EnhancedSupabaseContextType;
   }
   return context;
 }
@@ -48,28 +53,18 @@ export function useAuthenticatedSupabase() {
   const { user } = useSimpleAuth();
   const { setUserContext } = useEnhancedSupabase();
 
-  const withUserContext = useCallback(async <T,>(operation: () => Promise<T>): Promise<T> => {
-    if (user?.id) {
+  // Helper that ensures user context is set, then passes through the raw supabase client for full chaining
+  const withUserContext = useCallback(async (operation: (sb: typeof supabase) => Promise<any> | any): Promise<any> => {
+    if (user) {
       await setUserContext(user.id);
     }
-    return operation();
+    return operation(supabase);
   }, [user, setUserContext]);
 
   return {
-    from: (table: string) => ({
-      select: (columns?: string) => 
-        withUserContext(async () => supabase.from(table).select(columns)),
-      insert: (data: Record<string, any>) => 
-        withUserContext(async () => supabase.from(table).insert(data)),
-      update: (data: Record<string, any>) => 
-        withUserContext(async () => supabase.from(table).update(data)),
-      'delete': () => 
-        withUserContext(async () => supabase.from(table).delete()),
-      upsert: (data: Record<string, any>) => 
-        withUserContext(async () => supabase.from(table).upsert(data)),
-    }),
-    rpc: (functionName: string, params?: Record<string, any>) =>
-      withUserContext(async () => supabase.rpc(functionName, params)),
+    withContext: withUserContext,
+    rpc: async (functionName: string, params?: Record<string, any>) =>
+      withUserContext((sb) => sb.rpc(functionName, params)),
     isEnabled: isSupabaseEnabled,
     user,
   };

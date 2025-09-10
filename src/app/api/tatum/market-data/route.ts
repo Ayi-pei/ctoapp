@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       const ticker = tickerResponse.data;
 
       if (rate && rate.value && ticker) {
-        let assetData = {
+        const assetData = {
           id: assetId.toLowerCase(),
           symbol: assetId,
           priceUsd: rate.value.toString(),

@@ -65,7 +65,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error fetching activities:", error);
+        console.error("Error fetching activities:", (error as any)?.message || error);
         // Fallback to default activities on error
         const activitiesWithIds = defaultActivities.map((activity, index) => ({
           ...activity,

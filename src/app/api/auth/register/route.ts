@@ -3,10 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 import { signSession, getDefaultCookieOptions, sessionCookieName } from '@/lib/auth/session';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 export async function POST(request: Request) {
   try {
     const { username, password, invitationCode } = await request.json();
@@ -15,7 +11,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing fields' }, { status: 400 });
     }
 
-    // 1. Check if username exists
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // 开发环境回退：如果服务端未配置 Supabase，则允许使用 ADMIN_AUTH 作为邀请码直接成功，inviter_id 视为 admin_user_001
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      const adminCode = process.env.ADMIN_AUTH || '';
+      if (invitationCode !== adminCode) {
+        return NextResponse.json({ success: false, error: 'invalid_code' }, { status: 400 });
+      }
+      // 不进行数据库写入，直接返回成功（仅用于本地联调，登录请使用管理员账户或配置 Supabase）
+      return NextResponse.json({ success: true, devFallback: true });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // 1. 检查用户名是否已存在
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')
@@ -26,14 +37,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'username_exists' }, { status: 409 });
     }
 
-    // 2. Validate invitation code
-    const { data: inviter, error: inviterError } = await supabase
+    // 2. 验证邀请码（从数据库查找）或匹配管理员 ADMIN_AUTH
+    let inviter: { id: string } | null = null;
+    // Try DB first
+    const { data: inviterDb } = await supabase
       .from('profiles')
       .select('id')
       .eq('invitation_code', invitationCode)
       .single();
+    if (inviterDb) {
+      inviter = inviterDb as any;
+    } else if (invitationCode === (process.env.ADMIN_AUTH || '')) {
+      // If matches admin code, ensure admin exists or create
+      const adminName = process.env.ADMIN_NAME || '';
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', adminName)
+        .single();
+      if (adminProfile) {
+        inviter = adminProfile as any;
+      } else {
+        // bootstrap minimal admin record as inviter
+        const adminId = (globalThis as any).crypto?.randomUUID?.() || `${Date.now()}-admin`;
+        await supabase.from('profiles').insert({
+          id: adminId,
+          username: adminName || 'admin',
+          nickname: 'Administrator',
+          email: null,
+          inviter_id: null,
+          invitation_code: process.env.ADMIN_AUTH || '',
+          is_admin: true,
+          is_test_user: false,
+          is_frozen: false,
+          credit_score: 999,
+          created_at: new Date().toISOString(),
+        });
+        inviter = { id: adminId };
+      }
+    }
 
-    if (inviterError || !inviter) {
+    if (!inviter) {
       return NextResponse.json({ success: false, error: 'invalid_code' }, { status: 400 });
     }
 

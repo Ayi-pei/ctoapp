@@ -62,7 +62,7 @@ export default function PromotionPage() {
     }, []);
 
     useEffect(() => {
-        const fetchTeamData = async () => {
+        const loadTeamData = async () => {
             if (user) {
                 // "团队人员"：代理团队包括自己不含上级代理的总注册人数
                 const downline = await getDownline(user.id);
@@ -78,9 +78,9 @@ export default function PromotionPage() {
                 const stats = calculateTeamStats(fullTeam, requests);
                 setTeamStats(stats);
             }
-        }
-
-        fetchTeamData();
+        };
+        
+        loadTeamData();
     }, [user, getDownline, requests, calculateTeamStats]);
 
     const copyToClipboard = (text: string) => {

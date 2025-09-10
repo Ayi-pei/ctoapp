@@ -5,7 +5,8 @@ import type { AnyRequest, PasswordResetRequest, Transaction } from '@/types';
 import { useSimpleAuth } from './simple-custom-auth';
 import { useBalance } from './balance-context';
 import { useSimpleEnhancedLogs } from './simple-enhanced-logs-context';
-import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { supabase, isSupabaseEnabled, isRealtimeEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase, useEnhancedSupabase } from '@/context/enhanced-supabase-context';
 
 type DepositRequestParams = {
     asset: string;
@@ -37,36 +38,46 @@ export function RequestsProvider({ children }: { children: ReactNode }) {
     const { adjustBalance } = useBalance();
     const { addLog } = useSimpleEnhancedLogs();
     const [requests, setRequests] = useState<AnyRequest[]>([]);
+    const authSb = useAuthenticatedSupabase();
+    const { setUserContext } = useEnhancedSupabase();
 
     const fetchAllRequests = useCallback(async () => {
         if (!isSupabaseEnabled) return;
         
         try {
-            const { data, error } = await supabase
-                .from('requests')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const { data, error } = await (
+                authSb?.withContext
+                    ? authSb.withContext((sb) => sb
+                        .from('requests')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                    )
+                    : supabase
+                        .from('requests')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+            ) as any;
 
             if (error) {
-                console.error("Error fetching requests:", error);
+                console.error("Error fetching requests:", (error as any)?.message || error);
                 return;
             }
 
             // Add mock user data for requests
-            const requestsWithUsers = (data || []).map(req => ({
+            const requestsWithUsers = (data || []).map((req: any) => ({
                 ...req,
                 user: { username: 'User' + (req.user_id?.slice(-4) || 'Unknown') }
             }));
             setRequests(requestsWithUsers as AnyRequest[]);
         } catch (error) {
-            console.error("Unexpected error in fetchAllRequests:", error);
+            console.error("Unexpected error in fetchAllRequests:", (error as any)?.message || error);
             setRequests([]);
         }
     }, []);
 
     useEffect(() => {
         fetchAllRequests();
-        if (!isSupabaseEnabled) return;
+        if (!isSupabaseEnabled || !isRealtimeEnabled) return;
         
         const channel = supabase
             .channel('requests-channel')

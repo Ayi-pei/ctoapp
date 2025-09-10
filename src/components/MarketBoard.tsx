@@ -22,71 +22,24 @@ export function MarketBoard() {
         return {}; 
     }
 
-    const data = currentPairKlineData.map((item: OHLC) => [
-        item.time,
-        item.open,
-        item.close,
-        item.low,
-        item.high,
-    ]);
-
-    return {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'cross'
-            }
-        },
-        grid: {
-            left: '10%',
-            right: '10%',
-            bottom: '15%'
-        },
-        xAxis: {
-            type: 'category',
-            data: data.map((item: (number | string)[]) => item[0]),
-            scale: true,
-            boundaryGap: false,
-            axisLine: { onZero: false },
-            splitLine: { show: false },
-            min: 'dataMin',
-            max: 'dataMax'
-        },
-        yAxis: {
-            scale: true,
-            splitArea: {
-                show: true
-            }
-        },
-        dataZoom: [
-            {
-                type: 'inside',
-                start: 50,
-                end: 100
-            },
-            {
-                show: true,
-                type: 'slider',
-                top: '90%',
-                start: 50,
-                end: 100
-            }
-        ],
-        series: [
-            {
-                name: tradingPair,
-                type: 'candlestick',
-                data: data.map((item: (number | string)[]) => [item[1], item[2], item[3], item[4]]),
-                itemStyle: {
-                    color: '#00ff00',
-                    color0: '#ff0000',
-                    borderColor: '#00ff00',
-                    borderColor0: '#ff0000'
-                }
-            }
-        ]
-    };
-};
+  const klineOption = {
+    xAxis: {
+      type: "category",
+      data: currentKlineData.map((d: any) => d.time),
+      boundaryGap: true,
+    },
+    yAxis: { scale: true },
+    tooltip: { trigger: "axis" },
+    series: [
+      {
+        type: "line",
+        data: currentKlineData.map((d: any) => d.close),
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { color: "#26a69a", width: 2 }
+      },
+    ],
+  };
 
   return (
     <div className="bg-card p-4 rounded-lg shadow-lg">

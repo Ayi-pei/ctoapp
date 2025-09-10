@@ -13,16 +13,43 @@ import { DepositDialog } from "@/components/deposit-dialog";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnnouncements } from "@/context/announcements-context";
+import { MarketSummary } from "@/types";
 import { CheckInDialog } from "@/components/check-in-dialog";
 import Image from "next/image";
 import Autoplay from "embla-carousel-autoplay"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
-import type { MarketSummary } from "@/types";
+import { MarketDataDebug } from "@/components/market-data-debug";
 
 
 export default function DashboardPage() {
-    const { cryptoSummaryData, summaryData, klineData } = useEnhancedMarket();
+    const { cryptoSummaryData = [], summaryData = [], klineData = {} as any } = useEnhancedMarket();
+    
+    // 正确分离币种数据和期货数据
+    const CRYPTO_PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'LTC/USDT', 'BNB/USDT', 'MATIC/USDT', 'DOGE/USDT', 'ADA/USDT', 'SHIB/USDT'];
+    const FOREX_OPTIONS_PAIRS = ['XAU/USD', 'EUR/USD', 'GBP/USD', 'IBM', 'AAPL', 'TSLA', 'MSFT'];
+    
+    // 从 summaryData 中正确分离数据
+    const actualCryptoData = (summaryData ?? []).filter((s: MarketSummary) => 
+        s && typeof s.pair === 'string' && CRYPTO_PAIRS.includes(s.pair)
+    );
+    
+    const forexAndOptionsSummaryData = (summaryData ?? []).filter((s: MarketSummary) => 
+        s && typeof s.pair === 'string' && FOREX_OPTIONS_PAIRS.includes(s.pair)
+    );
+    
+    // 调试信息 - 开发环境下显示数据状态
+    if (process.env.NODE_ENV === 'development') {
+        console.log('Dashboard数据状态:', {
+            summaryData: summaryData.length,
+            cryptoSummaryData: cryptoSummaryData.length,
+            actualCryptoData: actualCryptoData.length,
+            forexAndOptionsData: forexAndOptionsSummaryData.length,
+            cryptoPairs: actualCryptoData.map(d => d.pair),
+            forexPairs: forexAndOptionsSummaryData.map(d => d.pair)
+        });
+    }
+    
     const { balances } = useBalance();
     const { hornAnnouncements } = useAnnouncements();
     const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -57,7 +84,7 @@ export default function DashboardPage() {
     
     const getUsdtValue = (assetName: string, amount: number) => {
         if (assetName === 'USDT') return amount;
-        const assetSummary = summaryData.find(s => s.pair.startsWith(assetName));
+        const assetSummary = summaryData.find((s: any) => s.pair.startsWith(assetName));
         return amount * (assetSummary?.price || 0);
     }
 
@@ -65,10 +92,8 @@ export default function DashboardPage() {
         return acc + getUsdtValue(name, balance.available);
     }, 0);
     
-    const forexAndOptionsSummaryData = summaryData.filter(s => ['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(s.pair));
-
-    const renderMarketList = (data: MarketSummary[] | undefined, type: string) => {
-        if (!data || (summaryData.length === 0 && data.length === 0)) { // Check both to avoid flicker
+    const renderMarketList = (data: MarketSummary[], type: string) => {
+        if (summaryData.length === 0 && data.length === 0) { // Check both to avoid flicker
             return (
                 <div className="space-y-4 mt-4">
                     {[...Array(3)].map((_, i) => (
@@ -185,7 +210,7 @@ export default function DashboardPage() {
                         <TabsTrigger value="forex">期权外汇</TabsTrigger>
                     </TabsList>
                     <TabsContent value="crypto" className="mt-4">
-                        {renderMarketList(cryptoSummaryData, "热门币种")}
+                        {renderMarketList(actualCryptoData.length > 0 ? actualCryptoData : cryptoSummaryData, "热门币种")}
                     </TabsContent>
                     <TabsContent value="forex" className="mt-4">
                        {renderMarketList(forexAndOptionsSummaryData, "期权外汇")}

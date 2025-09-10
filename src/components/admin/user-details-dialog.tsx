@@ -124,10 +124,10 @@ export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: 
             const { data: balances, error: balanceError } = await supabase.from('balances').select('*').eq('user_id', fetchedUser.id);
             if (balanceError) console.error("Error fetching user balances:", balanceError);
             else {
-                const formattedBalances = balances.reduce((acc, b) => {
+                const formattedBalances = balances.reduce((acc: Record<string, any>, b: any) => {
                     acc[b.asset] = { available: b.available_balance, frozen: b.frozen_balance };
                     return acc;
-                }, {} as any);
+                }, {} as Record<string, any>);
                 setCalculatedBalances(formattedBalances);
             }
             
