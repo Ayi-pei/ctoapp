@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ContractTrade, SpotTrade, Transaction, Investment, CommissionLog, User, InvestmentTier } from '@/types';
 import { useSimpleAuth } from '@/context/simple-custom-auth';
-import { useMarket } from '@/context/market-data-context';
+import { useEnhancedMarket } from '@/context/enhanced-market-data-context';
 import { useToast } from '@/hooks/use-toast';
 import { getUserData, saveUserData, UserData } from '@/lib/user-data';
 
@@ -86,7 +86,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, getUserById } = useSimpleAuth();
-  const { getLatestPrice } = useMarket();
+  const { getLatestPrice } = useEnhancedMarket();
   const { toast } = useToast();
   
   const [balances, setBalances] = useState<{ [key: string]: { available: number; frozen: number } }>(INITIAL_BALANCES_USER);
@@ -157,15 +157,15 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       }
   }, [user?.id]);
 
-  const distributeCommissions = useCallback((sourceUser: User, tradeAmount: number) => {
+  const distributeCommissions = useCallback(async (sourceUser: User, tradeAmount: number) => {
     if (!sourceUser.inviter_id) return;
 
     let currentUplineId: string | null = sourceUser.inviter_id;
     
-    for (let level = 1; level <= 3; level++) {
+    for (const level = 1; level <= 3; level++) {
         if (!currentUplineId) break;
 
-        const uplineUser = getUserById(currentUplineId);
+        const uplineUser = await getUserById(currentUplineId);
         if (!uplineUser || uplineUser.is_frozen) {
             break;
         }
@@ -414,7 +414,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }));
 
     if(quoteAsset === 'USDT') {
-      distributeCommissions(user, trade.amount);
+      void distributeCommissions(user, trade.amount);
     }
   };
   
@@ -458,7 +458,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     });
 
      if(quoteAsset === 'USDT') {
-        distributeCommissions(user, trade.total);
+        void distributeCommissions(user, trade.total);
      }
   };
 

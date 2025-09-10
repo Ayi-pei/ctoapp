@@ -62,21 +62,25 @@ export default function PromotionPage() {
     }, []);
 
     useEffect(() => {
-        if (user) {
-            // "团队人员"：代理团队包括自己不含上级代理的总注册人数
-            const downline = getDownline(user.id);
-            const fullTeam = [user, ...downline];
-            setTeamMembers(fullTeam);
-            
-            if (typeof window !== 'undefined') {
-                 const link = `${window.location.origin}/register?code=${user.invitation_code}`;
-                 setInvitationLink(link);
+        const loadTeamData = async () => {
+            if (user) {
+                // "团队人员"：代理团队包括自己不含上级代理的总注册人数
+                const downline = await getDownline(user.id);
+                const fullTeam = [user, ...downline];
+                setTeamMembers(fullTeam);
+                
+                if (typeof window !== 'undefined') {
+                     const link = `${window.location.origin}/register?code=${user.invitation_code}`;
+                     setInvitationLink(link);
+                }
+                
+                // "总充值" / "总提现"
+                const stats = calculateTeamStats(fullTeam, requests);
+                setTeamStats(stats);
             }
-            
-            // "总充值" / "总提现"
-            const stats = calculateTeamStats(fullTeam, requests);
-            setTeamStats(stats);
-        }
+        };
+        
+        loadTeamData();
     }, [user, getDownline, requests, calculateTeamStats]);
 
     const copyToClipboard = (text: string) => {

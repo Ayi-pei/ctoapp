@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 export type InvestmentTier = {
     hours: number;
@@ -79,7 +80,7 @@ export function InvestmentSettingsProvider({ children }: { children: ReactNode }
             const { data, error } = await supabase.from('investment_products').select('*');
             
             if (error) {
-                console.error("Failed to load investment settings from Supabase", error);
+                console.error("Failed to load investment settings from Supabase", (error as any)?.message || error);
                 // Fallback to default products on error
                 const productsWithIds = defaultInvestmentProducts.map((product, index) => ({
                     ...product,

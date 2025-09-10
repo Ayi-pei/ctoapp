@@ -41,7 +41,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
   const [activeTab, setActiveTab] = useState(initialTab);
 
   const currentKlineData = useMemo(() => allKlineData[tradingPair] || [], [allKlineData, tradingPair]);
-  const currentSummary = useMemo(() => summaryData.find(s => s.pair === tradingPair), [summaryData, tradingPair]);
+  const currentSummary = useMemo(() => summaryData.find((s: any) => s.pair === tradingPair), [summaryData, tradingPair]);
   const currentPrice = useMemo(() => getLatestPrice(tradingPair), [getLatestPrice, tradingPair]);
   
   const [baseAsset, quoteAsset] = tradingPair.split('/');
@@ -63,7 +63,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       },
       xAxis: {
         type: "category",
-        data: currentKlineData.map((d) => d.time),
+        data: currentKlineData.map((d: any) => d.time),
         axisLine: { lineStyle: { color: chartMutedColor } },
         axisLabel: { 
             color: chartMutedColor,
@@ -98,7 +98,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
       series: [{
         name: tradingPair,
         type: "line",
-        data: currentKlineData.map(d => d.close),
+        data: currentKlineData.map((d: any) => d.close),
         smooth: true,
         showSymbol: false,
         lineStyle: {

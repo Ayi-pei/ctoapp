@@ -11,6 +11,7 @@ import { User as UserType, AnyRequest } from '@/types';
 import { isToday, isThisMonth, parseISO } from 'date-fns';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -28,6 +29,7 @@ const StatCard = ({ title, value, icon: Icon, description }: { title: string, va
 
 export default function AdminFinanceDashboardPage() {
     const { getDownline, getAllUsers } = useSimpleAuth();
+    const authSb = useAuthenticatedSupabase();
     const { requests } = useRequests();
     
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
@@ -39,9 +41,16 @@ export default function AdminFinanceDashboardPage() {
             setAllUsers(users);
 
             if (isSupabaseEnabled) {
-                const { data, error } = await supabase.rpc('get_total_platform_balance');
-                if (error) console.error("Error fetching total balance:", error);
-                else setPlatformTotalBalance(data || 0);
+                const { data, error } = await (
+                    authSb?.withContext
+                        ? authSb.withContext((sb) => sb.rpc('get_total_platform_balance'))
+                        : supabase.rpc('get_total_platform_balance')
+                );
+                if (error) {
+                    console.error('Error fetching total balance:', (error as any)?.message || error);
+                } else {
+                    setPlatformTotalBalance(Number(data) || 0);
+                }
             }
         };
         loadAllData();

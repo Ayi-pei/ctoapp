@@ -69,6 +69,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/caseless": "^0.12.5",
     "@types/json-schema": "^7.0.15",
     "@types/long": "^4.0.2",
@@ -81,6 +82,8 @@
     "@types/shimmer": "^1.2.0",
     "@types/tough-cookie": "^4.0.5",
     "autoprefixer": "^10.0.1",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.2",
     "genkit-cli": "1.15.5",
     "patch-package": "^8.0.0",
     "postcss": "^8",

@@ -342,4 +342,17 @@ export type NavItem = {
     subItems?: NavItem[];
 };
 
+// Commission log for referral program
+export type CommissionLog = {
+  id: string;
+  upline_user_id: string;
+  source_user_id: string;
+  source_username: string;
+  source_level: number;
+  trade_amount: number;
+  commission_rate: number;
+  commission_amount: number;
+  created_at: Timestamp;
+};
+
     

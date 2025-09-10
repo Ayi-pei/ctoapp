@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleAuthProvider } from "@/context/simple-custom-auth";
+import { EnhancedSupabaseProvider } from "@/context/enhanced-supabase-context";
 import { BalanceProvider } from "@/context/balance-context";
 import { EnhancedMarketDataProvider } from "@/context/enhanced-market-data-context";
 import { EnhancedSystemSettingsProvider } from "@/context/enhanced-system-settings-context";
@@ -15,6 +16,11 @@ import { SimpleEnhancedLogsProvider } from "@/context/simple-enhanced-logs-conte
 import { SwapProvider } from "@/context/swap-context";
 import { OptionsProvider } from "@/context/options-context";
 import { LogsProvider } from "@/context/logs-context";
+
+// 开发环境下导入系统健康检查
+if (process.env.NODE_ENV === 'development') {
+  import("@/lib/system-health");
+}
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,32 +42,34 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased text-foreground">
         <SimpleAuthProvider>
-          <SimpleEnhancedLogsProvider>
-            <LogsProvider>
-              <EnhancedSystemSettingsProvider>
-                <InvestmentSettingsProvider>
-                  <EnhancedMarketDataProvider>
-                    <OptionsProvider>
-                      <BalanceProvider>
-                        <TasksProvider>
-                          <RequestsProvider>
-                            <ActivitiesProvider>
-                              <AnnouncementsProvider>
-                                <SwapProvider>
-                                  {children}
-                                  <Toaster />
-                                </SwapProvider>
-                              </AnnouncementsProvider>
-                            </ActivitiesProvider>
-                          </RequestsProvider>
-                        </TasksProvider>
-                      </BalanceProvider>
-                    </OptionsProvider>
-                  </EnhancedMarketDataProvider>
-                </InvestmentSettingsProvider>
-              </EnhancedSystemSettingsProvider>
-            </LogsProvider>
-          </SimpleEnhancedLogsProvider>
+          <EnhancedSupabaseProvider>
+            <SimpleEnhancedLogsProvider>
+              <LogsProvider>
+                <EnhancedSystemSettingsProvider>
+                  <InvestmentSettingsProvider>
+                    <EnhancedMarketDataProvider>
+                      <OptionsProvider>
+                        <BalanceProvider>
+                          <TasksProvider>
+                            <RequestsProvider>
+                              <ActivitiesProvider>
+                                <AnnouncementsProvider>
+                                  <SwapProvider>
+                                    {children}
+                                    <Toaster />
+                                  </SwapProvider>
+                                </AnnouncementsProvider>
+                              </ActivitiesProvider>
+                            </RequestsProvider>
+                          </TasksProvider>
+                        </BalanceProvider>
+                      </OptionsProvider>
+                    </EnhancedMarketDataProvider>
+                  </InvestmentSettingsProvider>
+                </EnhancedSystemSettingsProvider>
+              </LogsProvider>
+            </SimpleEnhancedLogsProvider>
+          </EnhancedSupabaseProvider>
         </SimpleAuthProvider>
       </body>
     </html>

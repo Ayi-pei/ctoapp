@@ -82,7 +82,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.from("daily_tasks").select("*");
       
       if (error) {
-        console.error("Error fetching daily tasks:", error);
+        console.error("Error fetching daily tasks:", (error as any)?.message || error);
         // Fallback to default tasks on error
         const tasksWithIds = defaultTasks.map((task, index) => ({
           ...task,
@@ -148,7 +148,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         .eq("date", today);
       
       if (error) {
-        console.error("Error fetching user task states:", error);
+        console.error("Error fetching user task states:", (error as any)?.message || error);
         setUserTasksState([]);
       } else {
         setUserTasksState(data as UserTaskState[]);

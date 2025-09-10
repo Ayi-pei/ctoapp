@@ -20,7 +20,7 @@ export function MarketBoard() {
   const klineOption = {
     xAxis: {
       type: "category",
-      data: currentKlineData.map(d => d.time),
+      data: currentKlineData.map((d: any) => d.time),
       boundaryGap: true,
     },
     yAxis: { scale: true },
@@ -28,7 +28,7 @@ export function MarketBoard() {
     series: [
       {
         type: "line",
-        data: currentKlineData.map(d => d.close),
+        data: currentKlineData.map((d: any) => d.close),
         smooth: true,
         showSymbol: false,
         lineStyle: { color: "#26a69a", width: 2 }

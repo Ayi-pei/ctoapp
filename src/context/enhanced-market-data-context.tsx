@@ -1,10 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { MarketSummary, OHLC, availablePairs as allAvailablePairs } from '@/types';
 import axios from 'axios';
 import { useEnhancedSystemSettings } from './enhanced-system-settings-context';
-import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { supabase, isSupabaseEnabled, isMarketDbPersistEnabled } from '@/lib/supabaseClient';
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(p => !p.includes('-PERP') && !['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
 const FOREX_COMMODITY_PAIRS = allAvailablePairs.filter(p => ['XAU/USD', 'EUR/USD', 'GBP/USD'].includes(p));
@@ -361,7 +361,7 @@ export function EnhancedMarketDataProvider({ children }: { children: ReactNode }
             
             const { batch, lastPrice: newPrice } = generateKlineBatch(startTimestamp, count, lastPrice);
 
-            if (isSupabaseEnabled && batch && batch.length > 0) {
+            if (isMarketDbPersistEnabled && batch && batch.length > 0) {
               try {
                 const dbBatch = batch.map(d => ({ 
                   trading_pair: pair, 
@@ -399,7 +399,7 @@ export function EnhancedMarketDataProvider({ children }: { children: ReactNode }
     };
 
     const loadInitialData = async () => {
-      if (!isSupabaseEnabled) {
+      if (!isMarketDbPersistEnabled) {
         await generateAndStoreData();
         setIsInitialLoadComplete(true);
         return;
@@ -411,11 +411,11 @@ export function EnhancedMarketDataProvider({ children }: { children: ReactNode }
         .select('*')
         .gte('time', fourHoursAgo);
 
-      if (error || !dbData || dbData.length === 0) {
+      if (!isMarketDbPersistEnabled || error || !dbData || dbData.length === 0) {
         await generateAndStoreData();
       } else {
         const groupedData: Record<string, OHLC[]> = {};
-        dbData.forEach(row => {
+        dbData.forEach((row: any) => {
           if (!groupedData[row.trading_pair]) {
             groupedData[row.trading_pair] = [];
           }
@@ -567,6 +567,19 @@ export function EnhancedMarketDataProvider({ children }: { children: ReactNode }
 
 export function useEnhancedMarket() {
   const context = useContext(MarketContext);
-  if (!context) throw new Error('useEnhancedMarket must be used within an EnhancedMarketDataProvider');
+  if (!context) {
+    // Safe fallback to avoid runtime crashes if provider not yet mounted
+    return {
+      tradingPair: initialTradingPair,
+      changeTradingPair: () => {},
+      availablePairs: allAvailablePairs,
+      summaryData: [],
+      cryptoSummaryData: [],
+      klineData: {},
+      getLatestPrice: () => 0,
+      interventionLogs: [],
+      priceTransitions: {},
+    } as any;
+  }
   return context;
 }

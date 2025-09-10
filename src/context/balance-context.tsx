@@ -21,7 +21,8 @@ import { useSimpleAuth } from "./simple-custom-auth";
 import { useEnhancedMarket } from "./enhanced-market-data-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
-import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
+import { supabase, isSupabaseEnabled, isRealtimeEnabled } from "@/lib/supabaseClient";
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 export type DailyInvestmentParams = {
   productName: string;
@@ -92,6 +93,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
   const { user, updateUser } = useSimpleAuth();
+  const authSb = useAuthenticatedSupabase();
   const { getLatestPrice } = useEnhancedMarket();
   const { toast } = useToast();
   const { addLog } = useSimpleEnhancedLogs();
@@ -114,11 +116,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const fetchUserBalanceData = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
-    const { data, error } = await supabase
-      .from("balances")
-      .select("*")
-      .eq("user_id", userId);
-    if (error) console.error("Error fetching balances:", error);
+    const { data, error } = await (
+      authSb?.withContext
+        ? authSb.withContext((sb) => sb.from("balances").select("*").eq("user_id", userId))
+        : supabase.from("balances").select("*").eq("user_id", userId)
+    );
+    if (error) console.error("Error fetching balances:", (error as any)?.message || error);
     else {
       const formattedBalances: {
         [key: string]: { available: number; frozen: number };
@@ -135,12 +138,12 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const fetchUserTradeData = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
-    const { data, error } = await supabase
-      .from("trades")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) console.error("Error fetching trades:", error);
+    const { data, error } = await (
+      authSb?.withContext
+        ? authSb.withContext((sb) => sb.from("trades").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
+        : supabase.from("trades").select("*").eq("user_id", userId).order("created_at", { ascending: false })
+    );
+    if (error) console.error("Error fetching trades:", (error as any)?.message || error);
     else {
       setActiveContractTrades(
         (data as TradeRow[] | undefined)?.filter(
@@ -157,35 +160,35 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   const fetchUserInvestmentData = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
-    const { data, error } = await supabase
-      .from("investments")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) console.error("Error fetching investments:", error);
+    const { data, error } = await (
+      authSb?.withContext
+        ? authSb.withContext((sb) => sb.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
+        : supabase.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false })
+    );
+    if (error) console.error("Error fetching investments:", (error as any)?.message || error);
     else setInvestments(data as Investment[]);
   }, []);
 
   const fetchUserRewardLogs = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
-    const { data, error } = await supabase
-      .from("reward_logs")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) console.error("Error fetching reward logs:", error);
+    const { data, error } = await (
+      authSb?.withContext
+        ? authSb.withContext((sb) => sb.from("reward_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
+        : supabase.from("reward_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false })
+    );
+    if (error) console.error("Error fetching reward logs:", (error as any)?.message || error);
     else setRewardLogs(data as RewardLog[]);
   }, []);
 
   const fetchUserProfileForCheckin = useCallback(async (userId: string) => {
     if (!isSupabaseEnabled) return;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("last_check_in_date, consecutive_check_ins")
-      .eq("id", userId)
-      .single();
+    const { data, error } = await (
+      authSb?.withContext
+        ? authSb.withContext((sb) => sb.from("profiles").select("last_check_in_date, consecutive_check_ins").eq("id", userId).single())
+        : supabase.from("profiles").select("last_check_in_date, consecutive_check_ins").eq("id", userId).single()
+    );
     if (error) {
-      console.error("Error fetching user profile for check-in:", error);
+      console.error("Error fetching user profile for check-in:", (error as any)?.message || error);
     } else if (data) {
       setLastCheckInDate(data.last_check_in_date);
       setConsecutiveCheckIns(data.consecutive_check_ins || 0);
@@ -228,7 +231,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
   // Realtime Subscriptions
   useEffect(() => {
-    if (!user || !isSupabaseEnabled) return;
+    if (!user || !isSupabaseEnabled || !isRealtimeEnabled) return;
 
     const handleDataChange = () => {
       if (!user) return;

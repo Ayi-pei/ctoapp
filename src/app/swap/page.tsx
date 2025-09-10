@@ -80,7 +80,7 @@ export default function SwapPage() {
     const [isProofDialogOpen, setIsProofDialogOpen] = useState(false);
 
     const priceMap = useMemo(() => {
-        return summaryData.reduce((acc, item) => {
+        return summaryData.reduce((acc: Record<string, number>, item: any) => {
             const base = item.pair.split('/')[0];
             acc[base] = item.price; // Price is in USDT
             return acc;

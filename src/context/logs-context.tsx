@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import type { ActionLog, User } from '@/types';
 import { useSimpleAuth } from './simple-custom-auth';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 type LogParams = {
     entity_type: 'request' | 'task_completion' | 'activity_participation' | 'reward';
@@ -23,13 +24,18 @@ const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
     const { user: adminUser } = useSimpleAuth();
+    const authSb = useAuthenticatedSupabase();
     const [logs, setLogs] = useState<ActionLog[]>([]);
 
     const fetchLogs = useCallback(async () => {
         if (!isSupabaseEnabled) return;
-        const { data, error } = await supabase.from('action_logs').select('*').order('created_at', { ascending: false });
+        const { data, error } = await (
+            authSb?.withContext
+                ? authSb.withContext((sb) => sb.from('action_logs').select('*').order('created_at', { ascending: false }))
+                : supabase.from('action_logs').select('*').order('created_at', { ascending: false })
+        );
         if (error) {
-            console.error("Error fetching logs:", error);
+            console.error("Error fetching logs:", (error as any)?.message || error);
         } else {
             setLogs(data as ActionLog[]);
         }
@@ -55,9 +61,13 @@ export function LogsProvider({ children }: { children: ReactNode }) {
             operator_username: actor.username,
         };
 
-        const { error } = await supabase.from('action_logs').insert(newLog);
+        const { error } = await (
+            authSb?.withContext
+                ? authSb.withContext((sb) => sb.from('action_logs').insert(newLog))
+                : supabase.from('action_logs').insert(newLog)
+        );
         if (error) {
-            console.error("Failed to add log:", error);
+            console.error("Failed to add log:", (error as any)?.message || error);
         } else {
             await fetchLogs(); // Refresh logs after adding a new one
         }

@@ -4,21 +4,14 @@
     "next/typescript"
   ],
   "rules": {
-    // TypeScript相关规则
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/prefer-const": "error",
-    
-    // React相关规则
     "react-hooks/exhaustive-deps": "warn",
     "react/no-unescaped-entities": "warn",
-    
-    // 通用规则
     "no-console": ["warn", { "allow": ["warn", "error"] }],
     "prefer-const": "error",
     "no-var": "error",
-    
-    // Next.js相关
     "@next/next/no-img-element": "warn",
     "@next/next/no-html-link-for-pages": "error"
   },

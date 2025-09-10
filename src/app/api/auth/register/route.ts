@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 export async function POST(request: Request) {
   try {
     const { username, password, invitationCode } = await request.json();
@@ -13,6 +9,21 @@ export async function POST(request: Request) {
     if (!username || !password || !invitationCode) {
       return NextResponse.json({ success: false, error: 'Missing fields' }, { status: 400 });
     }
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // 开发环境回退：如果服务端未配置 Supabase，则允许使用 ADMIN_AUTH 作为邀请码直接成功，inviter_id 视为 admin_user_001
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      const adminCode = process.env.ADMIN_AUTH || '';
+      if (invitationCode !== adminCode) {
+        return NextResponse.json({ success: false, error: 'invalid_code' }, { status: 400 });
+      }
+      // 不进行数据库写入，直接返回成功（仅用于本地联调，登录请使用管理员账户或配置 Supabase）
+      return NextResponse.json({ success: true, devFallback: true });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // 1. 检查用户名是否已存在
     const { data: existingUser } = await supabase
@@ -25,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'username_exists' }, { status: 409 });
     }
 
-    // 2. 验证邀请码
+    // 2. 验证邀请码（从数据库查找）
     const { data: inviter, error: inviterError } = await supabase
       .from('profiles')
       .select('id')

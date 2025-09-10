@@ -6,7 +6,8 @@ import { useSimpleAuth } from './simple-custom-auth';
 import { useBalance } from './balance-context';
 import { useToast } from '@/hooks/use-toast';
 import type { SwapOrder } from '@/types';
-import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { supabase, isSupabaseEnabled, isRealtimeEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 interface SwapContextType {
     orders: SwapOrder[];
@@ -24,6 +25,7 @@ const SwapContext = createContext<SwapContextType | undefined>(undefined);
 
 export function SwapProvider({ children }: { children: ReactNode }) {
     const { user } = useSimpleAuth();
+    const authSb = useAuthenticatedSupabase();
     const { balances, adjustBalance } = useBalance();
     const { toast } = useToast();
     const [orders, setOrders] = useState<SwapOrder[]>([]);
@@ -32,14 +34,23 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         if (!isSupabaseEnabled || !user) return;
         
         // 查询用户相关的订单（作为创建者或接受者）
-        const { data, error } = await supabase
-            .from('swap_orders')
-            .select('*')
-            .or(`user_id.eq.${user.id},taker_id.eq.${user.id}`)
-            .order('created_at', { ascending: false });
-            
+        const { data, error } = await (
+            authSb?.withContext
+              ? authSb.withContext((sb) => sb
+                  .from('swap_orders')
+                  .select('*')
+                  .or(`user_id.eq.${user.id},taker_id.eq.${user.id}`)
+                  .order('created_at', { ascending: false })
+                )
+              : supabase
+                  .from('swap_orders')
+                  .select('*')
+                  .or(`user_id.eq.${user.id},taker_id.eq.${user.id}`)
+                  .order('created_at', { ascending: false })
+        );
+        
         if (error) {
-            console.error("Error fetching swap orders:", error);
+            console.error("Error fetching swap orders:", (error as any)?.message || error);
         } else {
             setOrders(data as SwapOrder[]);
         }
@@ -51,7 +62,7 @@ export function SwapProvider({ children }: { children: ReactNode }) {
     
     // Realtime subscription
     useEffect(() => {
-        if (!isSupabaseEnabled) return;
+        if (!isSupabaseEnabled || !isRealtimeEnabled) return;
         const channel = supabase.channel('swap_orders')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'swap_orders' }, () => {
                 fetchOrders();
@@ -148,7 +159,25 @@ export function SwapProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.from('swap_orders').update({ status: 'completed' }).eq('id', orderId);
         if (error) {
             console.error("Error confirming completion:", error);
-            // TODO: Add logic to revert transfers if status update fails
+            // 如果状态更新失败，回滚转账操作
+            try {
+                // 回滚发送方余额
+                await adjustBalance(order.user_id, order.from_asset, order.from_amount);
+                // 回滚接收方余额
+                await adjustBalance(order.taker_id!, order.to_asset, -order.to_amount);
+                toast({ 
+                    variant: "destructive",
+                    title: "交易失败", 
+                    description: "状态更新失败，已回滚转账操作。" 
+                });
+            } catch (revertError) {
+                console.error("Critical error: Failed to revert transfers:", revertError);
+                toast({ 
+                    variant: "destructive",
+                    title: "严重错误", 
+                    description: "交易回滚失败，请联系管理员。" 
+                });
+            }
         } else {
              toast({ title: "交易完成", description: "资产已成功交换。" });
         }

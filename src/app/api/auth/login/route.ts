@@ -36,6 +36,32 @@ export async function POST(request: Request) {
                 created_at: new Date().toISOString(),
                 credit_score: 999,
             };
+
+            // 若服务端已配置 Supabase，确保管理员档案存在（含邀请代码）
+            try {
+              if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+                const adminInvitationCode = process.env.ADMIN_AUTH || '';
+                await supabase
+                  .from('profiles')
+                  .upsert({
+                    id: ADMIN_USER_ID,
+                    username: username,
+                    nickname: 'Administrator',
+                    email: null,
+                    inviter_id: null,
+                    invitation_code: adminInvitationCode,
+                    is_admin: true,
+                    is_test_user: false,
+                    is_frozen: false,
+                    created_at: new Date().toISOString(),
+                    credit_score: 999,
+                    last_login_at: new Date().toISOString(),
+                  });
+              }
+            } catch (e) {
+              console.warn('Admin bootstrap upsert failed (non-fatal):', e);
+            }
+
             const token = signSession(adminUser.id);
             const res = NextResponse.json({ success: true, user: adminUser });
             res.cookies.set(sessionCookieName, token, getDefaultCookieOptions());

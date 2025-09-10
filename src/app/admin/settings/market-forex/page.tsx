@@ -156,7 +156,7 @@ export default function AdminForexMarketSettingsPage() {
                         ))}
                          <Button 
                             variant="outline"
-                            onClick={addMarketIntervention} 
+                            onClick={() => addMarketIntervention()} 
                             disabled={systemSettings.marketInterventions.length >= 5}
                         >
                             <PlusCircle className="mr-2 h-4 w-4" />

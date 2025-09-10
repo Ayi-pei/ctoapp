@@ -7,12 +7,14 @@ import TradeBoard from '@/components/TradeBoard';
 // way for Server Components to access URL parameters in Next.js App Router.
 // We are destructuring 'tab' directly from searchParams to avoid enumerating the object,
 // which would cause a Next.js runtime error.
-export default function TradePage({
+export default async function TradePage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  // In Next.js >= 15, searchParams is an async dynamic API and must be awaited
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const tab = searchParams?.tab ?? 'contract';
+  const resolved = await searchParams;
+  const tab = resolved?.tab ?? 'contract';
   
   return (
     <DashboardLayout>

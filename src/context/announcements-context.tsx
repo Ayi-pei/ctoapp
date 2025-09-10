@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
 
 export type Announcement = {
     id: string;
@@ -57,33 +58,66 @@ export function AnnouncementsProvider({ children }: { children: ReactNode }) {
     const [carouselItems, setCarouselItems] = useState<CarouselItemData[]>(defaultCarouselItems);
     const [hornAnnouncements, setHornAnnouncements] = useState<HornAnnouncement[]>([]);
 
-    const fetchAnnouncements = useCallback(async () => {
+    const authSb = useAuthenticatedSupabase();
+
+    const fetchAnnouncements = useCallback(async () => {/**/
         if (!isSupabaseEnabled) return;
-        const { data, error } = await supabase.from('announcements').select('*');
+        const { data, error } = await (
+            authSb?.withContext
+                ? authSb.withContext((sb) => sb.from('announcements').select('*'))
+                : supabase.from('announcements').select('*')
+        ) as any;
         if (error) {
-            console.error("Error fetching announcements:", error);
+            console.error("Error fetching announcements:", (error as any)?.message || error);
         } else {
-            const allAnns = data as Array<{
+            type DbAnnouncement = {
                 id: string;
-                type: string;
+                type: 'personal_message' | 'horn' | 'carousel';
                 content?: any;
                 title?: string;
-                user_id?: string;
-                theme?: string;
-                priority?: number;
-                expires_at?: string;
-            }>;
-            setAnnouncements(allAnns.filter(a => a.type === 'personal_message'));
+                user_id?: string | null;
+                theme?: string | null;
+                priority?: number | null;
+                expires_at?: string | null;
+                created_at: string;
+            };
+            const allAnns = data as DbAnnouncement[];
 
-            const dbCarousel = allAnns.find(a => a.type === 'carousel');
+            // Map personal messages to Announcement shape
+            const personalMessages: Announcement[] = allAnns
+                .filter((a) => a.type === 'personal_message')
+                .map((a) => ({
+                    id: String(a.id),
+                    title: a.title ?? '通知',
+                    content: typeof a.content === 'string' ? a.content : JSON.stringify(a.content ?? ''),
+                    date: a.created_at,
+                    user_id: a.user_id ?? undefined,
+                    is_read: false,
+                }));
+            setAnnouncements(personalMessages);
+
+            // Carousel content mapping
+            const dbCarousel = allAnns.find((a) => a.type === 'carousel');
             if (dbCarousel && dbCarousel.content) {
-                 setCarouselItems(prevItems => prevItems.map((item, index) => ({
-                    ...item,
-                    ...(dbCarousel.content[index] || {})
-                 })));
+                setCarouselItems((prevItems) =>
+                    prevItems.map((item, index) => ({
+                        ...item,
+                        ...(dbCarousel.content[index] || {}),
+                    }))
+                );
             }
-            
-            setHornAnnouncements(allAnns.filter(a => a.type === 'horn'));
+
+            // Map horn announcements
+            const horns: HornAnnouncement[] = allAnns
+                .filter((a) => a.type === 'horn')
+                .map((a) => ({
+                    id: String(a.id),
+                    theme: (a.theme as HornAnnouncement['theme']) ?? '更新公告',
+                    content: typeof a.content === 'string' ? a.content : String(a.content ?? ''),
+                    priority: a.priority ?? 0,
+                    expires_at: a.expires_at ?? undefined,
+                }));
+            setHornAnnouncements(horns);
         }
     }, []);
 
