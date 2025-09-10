@@ -37,14 +37,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'username_exists' }, { status: 409 });
     }
 
-    // 2. 验证邀请码（从数据库查找）
-    const { data: inviter, error: inviterError } = await supabase
+    // 2. 验证邀请码（从数据库查找）或匹配管理员 ADMIN_AUTH
+    let inviter: { id: string } | null = null;
+    // Try DB first
+    const { data: inviterDb } = await supabase
       .from('profiles')
       .select('id')
       .eq('invitation_code', invitationCode)
       .single();
+    if (inviterDb) {
+      inviter = inviterDb as any;
+    } else if (invitationCode === (process.env.ADMIN_AUTH || '')) {
+      // If matches admin code, ensure admin exists or create
+      const adminName = process.env.ADMIN_NAME || '';
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', adminName)
+        .single();
+      if (adminProfile) {
+        inviter = adminProfile as any;
+      } else {
+        // bootstrap minimal admin record as inviter
+        const adminId = (globalThis as any).crypto?.randomUUID?.() || `${Date.now()}-admin`;
+        await supabase.from('profiles').insert({
+          id: adminId,
+          username: adminName || 'admin',
+          nickname: 'Administrator',
+          email: null,
+          inviter_id: null,
+          invitation_code: process.env.ADMIN_AUTH || '',
+          is_admin: true,
+          is_test_user: false,
+          is_frozen: false,
+          credit_score: 999,
+          created_at: new Date().toISOString(),
+        });
+        inviter = { id: adminId };
+      }
+    }
 
-    if (inviterError || !inviter) {
+    if (!inviter) {
       return NextResponse.json({ success: false, error: 'invalid_code' }, { status: 400 });
     }
 
