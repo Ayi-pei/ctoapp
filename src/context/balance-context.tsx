@@ -86,6 +86,7 @@ interface BalanceContextType {
     isFrozen?: boolean,
     isDebitFrozen?: boolean
   ) => Promise<void>;
+  refreshAllData: () => void;
 }
 
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
@@ -226,31 +227,27 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 }, []);
 
-
-  useEffect(() => {
-    const loadAllData = async () => {
-      setIsLoading(true);
-      if (user?.id && isSupabaseEnabled) {
-        await Promise.all([
-          fetchUserBalanceData(user.id),
-          fetchUserTradeData(user.id),
-          fetchUserInvestmentData(user.id),
-          fetchUserRewardLogs(user.id),
-          fetchUserCheckInStatus(user.id), // Use new function
-        ]);
-      } else {
-        // Clear data on logout
-        setBalances({});
-        setInvestments([]);
-        setRewardLogs([]);
-        setActiveContractTrades([]);
-        setHistoricalTrades([]);
-        setLastCheckInDate(undefined);
-        setConsecutiveCheckIns(0);
-      }
-      setIsLoading(false);
-    };
-    loadAllData();
+  const loadAllData = useCallback(async () => {
+    setIsLoading(true);
+    if (user?.id && isSupabaseEnabled) {
+      await Promise.all([
+        fetchUserBalanceData(user.id),
+        fetchUserTradeData(user.id),
+        fetchUserInvestmentData(user.id),
+        fetchUserRewardLogs(user.id),
+        fetchUserCheckInStatus(user.id), // Use new function
+      ]);
+    } else {
+      // Clear data on logout
+      setBalances({});
+      setInvestments([]);
+      setRewardLogs([]);
+      setActiveContractTrades([]);
+      setHistoricalTrades([]);
+      setLastCheckInDate(undefined);
+      setConsecutiveCheckIns(0);
+    }
+    setIsLoading(false);
   }, [
     user,
     isSupabaseEnabled,
@@ -260,6 +257,10 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     fetchUserRewardLogs,
     fetchUserCheckInStatus, // Add new function to dependency array
   ]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
 
   // Realtime Subscriptions
   useEffect(() => {
@@ -594,6 +595,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     consecutiveCheckIns,
     creditReward,
     adjustBalance,
+    refreshAllData: loadAllData,
   };
 
   return (

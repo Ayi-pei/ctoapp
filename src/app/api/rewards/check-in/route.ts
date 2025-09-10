@@ -1,26 +1,26 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { Database } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
 
 // POST handler to perform a daily check-in
-export async function POST(request: Request) {
-  const cookieStore = cookies();
+export async function POST(request: NextRequest) {
+  const response = NextResponse.next({ request });
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value;
+          return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          cookieStore.delete({ name, ...options });
+          response.cookies.set({ name, value: '', ...options });
         },
       },
     }

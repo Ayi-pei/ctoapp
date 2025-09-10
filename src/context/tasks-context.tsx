@@ -9,7 +9,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { IncentiveTask, TaskStatus, DailyTask } from "@/types";
+import { IncentiveTask, TaskStatus, DailyTask, TaskTriggerType } from "@/types";
 import { useSimpleAuth } from "./simple-custom-auth";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +64,8 @@ interface TasksContextType {
   isLoading: boolean;
   claimReward: (taskKey: string) => Promise<void>;
   fetchTaskStates: () => void;
-  
+  triggerTaskCompletion: (triggerType: TaskTriggerType) => Promise<void>;
+
   // Daily Tasks (for Admin)
   dailyTasks: DailyTask[];
   isLoadingDailyTasks: boolean;
@@ -78,7 +79,7 @@ const TasksContext = createContext<TasksContextType | undefined>(undefined);
 export function TasksProvider({ children }: { children: ReactNode }) {
   const { user } = useSimpleAuth();
   const { toast } = useToast();
-  const { fetchUserBalanceData, fetchUserRewardLogs } = useBalance();
+  const { refreshAllData } = useBalance();
   
   // State for Incentive Tasks
   const [tasks, setTasks] = useState<IncentiveTask[]>(
@@ -157,6 +158,20 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, [user]);
 
+  const triggerTaskCompletion = async (triggerType: TaskTriggerType) => {
+    if (!user || !isSupabaseEnabled) return;
+    const { error } = await supabase.rpc('handle_task_completion', { p_trigger_type: triggerType });
+
+    if (error) {
+      // Don't show a toast here, as it might be intrusive.
+      // Admins can check logs if needed.
+      console.error(`Failed to trigger task completion for ${triggerType}:`, error.message);
+    } else {
+      // A task might have been completed, so we refresh the state.
+      fetchTaskStates();
+    }
+  };
+
   const claimReward = async (taskKey: string) => {
     if (!user) {
         toast({ title: "请先登录", variant: "destructive" });
@@ -181,10 +196,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         });
 
         fetchTaskStates();
-        if (user) {
-          fetchUserBalanceData(user.id);
-          fetchUserRewardLogs(user.id);
-        }
+        refreshAllData();
 
     } catch (error: any) {
         toast({ title: "操作失败", description: error.message, variant: "destructive" });
@@ -271,6 +283,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     isLoading,
     claimReward,
     fetchTaskStates,
+    triggerTaskCompletion,
     dailyTasks,
     isLoadingDailyTasks,
     addDailyTask,

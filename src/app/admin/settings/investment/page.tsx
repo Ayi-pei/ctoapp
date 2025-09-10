@@ -118,27 +118,29 @@ const FinanceProductEditor = ({
 }) => {
     
     const handleTierChange = (tierIndex: number, field: keyof InvestmentTier, value: string) => {
-        const newTiers = [...(product.hourlyTiers || [])];
         const numValue = parseFloat(value);
-
         if (isNaN(numValue)) {
             return; // Exit if the value is not a valid number
         }
 
-        // Safely access the tier, providing a default structure to satisfy TypeScript's
-        // `noUncheckedIndexedAccess` and prevent runtime errors.
-        const originalTier = newTiers[tierIndex] || { hours: 0, rate: 0 };
+        const currentTiers = product.hourlyTiers || [];
 
-        const updatedValue = field === 'rate' 
-            ? numValue / 100 
-            : Math.max(0, numValue);
-        
-        const updatedTier = { 
-            ...originalTier, 
-            [field]: updatedValue 
-        };
+        const newTiers = currentTiers.map((tier, index) => {
+            // If the index doesn't match, return the original tier unchanged.
+            if (index !== tierIndex) {
+                return tier;
+            }
 
-        newTiers[tierIndex] = updatedTier;
+            // If the index matches, calculate the new value and return a new, updated tier object.
+            const updatedValue = field === 'rate' 
+                ? numValue / 100 
+                : Math.max(0, numValue);
+
+            return {
+                ...tier, // Spreading the original tier is now safe
+                [field]: updatedValue
+            };
+        });
 
         updateProduct(product.id, { hourlyTiers: newTiers });
     };

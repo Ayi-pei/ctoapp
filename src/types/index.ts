@@ -241,6 +241,8 @@ export type RegisterUserResponse = {
     message: string;
 };
 
+export type TaskStatus = 'COMPLETED' | 'ELIGIBLE' | 'IN_PROGRESS' | 'LOCKED';
+
 export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';
 
 // Represents a daily task configured by an admin
@@ -353,6 +355,22 @@ export type NavItem = {
     label: string;
     icon: React.ElementType;
     subItems?: NavItem[];
+};
+
+export type IncentiveTask = {
+  key: string;
+  title: string;
+  description: string;
+  reward: string;
+  status: TaskStatus;
+  progress: {
+    current: number;
+    target: number;
+  };
+  link: string;
+  imgSrc?: string;
+  reward_type: string;
+  claim_api?: string;
 };
 
     
