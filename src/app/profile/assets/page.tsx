@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +10,6 @@ import type { Investment } from "@/types";
 import { ChevronLeft, Archive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useBalance } from "@/context/balance-context";
 
 const CRYPTO_ASSETS = ["BTC", "ETH", "USDT", "SOL", "XRP", "LTC", "BNB", "MATIC", "DOGE", "ADA", "SHIB", "AVAX", "LINK", "DOT", "UNI", "TRX", "XLM", "VET", "EOS", "FIL", "ICP"];

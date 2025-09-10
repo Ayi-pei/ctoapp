@@ -118,16 +118,31 @@ const FinanceProductEditor = ({
 }) => {
     
     const handleTierChange = (tierIndex: number, field: keyof InvestmentTier, value: string) => {
-        const newTiers = [...(product.hourlyTiers || [])];
         const numValue = parseFloat(value);
-        if (!isNaN(numValue)) {
-             if(field === 'rate') {
-                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: numValue / 100 };
-             } else {
-                newTiers[tierIndex] = { ...newTiers[tierIndex], [field]: Math.max(0, numValue) };
-             }
-            updateProduct(product.id, { hourlyTiers: newTiers });
+        if (isNaN(numValue)) {
+            return; // Exit if the value is not a valid number
         }
+
+        const currentTiers = product.hourlyTiers || [];
+
+        const newTiers = currentTiers.map((tier, index) => {
+            // If the index doesn't match, return the original tier unchanged.
+            if (index !== tierIndex) {
+                return tier;
+            }
+
+            // If the index matches, calculate the new value and return a new, updated tier object.
+            const updatedValue = field === 'rate' 
+                ? numValue / 100 
+                : Math.max(0, numValue);
+
+            return {
+                ...tier, // Spreading the original tier is now safe
+                [field]: updatedValue
+            };
+        });
+
+        updateProduct(product.id, { hourlyTiers: newTiers });
     };
 
     const addTier = () => {

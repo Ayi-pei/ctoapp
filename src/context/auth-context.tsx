@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean }> => {
-    // 前端不再使用环境变量进行管理员登录，统一走服务端校验
+    // First, try API login
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -72,21 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const json = await res.json();
       if (res.ok && json.success) {
+        // The auth state change listener will handle setting the user context
         return { success: true, isAdmin: !!json.user?.is_admin };
       }
-      return { success: false, isAdmin: false };
     } catch (e) {
-      console.error('Login via API failed:', e);
-      return { success: false, isAdmin: false };
+      console.error('Login via API failed, falling back to Supabase:', e);
     }
 
-    // Regular user login
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Fallback to regular user login with Supabase
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
         email: `${username}@noemail.app`,
         password,
     });
     
-    if (error || !data?.user) {
+    if (error || !authData?.user) {
         console.error("User login failed:", error);
         return { success: false, isAdmin: false };
     }
@@ -99,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const register = async (username: string, password: string, invitationCode: string): Promise<{ success: boolean; error?: 'username_exists' | 'invalid_code' | 'supabase_error' }> => {
     // 1. Check if username already exists
-    const { data: existingUser, error: existingUserError } = await supabase
+    const { data: existingUser } = await supabase
       .from('profiles')
       .select('id')
       .eq('username', username)
@@ -140,10 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error || !data.user) {
         console.error("Supabase sign up error:", error);
         return { success: false, error: 'supabase_error' };
-    }
-
-    if (typeof window !== 'undefined') {
-        console.log(`New user registered: ${username} (ID: ${data.user.id})`);
     }
 
     return { success: true };
@@ -212,7 +207,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // If the updated user is the current user, refresh the user state
         if (user && user.id === userId) {
             const refreshedUser = await getUserById(userId);
-            setUser(refreshedUser as SecureUser);
+            if (refreshedUser) {
+                setUser(refreshedUser as SecureUser);
+            }
         }
 
         return true;

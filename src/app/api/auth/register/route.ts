@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcrypt';
+import { signSession, getDefaultCookieOptions, sessionCookieName } from '@/lib/auth/session';
 
 export async function POST(request: Request) {
   try {
@@ -47,37 +48,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'invalid_code' }, { status: 400 });
     }
 
-    // 3. 创建新用户（服务端生成哈希）
+    // 3. Create new user
     const userId = crypto.randomUUID();
     const passwordHash = await bcrypt.hash(password, 10);
     const newInvitationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const { error: createError } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
-        username,
-        nickname: username,
-        email: null,
-        inviter_id: inviter.id,
-        invitation_code: newInvitationCode,
-        password_hash: passwordHash,
-        is_admin: false,
-        is_test_user: true,
-        credit_score: 95,
-        avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
-        created_at: new Date().toISOString(),
-      });
+    const newUserProfileData = {
+      id: userId,
+      username,
+      nickname: username,
+      email: null,
+      inviter_id: inviter.id,
+      invitation_code: newInvitationCode,
+      password_hash: passwordHash,
+      is_admin: false,
+      is_test_user: true,
+      credit_score: 95,
+      avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
+      created_at: new Date().toISOString(),
+    };
 
-    if (createError) {
+    const { data: createdUser, error: createError } = await supabase
+      .from('profiles')
+      .insert(newUserProfileData)
+      .select('id, username, nickname, email, inviter_id, is_admin, is_test_user, is_frozen, invitation_code, created_at, credit_score') // Select safe fields
+      .single();
+
+    if (createError || !createdUser) {
       console.error('Create user error:', createError);
       return NextResponse.json({ success: false, error: 'database_error' }, { status: 500 });
     }
 
-    // 4. 创建初始余额
+    // 4. Create initial balances
     await supabase.rpc('create_initial_balances', { p_user_id: userId });
 
-    return NextResponse.json({ success: true });
+    // 5. Create session and set cookie (THE FIX)
+    const token = signSession(createdUser.id);
+    const res = NextResponse.json({ success: true, user: createdUser });
+    res.cookies.set(sessionCookieName, token, getDefaultCookieOptions());
+
+    return res;
+    
   } catch (error) {
     console.error('Register API error:', error);
     return NextResponse.json({ success: false, error: 'internal_error' }, { status: 500 });

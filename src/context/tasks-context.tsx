@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, {
@@ -8,75 +9,100 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { DailyTask, UserTaskState, TaskTriggerType } from "@/types";
-import { useSimpleAuth } from './simple-custom-auth';
-import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
-import { useBalance } from "./balance-context";
+import { IncentiveTask, TaskStatus, DailyTask, TaskTriggerType } from "@/types";
+import { useSimpleAuth } from "./simple-custom-auth";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
+import { useBalance } from "./balance-context";
 
-const defaultTasks: Omit<DailyTask, "id">[] = [
+// Define the four core incentive tasks statically
+const coreIncentiveTasks: Omit<IncentiveTask, "status" | "progress" | "id">[] = [
   {
-    title: "完成一次合约交易",
-    description: "在秒合约市场完成任意一笔交易，不限金额。",
-    reward: 0.2,
+    key: "initial_investment",
+    title: "首次理财体验",
+    description: "首次成功参与任意“活期宝”或“余币宝”理财项目。",
+    reward: "5 USDT",
     reward_type: "usdt",
-    link: "/trade?tab=contract",
-    status: "published",
-    trigger: "contract_trade",
-    imgSrc: "https://placehold.co/600x400.png",
-  },
-  {
-    title: "进行一次币币交易",
-    description: "在币币市场完成任意一笔买入或卖出操作。",
-    reward: 0.2,
-    reward_type: "usdt",
-    link: "/trade?tab=spot",
-    status: "published",
-    trigger: "spot_trade",
-    imgSrc: "https://placehold.co/600x400.png",
-  },
-  {
-    title: "参与一次理财投资",
-    description: "购买任意一款理财产品，体验稳定收益。",
-    reward: 1,
-    reward_type: "credit_score",
     link: "/finance",
-    status: "published",
-    trigger: "investment",
-    imgSrc: "https://placehold.co/600x400.png",
+    imgSrc: "/images/tasks/task-finance.png",
+    claim_api: "/api/rewards/claim-initial",
+  },
+  {
+    key: "snowball",
+    title: "滚雪球",
+    description: "累计充值达到 1000 USDT，解锁丰厚奖励。",
+    reward: "10 USDT",
+    reward_type: "usdt",
+    link: "/profile/wallet",
+    imgSrc: "/images/tasks/task-deposit.png",
+    claim_api: "/api/rewards/claim-snowball",
+  },
+  {
+    key: "market_prediction",
+    title: "市场精准预测",
+    description: "预测涨跌，完成相应交易，即可领取奖励。",
+    reward: "3 USDT",
+    reward_type: "usdt",
+    link: "/market-predictions",
+    imgSrc: "/images/tasks/task-predict.png",
+    claim_api: "/api/rewards/claim-market-prediction",
+  },
+  {
+    key: "daily_check_in",
+    title: "每日签到",
+    description: "每日坚持签到，连续天数越多，奖励越丰厚。",
+    reward: "最高 11.39 USDT",
+    reward_type: "usdt",
+    link: "action:openCheckIn", // Special link to trigger a local action
+    imgSrc: "/images/tasks/task-check-in.png",
   },
 ];
 
 interface TasksContextType {
+  // Incentive Tasks
+  tasks: IncentiveTask[];
+  isLoading: boolean;
+  claimReward: (taskKey: string) => Promise<void>;
+  fetchTaskStates: () => void;
+  triggerTaskCompletion: (triggerType: TaskTriggerType) => Promise<void>;
+
+  // Daily Tasks (for Admin)
   dailyTasks: DailyTask[];
-  addDailyTask: () => Promise<void>;
-  removeDailyTask: (id: string) => Promise<void>;
+  isLoadingDailyTasks: boolean;
+  addDailyTask: (task: Omit<DailyTask, 'id' | 'created_at'>) => Promise<void>;
   updateDailyTask: (id: string, updates: Partial<DailyTask>) => Promise<void>;
-  userTasksState: UserTaskState[];
-  triggerTaskCompletion: (type: TaskTriggerType) => Promise<void>;
+  removeDailyTask: (id: string) => Promise<void>;
 }
 
 const TasksContext = createContext<TasksContextType | undefined>(undefined);
 
 export function TasksProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useSimpleAuth();
-  const { addLog } = useSimpleEnhancedLogs();
-  const { creditReward } = useBalance();
+  const { user } = useSimpleAuth();
+  const { toast } = useToast();
+  const { refreshAllData } = useBalance();
+  
+  // State for Incentive Tasks
+  const [tasks, setTasks] = useState<IncentiveTask[]>(
+    coreIncentiveTasks.map((task, i) => ({
+      ...task,
+      id: `task_${i}`,
+      status: "LOCKED",
+      progress: { current: 0, target: 1 },
+    }))
+  );
+  const [isLoading, setIsLoading] = useState(true);
 
+  // State for Daily Tasks
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([]);
-  const [userTasksState, setUserTasksState] = useState<UserTaskState[]>([]);
+  const [isLoadingDailyTasks, setIsLoadingDailyTasks] = useState(true);
 
-  const fetchDailyTasks = useCallback(async () => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, using default tasks.");
-      // Use default tasks when Supabase is not enabled
-      const tasksWithIds = defaultTasks.map((task, index) => ({
-        ...task,
-        id: `default_${index}`
-      }));
-      setDailyTasks(tasksWithIds);
+  // --- Incentive Task Logic ---
+  const fetchTaskStates = useCallback(async () => {
+    if (!user || !isSupabaseEnabled) {
+      setIsLoading(false);
       return;
     }
+    setIsLoading(true);
 
     try {
       const { data, error } = await supabase.from("daily_tasks").select("*");
@@ -92,52 +118,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!data || data.length === 0) {
-        try {
-          // Seed the database with default tasks if it's empty
-          const { data: seededData, error: seedError } = await supabase
-            .from("daily_tasks")
-            .insert(defaultTasks)
-            .select();
-          
-          if (seedError) {
-            console.error("Error seeding daily tasks:", seedError);
-            // Use default tasks with mock IDs if seeding fails
-            const tasksWithIds = defaultTasks.map((task, index) => ({
-              ...task,
-              id: `mock_${index}`
-            }));
-            setDailyTasks(tasksWithIds);
-          } else {
-            setDailyTasks(seededData as DailyTask[]);
-          }
-        } catch (seedError) {
-          console.error("Error during task seeding:", seedError);
-          const tasksWithIds = defaultTasks.map((task, index) => ({
-            ...task,
-            id: `error_${index}`
-          }));
-          setDailyTasks(tasksWithIds);
-        }
-      } else {
-        setDailyTasks(data as DailyTask[]);
-      }
-    } catch (error) {
-      console.error("Unexpected error in fetchDailyTasks:", error);
-      // Final fallback
-      const tasksWithIds = defaultTasks.map((task, index) => ({
-        ...task,
-        id: `final_${index}`
-      }));
-      setDailyTasks(tasksWithIds);
-    }
-  }, []);
-
-  const fetchUserTaskStates = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) {
-      setUserTasksState([]);
-      return;
-    }
+    const { data: claimedRewards } = claimedRewardsRes;
+    const claimedSet = new Set(claimedRewards?.map(r => r.type) || []);
     
     try {
       const today = new Date().toISOString().split("T")[0];
@@ -159,126 +141,172 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchDailyTasks();
-    if (user?.id) {
-      fetchUserTaskStates(user.id);
-    } else {
-      setUserTasksState([]);
-    }
-  }, [user, fetchDailyTasks, fetchUserTaskStates]);
+        if (claimedSet.has(task.key)) {
+            status = "COMPLETED";
+            progress.current = progress.target;
+        } else {
+             switch (task.key) {
+                case "initial_investment":
+                    const { data: investments } = initialInvestmentRes;
+                    status = (investments && investments.length > 0) ? "ELIGIBLE" : "LOCKED";
+                    progress.current = (investments && investments.length > 0) ? 1 : 0;
+                    break;
+                case "snowball":
+                    const { data: deposits } = snowballRes;
+                    const totalDeposit = deposits?.reduce((acc, t) => acc + t.amount, 0) || 0;
+                    progress = { current: Math.min(totalDeposit, 1000), target: 1000 };
+                    status = totalDeposit >= 1000 ? "ELIGIBLE" : "IN_PROGRESS";
+                    break;
+                case "market_prediction":
+                     const { data: predictions } = marketPredictionRes;
+                     status = (predictions && predictions.length > 0) ? "IN_PROGRESS" : "LOCKED";
+                     progress.current = (predictions && predictions.length > 0) ? 1 : 0;
+                    break;
+                case "daily_check_in":
+                    status = "ELIGIBLE";
+                    progress.current = 1;
+                    break;
+            }
+        }
+        
+        return { ...task, id: `task_${i}`, status, progress };
+    });
 
-  const addDailyTask = async () => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, cannot add tasks.");
-      return;
+    setTasks(newTasksState);
+    setIsLoading(false);
+  }, [user]);
+
+  const triggerTaskCompletion = async (triggerType: TaskTriggerType) => {
+    if (!user || !isSupabaseEnabled) return;
+    const { error } = await supabase.rpc('handle_task_completion', { p_trigger_type: triggerType });
+
+    if (error) {
+      // Don't show a toast here, as it might be intrusive.
+      // Admins can check logs if needed.
+      console.error(`Failed to trigger task completion for ${triggerType}:`, error.message);
+    } else {
+      // A task might have been completed, so we refresh the state.
+      fetchTaskStates();
     }
-    const newTask: Partial<DailyTask> = {
-      title: "新任务",
-      description: "任务描述...",
-      reward: 1,
-      reward_type: "usdt",
-      link: "/",
-      status: "draft",
-      trigger: "contract_trade",
-      imgSrc: "https://placehold.co/600x400.png",
-    };
-    const { error } = await supabase.from("daily_tasks").insert(newTask);
-    if (error) console.error("Error adding daily task:", error);
-    else await fetchDailyTasks();
   };
 
-  const removeDailyTask = async (id: string) => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, cannot remove tasks.");
-      return;
+  const claimReward = async (taskKey: string) => {
+    if (!user) {
+        toast({ title: "请先登录", variant: "destructive" });
+        return;
     }
-    const { error } = await supabase.from("daily_tasks").delete().eq("id", id);
-    if (error) console.error("Error removing daily task:", error);
-    else await fetchDailyTasks();
+    
+    const task = tasks.find(t => t.key === taskKey);
+    if (!task || !task.claim_api) {
+        toast({ title: "任务不存在或无法领取", variant: "destructive" });
+        return;
+    }
+
+    try {
+        const response = await fetch(task.claim_api, { method: "POST" });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.error || "领取奖励失败");
+        
+        toast({
+            title: "领取成功！",
+            description: `恭喜您！ ${result.rewardAmount} USDT 已添加至您的账户。`,
+        });
+
+        fetchTaskStates();
+        refreshAllData();
+
+    } catch (error: any) {
+        toast({ title: "操作失败", description: error.message, variant: "destructive" });
+    }
+  };
+
+  // --- Daily Task Logic (for Admin) ---
+  const fetchDailyTasks = useCallback(async () => {
+    if (!isSupabaseEnabled) {
+        setIsLoadingDailyTasks(false);
+        return;
+    }
+    setIsLoadingDailyTasks(true);
+    // Use the v_daily_tasks view to fetch all task types
+    const { data, error } = await supabase.from('v_daily_tasks').select('*').order('created_at', { ascending: false });
+    if (error) {
+        console.error("Error fetching daily tasks:", error.message);
+        toast({ title: "获取日常任务失败", description: error.message, variant: "destructive" });
+    } else {
+        setDailyTasks(data as DailyTask[]);
+    }
+    setIsLoadingDailyTasks(false);
+  }, [toast]);
+  
+  const addDailyTask = async (task: Omit<DailyTask, 'id' | 'created_at'>) => {
+    if (!isSupabaseEnabled) return;
+    // Keep this pointed at the base table for admin actions
+    const { data, error } = await supabase.from('daily_tasks').insert([task]).select();
+    if (error) {
+      toast({ title: "添加任务失败", description: error.message, variant: "destructive" });
+    } else if (data) {
+      // Refetch the view to get a consistent state
+      fetchDailyTasks();
+      toast({ title: "任务已添加" });
+    }
   };
 
   const updateDailyTask = async (id: string, updates: Partial<DailyTask>) => {
-    if (!isSupabaseEnabled) {
-      console.warn("Supabase not enabled, cannot update tasks.");
-      return;
+    if (!isSupabaseEnabled) return;
+    // Keep this pointed at the base table for admin actions
+    const { data, error } = await supabase.from('daily_tasks').update(updates).eq('id', id).select();
+     if (error) {
+      toast({ title: "更新任务失败", description: error.message, variant: "destructive" });
+    } else if (data) {
+       // Refetch the view to get a consistent state
+      fetchDailyTasks();
+      toast({ title: "任务已更新" });
     }
-    const { error } = await supabase
-      .from("daily_tasks")
-      .update(updates)
-      .eq("id", id);
-    if (error) console.error("Error updating daily task:", error);
-    else await fetchDailyTasks();
   };
 
-  const triggerTaskCompletion = useCallback(
-    async (type: TaskTriggerType) => {
-      if (!user) return;
+  const removeDailyTask = async (id: string) => {
+    if (!isSupabaseEnabled) return;
+    // Keep this pointed at the base table for admin actions
+    const { error } = await supabase.from('daily_tasks').delete().eq('id', id);
+    if (error) {
+      toast({ title: "删除任务失败", description: error.message, variant: "destructive" });
+    } else {
+       // Refetch the view to get a consistent state
+      fetchDailyTasks();
+      toast({ title: "任务已删除" });
+    }
+  };
 
-      const today = new Date().toISOString().split("T")[0];
-      const task = dailyTasks.find(
-        (t) => t.trigger === type && t.status === "published"
-      );
-      if (!task) return;
+  // Initial data fetching
+  useEffect(() => {
+    if (user) {
+      fetchTaskStates();
+    } else {
+      setTasks(coreIncentiveTasks.map((task, i) => ({
+          ...task,
+          id: `task_${i}`,
+          status: "LOCKED",
+          progress: { current: 0, target: 1 },
+      })));
+      setIsLoading(false);
+    }
+    // Always fetch daily tasks for admin pages regardless of user state
+    fetchDailyTasks();
+  }, [user, fetchTaskStates, fetchDailyTasks]);
 
-      const isAlreadyCompleted = userTasksState.some(
-        (state) => state.taskId === task.id && state.date === today
-      );
-      if (isAlreadyCompleted) return;
-
-      if (task.reward_type === "usdt") {
-        creditReward({
-          userId: user.id,
-          amount: task.reward,
-          asset: "USDT",
-          type: "dailyTask",
-          sourceId: task.id,
-          description: `Completed task: ${task.title}`,
-        });
-      } else if (task.reward_type === "credit_score") {
-        const newScore = (user.credit_score || 100) + task.reward;
-        await updateUser(user.id, { credit_score: newScore });
-      }
-
-      addLog({
-        entity_type: "task_completion",
-        entity_id: task.id,
-        action: "user_complete",
-        details: `User ${user.username} completed task: "${task.title}" and received ${task.reward} ${task.reward_type}.`,
-        actor: user,
-      });
-
-      const newState: Omit<UserTaskState, "id"> = {
-        taskId: task.id,
-        date: today,
-        completed: true,
-        user_id: user.id,
-      };
-
-      const { error } = await supabase
-        .from("user_task_states")
-        .insert(newState);
-      if (error) console.error("Error saving user task state:", error);
-      else await fetchUserTaskStates(user.id);
-    },
-    [
-      user,
-      dailyTasks,
-      userTasksState,
-      creditReward,
-      updateUser,
-      addLog,
-      fetchUserTaskStates,
-    ]
-  );
 
   const value: TasksContextType = {
-    dailyTasks,
-    addDailyTask,
-    removeDailyTask,
-    updateDailyTask,
-    userTasksState,
+    tasks,
+    isLoading,
+    claimReward,
+    fetchTaskStates,
     triggerTaskCompletion,
+    dailyTasks,
+    isLoadingDailyTasks,
+    addDailyTask,
+    updateDailyTask,
+    removeDailyTask,
   };
 
   return (

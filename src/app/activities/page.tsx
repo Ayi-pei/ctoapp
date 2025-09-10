@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/dashboard-layout';
 import { useActivities } from '@/context/activities-context';
 import type { LimitedTimeActivity } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ChevronLeft, Gift, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';

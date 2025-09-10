@@ -34,6 +34,7 @@ export type MarketSummary = {
     volume: number;
     high: number;
     low: number;
+    profit_rate: number;
     icon?: string; // Optional icon URL from API
 };
 
@@ -156,6 +157,18 @@ export type Transaction = {
   user?: { username: string };
 };
 
+export type CommissionLog = {
+  id: string;
+  user_id: string;
+  amount: number;
+  asset: string;
+  source_user_id?: string;
+  source_username?: string;
+  source_order_id?: string;
+  commission_rate?: number;
+  created_at: Timestamp;
+}
+
 // Represents a user's password reset request submitted to admin
 export type PasswordResetRequest = {
   id: string;
@@ -227,6 +240,8 @@ export type RegisterUserResponse = {
     user_id?: string;
     message: string;
 };
+
+export type TaskStatus = 'COMPLETED' | 'ELIGIBLE' | 'IN_PROGRESS' | 'LOCKED';
 
 export type TaskTriggerType = 'contract_trade' | 'spot_trade' | 'investment';
 

@@ -133,7 +133,7 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
               <ReactECharts option={klineOption} style={{ height: "100%", width: "100%" }} notMerge={true} lazyUpdate={true}/>
             ) : (
               <div className="flex justify-center items-center h-full">
-                <Skeleton className="h-full w-full bg-muted animate-pulse" />
+                <Skeleton className="h-full w-.full bg-muted animate-pulse" />
               </div>
             )}
         </div>
@@ -148,7 +148,14 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
             <OrderForm
               tradingPair={tradingPair}
               balance={balances[quoteAsset]?.available || 0}
-              onPlaceTrade={(trade) => placeContractTrade(trade, tradingPair)}
+              onPlaceTrade={(trade) => {
+                const profitRate = currentSummary?.profit_rate;
+                if (profitRate !== undefined) {
+                  placeContractTrade({ ...trade, profit_rate: profitRate }, tradingPair);
+                } else {
+                  console.error(`Profit rate for ${tradingPair} is not available, cannot place trade.`);
+                }
+              }}
               quoteAsset={quoteAsset}
             />
           </TabsContent>
@@ -174,4 +181,3 @@ export default function TradeBoard({ initialTab = 'contract' }: { initialTab?: s
     </div>
   );
 }
-

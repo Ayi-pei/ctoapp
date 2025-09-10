@@ -15,6 +15,12 @@ async function getIntervention(pair: string, time: number) {
     .gte("end_time", new Date(time).toISOString())
     .order("priority", { ascending: false })
     .limit(1);
+  
+  if (error) {
+    console.error(`Error fetching intervention for ${pair}:`, error);
+    return null;
+  }
+
   return data?.[0]?.rule || null;
 }
 

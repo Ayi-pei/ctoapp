@@ -48,7 +48,7 @@ export function useEnhancedSupabase() {
   return context;
 }
 
-// 便捷 Hook：自动设置用户上下文的 Supabase 操作
+// Custom hook for Supabase operations with automatic user context setting
 export function useAuthenticatedSupabase() {
   const { user } = useSimpleAuth();
   const { setUserContext } = useEnhancedSupabase();
@@ -69,4 +69,3 @@ export function useAuthenticatedSupabase() {
     user,
   };
 }
-

@@ -1,7 +1,8 @@
+"use client";
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import DashboardLayout from "@/components/dashboard-layout";
-import TradeBoard from '@/components/TradeBoard';
+import TradePageContent from './trade-page-content';
 
 // This page now accepts searchParams as a prop, which is the recommended
 // way for Server Components to access URL parameters in Next.js App Router.
@@ -18,7 +19,9 @@ export default async function TradePage({
   
   return (
     <DashboardLayout>
-        <TradeBoard initialTab={Array.isArray(tab) ? tab[0] : tab} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <TradePageContent />
+      </Suspense>
     </DashboardLayout>
-  )
+  );
 }

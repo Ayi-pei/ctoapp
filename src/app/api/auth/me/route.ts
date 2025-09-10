@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySession, sessionCookieName } from '@/lib/auth/session';
@@ -8,7 +9,8 @@ const ADMIN_USER_ID = 'admin_user_001';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
+    // Correctly await the cookies() promise
+    const cookieStore = await cookies(); 
     const token = cookieStore.get(sessionCookieName)?.value;
     const { valid, userId } = verifySession(token);
     if (!valid || !userId) {

@@ -5,14 +5,14 @@
         "parts": [
           {
             "text": "INSERT_INPUT_HERE"
-          },
+          }
         ]
-      },
+      }
     ],
     "generationConfig": {
       "thinkingConfig": {
-        "thinkingBudget": 8192,
-      },
+        "thinkingBudget": 8192
+      }
     },
     "tools": [
       {
@@ -21,6 +21,6 @@
       {
         "googleSearch": {
         }
-      },
-    ],
+      }
+    ]
 }

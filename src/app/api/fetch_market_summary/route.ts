@@ -71,7 +71,7 @@ const PAIR_TO_SYMBOL: Record<string, string> = {
   "ICP/USDT": "ICP",
 };
 
-export default async function handler() {
+export async function GET() {
   try {
     // CoinGecko 批量行情
     const ids = PAIRS.map((p) => PAIR_TO_ID[p]).join(",");
@@ -117,7 +117,7 @@ export default async function handler() {
     // upsert 到 market_summary_data
     const { error } = await supabase
       .from("market_summary_data")
-      .upsert(upserts, { onConflict: ["pair"] });
+      .upsert(upserts, { onConflict: "pair" });
     if (error) throw error;
     return new Response(JSON.stringify({ ok: true, count: upserts.length }), {
       status: 200,

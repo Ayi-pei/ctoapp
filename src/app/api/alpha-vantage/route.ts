@@ -1,6 +1,4 @@
-
 import { NextResponse } from 'next/server';
-import axios from 'axios';
 
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
 
@@ -39,29 +37,35 @@ export async function GET(request: Request) {
         params.date = date;
     }
 
-    const response = await axios.get('https://www.alphavantage.co/query', {
-      params,
-       headers: {
-        // Alpha Vantage examples use this header, it's good practice to include it.
-        'User-Agent': 'request'
-      }
+    const queryParams = new URLSearchParams(params);
+    const url = `https://www.alphavantage.co/query?${queryParams.toString()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'request',
+      },
     });
 
-    if (response.data["Error Message"] || response.data["Information"]) {
-        // Handle cases where the API returns a structured error or info message
-        return NextResponse.json({ error: response.data["Error Message"] || response.data["Information"] }, { status: 400 });
-    }
-
-    return NextResponse.json(response.data);
-
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-        console.error('Alpha Vantage API proxy error:', error.response?.data || error.message);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch from Alpha Vantage and could not parse error response.' }));
+        console.error('Alpha Vantage API proxy error:', errorData);
         return NextResponse.json(
-            { error: 'Failed to fetch from Alpha Vantage', details: error.response?.data },
-            { status: error.response?.status || 502 }
+            { error: 'Failed to fetch from Alpha Vantage', details: errorData },
+            { status: response.status }
         );
     }
+    
+    const data = await response.json();
+
+    if (data["Error Message"] || data["Information"]) {
+        // Handle cases where the API returns a structured error or info message
+        return NextResponse.json({ error: data["Error Message"] || data["Information"] }, { status: 400 });
+    }
+
+    return NextResponse.json(data);
+
+  } catch (error) {
     console.error('Alpha Vantage API proxy error (unknown):', error);
     return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
   }

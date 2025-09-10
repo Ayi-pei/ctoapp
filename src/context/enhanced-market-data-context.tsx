@@ -189,6 +189,7 @@ const fetchAlphaVantageData = async (pairs: string[]): Promise<Record<string, Ma
           volume: 0,
           high: 0,
           low: 0,
+          profit_rate: 0.85, // Default profit rate
           icon: `https://placehold.co/32x32.png`
         };
       }
@@ -233,6 +234,7 @@ const initialSummaryData: MarketSummary[] = [{
   volume: 50000,
   high: INITIAL_BTC_PRICE * 1.02,
   low: INITIAL_BTC_PRICE * 0.98,
+  profit_rate: 0.85, // Default profit rate
   icon: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png'
 }];
 

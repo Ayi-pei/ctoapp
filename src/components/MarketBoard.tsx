@@ -1,21 +1,26 @@
 
 
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import ReactECharts from "echarts-for-react";
+import { OHLC } from "@/types";
 
 const symbols = [
   'BTC/USDT','ETH/USDT','SOL/USDT','XRP/USDT','LTC/USDT',
-  'BNB/USDT','MATIC/USDT','DOGE/USDT','ADA/USDT','SHIB/USDT',
-  'AVAX/USDT','LINK/USDT','DOT/USDT','UNI/USDT','TRX/USDT',
-  'XLM/USDT','VET/USDT','EOS/USDT','FIL/USDT','ICP/USDT',  'BTC/USD-PERP', 'ETH/USD-PERP'
+ 'BNB/USDT','MATIC/USDT','DOGE/USDT','ADA/USDT','SHIB/USDT',
+ 'AVAX/USDT','LINK/USDT','DOT/USDT','UNI/USDT','TRX/USDT',
+ 'XLM/USDT','VET/USDT','EOS/USDT','FIL/USDT','ICP/USDT',  'BTC/USD-PERP', 'ETH/USD-PERP'
 ];
 
 export function MarketBoard() {
   const { tradingPair, changeTradingPair, getLatestPrice, klineData } = useEnhancedMarket();
 
-  const currentKlineData = klineData[tradingPair] || [];
+  const getOption = () => {
+    const currentPairKlineData = klineData[tradingPair];
+    if (!currentPairKlineData || currentPairKlineData.length === 0) {
+        return {}; 
+    }
 
   const klineOption = {
     xAxis: {
@@ -37,27 +42,19 @@ export function MarketBoard() {
   };
 
   return (
-    <div>
-      {/* 币种选择按钮 */}
+    <div className="bg-card p-4 rounded-lg shadow-lg">
       <div className="flex flex-wrap gap-2 mb-4">
         {symbols.map(symbol => (
-          <button
-            key={symbol}
-            onClick={() => changeTradingPair(symbol)}
-            className={`px-3 py-1 rounded ${
-              tradingPair === symbol ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-200"
-            }`}
-          >
+          <button 
+            key={symbol} 
+            onClick={() => changeTradingPair(symbol)} 
+            className={`px-3 py-1 rounded text-xs ${tradingPair === symbol ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
             {symbol}
           </button>
         ))}
       </div>
-
-      {/* 最新价格 */}
-      <h2 className="mb-2">{tradingPair} 实时价格: {getLatestPrice(tradingPair)}</h2>
-
-      {/* K 线图 */}
-      <ReactECharts option={klineOption} style={{ height: 400 }} />
+      <div className="font-bold text-xl mb-2">{tradingPair} - {getLatestPrice(tradingPair)}</div>
+      <ReactECharts option={getOption()} style={{ height: '400px' }} />
     </div>
   );
 }

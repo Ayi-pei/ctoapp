@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useEnhancedSystemSettings, MarketIntervention } from "@/context/enhanced-system-settings-context";
+import { useEnhancedSystemSettings, EnhancedMarketIntervention } from "@/context/enhanced-system-settings-context";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -18,9 +18,9 @@ const InterventionCard = ({
     removeIntervention,
     availableSymbols
 }: { 
-    intervention: MarketIntervention,
+    intervention: EnhancedMarketIntervention,
     index: number,
-    updateIntervention: (id: string, updates: Partial<MarketIntervention>) => void,
+    updateIntervention: (id: string, updates: Partial<EnhancedMarketIntervention>) => void,
     removeIntervention: (id: string) => void,
     availableSymbols: string[]
 }) => {
@@ -42,7 +42,7 @@ const InterventionCard = ({
                     <Label htmlFor={`intervention-pair-${intervention.id}`}>交易标的</Label>
                     <Select 
                         value={intervention.tradingPair} 
-                        onValueChange={(value) => updateIntervention(intervention.id, { tradingPair: value })}>
+                        onValueChange={(value: string) => updateIntervention(intervention.id, { tradingPair: value })}>
                         <SelectTrigger id={`intervention-pair-${intervention.id}`}>
                             <SelectValue />
                         </SelectTrigger>
@@ -127,6 +127,10 @@ export default function AdminForexMarketSettingsPage() {
             title: "设置已保存",
             description: "市场设置已自动更新。",
         });
+    };
+    
+    const handleAddIntervention = () => {
+        addMarketIntervention(); // This now correctly calls the function without arguments
     };
 
     const forexInterventions = systemSettings.marketInterventions.filter(i => allAvailableSymbols.includes(i.tradingPair));

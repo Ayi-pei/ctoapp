@@ -6,7 +6,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Copy, Users, Download, Archive, ChevronLeft } from "lucide-react";
+import { Copy, Download, Archive, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest, RewardLog } from "@/types";
