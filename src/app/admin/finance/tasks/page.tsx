@@ -5,6 +5,9 @@ import AuthLayout from '@/components/auth-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 export default function AdminFinanceTasksPage() {
     const { isAdmin, isLoading } = useSimpleAuth();
 

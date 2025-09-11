@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
 import { useToast } from "@/hooks/use-toast";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 const supportedAssets: (keyof ReturnType<typeof useEnhancedSystemSettings>['systemSettings']['depositAddresses'])[] = ["USDT", "ETH", "BTC", "USD"];
 
 export default function AdminGeneralSettingsPage() {

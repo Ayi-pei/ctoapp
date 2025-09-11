@@ -15,6 +15,9 @@ import { useRequests } from '@/context/requests-context';
 import { Edit2, Trash2 } from 'lucide-react';
 import { EditTransactionDialog } from '@/components/edit-transaction-dialog';
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 const requestTypeText: { [key: string]: string } = {
     'deposit': '充值',
     'withdrawal': '提现',

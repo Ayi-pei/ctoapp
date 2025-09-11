@@ -13,6 +13,9 @@ import { ChevronLeft } from "lucide-react";
 import { useInvestmentSettings, InvestmentProduct } from "@/context/investment-settings-context";
 import Image from "next/image";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 const Header = () => {
     const router = useRouter();
     

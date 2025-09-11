@@ -6,6 +6,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketSummary } from "@/types";
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 export default function MarketPage() {
     const { cryptoSummaryData, klineData, summaryData } = useEnhancedMarket();
 

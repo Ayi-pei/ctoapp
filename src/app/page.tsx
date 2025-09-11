@@ -8,6 +8,9 @@ import { LoaderCircle } from 'lucide-react';
 import AuthLayout from '@/components/auth-layout';
 import { useToast } from '@/hooks/use-toast';
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 /**
  * The root page of the application, acting as the ultimate route guard.
  *

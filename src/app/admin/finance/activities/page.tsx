@@ -1,6 +1,9 @@
 
 "use client";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";

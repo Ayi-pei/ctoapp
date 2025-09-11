@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { User as DownlineMember, AnyRequest, RewardLog } from "@/types";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 // 扩展 User 类型以包含 level 属性（从 getDownline 返回）
 type DownlineMemberWithLevel = DownlineMember & { level?: number };
 import { useBalance } from "@/context/balance-context";

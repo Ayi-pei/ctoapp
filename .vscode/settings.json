@@ -1,4 +1,54 @@
 {
-  "css.lint.unknownAtRules": "ignore",
-  "IDX.agenticWorkspace": true
+  // SQL 语法检查器配置
+  "sql.dialect": "postgresql",
+  "sql.connectionString": "",
+  // 针对 PostgreSQL 的特定配置
+  "sqltools.connections": [
+    {
+      "name": "PostgreSQL (Supabase)",
+      "driver": "PostgreSQL",
+      "dialect": "PostgreSQL",
+      "server": "${SUPABASE_DB_HOST}",
+      "port": 5432,
+      "database": "${SUPABASE_DB_NAME}",
+      "username": "${SUPABASE_DB_USER}",
+      "password": "${SUPABASE_DB_PASSWORD}",
+      "ssl": true
+    }
+  ],
+  // 文件关联配置
+  "files.associations": {
+    "*.sql": "postgresql",
+    "database-unified.sql": "postgresql",
+    "schema.sql": "postgresql"
+  },
+  // 语言服务器配置
+  "sql.formatter": "sql-formatter",
+  "sql.format": {
+    "language": "postgresql",
+    "keywordCase": "upper",
+    "identifierCase": "lower",
+    "stripComments": false,
+    "reindent": true
+  },
+  // 禁用不兼容的 SQL Server 语法检查
+  "mssql.intelliSense.enableIntelliSense": false,
+  "mssql.intelliSense.enableErrorChecking": false,
+  // PostgreSQL 特定语法支持
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  // 针对 SQL 文件的特定设置
+  "[sql]": {
+    "editor.defaultFormatter": "ms-mssql.sql-database-projects-vscode",
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+  "[postgresql]": {
+    "editor.defaultFormatter": "bradymholt.pgformatter",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  }
 }

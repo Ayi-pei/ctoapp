@@ -34,8 +34,8 @@ CREATE TABLE public.transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 COMMENT ON TABLE public.transactions IS 'Manages financial transactions like deposits, withdrawals, and admin adjustments.';
-COMMENT ON COLUMN public.transactions.type IS 'The type of transaction (deposit, withdrawal, adjustment).';
-COMMENT ON COLUMN public.transactions.status IS 'The current status of the transaction (pending, approved, rejected).';
+COMMENT ON COLUMN public.transactions.type IS 'The type of transaction: deposit, withdrawal, or adjustment.';
+COMMENT ON COLUMN public.transactions.status IS 'The current status of the transaction: pending, approved, or rejected.';
 
 -- Create the contract_trades table
 CREATE TABLE public.contract_trades (

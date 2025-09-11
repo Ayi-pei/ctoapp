@@ -4,6 +4,9 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Construction } from "lucide-react";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 export default function ComingSoonPage() {
     return (
         <DashboardLayout>

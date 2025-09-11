@@ -14,6 +14,9 @@ import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRequests } from "@/context/requests-context";
 import { LifeBuoy } from "lucide-react";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 
 const changePasswordSchema = z.object({
     newPassword: z.string().min(8, "新密码必须至少8个字符"),

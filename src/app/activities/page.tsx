@@ -1,6 +1,9 @@
 
 "use client";
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import DashboardLayout from '@/components/dashboard-layout';
 import { useActivities } from '@/context/activities-context';

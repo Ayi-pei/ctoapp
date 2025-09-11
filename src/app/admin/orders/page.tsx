@@ -23,6 +23,9 @@ import { DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 
 type AllOrderTypes = SpotTrade | ContractTrade | Investment | SwapOrder;
 

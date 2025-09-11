@@ -1,6 +1,9 @@
 
 "use client";
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';

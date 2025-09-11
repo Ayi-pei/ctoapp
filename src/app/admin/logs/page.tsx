@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 export default function AdminLogsPage() {
     const { logs } = useLogs();
     const [searchTerm, setSearchTerm] = useState("");

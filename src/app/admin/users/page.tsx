@@ -16,6 +16,9 @@ import { Copy, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserDetailsDialog } from '@/components/admin/user-details-dialog';
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 
 export default function AdminUsersPage() {
     const { user, isAdmin, getAllUsers } = useSimpleAuth();

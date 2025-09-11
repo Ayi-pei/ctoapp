@@ -21,8 +21,12 @@ import { useSimpleAuth } from "./simple-custom-auth";
 import { useEnhancedMarket } from "./enhanced-market-data-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
-import { supabase, isSupabaseEnabled, isRealtimeEnabled } from "@/lib/supabaseClient";
-import { useAuthenticatedSupabase } from '@/context/enhanced-supabase-context';
+import {
+  supabase,
+  isSupabaseEnabled,
+  isRealtimeEnabled,
+} from "@/lib/supabaseClient";
+import { useAuthenticatedSupabase } from "@/context/enhanced-supabase-context";
 
 export type DailyInvestmentParams = {
   productName: string;
@@ -115,124 +119,152 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const [lastCheckInDate, setLastCheckInDate] = useState<string | undefined>();
   const [consecutiveCheckIns, setConsecutiveCheckIns] = useState(0);
 
-  const fetchUserBalanceData = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const { data, error } = await (
-      authSb?.withContext
-        ? authSb.withContext((sb) => sb.from("balances").select("*").eq("user_id", userId))
-        : supabase.from("balances").select("*").eq("user_id", userId)
-    );
-    if (error) console.error("Error fetching balances:", (error as any)?.message || error);
-    else {
-      const formattedBalances: {
-        [key: string]: { available: number; frozen: number };
-      } = {};
-      (data as BalanceRow[] | undefined)?.forEach((b: BalanceRow) => {
-        formattedBalances[b.asset] = {
-          available: b.available_balance,
-          frozen: b.frozen_balance,
-        };
-      });
-      setBalances(formattedBalances);
-    }
-  }, []);
+  const fetchUserBalanceData = useCallback(
+    async (userId: string) => {
+      if (!isSupabaseEnabled) return;
+      const { data, error } = await (authSb?.withContext
+        ? authSb.withContext((sb) =>
+            sb.from("balances").select("*").eq("user_id", userId)
+          )
+        : supabase.from("balances").select("*").eq("user_id", userId));
+      if (error)
+        console.error(
+          "Error fetching balances:",
+          (error as any)?.message || error
+        );
+      else {
+        const formattedBalances: {
+          [key: string]: { available: number; frozen: number };
+        } = {};
+        (data as BalanceRow[] | undefined)?.forEach((b: BalanceRow) => {
+          formattedBalances[b.asset] = {
+            available: b.available_balance,
+            frozen: b.frozen_balance,
+          };
+        });
+        setBalances(formattedBalances);
+      }
+    },
+    [authSb]
+  );
 
-  const fetchUserTradeData = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const { data, error } = await (
-      authSb?.withContext
-        ? authSb.withContext((sb) => sb.from("trades").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
-        : supabase.from("trades").select("*").eq("user_id", userId).order("created_at", { ascending: false })
-    );
-    if (error) console.error("Error fetching trades:", (error as any)?.message || error);
-    else {
-      setActiveContractTrades(
-        (data as TradeRow[] | undefined)?.filter(
-          (t: TradeRow) => t.orderType === "contract" && t.status === "active"
-        ) as ContractTrade[]
-      );
-      setHistoricalTrades(
-        (data as TradeRow[] | undefined)?.filter(
-          (t: TradeRow) => t.status !== "active"
-        ) as (SpotTrade | ContractTrade)[]
-      );
-    }
-  }, []);
+  const fetchUserTradeData = useCallback(
+    async (userId: string) => {
+      if (!isSupabaseEnabled) return;
+      const { data, error } = await (authSb?.withContext
+        ? authSb.withContext((sb) =>
+            sb
+              .from("trades")
+              .select("*")
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+          )
+        : supabase
+            .from("trades")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false }));
+      if (error)
+        console.error(
+          "Error fetching trades:",
+          (error as any)?.message || error
+        );
+      else {
+        setActiveContractTrades(
+          (data as TradeRow[] | undefined)?.filter(
+            (t: TradeRow) => t.orderType === "contract" && t.status === "active"
+          ) as ContractTrade[]
+        );
+        setHistoricalTrades(
+          (data as TradeRow[] | undefined)?.filter(
+            (t: TradeRow) => t.status !== "active"
+          ) as (SpotTrade | ContractTrade)[]
+        );
+      }
+    },
+    [authSb]
+  );
 
-  const fetchUserInvestmentData = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const { data, error } = await (
-      authSb?.withContext
-        ? authSb.withContext((sb) => sb.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
-        : supabase.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false })
-    );
-    if (error) console.error("Error fetching investments:", (error as any)?.message || error);
-    else setInvestments(data as Investment[]);
-  }, []);
+  const fetchUserInvestmentData = useCallback(
+    async (userId: string) => {
+      if (!isSupabaseEnabled) return;
+      const { data, error } = await (authSb?.withContext
+        ? authSb.withContext((sb) =>
+            sb
+              .from("investments")
+              .select("*")
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+          )
+        : supabase
+            .from("investments")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false }));
+      if (error)
+        console.error(
+          "Error fetching investments:",
+          (error as any)?.message || error
+        );
+      else setInvestments(data as Investment[]);
+    },
+    [authSb]
+  );
 
-  const fetchUserRewardLogs = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const { data, error } = await (
-      authSb?.withContext
-        ? authSb.withContext((sb) => sb.from("reward_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false }))
-        : supabase.from("reward_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false })
-    );
-    if (error) console.error("Error fetching reward logs:", (error as any)?.message || error);
-    else setRewardLogs(data as RewardLog[]);
-  }, []);
+  const fetchUserRewardLogs = useCallback(
+    async (userId: string) => {
+      if (!isSupabaseEnabled) return;
+      const { data, error } = await (authSb?.withContext
+        ? authSb.withContext((sb) =>
+            sb
+              .from("reward_logs")
+              .select("*")
+              .eq("user_id", userId)
+              .order("created_at", { ascending: false })
+          )
+        : supabase
+            .from("reward_logs")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false }));
+      if (error)
+        console.error(
+          "Error fetching reward logs:",
+          (error as any)?.message || error
+        );
+      else setRewardLogs(data as RewardLog[]);
+    },
+    [authSb]
+  );
 
-  const fetchUserCheckInStatus = useCallback(async (userId: string) => {
-    if (!isSupabaseEnabled) return;
-    const { data, error } = await (
-      authSb?.withContext
-        ? authSb.withContext((sb) => sb.from("profiles").select("last_check_in_date, consecutive_check_ins").eq("id", userId).single())
-        : supabase.from("profiles").select("last_check_in_date, consecutive_check_ins").eq("id", userId).single()
-    );
-    if (error) {
-      console.error("Error fetching user profile for check-in:", (error as any)?.message || error);
-    } else if (data) {
-      setLastCheckInDate(data.last_check_in_date);
-      setConsecutiveCheckIns(data.consecutive_check_ins || 0);
-    }
-  }, []);
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        console.error("Error fetching user check-in status:", error);
-        return;
-    }
-
-    if (!data) {
-        setLastCheckInDate(undefined);
-        setConsecutiveCheckIns(0);
-        return;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const lastCheckIn = new Date(data.checked_in_at);
-    lastCheckIn.setHours(0, 0, 0, 0);
-
-    setLastCheckInDate(lastCheckIn.toISOString().split('T')[0]);
-
-    const isToday = today.getTime() === lastCheckIn.getTime();
-    if (isToday) {
-        setConsecutiveCheckIns(data.streak_day);
-        return;
-    }
-
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const isYesterday = yesterday.getTime() === lastCheckIn.getTime();
-
-    // If streak was 7, it resets. If last check-in was before yesterday, it resets.
-    if (data.streak_day === 7 || !isYesterday) {
-        setConsecutiveCheckIns(0);
-    } else {
-        // Last check-in was yesterday, and streak is not over.
-        setConsecutiveCheckIns(data.streak_day);
-    }
-}, []);
+  const fetchUserCheckInStatus = useCallback(
+    async (userId: string) => {
+      if (!isSupabaseEnabled) return;
+      const { data, error } = await (authSb?.withContext
+        ? authSb.withContext((sb) =>
+            sb
+              .from("profiles")
+              .select("last_check_in_date, consecutive_check_ins")
+              .eq("id", userId)
+              .single()
+          )
+        : supabase
+            .from("profiles")
+            .select("last_check_in_date, consecutive_check_ins")
+            .eq("id", userId)
+            .single());
+      if (error) {
+        console.error(
+          "Error fetching user profile for check-in:",
+          (error as any)?.message || error
+        );
+      } else if (data) {
+        setLastCheckInDate(data.last_check_in_date);
+        setConsecutiveCheckIns(data.consecutive_check_ins || 0);
+      }
+    },
+    [authSb]
+  );
 
   const loadAllData = useCallback(async () => {
     setIsLoading(true);
@@ -257,7 +289,6 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, [
     user,
-    isSupabaseEnabled,
     fetchUserBalanceData,
     fetchUserTradeData,
     fetchUserInvestmentData,
@@ -275,20 +306,69 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 
     const handleBalanceChange = () => user && fetchUserBalanceData(user.id);
     const handleTradeChange = () => user && fetchUserTradeData(user.id);
-    const handleInvestmentChange = () => user && fetchUserInvestmentData(user.id);
+    const handleInvestmentChange = () =>
+      user && fetchUserInvestmentData(user.id);
     const handleCheckInChange = () => {
-        if (user) {
-            fetchUserCheckInStatus(user.id);
-            fetchUserBalanceData(user.id); // Also refresh balance after check-in
-        }
-    }
+      if (user) {
+        fetchUserCheckInStatus(user.id);
+        fetchUserBalanceData(user.id); // Also refresh balance after check-in
+      }
+    };
 
-    const tradesChannel = supabase.channel(`trades-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `user_id=eq.${user.id}`}, handleTradeChange).subscribe();
-    const investmentsChannel = supabase.channel(`investments-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'investments', filter: `user_id=eq.${user.id}`}, handleInvestmentChange).subscribe();
-    const balancesChannel = supabase.channel(`balances-channel-${user.id}`).on('postgres_changes', { event: '*', schema: 'public', table: 'balances', filter: `user_id=eq.${user.id}`}, handleBalanceChange).subscribe();
-    
+    const tradesChannel = supabase
+      .channel(`trades-channel-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trades",
+          filter: `user_id=eq.${user.id}`,
+        },
+        handleTradeChange
+      )
+      .subscribe();
+    const investmentsChannel = supabase
+      .channel(`investments-channel-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "investments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        handleInvestmentChange
+      )
+      .subscribe();
+    const balancesChannel = supabase
+      .channel(`balances-channel-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "balances",
+          filter: `user_id=eq.${user.id}`,
+        },
+        handleBalanceChange
+      )
+      .subscribe();
+
     // Subscribe to new daily_check_ins table
-    const checkInChannel = supabase.channel(`check-in-channel-${user.id}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'daily_check_ins', filter: `user_id=eq.${user.id}`}, handleCheckInChange).subscribe();
+    const checkInChannel = supabase
+      .channel(`check-in-channel-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "daily_check_ins",
+          filter: `user_id=eq.${user.id}`,
+        },
+        handleCheckInChange
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(tradesChannel);
@@ -296,7 +376,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(balancesChannel);
       supabase.removeChannel(checkInChannel); // Unsubscribe from new channel
     };
-  }, [user, isSupabaseEnabled, fetchUserTradeData, fetchUserInvestmentData, fetchUserBalanceData, fetchUserCheckInStatus]);
+  }, [
+    user,
+    fetchUserTradeData,
+    fetchUserInvestmentData,
+    fetchUserBalanceData,
+    fetchUserCheckInStatus,
+  ]);
 
   const adjustBalance = useCallback(
     async (
@@ -559,30 +645,37 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-        const response = await fetch('/api/rewards/check-in', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-        });
+      const response = await fetch("/api/rewards/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!response.ok) {
-            return { success: false, reward: 0, message: data.error || '签到失败，请稍后再试。' };
-        }
-        
-        // On successful check-in, immediately refresh user's state
-        fetchUserCheckInStatus(user.id);
-        fetchUserBalanceData(user.id);
-
+      if (!response.ok) {
         return {
-            success: data.success,
-            reward: data.reward,
-            message: data.message,
+          success: false,
+          reward: 0,
+          message: data.error || "签到失败，请稍后再试。",
         };
+      }
 
+      // On successful check-in, immediately refresh user's state
+      fetchUserCheckInStatus(user.id);
+      fetchUserBalanceData(user.id);
+
+      return {
+        success: data.success,
+        reward: data.reward,
+        message: data.message,
+      };
     } catch (error: any) {
-        console.error("Check-in API call failed:", error);
-        return { success: false, reward: 0, message: '网络请求失败，请检查您的连接。' };
+      console.error("Check-in API call failed:", error);
+      return {
+        success: false,
+        reward: 0,
+        message: "网络请求失败，请检查您的连接。",
+      };
     }
   };
 
@@ -613,6 +706,27 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
 export function useBalance() {
   const context = useContext(BalanceContext);
   if (context === undefined) {
+    // During SSR, provide safe defaults instead of throwing
+    if (typeof window === 'undefined') {
+      return {
+        balances: {},
+        investments: [],
+        rewardLogs: [],
+        addDailyInvestment: async () => false,
+        addHourlyInvestment: async () => false,
+        placeContractTrade: () => {},
+        placeSpotTrade: () => {},
+        isLoading: true,
+        activeContractTrades: [],
+        historicalTrades: [],
+        handleCheckIn: async () => ({ success: false, reward: 0 }),
+        lastCheckInDate: undefined,
+        consecutiveCheckIns: 0,
+        creditReward: async () => {},
+        adjustBalance: async () => {},
+        refreshAllData: () => {},
+      } as BalanceContextType;
+    }
     throw new Error("useBalance must be used within an BalanceProvider");
   }
   return context;

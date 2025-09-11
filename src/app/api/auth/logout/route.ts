@@ -1,14 +1,25 @@
-import { NextResponse } from 'next/server';
-import { sessionCookieName, getDefaultCookieOptions } from '@/lib/auth/session';
+import { NextResponse } from "next/server";
+import { sessionCookieName } from "@/lib/auth/unified-auth";
 
 export async function POST() {
   try {
-    const res = NextResponse.json({ success: true });
-    // Expire the cookie immediately
-    const opts = { ...getDefaultCookieOptions(), maxAge: 0 } as any;
-    res.cookies.set(sessionCookieName, '', opts);
-    return res;
-  } catch (e) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    const response = NextResponse.json({ success: true });
+
+    // 清除认证Cookie
+    response.cookies.set(sessionCookieName, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+      path: "/",
+    });
+
+    return response;
+  } catch (error) {
+    console.error("Logout API error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

@@ -2,23 +2,24 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { UnifiedAuthProvider } from "@/context/unified-auth-context";
 import { SimpleAuthProvider } from "@/context/simple-custom-auth";
+import { SimpleEnhancedLogsProvider } from "@/context/simple-enhanced-logs-context";
+import { EnhancedLogsProvider } from "@/context/enhanced-logs-context";
+import { OptionsProvider } from "@/context/options-context";
+import { RequestsProvider } from "@/context/requests-context";
+import { SwapProvider } from "@/context/swap-context";
 import { EnhancedSupabaseProvider } from "@/context/enhanced-supabase-context";
 import { BalanceProvider } from "@/context/balance-context";
 import { EnhancedMarketDataProvider } from "@/context/enhanced-market-data-context";
 import { EnhancedSystemSettingsProvider } from "@/context/enhanced-system-settings-context";
-import { RequestsProvider } from "@/context/requests-context";
-import { AnnouncementsProvider } from "@/context/announcements-context";
 import { InvestmentSettingsProvider } from "@/context/investment-settings-context";
 import { TasksProvider } from "@/context/tasks-context";
 import { ActivitiesProvider } from "@/context/activities-context";
-import { SimpleEnhancedLogsProvider } from "@/context/simple-enhanced-logs-context";
-import { SwapProvider } from "@/context/swap-context";
-import { OptionsProvider } from "@/context/options-context";
-import { LogsProvider } from "@/context/logs-context";
+import { AnnouncementsProvider } from "@/context/announcements-context";
 
 // 开发环境下导入系统健康检查
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   import("@/lib/system-health");
 }
 
@@ -41,36 +42,38 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-sans antialiased text-foreground">
-        <SimpleAuthProvider>
-          <EnhancedSupabaseProvider>
+        <UnifiedAuthProvider>
+          <SimpleAuthProvider>
             <SimpleEnhancedLogsProvider>
-              <LogsProvider>
-                <EnhancedSystemSettingsProvider>
-                  <InvestmentSettingsProvider>
-                    <EnhancedMarketDataProvider>
-                      <OptionsProvider>
-                        <BalanceProvider>
-                          <TasksProvider>
-                            <RequestsProvider>
-                              <ActivitiesProvider>
-                                <AnnouncementsProvider>
-                                  <SwapProvider>
-                                    {children}
-                                    <Toaster />
-                                  </SwapProvider>
-                                </AnnouncementsProvider>
-                              </ActivitiesProvider>
-                            </RequestsProvider>
-                          </TasksProvider>
-                        </BalanceProvider>
-                      </OptionsProvider>
-                    </EnhancedMarketDataProvider>
-                  </InvestmentSettingsProvider>
-                </EnhancedSystemSettingsProvider>
-              </LogsProvider>
+              <EnhancedLogsProvider>
+                <OptionsProvider>
+                  <RequestsProvider>
+                    <SwapProvider>
+                      <EnhancedSupabaseProvider>
+                        <EnhancedSystemSettingsProvider>
+                          <InvestmentSettingsProvider>
+                            <EnhancedMarketDataProvider>
+                              <BalanceProvider>
+                                <TasksProvider>
+                                  <ActivitiesProvider>
+                                    <AnnouncementsProvider>
+                                      {children}
+                                      <Toaster />
+                                    </AnnouncementsProvider>
+                                  </ActivitiesProvider>
+                                </TasksProvider>
+                              </BalanceProvider>
+                            </EnhancedMarketDataProvider>
+                          </InvestmentSettingsProvider>
+                        </EnhancedSystemSettingsProvider>
+                      </EnhancedSupabaseProvider>
+                    </SwapProvider>
+                  </RequestsProvider>
+                </OptionsProvider>
+              </EnhancedLogsProvider>
             </SimpleEnhancedLogsProvider>
-          </EnhancedSupabaseProvider>
-        </SimpleAuthProvider>
+          </SimpleAuthProvider>
+        </UnifiedAuthProvider>
       </body>
     </html>
   );

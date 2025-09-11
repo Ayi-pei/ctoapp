@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
+
 
 const HornAnnouncementEditor = ({ announcements, updateHornAnnouncement, removeHornAnnouncement, reorderHornAnnouncements }: {
     announcements: HornAnnouncement[],

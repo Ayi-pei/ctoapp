@@ -366,7 +366,7 @@ export function EnhancedSystemSettingsProvider({
       // 临时注释日志记录，避免循环依赖
       console.log(`Updated ${asset} deposit address`);
     },
-    [addLog]
+    []
   );
 
   const updateSetting = useCallback(
@@ -390,7 +390,7 @@ export function EnhancedSystemSettingsProvider({
       // 临时注释日志记录，避免循环依赖
       console.log(`Updated system setting: ${String(key)}`);
     },
-    [addLog]
+    []
   );
 
   const updatePairSettings = useCallback(
@@ -409,7 +409,7 @@ export function EnhancedSystemSettingsProvider({
       // 临时注释日志记录，避免循环依赖
       console.log(`Updated trading pair settings for ${pair}`);
     },
-    [addLog]
+    []
   );
 
   const updateRiskControlSettings = useCallback(
@@ -425,7 +425,7 @@ export function EnhancedSystemSettingsProvider({
       // 临时注释日志记录，避免循环依赖
       console.log("Updated risk control settings");
     },
-    [addLog]
+    []
   );
 
   const updateSystemMonitoringSettings = useCallback(
@@ -441,7 +441,7 @@ export function EnhancedSystemSettingsProvider({
       // 临时注释日志记录，避免循环依赖
       console.log("Updated system monitoring settings");
     },
-    [addLog]
+    []
   );
 
   // 增强的干预管理
@@ -508,7 +508,7 @@ export function EnhancedSystemSettingsProvider({
         `Deleted market intervention for ${intervention.tradingPair}`
       );
     },
-    [systemSettings.marketInterventions, addLog]
+    [systemSettings.marketInterventions]
   );
 
   const updateMarketIntervention = useCallback(
@@ -537,7 +537,7 @@ export function EnhancedSystemSettingsProvider({
         `Updated market intervention for ${intervention.tradingPair}`
       );
     },
-    [systemSettings.marketInterventions, addLog]
+    [systemSettings.marketInterventions]
   );
 
   const activateIntervention = useCallback(

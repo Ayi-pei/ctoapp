@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import AuthLayout from '@/components/auth-layout';
 import { LoaderCircle } from 'lucide-react';
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 /**
  * This page now acts as a redirector to the default settings sub-page.
  */

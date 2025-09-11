@@ -1,0 +1,34 @@
+# SQL 语法检查器配置文件
+# 用于配置 PostgreSQL/Supabase 项目的 SQL 语法检查
+
+# 数据库类型
+dialect=postgresql
+
+# 支持的 PostgreSQL 版本
+version=14
+
+# 启用的扩展
+extensions=uuid-ossp,pgcrypto,pg_cron
+
+# 自定义函数和类型
+custom_types=reward_type,task_trigger_type
+custom_functions=generate_invitation_code,is_admin,create_initial_balances
+
+# Supabase 特定功能
+supabase_features=rls,realtime,edge_functions
+
+# 项目特定配置
+project_schema=public
+default_schema=public
+
+# 语法检查规则
+enable_cascade_check=true
+enable_do_block_check=true
+enable_raise_notice_check=true
+enable_extension_check=true
+enable_enum_check=true
+
+# 禁用的检查
+disable_mssql_syntax=true
+disable_oracle_syntax=true
+disable_mysql_syntax=true

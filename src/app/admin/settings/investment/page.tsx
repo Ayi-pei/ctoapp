@@ -12,6 +12,9 @@ import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 const StakingProductEditor = ({ product, updateProduct, removeProduct }: { product: InvestmentProduct, updateProduct: (id: string, updates: Partial<InvestmentProduct>) => void, removeProduct: (id: string) => void }) => {
      const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

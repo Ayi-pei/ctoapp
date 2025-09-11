@@ -1,6 +1,9 @@
 
 "use client";
 
+
+// Disable SSR for this page to avoid context issues
+export const dynamic = 'force-dynamic';
 import { useSimpleAuth } from '@/context/simple-custom-auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
