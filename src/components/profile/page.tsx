@@ -53,6 +53,7 @@ const ProfileHeader = () => {
     return amount * (assetSummary?.price || 0);
   };
 
+  // 修复类型错误：为 balance 参数添加明确的类型注解
   const totalBalance = Object.entries(balances).reduce(
     (acc, [name, balance]: [string, { available: number; frozen: number }]) => {
       return acc + getUsdtValue(name, balance.available, summaryData);

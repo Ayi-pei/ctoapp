@@ -29,9 +29,19 @@ export const getDefaultCookieOptions = () => ({
 // 创建 Supabase 客户端
 const createSupabaseClient = () => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("Supabase environment variables not configured:", {
+      hasUrl: !!SUPABASE_URL,
+      hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY,
+    });
     return null;
   }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  try {
+    return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  } catch (error) {
+    console.error("Failed to create Supabase client:", error);
+    return null;
+  }
 };
 
 // JWT 会话管理
@@ -56,13 +66,31 @@ export const verifySession = (
 export const getCurrentSession = async (): Promise<{
   valid: boolean;
   userId?: string;
+  error?: string;
 }> => {
   try {
+    // 检查必要的环境变量
+    if (!SESSION_SECRET) {
+      console.error("SESSION_SECRET is not configured");
+      return { valid: false, error: "Server configuration error" };
+    }
+
     const cookieStore = await cookies();
     const token = cookieStore.get(sessionCookieName)?.value;
-    return verifySession(token);
-  } catch {
-    return { valid: false };
+
+    if (!token) {
+      return { valid: false, error: "No session token found" };
+    }
+
+    const sessionResult = verifySession(token);
+    if (!sessionResult.valid) {
+      return { valid: false, error: "Invalid session token" };
+    }
+
+    return { valid: true, userId: sessionResult.userId };
+  } catch (error) {
+    console.error("getCurrentSession error:", error);
+    return { valid: false, error: "Session verification failed" };
   }
 };
 

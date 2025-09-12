@@ -707,7 +707,7 @@ export function useBalance() {
   const context = useContext(BalanceContext);
   if (context === undefined) {
     // During SSR, provide safe defaults instead of throwing
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {
         balances: {},
         investments: [],

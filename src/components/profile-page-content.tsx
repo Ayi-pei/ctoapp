@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { useSimpleAuth } from "@/context/simple-custom-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,9 +23,6 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketSummary } from "@/types";
-
-// Disable SSR for this page to avoid context issues
-export const dynamic = "force-dynamic";
 
 const ProfileHeader = () => {
   const { user, updateUser } = useSimpleAuth();
@@ -242,9 +238,11 @@ const ActionItem = ({
   );
 };
 
-export default function ProfilePage() {
-  const { logout } = useSimpleAuth();
+export interface ProfilePageContentProps {
+  onLogout: () => void;
+}
 
+export function ProfilePageContent({ onLogout }: ProfilePageContentProps) {
   const menuItems = [
     { label: "交易订单", icon: FileText, href: "/profile/orders" },
     { label: "资产明细", icon: Landmark, href: "/profile/assets" },
@@ -255,34 +253,32 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     if (window.confirm("您确定要退出登录吗？")) {
-      logout();
+      onLogout();
     }
   };
 
   return (
-    <DashboardLayout>
-      <div className="h-full w-full profile-background">
-        <div className="p-4 space-y-4 h-full flex flex-col">
-          <div className="h-1/4 min-h-[150px]">
-            <ProfileHeader />
-          </div>
+    <div className="h-full w-full profile-background">
+      <div className="p-4 space-y-4 h-full flex flex-col">
+        <div className="h-1/4 min-h-[150px]">
+          <ProfileHeader />
+        </div>
 
-          <div className="space-y-2 flex-grow">
-            {menuItems.map((item) => (
-              <ListItem
-                key={item.label}
-                label={item.label}
-                icon={item.icon}
-                href={item.href}
-              />
-            ))}
-          </div>
+        <div className="space-y-2 flex-grow">
+          {menuItems.map((item) => (
+            <ListItem
+              key={item.label}
+              label={item.label}
+              icon={item.icon}
+              href={item.href}
+            />
+          ))}
+        </div>
 
-          <div className="pb-4">
-            <ActionItem label="退出登陆" icon={LogOut} action={handleLogout} />
-          </div>
+        <div className="pb-4">
+          <ActionItem label="退出登陆" icon={LogOut} action={handleLogout} />
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

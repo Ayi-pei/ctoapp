@@ -1,22 +1,41 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode, useCallback } from 'react';
-import { useSimpleAuth } from './simple-custom-auth';
-import { createAuthenticatedSupabaseClient, setCurrentUserContext } from '@/lib/supabase-auth-helper';
-import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
+import { useSimpleAuth } from "./simple-custom-auth";
+import {
+  createAuthenticatedSupabaseClient,
+  setCurrentUserContext,
+} from "@/lib/supabase-auth-helper";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 
 interface EnhancedSupabaseContextType {
-  authenticatedClient: ReturnType<typeof createAuthenticatedSupabaseClient> | null;
+  authenticatedClient: ReturnType<
+    typeof createAuthenticatedSupabaseClient
+  > | null;
   setUserContext: (userId: string | null) => Promise<void>;
   isEnabled: boolean;
 }
 
-const EnhancedSupabaseContext = createContext<EnhancedSupabaseContextType | undefined>(undefined);
+const EnhancedSupabaseContext = createContext<
+  EnhancedSupabaseContextType | undefined
+>(undefined);
 
-export function EnhancedSupabaseProvider({ children }: { children: ReactNode }) {
+export function EnhancedSupabaseProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const { user } = useSimpleAuth();
 
-  const authenticatedClient = user ? createAuthenticatedSupabaseClient(user.id) : null;
+  const authenticatedClient = user
+    ? createAuthenticatedSupabaseClient(user.id)
+    : null;
 
   const setUserContext = async (userId: string | null) => {
     await setCurrentUserContext(userId);
@@ -54,18 +73,27 @@ export function useAuthenticatedSupabase() {
   const { setUserContext } = useEnhancedSupabase();
 
   // Helper that ensures user context is set, then passes through the raw supabase client for full chaining
-  const withUserContext = useCallback(async (operation: (sb: typeof supabase) => Promise<any> | any): Promise<any> => {
-    if (user) {
-      await setUserContext(user.id);
-    }
-    return operation(supabase);
-  }, [user, setUserContext]);
+  const withUserContext = useCallback(
+    async (
+      operation: (sb: typeof supabase) => Promise<any> | any
+    ): Promise<any> => {
+      if (user) {
+        await setUserContext(user.id);
+      }
+      return operation(supabase);
+    },
+    [user, setUserContext]
+  );
 
-  return {
-    withContext: withUserContext,
-    rpc: async (functionName: string, params?: Record<string, any>) =>
-      withUserContext((sb) => sb.rpc(functionName, params)),
-    isEnabled: isSupabaseEnabled,
-    user,
-  };
+  // Use useMemo to stabilize the returned object and prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      withContext: withUserContext,
+      rpc: async (functionName: string, params?: Record<string, any>) =>
+        withUserContext((sb) => sb.rpc(functionName, params)),
+      isEnabled: isSupabaseEnabled,
+      user,
+    }),
+    [withUserContext, user]
+  );
 }

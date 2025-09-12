@@ -47,13 +47,13 @@ export default function RootLayout({
             <SimpleEnhancedLogsProvider>
               <EnhancedLogsProvider>
                 <OptionsProvider>
-                  <RequestsProvider>
-                    <SwapProvider>
-                      <EnhancedSupabaseProvider>
-                        <EnhancedSystemSettingsProvider>
-                          <InvestmentSettingsProvider>
-                            <EnhancedMarketDataProvider>
-                              <BalanceProvider>
+                  <EnhancedSupabaseProvider>
+                    <EnhancedSystemSettingsProvider>
+                      <InvestmentSettingsProvider>
+                        <EnhancedMarketDataProvider>
+                          <BalanceProvider>
+                            <SwapProvider>
+                              <RequestsProvider>
                                 <TasksProvider>
                                   <ActivitiesProvider>
                                     <AnnouncementsProvider>
@@ -62,13 +62,13 @@ export default function RootLayout({
                                     </AnnouncementsProvider>
                                   </ActivitiesProvider>
                                 </TasksProvider>
-                              </BalanceProvider>
-                            </EnhancedMarketDataProvider>
-                          </InvestmentSettingsProvider>
-                        </EnhancedSystemSettingsProvider>
-                      </EnhancedSupabaseProvider>
-                    </SwapProvider>
-                  </RequestsProvider>
+                              </RequestsProvider>
+                            </SwapProvider>
+                          </BalanceProvider>
+                        </EnhancedMarketDataProvider>
+                      </InvestmentSettingsProvider>
+                    </EnhancedSystemSettingsProvider>
+                  </EnhancedSupabaseProvider>
                 </OptionsProvider>
               </EnhancedLogsProvider>
             </SimpleEnhancedLogsProvider>

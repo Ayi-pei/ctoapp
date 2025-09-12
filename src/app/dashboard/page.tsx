@@ -38,7 +38,7 @@ import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketDataDebug } from "@/components/market-data-debug";
 
 // Disable SSR for this page to avoid context issues
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function DashboardPage() {
   const {
