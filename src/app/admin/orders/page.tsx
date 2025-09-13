@@ -81,7 +81,7 @@ const getOrderStatusText = (order: FormattedOrder): string => {
 };
 
 export default function AdminOrdersPage() {
-  const { isAdmin } = useSimpleAuth();
+  const { isAdmin, isAuthenticated, isLoading } = useSimpleAuth();
   const router = useRouter();
   const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
 
@@ -140,12 +140,16 @@ export default function AdminOrdersPage() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (isAdmin === false) {
-      router.push("/");
-    } else {
-      loadData();
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (!isAdmin) {
+        router.push("/dashboard");
+      } else {
+        loadData();
+      }
     }
-  }, [isAdmin, router, loadData]);
+  }, [isAdmin, isAuthenticated, isLoading, router, loadData]);
 
   const filteredOrders = useMemo(() => {
     return allOrders.filter((order) => {

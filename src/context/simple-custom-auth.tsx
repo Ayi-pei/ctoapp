@@ -1,10 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import type { User as UserType, SecureUser } from '@/types';
-import { supabase, isSupabaseEnabled } from '@/lib/supabaseClient';
-import { toast } from '@/hooks/use-toast';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import type { User as UserType, SecureUser } from "@/types";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
+import { toast } from "@/hooks/use-toast";
 
 export type User = UserType;
 
@@ -12,9 +18,16 @@ interface SimpleAuthContextType {
   isAuthenticated: boolean;
   user: SecureUser | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; isAdmin: boolean; error?: string }>;
+  login: (
+    username: string,
+    password: string
+  ) => Promise<{ success: boolean; isAdmin: boolean; error?: string }>;
   logout: () => void;
-  register: (username: string, password: string, invitationCode: string) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    username: string,
+    password: string,
+    invitationCode: string
+  ) => Promise<{ success: boolean; error?: string }>;
   isLoading: boolean;
   getUserById: (id: string) => Promise<User | null>;
   getAllUsers: () => Promise<User[]>;
@@ -22,10 +35,11 @@ interface SimpleAuthContextType {
   updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
 }
 
-const SimpleAuthContext = createContext<SimpleAuthContextType | undefined>(undefined);
+const SimpleAuthContext = createContext<SimpleAuthContextType | undefined>(
+  undefined
+);
 
 // 由服务端会话 Cookie 维护登录态，无需本地存储 token
-
 
 export function SimpleAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SecureUser | null>(null);
@@ -36,18 +50,28 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        console.log("SimpleAuthProvider: 开始初始化认证状态...");
         // 向后端请求当前登录用户
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const res = await fetch("/api/auth/me", { credentials: "include" });
         const json = await res.json();
+        console.log("SimpleAuthProvider: API响应", {
+          status: res.status,
+          authenticated: json.authenticated,
+          hasUser: !!json.user,
+        });
+
         if (res.ok && json.authenticated && json.user) {
+          console.log("SimpleAuthProvider: 用户已认证", json.user.username);
           setUser(json.user as SecureUser);
         } else {
+          console.log("SimpleAuthProvider: 用户未认证");
           setUser(null);
         }
       } catch (e) {
-        console.warn('auth/me failed:', e);
+        console.warn("SimpleAuthProvider: API调用失败:", e);
         setUser(null);
       } finally {
+        console.log("SimpleAuthProvider: 初始化完成");
         setIsLoading(false);
       }
     };
@@ -55,12 +79,15 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; isAdmin: boolean; error?: string }> => {
+  const login = async (
+    username: string,
+    password: string
+  ): Promise<{ success: boolean; isAdmin: boolean; error?: string }> => {
     try {
       // Delegate admin/secure checks to server API
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
       const json = await res.json();
@@ -71,97 +98,59 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
       }
 
       // 如果服务端校验失败，直接按失败处理（不在前端做密码校验）
-      return { success: false, isAdmin: false, error: json?.error || '用户名或密码错误' };
-
+      return {
+        success: false,
+        isAdmin: false,
+        error: json?.error || "用户名或密码错误",
+      };
     } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, isAdmin: false, error: '登录失败' };
+      console.error("Login error:", error);
+      return { success: false, isAdmin: false, error: "登录失败" };
     }
   };
 
-  const register = async (username: string, password: string, invitationCode: string): Promise<{ success: boolean; error?: string }> => {
+  const register = async (
+    username: string,
+    password: string,
+    invitationCode: string
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      // 1. 检查用户名
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', username)
-        .single();
+      // 通过 API 路由进行注册，确保与服务端认证系统一致
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, invitationCode }),
+      });
 
-      if (existing) {
-        return { success: false, error: '用户名已存在' };
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        return { success: true };
       }
 
-      // 2. 验证邀请码
-      const { data: inviter, error: inviterError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('invitation_code', invitationCode)
-        .single();
-
-      if (inviterError || !inviter) {
-        return { success: false, error: '邀请码无效' };
-      }
-
-      // 3. 创建用户
-      const userId = crypto.randomUUID();
-      const newInvitationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      const { error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          username: username,
-          nickname: username,
-          email: null,
-          inviter_id: inviter.id,
-          invitation_code: newInvitationCode,
-          password_hash: password, // 存储密码哈希
-          is_admin: false,
-          is_test_user: true,
-          credit_score: 95,
-          avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${username}`,
-        });
-
-      if (createError) {
-        console.error('User creation error:', createError);
-        return { success: false, error: '注册失败' };
-      }
-
-      // 4. 创建初始余额
-      const supportedAssets = ['USDT', 'BTC', 'ETH', 'USD', 'EUR', 'GBP'];
-      for (const asset of supportedAssets) {
-        await supabase
-          .from('balances')
-          .insert({
-            user_id: userId,
-            asset: asset,
-            available_balance: 0,
-            frozen_balance: 0,
-          });
-      }
-
-      return { success: true };
-
+      return { success: false, error: json?.error || "注册失败" };
     } catch (error) {
-      console.error('Registration error:', error);
-      return { success: false, error: '注册过程中发生错误' };
+      console.error("Registration error:", error);
+      return { success: false, error: "注册过程中发生错误" };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } catch {}
     setUser(null);
 
     toast({
-      title: '退出成功',
-      description: '您已安全退出登录，正在跳转到登录页面...',
+      title: "退出成功",
+      description: "您已安全退出登录，正在跳转到登录页面...",
     });
 
     setTimeout(() => {
-      router.push('/login');
+      router.push("/login");
     }, 800);
   };
 
@@ -171,12 +160,16 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getUserById = async (id: string): Promise<User | null> => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
     return error ? null : data;
   };
 
   const getAllUsers = async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('profiles').select('*');
+    const { data, error } = await supabase.from("profiles").select("*");
     return error ? [] : data;
   };
 
@@ -185,23 +178,52 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
       if (!isSupabaseEnabled) {
         // 开发环境回退：无 Supabase 时返回 mock 下级
         return [
-          { id: 'mock1', username: '下级一', nickname: '下级一', email: 'mock1@local', inviter_id: userId, is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'MOCK1', created_at: new Date().toISOString(), credit_score: 100 } as any,
-          { id: 'mock2', username: '下级二', nickname: '下级二', email: 'mock2@local', inviter_id: userId, is_admin: false, is_test_user: true, is_frozen: false, invitation_code: 'MOCK2', created_at: new Date().toISOString(), credit_score: 100 } as any,
+          {
+            id: "mock1",
+            username: "下级一",
+            nickname: "下级一",
+            email: "mock1@local",
+            inviter_id: userId,
+            is_admin: false,
+            is_test_user: true,
+            is_frozen: false,
+            invitation_code: "MOCK1",
+            created_at: new Date().toISOString(),
+            credit_score: 100,
+          } as any,
+          {
+            id: "mock2",
+            username: "下级二",
+            nickname: "下级二",
+            email: "mock2@local",
+            inviter_id: userId,
+            is_admin: false,
+            is_test_user: true,
+            is_frozen: false,
+            invitation_code: "MOCK2",
+            created_at: new Date().toISOString(),
+            credit_score: 100,
+          } as any,
         ];
       }
-      const { data, error } = await supabase.rpc('get_downline', { p_user_id: userId });
+      const { data, error } = await supabase.rpc("get_downline", {
+        p_user_id: userId,
+      });
       return error ? [] : data;
     } catch {
       return [];
     }
   };
 
-  const updateUser = async (userId: string, updates: Partial<User>): Promise<boolean> => {
+  const updateUser = async (
+    userId: string,
+    updates: Partial<User>
+  ): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update(updates)
-        .eq('id', userId);
+        .eq("id", userId);
 
       if (error) throw error;
 
@@ -244,7 +266,7 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
 export function useSimpleAuth() {
   const context = useContext(SimpleAuthContext);
   if (context === undefined) {
-    throw new Error('useSimpleAuth must be used within a SimpleAuthProvider');
+    throw new Error("useSimpleAuth must be used within a SimpleAuthProvider");
   }
   return context;
 }

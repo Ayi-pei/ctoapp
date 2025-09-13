@@ -42,7 +42,7 @@ const requestTypeColor: { [key: string]: string } = {
 };
 
 export default function AdminRequestsPage() {
-  const { isAdmin } = useSimpleAuth();
+  const { isAdmin, isAuthenticated, isLoading } = useSimpleAuth();
   const router = useRouter();
   const { toast } = useToast();
   const { requests, approveRequest, rejectRequest, updateRequest } =
@@ -54,10 +54,14 @@ export default function AdminRequestsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (isAdmin === false) {
-      router.push("/");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (!isAdmin) {
+        router.push("/dashboard");
+      }
     }
-  }, [isAdmin, router]);
+  }, [isAdmin, isAuthenticated, isLoading, router]);
 
   const handleRequestAction = async (
     request: AnyRequest,

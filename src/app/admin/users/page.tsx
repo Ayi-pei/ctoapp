@@ -32,7 +32,8 @@ import { UserDetailsDialog } from "@/components/admin/user-details-dialog";
 export const dynamic = "force-dynamic";
 
 export default function AdminUsersPage() {
-  const { user, isAdmin, getAllUsers } = useSimpleAuth();
+  const { user, isAdmin, getAllUsers, isAuthenticated, isLoading } =
+    useSimpleAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -49,12 +50,16 @@ export default function AdminUsersPage() {
   }, [isAdmin, getAllUsers]);
 
   useEffect(() => {
-    if (isAdmin === false) {
-      router.push("/");
-    } else if (isAdmin === true) {
-      loadData();
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.push("/login");
+      } else if (!isAdmin) {
+        router.push("/dashboard");
+      } else {
+        loadData();
+      }
     }
-  }, [isAdmin, router, loadData]);
+  }, [isAdmin, isAuthenticated, isLoading, router, loadData]);
 
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return users;

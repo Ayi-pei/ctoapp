@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { UnifiedAuthProvider } from "@/context/unified-auth-context";
 import { SimpleAuthProvider } from "@/context/simple-custom-auth";
 import { SimpleEnhancedLogsProvider } from "@/context/simple-enhanced-logs-context";
 import { EnhancedLogsProvider } from "@/context/enhanced-logs-context";
@@ -42,38 +41,36 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-sans antialiased text-foreground">
-        <UnifiedAuthProvider>
-          <SimpleAuthProvider>
-            <SimpleEnhancedLogsProvider>
-              <EnhancedLogsProvider>
-                <OptionsProvider>
-                  <EnhancedSupabaseProvider>
-                    <EnhancedSystemSettingsProvider>
-                      <InvestmentSettingsProvider>
-                        <EnhancedMarketDataProvider>
-                          <BalanceProvider>
-                            <SwapProvider>
-                              <RequestsProvider>
-                                <TasksProvider>
-                                  <ActivitiesProvider>
-                                    <AnnouncementsProvider>
-                                      {children}
-                                      <Toaster />
-                                    </AnnouncementsProvider>
-                                  </ActivitiesProvider>
-                                </TasksProvider>
-                              </RequestsProvider>
-                            </SwapProvider>
-                          </BalanceProvider>
-                        </EnhancedMarketDataProvider>
-                      </InvestmentSettingsProvider>
-                    </EnhancedSystemSettingsProvider>
-                  </EnhancedSupabaseProvider>
-                </OptionsProvider>
-              </EnhancedLogsProvider>
-            </SimpleEnhancedLogsProvider>
-          </SimpleAuthProvider>
-        </UnifiedAuthProvider>
+        <SimpleAuthProvider>
+          <SimpleEnhancedLogsProvider>
+            <EnhancedLogsProvider>
+              <OptionsProvider>
+                <EnhancedSupabaseProvider>
+                  <EnhancedSystemSettingsProvider>
+                    <InvestmentSettingsProvider>
+                      <EnhancedMarketDataProvider>
+                        <BalanceProvider>
+                          <SwapProvider>
+                            <RequestsProvider>
+                              <TasksProvider>
+                                <ActivitiesProvider>
+                                  <AnnouncementsProvider>
+                                    {children}
+                                    <Toaster />
+                                  </AnnouncementsProvider>
+                                </ActivitiesProvider>
+                              </TasksProvider>
+                            </RequestsProvider>
+                          </SwapProvider>
+                        </BalanceProvider>
+                      </EnhancedMarketDataProvider>
+                    </InvestmentSettingsProvider>
+                  </EnhancedSystemSettingsProvider>
+                </EnhancedSupabaseProvider>
+              </OptionsProvider>
+            </EnhancedLogsProvider>
+          </SimpleEnhancedLogsProvider>
+        </SimpleAuthProvider>
       </body>
     </html>
   );

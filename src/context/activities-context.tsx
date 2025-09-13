@@ -74,9 +74,9 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("activities")
         .select(
-          "id, title, description, rewardrule, howtoclaim, expiresat, status, imgsrc, createdat"
+          "id, title, description, rewardrule, howtoclaim, expiresat, status, imgsrc, created_at"
         )
-        .order("createdat", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error(
@@ -104,14 +104,14 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
             expiresat: activity.expiresAt,
             status: activity.status,
             imgsrc: activity.imgSrc,
-            createdat: new Date().toISOString(),
+            created_at: new Date().toISOString(),
           }));
 
           const { data: seededData, error: seedError } = await supabase
             .from("activities")
             .insert(activitiesForDb)
             .select(
-              "id, title, description, rewardrule, howtoclaim, expiresat, status, imgsrc, createdat"
+              "id, title, description, rewardrule, howtoclaim, expiresat, status, imgsrc, created_at"
             );
 
           if (seedError) {
@@ -136,7 +136,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
               expiresAt: activity.expiresat || new Date().toISOString(),
               status: activity.status || "draft",
               imgSrc: activity.imgsrc || "https://placehold.co/600x400.png",
-              createdAt: activity.createdat || new Date().toISOString(),
+              createdAt: activity.created_at || new Date().toISOString(),
             }));
             setActivities(mappedSeededData as LimitedTimeActivity[]);
           }
@@ -162,7 +162,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
           expiresAt: activity.expiresat || new Date().toISOString(),
           status: activity.status || "draft",
           imgSrc: activity.imgsrc || "https://placehold.co/600x400.png",
-          createdAt: activity.createdat || new Date().toISOString(),
+          createdAt: activity.created_at || new Date().toISOString(),
         }));
         setActivities(mappedData as LimitedTimeActivity[]);
       }
@@ -197,7 +197,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
       expiresat: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       status: "draft",
       imgsrc: "https://placehold.co/600x400.png",
-      createdat: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     const { error } = await supabase.from("activities").insert(newActivity);
@@ -238,7 +238,7 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.imgSrc !== undefined) dbUpdates.imgsrc = updates.imgSrc;
     if (updates.createdAt !== undefined)
-      dbUpdates.createdat = updates.createdAt;
+      dbUpdates.created_at = updates.createdAt;
 
     const { error } = await supabase
       .from("activities")
