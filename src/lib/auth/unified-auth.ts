@@ -52,12 +52,21 @@ export const signSession = (userId: string): string => {
 export const verifySession = (
   token?: string
 ): { valid: boolean; userId?: string } => {
-  if (!token) return { valid: false };
+  if (!token) {
+    console.log("verifySession: token 为空");
+    return { valid: false };
+  }
 
   try {
+    console.log("verifySession: 尝试验证 JWT token, 长度:", token.length);
     const decoded = jwt.verify(token, SESSION_SECRET) as { userId: string };
+    console.log("verifySession: JWT 验证成功, userId:", decoded.userId);
     return { valid: true, userId: decoded.userId };
-  } catch {
+  } catch (error) {
+    console.log(
+      "verifySession: JWT 验证失败:",
+      error instanceof Error ? error.message : error
+    );
     return { valid: false };
   }
 };
@@ -78,15 +87,29 @@ export const getCurrentSession = async (): Promise<{
     const cookieStore = await cookies();
     const token = cookieStore.get(sessionCookieName)?.value;
 
+    console.log("getCurrentSession: 检查会话", {
+      hasToken: !!token,
+      cookieName: sessionCookieName,
+      tokenLength: token?.length || 0,
+    });
+
     if (!token) {
+      console.log("getCurrentSession: 未找到会话token");
       return { valid: false, error: "No session token found" };
     }
 
     const sessionResult = verifySession(token);
+    console.log("getCurrentSession: 会话验证结果", {
+      valid: sessionResult.valid,
+      userId: sessionResult.userId,
+    });
+
     if (!sessionResult.valid) {
+      console.log("getCurrentSession: 会话token无效");
       return { valid: false, error: "Invalid session token" };
     }
 
+    console.log("getCurrentSession: 会话验证成功");
     return { valid: true, userId: sessionResult.userId };
   } catch (error) {
     console.error("getCurrentSession error:", error);
@@ -139,18 +162,37 @@ export class UnifiedAuth {
           const adminId = crypto.randomUUID();
           const passwordHash = await bcrypt.hash(password, 10);
 
-          await this.supabase.from("profiles").insert({
-            id: adminId,
+          console.log("adminLogin: 创建新管理员", {
+            adminId,
             username: ADMIN_NAME,
-            nickname: "Administrator",
-            email: `${ADMIN_NAME}@coinsr.app`,
-            password_hash: passwordHash,
-            invitation_code: ADMIN_AUTH,
-            is_admin: true,
-            is_test_user: false,
-            is_frozen: false,
-            credit_score: 999,
-            created_at: new Date().toISOString(),
+          });
+
+          const { data: newAdmin, error: insertError } = await this.supabase
+            .from("profiles")
+            .insert({
+              id: adminId,
+              username: ADMIN_NAME,
+              nickname: "Administrator",
+              email: `${ADMIN_NAME}@coinsr.app`,
+              password_hash: passwordHash,
+              invitation_code: ADMIN_AUTH,
+              is_admin: true,
+              is_test_user: false,
+              is_frozen: false,
+              credit_score: 999,
+              created_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("adminLogin: 插入管理员失败", insertError);
+            return { success: false, error: "Failed to create admin profile" };
+          }
+
+          console.log("adminLogin: 管理员创建成功", {
+            adminId,
+            insertSuccess: !!newAdmin,
           });
 
           const newUser: User = {
@@ -381,7 +423,13 @@ export class UnifiedAuth {
 
   // 获取用户信息
   async getUser(userId: string): Promise<User | null> {
+    console.log("getUser: 开始查找用户", {
+      userId,
+      hasSupabase: !!this.supabase,
+    });
+
     if (!this.supabase) {
+      console.log("getUser: 使用开发环境回退");
       // 开发环境回退
       return {
         id: userId,
@@ -399,6 +447,7 @@ export class UnifiedAuth {
     }
 
     try {
+      console.log("getUser: 查询 Supabase profiles 表");
       const { data: profile, error } = await this.supabase
         .from("profiles")
         .select(
@@ -407,11 +456,18 @@ export class UnifiedAuth {
         .eq("id", userId)
         .single();
 
+      console.log("getUser: Supabase 查询结果", {
+        hasProfile: !!profile,
+        error: error?.message,
+        userId,
+      });
+
       if (error || !profile) {
+        console.log("getUser: 用户未找到或查询错误");
         return null;
       }
 
-      return {
+      const user = {
         id: profile.id,
         username: profile.username,
         nickname: profile.nickname,
@@ -424,8 +480,14 @@ export class UnifiedAuth {
         created_at: profile.created_at,
         credit_score: profile.credit_score,
       };
+
+      console.log("getUser: 成功获取用户信息", {
+        username: user.username,
+        isAdmin: user.is_admin,
+      });
+      return user;
     } catch (error) {
-      console.error("Get user error:", error);
+      console.error("getUser: 查询异常:", error);
       return null;
     }
   }

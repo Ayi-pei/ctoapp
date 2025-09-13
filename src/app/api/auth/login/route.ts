@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import {
-  unifiedAuth,
+  simpleUnifiedAuth,
   signSession,
   getDefaultCookieOptions,
   sessionCookieName,
-} from "@/lib/auth/unified-auth";
+} from "@/lib/auth/simple-unified-auth";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     }
 
     // 首先尝试管理员登录
-    const adminResult = await unifiedAuth.adminLogin(username, password);
+    const adminResult = await simpleUnifiedAuth.adminLogin(username, password);
     if (adminResult.success && adminResult.user) {
       const token = signSession(adminResult.user.id);
       const response = NextResponse.json({
@@ -29,23 +29,14 @@ export async function POST(request: Request) {
       return response;
     }
 
-    // 尝试普通用户登录
-    const userResult = await unifiedAuth.userLogin(username, password);
-    if (userResult.success && userResult.user) {
-      const token = signSession(userResult.user.id);
-      const response = NextResponse.json({
-        success: true,
-        user: userResult.user,
-      });
-      response.cookies.set(sessionCookieName, token, getDefaultCookieOptions());
-      return response;
-    }
+    // TODO: 如果需要支持普通用户登录，可以在这里添加
+    // const userResult = await simpleUnifiedAuth.userLogin(username, password);
 
     // 登录失败
     return NextResponse.json(
       {
         success: false,
-        error: userResult.error || "Invalid username or password",
+        error: adminResult.error || "Invalid username or password",
       },
       { status: 401 }
     );

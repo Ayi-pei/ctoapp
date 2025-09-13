@@ -51,8 +51,22 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       try {
         console.log("SimpleAuthProvider: 开始初始化认证状态...");
+
+        // 添加超时控制，防止请求挂起
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+          console.warn("SimpleAuthProvider: API请求超时");
+        }, 10000); // 10秒超时
+
         // 向后端请求当前登录用户
-        const res = await fetch("/api/auth/me", { credentials: "include" });
+        const res = await fetch("/api/auth/me", {
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
         const json = await res.json();
         console.log("SimpleAuthProvider: API响应", {
           status: res.status,
@@ -68,7 +82,11 @@ export function SimpleAuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } catch (e) {
-        console.warn("SimpleAuthProvider: API调用失败:", e);
+        if (e instanceof Error && e.name === "AbortError") {
+          console.warn("SimpleAuthProvider: API请求被取消（超时）");
+        } else {
+          console.warn("SimpleAuthProvider: API调用失败:", e);
+        }
         setUser(null);
       } finally {
         console.log("SimpleAuthProvider: 初始化完成");

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getCurrentSession, unifiedAuth } from "@/lib/auth/unified-auth";
+import {
+  getCurrentSession,
+  simpleUnifiedAuth,
+} from "@/lib/auth/simple-unified-auth";
 
 export async function GET() {
   try {
@@ -34,7 +37,7 @@ export async function GET() {
       );
     }
 
-    const user = await unifiedAuth.getUser(session.userId);
+    const user = await simpleUnifiedAuth.getUser(session.userId);
     console.log("Auth check - user found:", !!user);
 
     if (!user) {
