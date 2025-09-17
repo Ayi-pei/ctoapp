@@ -258,7 +258,14 @@ export type RegisterUserResponse = {
 
 export type TaskStatus = "COMPLETED" | "ELIGIBLE" | "IN_PROGRESS" | "LOCKED";
 
-export type TaskTriggerType = "contract_trade" | "spot_trade" | "investment";
+export type TaskTriggerType =
+  | "daily_check_in"
+  | "market_prediction"
+  | "investment_create"
+  | "trade_complete"
+  | "contract_trade"
+  | "spot_trade"
+  | "investment";
 
 // Represents an incentive task for users
 export type IncentiveTask = {

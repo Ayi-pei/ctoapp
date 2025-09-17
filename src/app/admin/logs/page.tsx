@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useLogs } from "@/context/logs-context";
+import { useEnhancedLogs } from "@/context/enhanced-logs-context";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 export const dynamic = "force-dynamic";
 
 export default function AdminLogsPage() {
-  const { logs } = useLogs();
+  const { logs } = useEnhancedLogs();
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredLogs = logs.filter(

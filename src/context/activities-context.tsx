@@ -58,6 +58,11 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const { addLog } = useSimpleEnhancedLogs();
 
   const fetchActivities = useCallback(async () => {
+    console.log(
+      "fetchActivities called - isSupabaseEnabled:",
+      isSupabaseEnabled
+    );
+
     if (!isSupabaseEnabled) {
       console.warn("Supabase not enabled, using default activities.");
       // Use default activities when Supabase is not enabled
@@ -79,10 +84,13 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error(
-          "Error fetching activities:",
-          (error as any)?.message || error
-        );
+        console.error("Error fetching activities:", {
+          message: error.message || "Unknown error",
+          code: error.code || "NO_CODE",
+          details: error.details || "No details",
+          hint: error.hint || "No hint",
+          originalError: error,
+        });
         // Fallback to default activities on error
         const activitiesWithIds = defaultActivities.map((activity, index) => ({
           ...activity,
@@ -94,64 +102,21 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
       }
 
       if (!data || data.length === 0) {
-        try {
-          // Map default activities to database column names for seeding
-          const activitiesForDb = defaultActivities.map((activity) => ({
-            title: activity.title,
-            description: activity.description,
-            rewardrule: activity.rewardRule,
-            howtoclaim: activity.howToClaim,
-            expiresat: activity.expiresAt,
-            status: activity.status,
-            imgsrc: activity.imgSrc,
-            created_at: new Date().toISOString(),
-          }));
-
-          const { data: seededData, error: seedError } = await supabase
-            .from("activities")
-            .insert(activitiesForDb)
-            .select(
-              "id, title, description, rewardrule, howtoclaim, expiresat, status, imgsrc, created_at"
-            );
-
-          if (seedError) {
-            console.error("Error seeding activities:", seedError);
-            // Use default activities with mock IDs if seeding fails
-            const activitiesWithIds = defaultActivities.map(
-              (activity, index) => ({
-                ...activity,
-                id: `mock_${index}`,
-                createdAt: new Date().toISOString(),
-              })
-            );
-            setActivities(activitiesWithIds as LimitedTimeActivity[]);
-          } else {
-            // Map seeded data back to frontend format
-            const mappedSeededData = seededData.map((activity) => ({
-              id: activity.id?.toString() || "",
-              title: activity.title || "",
-              description: activity.description || "",
-              rewardRule: activity.rewardrule || "",
-              howToClaim: activity.howtoclaim || "",
-              expiresAt: activity.expiresat || new Date().toISOString(),
-              status: activity.status || "draft",
-              imgSrc: activity.imgsrc || "https://placehold.co/600x400.png",
-              createdAt: activity.created_at || new Date().toISOString(),
-            }));
-            setActivities(mappedSeededData as LimitedTimeActivity[]);
-          }
-        } catch (seedError) {
-          console.error("Error during activity seeding:", seedError);
-          const activitiesWithIds = defaultActivities.map(
-            (activity, index) => ({
-              ...activity,
-              id: `error_${index}`,
-              createdAt: new Date().toISOString(),
-            })
-          );
-          setActivities(activitiesWithIds as LimitedTimeActivity[]);
-        }
+        console.log(
+          "No activities found in database, using default activities as fallback"
+        );
+        // Use default activities when database is empty - no more complex seeding
+        const activitiesWithIds = defaultActivities.map((activity, index) => ({
+          ...activity,
+          id: `empty_fallback_${index}`,
+          createdAt: new Date().toISOString(),
+        }));
+        setActivities(activitiesWithIds as LimitedTimeActivity[]);
       } else {
+        console.log(
+          "Successfully fetched activities from database:",
+          data.length
+        );
         // Map database column names to frontend types
         const mappedData = data.map((activity) => ({
           id: activity.id?.toString() || "",
@@ -167,7 +132,12 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
         setActivities(mappedData as LimitedTimeActivity[]);
       }
     } catch (error) {
-      console.error("Unexpected error in fetchActivities:", error);
+      console.error("Unexpected error in fetchActivities:", {
+        message: error instanceof Error ? error.message : "Unknown error type",
+        errorType: typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
+        originalError: error,
+      });
       // Final fallback
       const activitiesWithIds = defaultActivities.map((activity, index) => ({
         ...activity,
@@ -201,8 +171,16 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
     };
 
     const { error } = await supabase.from("activities").insert(newActivity);
-    if (error) console.error("Error adding activity:", error);
-    else await fetchActivities();
+    if (error) {
+      console.error("Error adding activity:", {
+        message: error.message || "Unknown error",
+        code: error.code || "NO_CODE",
+        details: error.details || "No details",
+        originalError: error,
+      });
+    } else {
+      await fetchActivities();
+    }
   };
 
   const removeActivity = async (id: string) => {
@@ -211,8 +189,16 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
       return;
     }
     const { error } = await supabase.from("activities").delete().eq("id", id);
-    if (error) console.error("Error removing activity:", error);
-    else await fetchActivities();
+    if (error) {
+      console.error("Error removing activity:", {
+        message: error.message || "Unknown error",
+        code: error.code || "NO_CODE",
+        details: error.details || "No details",
+        originalError: error,
+      });
+    } else {
+      await fetchActivities();
+    }
   };
 
   const updateActivity = async (
@@ -244,8 +230,16 @@ export function ActivitiesProvider({ children }: { children: ReactNode }) {
       .from("activities")
       .update(dbUpdates)
       .eq("id", id);
-    if (error) console.error("Error updating activity:", error);
-    else await fetchActivities();
+    if (error) {
+      console.error("Error updating activity:", {
+        message: error.message || "Unknown error",
+        code: error.code || "NO_CODE",
+        details: error.details || "No details",
+        originalError: error,
+      });
+    } else {
+      await fetchActivities();
+    }
   };
 
   const participateInActivity = useCallback(

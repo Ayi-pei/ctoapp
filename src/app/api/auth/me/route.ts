@@ -60,6 +60,7 @@ export async function GET() {
         is_admin: user.is_admin,
         is_test_user: user.is_test_user,
         credit_score: user.credit_score,
+        invitation_code: user.invitation_code, // 添加邀请码字段
       },
     });
   } catch (error) {

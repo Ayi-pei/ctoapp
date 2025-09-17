@@ -119,7 +119,10 @@ BEGIN
             'daily_check_in',
             'market_prediction',
             'investment_create',
-            'trade_complete'
+            'trade_complete',
+            'contract_trade',
+            'spot_trade',
+            'investment'
         );
     END IF;
 END $$;
