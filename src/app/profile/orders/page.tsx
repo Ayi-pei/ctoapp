@@ -23,13 +23,13 @@ import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useBalance } from "@/context/balance-context";
 import { useRequests } from "@/context/requests-context";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 
 type OrderHistoryItem = SpotTrade | ContractTrade | Transaction;
 
 export default function ProfileOrdersPage() {
   const router = useRouter();
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { historicalTrades } = useBalance();
   const { requests } = useRequests();
 

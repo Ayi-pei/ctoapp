@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useSimpleAuth } from '@/context/simple-custom-auth';
+import { useAuth } from '@/context/unified-auth-context';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,7 +25,7 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isAdmin, isLoading } = useSimpleAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import {
   Table,
   TableBody,
@@ -42,7 +42,7 @@ const StatCard = ({
 );
 
 export default function PromotionPage() {
-  const { user, getDownline } = useSimpleAuth();
+  const { user, getDownline } = useAuth();
   const { rewardLogs } = useBalance();
   const { requests } = useRequests();
   const { toast } = useToast();

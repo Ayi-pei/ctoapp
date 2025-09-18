@@ -2,14 +2,14 @@
 
 // Disable SSR for this page to avoid context issues
 export const dynamic = "force-dynamic";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import AuthLayout from "@/components/auth-layout";
 import { LoaderCircle } from "lucide-react";
 
 export default function AdminPage() {
-  const { isAdmin, isLoading, isAuthenticated } = useSimpleAuth();
+  const { isAdmin, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

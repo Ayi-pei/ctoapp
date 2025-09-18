@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/card";
 import { ChevronLeft, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useAnnouncements } from "@/context/announcements-context";
 
 export default function AnnouncementsPage() {
   const router = useRouter();
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { announcements, platformAnnouncements } = useAnnouncements();
   const [userAnnouncements, setUserAnnouncements] = useState<
     Array<{

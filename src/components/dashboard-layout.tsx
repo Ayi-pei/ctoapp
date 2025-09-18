@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useSimpleAuth } from '@/context/simple-custom-auth';
+import { useAuth } from '@/context/unified-auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { BottomNav } from './bottom-nav';
@@ -15,7 +15,7 @@ type DashboardLayoutProps = {
 };
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading } = useSimpleAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 

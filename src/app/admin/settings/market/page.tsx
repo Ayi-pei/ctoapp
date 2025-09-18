@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import AuthLayout from "@/components/auth-layout";
 import { LoaderCircle } from "lucide-react";
 
@@ -13,7 +13,7 @@ import { LoaderCircle } from "lucide-react";
  * This page now acts as a redirector to the default market settings sub-page.
  */
 export default function AdminMarketRedirectPage() {
-  const { isAdmin, isLoading, isAuthenticated } = useSimpleAuth();
+  const { isAdmin, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

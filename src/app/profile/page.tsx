@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronRight,
@@ -29,7 +29,7 @@ import { MarketSummary } from "@/types";
 export const dynamic = "force-dynamic";
 
 const ProfileHeader = () => {
-  const { user, updateUser } = useSimpleAuth();
+  const { user, updateUser } = useAuth();
   const { balances } = useBalance();
   const { summaryData } = useEnhancedMarket(); // Get real-time market data
   const { toast } = useToast();
@@ -243,7 +243,7 @@ const ActionItem = ({
 };
 
 export default function ProfilePage() {
-  const { logout } = useSimpleAuth();
+  const { logout } = useAuth();
 
   const menuItems = [
     { label: "交易订单", icon: FileText, href: "/profile/orders" },

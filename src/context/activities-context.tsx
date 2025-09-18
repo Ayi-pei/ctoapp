@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import type { LimitedTimeActivity } from "@/types";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 
 const defaultActivities: Partial<LimitedTimeActivity>[] = [
@@ -54,7 +54,7 @@ const ActivitiesContext = createContext<ActivitiesContextType | undefined>(
 
 export function ActivitiesProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<LimitedTimeActivity[]>([]);
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { addLog } = useSimpleEnhancedLogs();
 
   const fetchActivities = useCallback(async () => {

@@ -9,7 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import type { AnyRequest, PasswordResetRequest, Transaction } from "@/types";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import { useBalance } from "./balance-context";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
 import {
@@ -53,7 +53,7 @@ const RequestsContext = createContext<RequestsContextType | undefined>(
 );
 
 export function RequestsProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useSimpleAuth();
+  const { user, updateUser } = useAuth();
   const { adjustBalance } = useBalance();
   const { addLog } = useSimpleEnhancedLogs();
   const [requests, setRequests] = useState<AnyRequest[]>([]);

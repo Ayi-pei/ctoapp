@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import AuthLayout from "@/components/auth-layout";
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  * For unauthenticated users, it provides a clear message before redirecting.
  */
 export default function Home() {
-  const { isAuthenticated, isLoading, isAdmin } = useSimpleAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

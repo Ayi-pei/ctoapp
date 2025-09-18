@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRouter } from "next/navigation";
 import type { AnyRequest, Transaction } from "@/types";
@@ -42,7 +42,7 @@ const requestTypeColor: { [key: string]: string } = {
 };
 
 export default function AdminRequestsPage() {
-  const { isAdmin, isAuthenticated, isLoading } = useSimpleAuth();
+  const { isAdmin, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const { requests, approveRequest, rejectRequest, updateRequest } =

@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useMemo } from "react";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRequests } from "@/context/requests-context";
 import DashboardLayout from "@/components/dashboard-layout";
 import {
@@ -59,7 +59,7 @@ const StatCard = ({
 );
 
 export default function AdminFinanceDashboardPage() {
-  const { getDownline, getAllUsers } = useSimpleAuth();
+  const { getDownline, getAllUsers } = useAuth();
   const authSb = useAuthenticatedSupabase();
   const { requests } = useRequests();
 

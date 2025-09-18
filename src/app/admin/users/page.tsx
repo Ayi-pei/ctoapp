@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import type { User } from "@/types";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 
 export default function AdminUsersPage() {
   const { user, isAdmin, getAllUsers, isAuthenticated, isLoading } =
-    useSimpleAuth();
+    useAuth();
   const router = useRouter();
   const { toast } = useToast();
 

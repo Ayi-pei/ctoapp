@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronRight,
@@ -25,7 +25,7 @@ import { useEnhancedMarket } from "@/context/enhanced-market-data-context";
 import { MarketSummary } from "@/types";
 
 const ProfileHeader = () => {
-  const { user, updateUser } = useSimpleAuth();
+  const { user, updateUser } = useAuth();
   const { balances } = useBalance();
   const { summaryData } = useEnhancedMarket(); // Get real-time market data
   const { toast } = useToast();

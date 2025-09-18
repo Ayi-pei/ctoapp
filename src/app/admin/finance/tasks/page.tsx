@@ -9,7 +9,7 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -225,7 +225,7 @@ const TaskEditorCard = ({
 export const dynamic = "force-dynamic";
 
 export default function AdminFinanceTasksPage() {
-  const { isAdmin, isLoading, isAuthenticated } = useSimpleAuth();
+  const { isAdmin, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 

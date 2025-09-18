@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { SimpleAuthProvider } from "@/context/simple-custom-auth";
+import { UnifiedAuthProvider } from "@/context/unified-auth-context";
 import { SimpleEnhancedLogsProvider } from "@/context/simple-enhanced-logs-context";
 import { EnhancedLogsProvider } from "@/context/enhanced-logs-context";
 import { OptionsProvider } from "@/context/options-context";
@@ -41,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
       <body className="font-sans antialiased text-foreground">
-        <SimpleAuthProvider>
+        <UnifiedAuthProvider>
           <SimpleEnhancedLogsProvider>
             <EnhancedLogsProvider>
               <OptionsProvider>
@@ -70,7 +70,7 @@ export default function RootLayout({
               </OptionsProvider>
             </EnhancedLogsProvider>
           </SimpleEnhancedLogsProvider>
-        </SimpleAuthProvider>
+        </UnifiedAuthProvider>
       </body>
     </html>
   );

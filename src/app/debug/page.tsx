@@ -1,11 +1,11 @@
 "use client";
 
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function DebugPage() {
-  const { isAuthenticated, isLoading, isAdmin, user } = useSimpleAuth();
+  const { isAuthenticated, isLoading, isAdmin, user } = useAuth();
   const router = useRouter();
   const [apiStatus, setApiStatus] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);

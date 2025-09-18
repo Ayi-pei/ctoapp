@@ -7,7 +7,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import {
   createAuthenticatedSupabaseClient,
   setCurrentUserContext,
@@ -31,7 +31,7 @@ export function EnhancedSupabaseProvider({
 }: {
   children: ReactNode;
 }) {
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
 
   const authenticatedClient = user
     ? createAuthenticatedSupabaseClient(user.id)
@@ -69,7 +69,7 @@ export function useEnhancedSupabase() {
 
 // Custom hook for Supabase operations with automatic user context setting
 export function useAuthenticatedSupabase() {
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { setUserContext } = useEnhancedSupabase();
 
   // Helper that ensures user context is set, then passes through the raw supabase client for full chaining

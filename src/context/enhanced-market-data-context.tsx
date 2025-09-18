@@ -24,7 +24,6 @@ import {
 
 const CRYPTO_PAIRS = allAvailablePairs.filter(
   (p) =>
-    !p.includes("-PERP") &&
     !["XAU/USD", "EUR/USD", "GBP/USD", "IBM", "AAPL", "TSLA", "MSFT"].includes(
       p
     )
@@ -269,10 +268,14 @@ const generateKlineBatch = (
 
 // 生成所有交易对的初始数据
 const generateInitialSummaryData = (): MarketSummary[] => {
+  // 添加期货交易对到ALL_PAIRS
+  const FUTURES_PAIRS = ["BTC/USD-PERP", "ETH/USD-PERP"];
+
   const ALL_PAIRS = [
     ...CRYPTO_PAIRS,
     ...FOREX_COMMODITY_PAIRS,
     ...OPTIONS_SYMBOLS,
+    ...FUTURES_PAIRS,
   ];
 
   // 为加密货币交易对使用更可靠的图标源
@@ -296,8 +299,7 @@ const generateInitialSummaryData = (): MarketSummary[] => {
       "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/doge.png",
     "ADA/USDT":
       "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/ada.png",
-    "SHIB/USDT":
-      "https://placehold.co/32x32.png", // SHIB图标URL返回404，使用占位符图标
+    "SHIB/USDT": "https://placehold.co/32x32.png", // SHIB图标URL返回404，使用占位符图标
     "AVAX/USDT":
       "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/avax.png",
     "LINK/USDT":
@@ -318,6 +320,11 @@ const generateInitialSummaryData = (): MarketSummary[] => {
       "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/fil.png",
     "ICP/USDT":
       "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/icp.png",
+    // 添加期货交易对图标
+    "BTC/USD-PERP":
+      "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/btc.png",
+    "ETH/USD-PERP":
+      "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/eth.png",
     "XAU/USD": "https://placehold.co/32x32.png",
     "EUR/USD": "https://placehold.co/32x32.png",
     "GBP/USD": "https://placehold.co/32x32.png",
@@ -340,6 +347,9 @@ const generateInitialSummaryData = (): MarketSummary[] => {
         if (pair === "TSLA") return generateRandomPrice(400, 500);
         if (pair === "MSFT") return generateRandomPrice(400, 450);
       }
+      // 期货交易对价格设置
+      if (pair === "BTC/USD-PERP") return INITIAL_BTC_PRICE;
+      if (pair === "ETH/USD-PERP") return INITIAL_ETH_PRICE;
       return generateRandomPrice(1000, 10000);
     };
 
@@ -368,7 +378,8 @@ export function EnhancedMarketDataProvider({
 }: {
   children: ReactNode;
 }) {
-  const { systemSettings } = useEnhancedSystemSettings();
+  const { systemSettings, isInterventionActiveNow } =
+    useEnhancedSystemSettings(); // 添加 isInterventionActiveNow
   const [tradingPair, setTradingPair] = useState(initialTradingPair);
 
   const [baseApiData, setBaseApiData] = useState<Record<string, MarketSummary>>(
@@ -647,8 +658,9 @@ export function EnhancedMarketDataProvider({
           const originalPrice = newPrice;
 
           // 检查是否有活跃的干预
+          // 使用系统设置上下文中的增强时间逻辑验证函数
           const activeIntervention = systemSettings.marketInterventions.find(
-            (i) => i.tradingPair === pair && isInterventionActive(i, now)
+            (i) => i.tradingPair === pair && isInterventionActiveNow(i)
           );
 
           if (activeIntervention) {
@@ -763,6 +775,7 @@ export function EnhancedMarketDataProvider({
     isInitialLoadComplete,
     priceTransitions,
     logIntervention,
+    isInterventionActiveNow, // 添加这个依赖
   ]);
 
   const contextValue: MarketContextType = {

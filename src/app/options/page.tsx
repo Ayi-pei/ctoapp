@@ -35,6 +35,7 @@ import {
   ArrowDownRight,
   TrendingUp,
   HelpCircle,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -42,6 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const OptionsTable = ({
   contracts,
@@ -146,6 +148,7 @@ export default function OptionsPage() {
     selectedSymbol,
     changeSymbol,
     availableSymbols,
+    error,
   } = useOptions();
   const [selectedExpiration, setSelectedExpiration] = useState<
     string | undefined
@@ -223,6 +226,14 @@ export default function OptionsPage() {
             </TooltipProvider>
           </div>
         </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>数据加载错误</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {isLoading && !currentChain ? (
           <OptionsChainSkeleton />

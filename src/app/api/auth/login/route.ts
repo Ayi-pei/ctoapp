@@ -29,14 +29,37 @@ export async function POST(request: Request) {
       return response;
     }
 
-    // TODO: 如果需要支持普通用户登录，可以在这里添加
-    // const userResult = await simpleUnifiedAuth.userLogin(username, password);
+    // 对于普通用户登录，我们暂时使用简单的验证
+    // 在实际应用中，这里应该查询数据库验证用户
+    if (username === "testuser1" && password === "testpassword1") {
+      const user = {
+        id: username,
+        username: username,
+        nickname: "Test User",
+        email: `${username}@coinsr.app`,
+        inviter_id: "admin_local_fixed",
+        is_admin: false,
+        is_test_user: true,
+        is_frozen: false,
+        invitation_code: "TEST01",
+        created_at: new Date().toISOString(),
+        credit_score: 100,
+      };
+
+      const token = signSession(user.id);
+      const response = NextResponse.json({
+        success: true,
+        user: user,
+      });
+      response.cookies.set(sessionCookieName, token, getDefaultCookieOptions());
+      return response;
+    }
 
     // 登录失败
     return NextResponse.json(
       {
         success: false,
-        error: adminResult.error || "Invalid username or password",
+        error: "Invalid username or password",
       },
       { status: 401 }
     );

@@ -36,9 +36,9 @@ ALTER TABLE public.investment_products ENABLE ROW LEVEL SECURITY;
 
 -- Step 5: Define RLS policies.
 CREATE POLICY "Allow admin full access on settings" ON public.investment_settings FOR ALL USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
-CREATE POLICY "Allow authenticated read on settings" ON public.investment_settings FOR SELECT TO authenticated USING (is_active = true);
+CREATE POLICY "Allow authenticated read on settings" ON public.investment_settings FOR SELECT USING (is_active = true) TO authenticated;
 CREATE POLICY "Allow admin full access on products" ON public.investment_products FOR ALL USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
-CREATE POLICY "Allow authenticated read on active products" ON public.investment_products FOR SELECT TO authenticated USING (is_active = true);
+CREATE POLICY "Allow authenticated read on active products" ON public.investment_products FOR SELECT USING (is_active = true) TO authenticated;
 
 -- Step 6: Seed initial data.
 INSERT INTO public.investment_settings (min_investment_amount, max_investment_amount) VALUES (100.00, 50000.00);

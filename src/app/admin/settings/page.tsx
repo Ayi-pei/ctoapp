@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import { useRouter } from "next/navigation";
 import AuthLayout from "@/components/auth-layout";
 import { LoaderCircle } from "lucide-react";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * This page now acts as a redirector to the default settings sub-page.
  */
 export default function AdminSettingsRedirectPage() {
-  const { isAdmin, isLoading, isAuthenticated } = useSimpleAuth();
+  const { isAdmin, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

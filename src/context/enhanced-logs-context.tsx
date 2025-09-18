@@ -9,7 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import type { ActionLog, AnyRequest, User } from "@/types";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 
 const LOGS_STORAGE_KEY = "tradeflow_action_logs_v3";
 const AUDIT_LOGS_STORAGE_KEY = "tradeflow_audit_logs_v1";
@@ -132,7 +132,7 @@ const EnhancedLogsContext = createContext<EnhancedLogsContextType | undefined>(
 );
 
 export function EnhancedLogsProvider({ children }: { children: ReactNode }) {
-  const { user: adminUser } = useSimpleAuth();
+  const { user: adminUser } = useAuth();
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [interventionLogs, setInterventionLogs] = useState<

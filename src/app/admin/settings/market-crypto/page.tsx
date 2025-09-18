@@ -40,6 +40,8 @@ const InterventionCard = ({
   index,
   updateIntervention,
   removeIntervention,
+  activateIntervention,
+  deactivateIntervention,
 }: {
   intervention: EnhancedMarketIntervention;
   index: number;
@@ -48,19 +50,36 @@ const InterventionCard = ({
     updates: Partial<EnhancedMarketIntervention>
   ) => void;
   removeIntervention: (id: string) => void;
+  activateIntervention: (id: string) => void;
+  deactivateIntervention: (id: string) => void;
 }) => {
   return (
     <Card className="p-4 bg-muted/30">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-lg">干预指令 {index + 1}</h3>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={() => removeIntervention(intervention.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={intervention.isActive}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                activateIntervention(intervention.id);
+              } else {
+                deactivateIntervention(intervention.id);
+              }
+            }}
+          />
+          <span className="text-sm">
+            {intervention.isActive ? "启用" : "禁用"}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={() => removeIntervention(intervention.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -130,7 +149,8 @@ const InterventionCard = ({
           <Input
             id={`intervention-min-${intervention.id}`}
             type="number"
-            value={intervention.minPrice}
+            step="0.01"
+            value={intervention.minPrice.toFixed(2)}
             onChange={(e) =>
               updateIntervention(intervention.id, {
                 minPrice: parseFloat(e.target.value) || 0,
@@ -143,7 +163,8 @@ const InterventionCard = ({
           <Input
             id={`intervention-max-${intervention.id}`}
             type="number"
-            value={intervention.maxPrice}
+            step="0.01"
+            value={intervention.maxPrice.toFixed(2)}
             onChange={(e) =>
               updateIntervention(intervention.id, {
                 maxPrice: parseFloat(e.target.value) || 0,
@@ -163,6 +184,8 @@ export default function AdminCryptoMarketSettingsPage() {
     addMarketIntervention,
     removeMarketIntervention,
     updateMarketIntervention,
+    activateIntervention,
+    deactivateIntervention,
   } = useEnhancedSystemSettings();
   const { toast } = useToast();
 
@@ -170,6 +193,13 @@ export default function AdminCryptoMarketSettingsPage() {
     toast({
       title: "设置已保存",
       description: "市场设置已自动更新。",
+    });
+  };
+
+  const handleAddIntervention = () => {
+    // 创建加密货币类型的干预规则，默认交易对为BTC/USDT
+    addMarketIntervention({
+      tradingPair: "BTC/USDT",
     });
   };
 
@@ -224,11 +254,13 @@ export default function AdminCryptoMarketSettingsPage() {
                 index={index}
                 updateIntervention={updateMarketIntervention}
                 removeIntervention={removeMarketIntervention}
+                activateIntervention={activateIntervention}
+                deactivateIntervention={deactivateIntervention}
               />
             ))}
             <Button
               variant="outline"
-              onClick={() => addMarketIntervention()}
+              onClick={handleAddIntervention}
               disabled={systemSettings.marketInterventions.length >= 5}
             >
               <PlusCircle className="mr-2 h-4 w-4" />

@@ -9,16 +9,20 @@ import React, {
   useCallback,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { User } from "@/types";
+import type { User as UserType, SecureUser } from "@/types";
+import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
+import { toast } from "@/hooks/use-toast";
+
+export type User = UserType;
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null;
+  user: SecureUser | null;
   isAdmin: boolean;
   login: (
     username: string,
     password: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; isAdmin: boolean; error?: string }>;
   logout: () => void;
   register: (
     username: string,
@@ -35,12 +39,15 @@ interface AuthContextType {
   updateUser: (userId: string, updates: Partial<User>) => Promise<boolean>;
   isLoading: boolean;
   checkAuth: () => Promise<void>;
+  getUserById: (id: string) => Promise<User | null>;
+  getAllUsers: () => Promise<User[]>;
+  getDownline: (userId: string) => Promise<User[]>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SecureUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -55,7 +62,7 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         if (data.authenticated && data.user) {
-          setUser(data.user);
+          setUser(data.user as SecureUser);
         } else {
           setUser(null);
         }
@@ -85,14 +92,18 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (data.success && data.user) {
-        setUser(data.user);
-        return { success: true };
+        setUser(data.user as SecureUser);
+        return { success: true, isAdmin: !!data.user.is_admin };
       } else {
-        return { success: false, error: data.error || "Login failed" };
+        return {
+          success: false,
+          isAdmin: false,
+          error: data.error || "Login failed",
+        };
       }
     } catch (error) {
       console.error("Login error:", error);
-      return { success: false, error: "Network error" };
+      return { success: false, isAdmin: false, error: "Network error" };
     }
   }, []);
 
@@ -114,7 +125,7 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
         if (data.success) {
           // 注册成功后自动登录
           if (data.user) {
-            setUser(data.user);
+            setUser(data.user as SecureUser);
           }
           return { success: true };
         } else {
@@ -139,7 +150,15 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout error:", error);
     } finally {
       setUser(null);
-      router.push("/login");
+
+      toast({
+        title: "退出成功",
+        description: "您已安全退出登录，正在跳转到登录页面...",
+      });
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 800);
     }
   }, [router]);
 
@@ -159,7 +178,7 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json();
 
         if (data.success && data.user) {
-          setUser(data.user);
+          setUser(data.user as SecureUser);
           return true;
         }
         return false;
@@ -170,6 +189,70 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const getUserById = async (id: string): Promise<User | null> => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
+    return error ? null : data;
+  };
+
+  const getAllUsers = async (): Promise<User[]> => {
+    const { data, error } = await supabase.from("profiles").select("*");
+    return error ? [] : data;
+  };
+
+  const getDownline = async (userId: string): Promise<User[]> => {
+    try {
+      if (!isSupabaseEnabled) {
+        // 开发环境回退：无 Supabase 时返回 mock 下级
+        return [
+          {
+            id: "mock1",
+            username: "下级一",
+            nickname: "下级一",
+            email: "mock1@local",
+            inviter_id: userId,
+            is_admin: false,
+            is_test_user: true,
+            is_frozen: false,
+            invitation_code: "MOCK1",
+            created_at: new Date().toISOString(),
+            credit_score: 100,
+          },
+          {
+            id: "mock2",
+            username: "下级二",
+            nickname: "下级二",
+            email: "mock2@local",
+            inviter_id: userId,
+            is_admin: false,
+            is_test_user: true,
+            is_frozen: false,
+            invitation_code: "MOCK2",
+            created_at: new Date().toISOString(),
+            credit_score: 100,
+          },
+        ];
+      }
+
+      const { data, error } = await supabase.rpc("get_user_downline", {
+        user_id: userId,
+      });
+
+      if (error) {
+        console.error("Error fetching downline:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Error in getDownline:", error);
+      return [];
+    }
+  };
 
   // 初始化检查认证状态
   useEffect(() => {
@@ -186,6 +269,9 @@ export function UnifiedAuthProvider({ children }: { children: ReactNode }) {
     updateUser,
     isLoading,
     checkAuth,
+    getUserById,
+    getAllUsers,
+    getDownline,
   };
 
   return (

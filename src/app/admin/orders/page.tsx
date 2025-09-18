@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSimpleAuth } from "@/context/simple-custom-auth";
+import { useAuth } from "@/context/unified-auth-context";
 import DashboardLayout from "@/components/dashboard-layout";
 import { useRouter } from "next/navigation";
 import { SpotTrade, ContractTrade, Investment, SwapOrder } from "@/types";
@@ -81,7 +81,7 @@ const getOrderStatusText = (order: FormattedOrder): string => {
 };
 
 export default function AdminOrdersPage() {
-  const { isAdmin, isAuthenticated, isLoading } = useSimpleAuth();
+  const { isAdmin, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [allOrders, setAllOrders] = useState<FormattedOrder[]>([]);
 

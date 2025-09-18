@@ -4,7 +4,7 @@
 -- Step 1: Create the `daily_check_ins` table to store check-in records.
 CREATE TABLE IF NOT EXISTS public.daily_check_ins (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     checked_in_at TIMESTAMPTZ NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     streak_day INT NOT NULL CHECK (streak_day > 0),
     reward_awarded NUMERIC(10, 4) NOT NULL

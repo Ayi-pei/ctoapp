@@ -8,7 +8,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import { useBalance } from "./balance-context";
 import { useToast } from "@/hooks/use-toast";
 import type { SwapOrder } from "@/types";
@@ -46,7 +46,7 @@ interface SwapContextType {
 const SwapContext = createContext<SwapContextType | undefined>(undefined);
 
 export function SwapProvider({ children }: { children: ReactNode }) {
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const authSb = useAuthenticatedSupabase();
   const { balances, adjustBalance } = useBalance();
   const { toast } = useToast();

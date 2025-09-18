@@ -9,7 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import type { ActionLog, User } from "@/types";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import { supabase, isSupabaseEnabled } from "@/lib/supabaseClient";
 import { useAuthenticatedSupabase } from "@/context/enhanced-supabase-context";
 
@@ -39,7 +39,7 @@ interface LogsContextType {
 const LogsContext = createContext<LogsContextType | undefined>(undefined);
 
 export function LogsProvider({ children }: { children: ReactNode }) {
-  const { user: adminUser } = useSimpleAuth();
+  const { user: adminUser } = useAuth();
   const authSb = useAuthenticatedSupabase();
   const [logs, setLogs] = useState<ActionLog[]>([]);
 

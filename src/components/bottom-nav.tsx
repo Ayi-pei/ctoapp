@@ -4,13 +4,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useSimpleAuth } from '@/context/simple-custom-auth';
+import { useAuth } from '@/context/unified-auth-context';
 import { adminNavItems, userNavItems } from '@/lib/nav-config';
 
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { isAdmin } = useSimpleAuth();
+  const { isAdmin } = useAuth();
 
   const navItems = isAdmin && pathname.startsWith('/admin') ? adminNavItems : userNavItems;
   

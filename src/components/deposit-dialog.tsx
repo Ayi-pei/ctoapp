@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Send, AlertTriangle } from "lucide-react";
-import { useSimpleAuth } from '@/context/simple-custom-auth';
+import { useAuth } from '@/context/unified-auth-context';
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useEnhancedSystemSettings } from "@/context/enhanced-system-settings-context";
@@ -30,7 +30,7 @@ const supportedAssets: (keyof ReturnType<typeof useEnhancedSystemSettings>['syst
 
 export function DepositDialog({ isOpen, onOpenChange }: DepositDialogProps) {
     const { toast } = useToast();
-    const { user } = useSimpleAuth();
+    const { user } = useAuth();
     const { addDepositRequest } = useRequests();
     const { systemSettings } = useEnhancedSystemSettings();
     const { fetchTaskStates } = useTasks(); // Get fetchTaskStates from context

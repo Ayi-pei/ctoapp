@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Repeat, Archive, LoaderCircle } from "lucide-react";
 import { useBalance } from "@/context/balance-context";
-import { useSimpleAuth } from '@/context/simple-custom-auth';
+import { useAuth } from '@/context/unified-auth-context';
 import { availablePairs } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,7 @@ const allAssets = [...new Set(availablePairs.flatMap(p => p.split('/')))];
 
 
 const DownlineTree = ({ userId }: { userId: string; }) => {
-    const { getDownline } = useSimpleAuth();
+    const { getDownline } = useAuth();
     const [downline, setDownline] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -97,7 +97,7 @@ const DownlineTree = ({ userId }: { userId: string; }) => {
 
 
 export function UserDetailsDialog({ user, isOpen, onOpenChange, onUserUpdate }: UserDetailsDialogProps) {
-    const { updateUser, getUserById } = useSimpleAuth();
+    const { updateUser, getUserById } = useAuth();
     const { adjustBalance } = useBalance();
     const { addAnnouncement } = useAnnouncements();
     const { addLog } = useSimpleEnhancedLogs();

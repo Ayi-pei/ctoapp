@@ -17,7 +17,7 @@ import {
   InvestmentTier,
   SecureUser,
 } from "@/types";
-import { useSimpleAuth } from "./simple-custom-auth";
+import { useAuth } from "./unified-auth-context";
 import { useEnhancedMarket } from "./enhanced-market-data-context";
 import { useToast } from "@/hooks/use-toast";
 import { useSimpleEnhancedLogs } from "./simple-enhanced-logs-context";
@@ -97,7 +97,7 @@ interface BalanceContextType {
 const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 
 export function BalanceProvider({ children }: { children: ReactNode }) {
-  const { user, updateUser } = useSimpleAuth();
+  const { user, updateUser } = useAuth();
   const authSb = useAuthenticatedSupabase();
   const { getLatestPrice } = useEnhancedMarket();
   const { toast } = useToast();
@@ -240,27 +240,40 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const fetchUserCheckInStatus = useCallback(
     async (userId: string) => {
       if (!isSupabaseEnabled) return;
+
+      // 从 daily_check_ins 表中获取用户最新的签到记录
       const { data, error } = await (authSb?.withContext
         ? authSb.withContext((sb) =>
             sb
-              .from("profiles")
-              .select("last_check_in_date, consecutive_check_ins")
-              .eq("id", userId)
+              .from("daily_check_ins")
+              .select("checked_in_at, streak_day")
+              .eq("user_id", userId)
+              .order("checked_in_at", { ascending: false })
+              .limit(1)
               .single()
           )
         : supabase
-            .from("profiles")
-            .select("last_check_in_date, consecutive_check_ins")
-            .eq("id", userId)
+            .from("daily_check_ins")
+            .select("checked_in_at, streak_day")
+            .eq("user_id", userId)
+            .order("checked_in_at", { ascending: false })
+            .limit(1)
             .single());
-      if (error) {
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 是 "Results contain 0 rows" 错误
         console.error(
-          "Error fetching user profile for check-in:",
+          "Error fetching user check-in status:",
           (error as any)?.message || error
         );
       } else if (data) {
-        setLastCheckInDate(data.last_check_in_date);
-        setConsecutiveCheckIns(data.consecutive_check_ins || 0);
+        // 设置最后签到日期和连续签到天数
+        setLastCheckInDate(data.checked_in_at.split("T")[0]); // 只保留日期部分
+        setConsecutiveCheckIns(data.streak_day);
+      } else {
+        // 如果没有签到记录，重置状态
+        setLastCheckInDate(undefined);
+        setConsecutiveCheckIns(0);
       }
     },
     [authSb]
